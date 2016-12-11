@@ -6,7 +6,7 @@ import (
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"github.com/drausin/libri/pkg/api"
+	"github.com/drausin/libri/librarian/api"
 )
 
 const (
