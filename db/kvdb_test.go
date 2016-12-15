@@ -16,7 +16,7 @@ func TestRocksDB_NewRocksDB(t *testing.T) {
 	dir, err := ioutil.TempDir("", rocksDBName)
 	assert.Nil(t, err)
 	db, err := NewRocksDB(dir)
-	defer db.rdb.Close()
+	defer db.Close()
 
 	assert.Nil(t, err)
 	assert.NotNil(t, db.wo)
@@ -29,7 +29,7 @@ func TestRocksDB_PutGet(t *testing.T) {
 	dir, err := ioutil.TempDir("", rocksDBName)
 	assert.Nil(t, err)
 	db, err := NewRocksDB(dir)
-	defer db.rdb.Close()
+	defer db.Close()
 	key, value1 := []byte("key"), []byte("value1")
 
 	assert.Nil(t, db.Put(key, value1))

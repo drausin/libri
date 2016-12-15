@@ -3,38 +3,70 @@ package server
 import (
 	"crypto/rand"
 
+	"github.com/drausin/libri/db"
 	"github.com/drausin/libri/librarian/api"
 	"golang.org/x/net/context"
+	"os"
+)
+
+const (
+	NodeIDLength = 32
+)
+
+var (
+	NodeIDKey = []byte("NodeID")
 )
 
 type librarian struct {
-	// Config holds the configuration parameters of the server
-	ServerConfig *Config
-
 	// NodeID is the random 256-bit identification number of this node in the hash table
 	NodeID []byte
+
+	// Config holds the configuration parameters of the server
+	Config *Config
+
+	// DB is the key-value store DB used for all external storage
+	DB     db.KVDB
 }
 
-func NewLibrarian() (*librarian, error) {
-	nodeID, err := generateNodeID()
+// NewLibrarian creates a new librarian instance.
+func NewLibrarian(config *Config) (*librarian, error) {
+	rdb, err := db.NewRocksDB(config.DbDir)
 	if err != nil {
 		return nil, err
+	}
+
+	nodeID, err := rdb.Get(NodeIDKey)
+	if err != nil {
+		return nil, err
+	}
+	if nodeID == nil {
+		nodeID, err = generateNodeID()
+		if err != nil {
+			return nil, err
+		}
+		if rdb.Put(NodeIDKey, nodeID) != nil {
+			return nil, err
+		}
 	}
 
 	return &librarian{
-		ServerConfig: DefaultConfig(),
-		NodeID:       nodeID,
+		NodeID: nodeID,
+		Config: config,
+		DB:     rdb,
 	}, nil
 }
 
-// Generate a 256-bit random node ID
-func generateNodeID() ([]byte, error) {
-	nodeID := make([]byte, 32)
-	_, err := rand.Read(nodeID)
-	if err != nil {
-		return nil, err
-	}
-	return nodeID, nil
+// Close handles cleanup involved in closing down the server.
+func (l *librarian) Close() error {
+	l.DB.Close()
+	return nil
+}
+
+// CloseAndRemove cleans up and removes any local state from the server.
+func (l *librarian) CloseAndRemove() error {
+	l.Close()
+	os.RemoveAll(l.Config.DataDir)
+	return nil
 }
 
 func (l *librarian) Ping(ctx context.Context, rq *api.PingRequest) (*api.PingResponse, error) {
@@ -43,7 +75,17 @@ func (l *librarian) Ping(ctx context.Context, rq *api.PingRequest) (*api.PingRes
 
 func (l *librarian) Identify(ctx context.Context, rq *api.IdentityRequest) (*api.IdentityResponse, error) {
 	return &api.IdentityResponse{
-		NodeName: l.ServerConfig.NodeName,
+		NodeName: l.Config.NodeName,
 		NodeId:   l.NodeID,
 	}, nil
+}
+
+// Generate a random node ID
+func generateNodeID() ([]byte, error) {
+	nodeID := make([]byte, NodeIDLength)
+	_, err := rand.Read(nodeID)
+	if err != nil {
+		return nil, err
+	}
+	return nodeID, nil
 }

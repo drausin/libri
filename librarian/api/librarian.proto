@@ -18,9 +18,9 @@ message IdentityResponse {
 // The Librarian service handles all of the main Libri functionality.
 service Librarian {
 
-    // Demonstrates simple request/response connectivity.
+    // Confirms simple request/response connectivity.
     rpc Ping (PingRequest) returns (PingResponse) {}
 
-    // Identifies the node name and id.
+    // Identifies the node by name and ID.
     rpc Identify (IdentityRequest) returns (IdentityResponse) {}
 }
