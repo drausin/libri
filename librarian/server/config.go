@@ -3,6 +3,7 @@ package server
 import (
 	"net"
 	"os"
+	"fmt"
 	"path/filepath"
 )
 
@@ -14,14 +15,17 @@ var (
 
 // Config is used to configure a Librarian server
 type Config struct {
-	// DataDir is the local directory to store the state in
+	// NodeNumber is the index (starting at 0) of the node on the host
+	NodeIndex     uint8
+
+	// NodeName is the public facing name of the node.
+	NodeName      string
+
+	// DataDir is the local directory to store the node states
 	DataDir       string
 
-	// DbDir is the local directory used by the DB
+	// DbDir is the local directory where this node's DB state is stored.
 	DbDir         string
-
-	// NodeName is the name of the Librarian node
-	NodeName      string
 
 	// RPCLocalAddr is the RPC address used by the server. This should be reachable
 	// by the WAN and LAN
@@ -36,28 +40,55 @@ type Config struct {
 
 // DefaultConfig returns a reasonable default server configuration.
 func DefaultConfig() *Config {
-	hostname, err := os.Hostname()
+	ni := uint8(0)
+	lnn := localNodeName(ni)
+	nn, err := nodeName(lnn)
 	if err != nil {
 		panic(err)
 	}
-
-	cwd, err := os.Getwd()
+	ddir, err := dataDir()
 	if err != nil {
 		panic(err)
 	}
-	dataDir := filepath.Join(cwd, defaultDataSubdir)
-	dbDir := filepath.Join(dataDir, defaultDbSubDir)
+	dbdir := dbDir(ddir, lnn)
 
 	return &Config{
-		DataDir: dataDir,
-		DbDir: dbDir,
-		NodeName: hostname,
+		NodeIndex: ni,
+		NodeName: nn,
+		DataDir: ddir,
+		DbDir: dbdir,
 		RPCLocalAddr: defaultRPCAddr,
 	}
 }
 
-// SetDataDir sets the data directory (and dependent directories).
 func (c *Config) SetDataDir(dataDir string) {
 	c.DataDir = dataDir
-	c.DbDir = filepath.Join(dataDir, defaultDbSubDir)
+	c.DbDir = dbDir(dataDir, localNodeName(c.NodeIndex))
+}
+
+func dataDir() (string, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(cwd, defaultDataSubdir), nil
+}
+
+// dbDir gets the database directory from the main data directory.
+func dbDir(dataDir, localNodeName string) string {
+	return filepath.Join(dataDir, localNodeName, defaultDbSubDir)
+}
+
+// nodeName gives the node name from the hostname and local node name.
+func nodeName(localNodeName string) (string, error) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s.%s", hostname, localNodeName), nil
+}
+
+// localNodeName gives the local name (on the host) of the node using the NodeIndex
+func localNodeName(nodeIndex uint8) string {
+	return fmt.Sprintf("node%03d", nodeIndex)
 }

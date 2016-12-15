@@ -58,15 +58,16 @@ func NewLibrarian(config *Config) (*librarian, error) {
 
 // Close handles cleanup involved in closing down the server.
 func (l *librarian) Close() error {
-	l.DB.Close()
-	return nil
+	return l.DB.Close()
 }
 
 // CloseAndRemove cleans up and removes any local state from the server.
 func (l *librarian) CloseAndRemove() error {
-	l.Close()
-	os.RemoveAll(l.Config.DataDir)
-	return nil
+	err := l.Close()
+	if err != nil {
+		return err
+	}
+	return os.RemoveAll(l.Config.DataDir)
 }
 
 func (l *librarian) Ping(ctx context.Context, rq *api.PingRequest) (*api.PingResponse, error) {
@@ -74,6 +75,7 @@ func (l *librarian) Ping(ctx context.Context, rq *api.PingRequest) (*api.PingRes
 }
 
 func (l *librarian) Identify(ctx context.Context, rq *api.IdentityRequest) (*api.IdentityResponse, error) {
+
 	return &api.IdentityResponse{
 		NodeName: l.Config.NodeName,
 		NodeId:   l.NodeID,
