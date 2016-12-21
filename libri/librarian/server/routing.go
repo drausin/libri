@@ -3,9 +3,9 @@ package server
 import (
 	"bytes"
 	"container/heap"
+	"errors"
 	"fmt"
 	"sort"
-	"errors"
 )
 
 var (
@@ -15,25 +15,25 @@ var (
 // RoutingBucket is collection of peers stored as a heap.
 type RoutingBucket struct {
 	// The bit depth of the bucket in the routing table/tree (i.e., the length of the bit prefix).
-	Depth          uint
+	Depth uint
 
 	// The (inclusive) lower bound of IDs in this bucket
-	LowerBound     []byte
+	LowerBound []byte
 
 	// THE (exclusive) upper bound of IDs in this bucket
-	UpperBound     []byte
+	UpperBound []byte
 
 	// The maximum number of active peers for the bucket.
 	MaxActivePeers int
 
 	// The active peers in the bucket.
-	ActivePeers    []*Peer
+	ActivePeers []*Peer
 
 	// The positions (i.e., indices) of each peer (by string ID) in the heap.
-	Positions      map[string]int
+	Positions map[string]int
 
 	// Whether the bucket contains the current node's ID.
-	ContainsSelf   bool
+	ContainsSelf bool
 }
 
 func (rb *RoutingBucket) Len() int {
@@ -56,8 +56,8 @@ func (rb *RoutingBucket) Push(p interface{}) {
 }
 
 func (rb *RoutingBucket) Pop() interface{} {
-	root := rb.ActivePeers[len(rb.ActivePeers) - 1]
-	rb.ActivePeers = rb.ActivePeers[0 : len(rb.ActivePeers) - 1]
+	root := rb.ActivePeers[len(rb.ActivePeers)-1]
+	rb.ActivePeers = rb.ActivePeers[0 : len(rb.ActivePeers)-1]
 	delete(rb.Positions, root.PeerIdStr)
 	return root
 }
@@ -74,10 +74,10 @@ func (rb *RoutingBucket) Contains(id []byte) bool {
 // RoutingTable defines how routes to a particular target map to specific peers, held in a tree of RoutingBuckets.
 type RoutingTable struct {
 	// This peer's node ID
-	SelfID  []byte
+	SelfID []byte
 
 	// All known peers, key by the string representation of their node ID.
-	peers   map[string]Peer
+	peers map[string]Peer
 
 	// Routing buckets ordered by the max ID possible in each bucket.
 	buckets []*RoutingBucket
@@ -201,9 +201,9 @@ func (rt *RoutingTable) splitBucket(bucketIdx int) {
 	}
 
 	// replace the current bucket with the two new ones
-	rt.buckets[bucketIdx] = left // replace the current bucket with left
-	rt.buckets = append(rt.buckets, right)    // right should actually be just to the right of left
-	sort.Sort(rt)                // but we let Sort handle moving it back there
+	rt.buckets[bucketIdx] = left           // replace the current bucket with left
+	rt.buckets = append(rt.buckets, right) // right should actually be just to the right of left
+	sort.Sort(rt)                          // but we let Sort handle moving it back there
 }
 
 // splitLowerBound extends a lower bound one bit deeper with a 1 bit, thereby splitting
@@ -217,10 +217,10 @@ func splitLowerBound(current []byte, depth uint) []byte {
 
 	split := make([]byte, len(current))
 	b := uint(0)
-	for ; b * 8 < depth; b++ {
+	for ; b*8 < depth; b++ {
 		split[b] = current[b]
 	}
-	split[b] = current[b] | 1 << (7 - depth)
+	split[b] = current[b] | 1<<(7-depth)
 
 	return split
 }

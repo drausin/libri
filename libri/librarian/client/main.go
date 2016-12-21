@@ -1,12 +1,12 @@
 package main
 
 import (
-	"log"
 	"encoding/base64"
+	"log"
 
+	"github.com/drausin/libri/libri/librarian/api"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"github.com/drausin/libri/librarian/api"
 )
 
 const (

@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/drausin/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -7,12 +7,12 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
-	"github.com/drausin/libri/librarian/api"
-	"github.com/drausin/libri/librarian/server"
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/server"
 )
 
 func main() {
-	lib, err := server.NewLibrarian()
+	lib, err := server.NewLibrarian(server.DefaultConfig())
 	if err != nil {
 		log.Fatalf("failed to initialize: %v", err)
 	}

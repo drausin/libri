@@ -2,11 +2,11 @@ package server
 
 import (
 	"crypto/rand"
-
-	"github.com/drausin/libri/db"
-	"github.com/drausin/libri/librarian/api"
-	"golang.org/x/net/context"
 	"os"
+
+	"github.com/drausin/libri/libri/db"
+	"github.com/drausin/libri/libri/librarian/api"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -25,7 +25,7 @@ type librarian struct {
 	Config *Config
 
 	// DB is the key-value store DB used for all external storage
-	DB     db.KVDB
+	DB db.KVDB
 }
 
 // NewLibrarian creates a new librarian instance.

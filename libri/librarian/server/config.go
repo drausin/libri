@@ -1,35 +1,35 @@
 package server
 
 import (
+	"fmt"
 	"net"
 	"os"
-	"fmt"
 	"path/filepath"
 )
 
 var (
-	defaultRPCAddr = &net.TCPAddr{IP: net.ParseIP("0.0.0.0"), Port: 11000}
+	defaultRPCAddr    = &net.TCPAddr{IP: net.ParseIP("0.0.0.0"), Port: 11000}
 	defaultDataSubdir = "data"
-	defaultDbSubDir = "db"
+	defaultDbSubDir   = "db"
 )
 
 // Config is used to configure a Librarian server
 type Config struct {
 	// NodeNumber is the index (starting at 0) of the node on the host
-	NodeIndex     uint8
+	NodeIndex uint8
 
 	// NodeName is the public facing name of the node.
-	NodeName      string
+	NodeName string
 
 	// DataDir is the local directory to store the node states
-	DataDir       string
+	DataDir string
 
 	// DbDir is the local directory where this node's DB state is stored.
-	DbDir         string
+	DbDir string
 
 	// RPCLocalAddr is the RPC address used by the server. This should be reachable
 	// by the WAN and LAN
-	RPCLocalAddr  *net.TCPAddr
+	RPCLocalAddr *net.TCPAddr
 
 	// RPCPublicAddr is the address that is advertised to other nodes for
 	// the RPC endpoint. This can differ from the RPC address, if for example
@@ -53,10 +53,10 @@ func DefaultConfig() *Config {
 	dbdir := dbDir(ddir, lnn)
 
 	return &Config{
-		NodeIndex: ni,
-		NodeName: nn,
-		DataDir: ddir,
-		DbDir: dbdir,
+		NodeIndex:    ni,
+		NodeName:     nn,
+		DataDir:      ddir,
+		DbDir:        dbdir,
 		RPCLocalAddr: defaultRPCAddr,
 	}
 }

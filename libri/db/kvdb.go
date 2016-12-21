@@ -28,10 +28,10 @@ type RocksDB struct {
 	rdb *gorocksdb.DB
 
 	// Read options for generic reads
-	ro  *gorocksdb.ReadOptions
+	ro *gorocksdb.ReadOptions
 
 	// Write options for generic writes
-	wo  *gorocksdb.WriteOptions
+	wo *gorocksdb.WriteOptions
 }
 
 // NewRocksDB creates a new RocksDB instance with default read and write options.
