@@ -17,7 +17,7 @@ func main() {
 		log.Fatalf("failed to initialize: %v", err)
 	}
 
-	lis, err := net.Listen("tcp", lib.ServerConfig.RPCAddr.String())
+	lis, err := net.Listen("tcp", lib.Config.RPCLocalAddr.String())
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
