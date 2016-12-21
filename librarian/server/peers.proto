@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package server;
+
+// Peer is the basic information associated with each peer in the network.
+message Peer {
+    // The 32-byte ID
+    bytes peer_id = 1;
+
+    // The string-encoded ID.
+    string peer_id_str = 2;
+
+    // The public IP address
+    string address_ip = 3;
+
+    // The public address TCP port
+    uint32 address_port = 4;
+
+    // The epoch time (seconds since 1970) of the latest response from the node.
+    uint64 latest_response = 5;
+}
+
+// Peers is a collection of Peer objects.
+message Peers {
+    // A map of string-encoded node IDs to Node objects.
+    map<string, Peer> peers = 1;
+}
