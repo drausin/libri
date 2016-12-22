@@ -1,11 +1,12 @@
 PACKAGES=$(shell go list ./... | grep -v '/vendor/')
-GOTOOLS= github.com/axw/gocov/gocov \
+GOTOOLS= github.com/alecthomas/gometalinter \
+	 github.com/axw/gocov/gocov \
 	 gopkg.in/matm/v1/gocov-html
 VETARGS?=-asmdecl -atomic -bool -buildtags -copylocks -methods \
          -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
 
 # all builds binaries for all targets
-all: build imports format vet test
+all: build fix lint test
 
 build:
 	@echo "--> Running go build"
@@ -19,24 +20,19 @@ test:
 	@echo "--> Running go test"
 	@go test $(PACKAGES) --cover
 
-format:
+fix:
+	@echo "--> Running goimports"
+	@find . -name *.go | xargs goimports -l -w
 	@echo "--> Running go fmt"
 	@go fmt $(PACKAGES)
 
-imports:
-	@echo "--> Running goimports"
-	@find . -name *.go | xargs goimports -l -w
-
-vet:
-	@echo "--> Running go tool vet $(VETARGS) ."
-	@go list ./... \
-		| grep -v /vendor/ \
-		| cut -d '/' -f 4- \
-		| xargs -n1 \
-		go tool vet $(VETARGS) ;\
+lint:
+	@echo "--> Running gometalinter"
+	@gometalinter ./... --config=.gometalinter.json
 
 tools:
 	go get -u -v $(GOTOOLS)
+	gometalinter --install
 
-.PHONY: all build cov test format imports vet tools
+.PHONY: all build cov test fix lint tools
 
