@@ -3,7 +3,6 @@
     "aligncheck",
     "deadcode",
     "dupl",
-    "errcheck",
     "gas",
     "goconst",
     "gocyclo",

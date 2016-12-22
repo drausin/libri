@@ -126,7 +126,7 @@ func (rt *RoutingTable) AddPeer(new *Peer) {
 		// node is already in the bucket, so remove it and add it to the end
 
 		existing := insertBucket.ActivePeers[pHeapIdx]
-		if bytes.Compare(existing.PeerId, new.PeerId) != 0 {
+		if !bytes.Equal(existing.PeerId, new.PeerId) {
 			panic(errors.New(fmt.Sprintf("existing peer does not have same nodeId (%s) as new peer (%s)",
 				existing.PeerId, new.PeerId)))
 		}

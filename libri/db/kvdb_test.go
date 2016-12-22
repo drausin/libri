@@ -16,6 +16,7 @@ func TestRocksDB_NewRocksDB(t *testing.T) {
 	dir, err := ioutil.TempDir("", rocksDBName)
 	assert.Nil(t, err)
 	db, err := NewRocksDB(dir)
+	assert.Nil(t, err)
 	defer db.Close()
 
 	assert.Nil(t, err)
@@ -29,6 +30,7 @@ func TestRocksDB_PutGet(t *testing.T) {
 	dir, err := ioutil.TempDir("", rocksDBName)
 	assert.Nil(t, err)
 	db, err := NewRocksDB(dir)
+	assert.Nil(t, err)
 	defer db.Close()
 	key, value1 := []byte("key"), []byte("value1")
 
@@ -43,6 +45,7 @@ func TestRocksDB_PutGetPutGet(t *testing.T) {
 	dir, err := ioutil.TempDir("", rocksDBName)
 	assert.Nil(t, err)
 	db, err := NewRocksDB(dir)
+	assert.Nil(t, err)
 	defer db.rdb.Close()
 	key, value1, value2 := []byte("key"), []byte("value1"), []byte("value2")
 
@@ -62,6 +65,9 @@ func TestRocksDB_PutGetDeleteGet(t *testing.T) {
 	dir, err := ioutil.TempDir("", rocksDBName)
 	assert.Nil(t, err)
 	db, err := NewRocksDB(dir)
+	if err != nil {
+		panic(err)
+	}
 	defer db.rdb.Close()
 	key, value1 := []byte("key"), []byte("value1")
 
@@ -72,5 +78,6 @@ func TestRocksDB_PutGetDeleteGet(t *testing.T) {
 
 	assert.Nil(t, db.Delete(key))
 	getValue2, err := db.Get(key)
+	assert.Nil(t, err)
 	assert.Nil(t, getValue2)
 }

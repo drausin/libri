@@ -36,7 +36,10 @@ type RocksDB struct {
 
 // NewRocksDB creates a new RocksDB instance with default read and write options.
 func NewRocksDB(dbDir string) (*RocksDB, error) {
-	os.MkdirAll(dbDir, os.ModePerm)
+	err := os.MkdirAll(dbDir, os.ModePerm)
+	if err != nil {
+		return nil, err
+	}
 	options := gorocksdb.NewDefaultOptions()
 	options.SetCreateIfMissing(true)
 	db, err := gorocksdb.OpenDb(options, dbDir)

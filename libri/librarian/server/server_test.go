@@ -48,7 +48,7 @@ func TestNewLibrarian(t *testing.T) {
 	lib1.Close()
 
 	lib2, err := NewLibrarian(config)
-	defer lib2.Close()
 	assert.Nil(t, err)
+	defer lib2.Close()
 	assert.Equal(t, nodeID1, lib2.NodeID)
 }

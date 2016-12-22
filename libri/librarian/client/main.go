@@ -18,6 +18,7 @@ func main() {
 	conn, err := grpc.Dial(address, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
+		panic(err)
 	}
 	defer conn.Close()
 	c := api.NewLibrarianClient(conn)
