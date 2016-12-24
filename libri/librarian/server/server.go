@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	"os"
 
+	"encoding/base64"
+
 	"github.com/drausin/libri/libri/db"
 	"github.com/drausin/libri/libri/librarian/api"
 	"golang.org/x/net/context"
@@ -90,4 +92,8 @@ func generateNodeID() ([]byte, error) {
 		return nil, err
 	}
 	return nodeID, nil
+}
+
+func IDString(id []byte) string {
+	return base64.URLEncoding.EncodeToString(id)
 }
