@@ -127,8 +127,13 @@ func (rt *RoutingTable) Swap(i, j int) {
 	rt.Buckets[i], rt.Buckets[j] = rt.Buckets[j], rt.Buckets[i]
 }
 
-// AddPeer adds the peer into the appropriate bucket.
-func (rt *RoutingTable) AddPeer(new *Peer) error {
+// AddPeer adds the peer into the appropriate bucket and returns a tuple indicating one of the
+// following outcomes:
+// 	- peer already existed in bucket:	(bucket index, true, nil)
+//	- peer did not exist in bucket: 	(bucket index, false, nil)
+// 	- bucket was full, so peer dropped:	(-1, false, nil)
+// 	- error 				(bucket index, true|false, error)
+func (rt *RoutingTable) AddPeer(new *Peer) (int, bool, error) {
 	// get the bucket to insert into
 	bucketIdx := rt.bucketIndex(new.PeerId)
 	insertBucket := rt.Buckets[bucketIdx]
@@ -138,38 +143,38 @@ func (rt *RoutingTable) AddPeer(new *Peer) error {
 
 		existing := insertBucket.ActivePeers[pHeapIdx]
 		if !bytes.Equal(existing.PeerId, new.PeerId) {
-			return errors.New(fmt.Sprintf("existing peer does not have same nodeId "+
-				"(%s) as new peer (%s)", existing.PeerId, new.PeerId))
+			return bucketIdx, true,
+				errors.New(fmt.Sprintf("existing peer does not have same nodeId "+
+					"(%s) as new peer (%s)", existing.PeerId, new.PeerId))
 		}
 
 		// move node to bottom of heap
 		heap.Remove(insertBucket, pHeapIdx)
 		heap.Push(insertBucket, new)
 
-		return nil
+		return bucketIdx, true, nil
 	}
 
 	if insertBucket.Vacancy() {
 		// node isn't already in the bucket and there's vacancy, so add it
 		heap.Push(insertBucket, new)
 
-		return nil
+		return bucketIdx, false, nil
 	}
 
 	if insertBucket.ContainsSelf {
-		// no vacancy in the bucket and it contains the self ID, so split the bucket and insert via single
-		// recursive call
+		// no vacancy in the bucket and it contains the self ID, so split the bucket and
+		// insert via single recursive call
 		err := rt.splitBucket(bucketIdx)
 		if err != nil {
-			return err
+			return bucketIdx, false, err
 		}
-		rt.AddPeer(new)
+		return rt.AddPeer(new)
 
-		return nil
 	}
 
 	// no vacancy in the bucket and it doesn't contain the self ID, so just drop it on the floor
-	return nil
+	return -1, false, nil
 }
 
 // NextPeers returns the next n peers in the same bucket as the given target.
