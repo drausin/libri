@@ -1,17 +1,45 @@
 package server
 
 import (
-	"bytes"
-	"crypto/sha256"
+	"fmt"
+	"log"
+	"math/big"
 	"math/rand"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestAddPeer(t *testing.T) {
+/*
+func TestRoutingTable_NextPeers(t *testing.T) {
 	setUpRoutingTable := func(selfID []byte) *RoutingTable {
+		peers := generatePeers(128)
+		rt := &RoutingTable{
+			SelfID:  selfID,
+			Peers:   make(map[string]*Peer),
+			Buckets: []*RoutingBucket{newFirstBucket()},
+		}
+		for _, peer := range peers {
+			rt.AddPeer(peer)
+		}
+		return rt
+	}
+
+	for s := 0; s < 16; s++ {
+		selfID := sha256.Sum256([]byte{byte(s)})
+		rt := setUpRoutingTable(selfID[:])
+		for n := 1; n < 20; n++ {
+			target := sha256.Sum256([]byte{byte(n)})
+			 nextPeers, bucketIdxs := rt.NextPeers(target[:], n)
+		}
+	}
+}
+*/
+
+func TestRoutingTable_AddPeer(t *testing.T) {
+	setUpRoutingTable := func(selfID *big.Int) *RoutingTable {
 		return &RoutingTable{
 			SelfID:  selfID,
 			Peers:   make(map[string]*Peer),
@@ -20,9 +48,11 @@ func TestAddPeer(t *testing.T) {
 	}
 
 	// try pseudo-random split sequence with different selfIDs
-	for s := 0; s < 1; s++ {
-		selfID := sha256.Sum256([]byte{byte(s)})
-		rt := setUpRoutingTable(selfID[:])
+	for s := 0; s < 16; s++ {
+		rng := rand.New(rand.NewSource(int64(s)))
+		selfID := big.NewInt(0)
+		selfID.Rand(rng, IDUpperBound)
+		rt := setUpRoutingTable(selfID)
 		nPeers := 0
 		peers := generatePeers(100)
 		repeatedPeers := make([]*Peer, 0)
@@ -33,7 +63,7 @@ func TestAddPeer(t *testing.T) {
 			if bucketIdx != -1 {
 				nPeers++
 				// 25% of the time, we add this peer to list we'll add again later
-				if peer.PeerId[0]%8 < 2 {
+				if rng.Float32() < 0.25 {
 					repeatedPeers = append(repeatedPeers, peer)
 				}
 			}
@@ -48,11 +78,10 @@ func TestAddPeer(t *testing.T) {
 			checkPeers(t, rt, nPeers)
 		}
 	}
-
 }
 
-func TestSplitBucket(t *testing.T) {
-	setUpRoutingTable := func(selfID []byte) *RoutingTable {
+func TestRoutingTable_SplitBucket(t *testing.T) {
+	setUpRoutingTable := func(selfID *big.Int) *RoutingTable {
 		firstBucket := newFirstBucket()
 		peers := generatePeers(firstBucket.MaxActivePeers)
 		for _, peer := range peers {
@@ -71,9 +100,10 @@ func TestSplitBucket(t *testing.T) {
 	}
 
 	// try same split sequence with different selfIDs
-	for s := 0; s < 10; s++ {
-		selfID := sha256.Sum256([]byte{byte(s)})
-		rt := setUpRoutingTable(selfID[:])
+	for s := 0; s < 1; s++ {
+		rng := rand.New(rand.NewSource(int64(s)))
+		selfID := big.NewInt(0).Rand(rng, IDUpperBound)
+		rt := setUpRoutingTable(selfID)
 
 		// lower bounds: [0 1]
 		err := rt.splitBucket(0)
@@ -102,10 +132,10 @@ func TestSplitBucket(t *testing.T) {
 	}
 
 	// try pseudo-random split sequence with different selfIDs
-	for s := 0; s < 16; s++ {
+	for s := 0; s < 1; s++ {
 		rng := rand.New(rand.NewSource(int64(s)))
-		selfID := sha256.Sum256([]byte{byte(s)})
-		rt := setUpRoutingTable(selfID[:])
+		selfID := big.NewInt(0).Rand(rng, IDUpperBound)
+		rt := setUpRoutingTable(selfID)
 
 		// do pseudo-random splits
 		for i := 0; i < 10; i++ {
@@ -118,56 +148,48 @@ func TestSplitBucket(t *testing.T) {
 }
 
 func TestSplitLowerBound_Ok(t *testing.T) {
-	check := func(lowerBound []byte, depth uint, expected []byte) {
-		actual, err := splitLowerBound(lowerBound, depth)
-		assert.Nil(t, err)
+	check := func(lowerBound *big.Int, depth uint, expected *big.Int) {
+		actual := splitLowerBound(lowerBound, depth)
 		assert.Equal(t, expected, actual)
 	}
 
-	check([]byte{0}, 0, []byte{1 << 7})          // no prefix
-	check([]byte{1 << 7}, 1, []byte{3 << 6})     // prefix 1
-	check([]byte{1 << 6}, 2, []byte{3 << 5})     // prefix 01
-	check([]byte{3 << 6}, 2, []byte{7 << 5})     // prefix 11
-	check([]byte{85 << 1}, 2, []byte{170})       // prefix 1010101
-	check([]byte{128}, 7, []byte{129})           // prefix 1000000
-	check([]byte{254}, 7, []byte{255})           // prefix 1111111
-	check([]byte{0, 0}, 8, []byte{0, 128})       // prefix 00000000
-	check([]byte{128, 0}, 8, []byte{128, 128})   // prefix 10000000
-	check([]byte{255, 0}, 8, []byte{255, 128})   // prefix 11111111
-	check([]byte{0, 0}, 9, []byte{0, 64})        // prefix 00000000 0
-	check([]byte{0, 128}, 9, []byte{0, 192})     // prefix 00000000 1
-	check([]byte{255, 0}, 9, []byte{255, 64})    // prefix 11111111 0
-	check([]byte{255, 128}, 9, []byte{255, 192}) // prefix 11111111 1
-}
-
-func TestSplitLowerBound_Error(t *testing.T) {
-	check := func(lowerBound []byte, depth uint) {
-		_, err := splitLowerBound(lowerBound, depth)
-		assert.NotNil(t, err)
+	NewIntLsh := func(x int64, n uint) *big.Int {
+		return big.NewInt(0).Lsh(big.NewInt(x), n)
 	}
 
-	// should error b/c not enough room in byte array
-	check([]byte{}, 0)
-	check([]byte{}, 1)
-	check([]byte{}, 2)
-	check([]byte{0}, 8)
-	check([]byte{0}, 9)
-	check([]byte{0, 0}, 16)
-	check([]byte{0, 0}, 17)
+	check(big.NewInt(0), 0, NewIntLsh(1, 255))                       // no prefix
+	check(NewIntLsh(128, 248), 1, NewIntLsh(192, 248))               // prefix 1
+	check(NewIntLsh(1, 254), 2, NewIntLsh(3, 253))                   // prefix 01
+	check(NewIntLsh(3, 254), 2, NewIntLsh(7, 253))                   // prefix 11
+	check(NewIntLsh(170, 248), 7, NewIntLsh(171, 248))               // prefix 1010101
+	check(NewIntLsh(128, 248), 7, NewIntLsh(129, 248))               // prefix 1000000
+	check(NewIntLsh(254, 248), 7, NewIntLsh(255, 248))               // prefix 1111111
+	check(NewIntLsh(0, 248), 8, NewIntLsh(128, 240))                 // prefix 00000000
+	check(NewIntLsh(128, 248), 8, NewIntLsh(128<<8|128, 240))        // prefix 10000000
+	check(NewIntLsh(255, 248), 8, NewIntLsh(255<<8|128, 240))        // prefix 11111111
+	check(NewIntLsh(0, 240), 9, NewIntLsh(64, 240))                  // prefix 00000000 0
+	check(NewIntLsh(128, 240), 9, NewIntLsh(192, 240))               // prefix 00000000 1
+	check(NewIntLsh(255, 248), 9, NewIntLsh(255<<8|64, 240))         // prefix 11111111 0
+	check(NewIntLsh(255<<8|128, 240), 9, NewIntLsh(255<<8|192, 240)) // prefix 11111111 1
 }
 
 func generatePeers(nPeers int) map[string]*Peer {
+	rng := rand.New(rand.NewSource(int64(nPeers)))
 	peers := make(map[string]*Peer)
 	for p := 0; p < nPeers; p++ {
-		peerIDa := sha256.Sum256([]byte{byte(p)}) // deterministic pseudo-randomness
-		peerID := peerIDa[:]
-		peerIDStr := IDString(peerID)
-
-		// we don't need the host into for these tests, so just populate ID fields
-		peers[peerIDStr] = &Peer{
-			PeerId:    peerID,
-			PeerIdStr: peerIDStr,
+		id := big.NewInt(0)
+		id.Rand(rng, IDUpperBound)
+		peer, err := NewPeer(
+			id,
+			fmt.Sprintf("peer-%d", p),
+			nil, // we don't need the host into for these tests
+			time.Unix(int64(p), 0).UTC(),
+		)
+		if err != nil {
+			panic(err)
 		}
+
+		peers[peer.IDStr] = &peer
 	}
 	return peers
 }
@@ -188,9 +210,10 @@ func checkPeers(t *testing.T, rt *RoutingTable, nExpectedPeers int) {
 			assert.False(t, rt.Buckets[b].Contains(rt.SelfID))
 		}
 		for p := range rt.Buckets[b].ActivePeers {
-			pId := rt.Buckets[b].ActivePeers[p].PeerId
-			assert.True(t, bytes.Compare(pId, lowerBound) >= 0)
-			assert.True(t, bytes.Compare(pId, upperBound) < 0)
+			pId := rt.Buckets[b].ActivePeers[p].ID
+			log.Printf("pId: %v, lowerBound: %s", pId, lowerBound)
+			assert.True(t, pId.Cmp(lowerBound) >= 0)
+			assert.True(t, pId.Cmp(upperBound) < 0)
 			nPeers++
 		}
 	}

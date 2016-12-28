@@ -2,9 +2,8 @@ package server
 
 import (
 	"crypto/rand"
-	"os"
-
 	"encoding/base64"
+	"os"
 
 	"github.com/drausin/libri/libri/db"
 	"github.com/drausin/libri/libri/librarian/api"

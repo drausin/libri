@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package server;
+
+// Peer is the basic information associated with each peer in the network.
+message StoredPeer {
+    // big-endian byte representation of 32-byte ID
+    bytes id = 1;
+
+    // self-reported name of the peer
+    string name = 2;
+
+    // public IP address
+    string address_ip = 3;
+
+    // public address TCP port
+    int32 address_port = 4;
+
+    // epoch time (seconds since 1970 UTC) of the latest response from the node.
+    int64 latest_response = 5;
+}
+
+// Peers is a collection of Peer objects.
+message StoredPeers {
+    // list of peers
+    repeated bytes peers = 1;
+}

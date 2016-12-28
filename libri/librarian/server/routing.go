@@ -1,10 +1,10 @@
 package server
 
 import (
-	"bytes"
 	"container/heap"
 	"errors"
 	"fmt"
+	"math/big"
 	"sort"
 )
 
@@ -14,25 +14,25 @@ var (
 
 // RoutingBucket is collection of peers stored as a heap.
 type RoutingBucket struct {
-	// The bit depth of the bucket in the routing table/tree (i.e., the length of the bit prefix).
+	// bit depth of the bucket in the routing table/tree (i.e., the length of the bit prefix).
 	Depth uint
 
-	// The (inclusive) lower bound of IDs in this bucket
-	LowerBound []byte
+	// (inclusive) lower bound of IDs in this bucket
+	LowerBound *big.Int
 
-	// THE (exclusive) upper bound of IDs in this bucket
-	UpperBound []byte
+	// (exclusive) upper bound of IDs in this bucket
+	UpperBound *big.Int
 
-	// The maximum number of active peers for the bucket.
+	// maximum number of active peers for the bucket.
 	MaxActivePeers int
 
-	// The active peers in the bucket.
+	// active peers in the bucket.
 	ActivePeers []*Peer
 
-	// The positions (i.e., indices) of each peer (by string ID) in the heap.
+	// positions (i.e., indices) of each peer (keyed by ID string) in the heap.
 	Positions map[string]int
 
-	// Whether the bucket contains the current node's ID.
+	// whether the bucket contains the current node's ID.
 	ContainsSelf bool
 }
 
@@ -41,24 +41,24 @@ func (rb *RoutingBucket) Len() int {
 }
 
 func (rb *RoutingBucket) Less(i, j int) bool {
-	return rb.ActivePeers[i].LatestResponse < rb.ActivePeers[j].LatestResponse
+	return rb.ActivePeers[i].LatestResponse.Before(rb.ActivePeers[j].LatestResponse)
 }
 
 func (rb *RoutingBucket) Swap(i, j int) {
 	rb.ActivePeers[i], rb.ActivePeers[j] = rb.ActivePeers[j], rb.ActivePeers[i]
-	rb.Positions[rb.ActivePeers[i].PeerIdStr] = i
-	rb.Positions[rb.ActivePeers[j].PeerIdStr] = j
+	rb.Positions[rb.ActivePeers[i].IDStr] = i
+	rb.Positions[rb.ActivePeers[j].IDStr] = j
 }
 
 func (rb *RoutingBucket) Push(p interface{}) {
 	rb.ActivePeers = append(rb.ActivePeers, p.(*Peer))
-	rb.Positions[p.(*Peer).PeerIdStr] = len(rb.ActivePeers) - 1
+	rb.Positions[p.(*Peer).IDStr] = len(rb.ActivePeers) - 1
 }
 
 func (rb *RoutingBucket) Pop() interface{} {
 	root := rb.ActivePeers[len(rb.ActivePeers)-1]
 	rb.ActivePeers = rb.ActivePeers[0 : len(rb.ActivePeers)-1]
-	delete(rb.Positions, root.PeerIdStr)
+	delete(rb.Positions, root.IDStr)
 	return root
 }
 
@@ -67,17 +67,17 @@ func (rb *RoutingBucket) Vacancy() bool {
 	return len(rb.ActivePeers) < rb.MaxActivePeers
 }
 
-func (rb *RoutingBucket) Contains(id []byte) bool {
-	return bytes.Compare(id, rb.LowerBound) >= 0 && bytes.Compare(id, rb.UpperBound) < 0
+func (rb *RoutingBucket) Contains(target *big.Int) bool {
+	return target.Cmp(rb.LowerBound) >= 0 && target.Cmp(rb.UpperBound) < 0
 }
 
 // RoutingTable defines how routes to a particular target map to specific peers, held in a tree of
 // RoutingBuckets.
 type RoutingTable struct {
 	// This peer's node ID
-	SelfID []byte
+	SelfID *big.Int
 
-	// All known peers, key by the string representation of their node ID.
+	// All known peers, keyed by ID string
 	Peers map[string]*Peer
 
 	// Routing buckets ordered by the max ID possible in each bucket.
@@ -106,8 +106,8 @@ func NewRoutingTableWithPeers(peers map[string]Peer) *RoutingTable {
 func newFirstBucket() *RoutingBucket {
 	return &RoutingBucket{
 		Depth:          0,
-		LowerBound:     make([]byte, NodeIDLength),
-		UpperBound:     bytes.Repeat([]byte{255}, NodeIDLength),
+		LowerBound:     IDLowerBound,
+		UpperBound:     IDUpperBound,
 		MaxActivePeers: defaultMaxActivePeers,
 		ActivePeers:    make([]*Peer, 0),
 		Positions:      make(map[string]int),
@@ -120,7 +120,7 @@ func (rt *RoutingTable) Len() int {
 }
 
 func (rt *RoutingTable) Less(i, j int) bool {
-	return bytes.Compare(rt.Buckets[i].LowerBound, rt.Buckets[j].LowerBound) < 0
+	return rt.Buckets[i].LowerBound.Cmp(rt.Buckets[j].LowerBound) < 0
 }
 
 func (rt *RoutingTable) Swap(i, j int) {
@@ -135,17 +135,17 @@ func (rt *RoutingTable) Swap(i, j int) {
 // 	- error 				(bucket index, true|false, error)
 func (rt *RoutingTable) AddPeer(new *Peer) (int, bool, error) {
 	// get the bucket to insert into
-	bucketIdx := rt.bucketIndex(new.PeerId)
+	bucketIdx := rt.bucketIndex(new.ID)
 	insertBucket := rt.Buckets[bucketIdx]
 
-	if pHeapIdx, ok := insertBucket.Positions[new.PeerIdStr]; ok {
+	if pHeapIdx, ok := insertBucket.Positions[new.IDStr]; ok {
 		// node is already in the bucket, so remove it and add it to the end
 
 		existing := insertBucket.ActivePeers[pHeapIdx]
-		if !bytes.Equal(existing.PeerId, new.PeerId) {
+		if existing.ID.Cmp(new.ID) != 0 {
 			return bucketIdx, true,
 				errors.New(fmt.Sprintf("existing peer does not have same nodeId "+
-					"(%s) as new peer (%s)", existing.PeerId, new.PeerId))
+					"(%s) as new peer (%s)", existing.ID, new.ID))
 		}
 
 		// move node to bottom of heap
@@ -177,20 +177,27 @@ func (rt *RoutingTable) AddPeer(new *Peer) (int, bool, error) {
 	return -1, false, nil
 }
 
-// NextPeers returns the next n peers in the same bucket as the given target.
-func (rt *RoutingTable) NextPeers(target []byte, n int) []*Peer {
+// NextPeers returns the next n peers in the same bucket as the given target and the bucket index
+// from which they came.
+func (rt *RoutingTable) NextPeers(target *big.Int, n int) ([]*Peer, []int) {
 	next := make([]*Peer, n)
+	bucketIdxs := make([]int, n)
+	i := 0
 	bi := rt.bucketIndex(target)
-	for i := 0; i < n; i++ {
+
+	// get as many peers as possible from the target's bucket
+	for ; i < n && rt.Buckets[bi].Len() > 0; i++ {
 		next[i] = rt.Buckets[bi].Pop().(*Peer)
+		bucketIdxs[i] = bi
 	}
-	return next
+
+	return next, bucketIdxs
 }
 
 // bucketIndex searches for bucket containing the given target
-func (rt *RoutingTable) bucketIndex(target []byte) int {
+func (rt *RoutingTable) bucketIndex(target *big.Int) int {
 	return sort.Search(len(rt.Buckets), func(i int) bool {
-		return bytes.Compare(target, rt.Buckets[i].UpperBound) < 0
+		return target.Cmp(rt.Buckets[i].UpperBound) < 0
 	})
 }
 
@@ -199,10 +206,7 @@ func (rt *RoutingTable) splitBucket(bucketIdx int) error {
 	current := rt.Buckets[bucketIdx]
 
 	// define the bounds of the two new buckets from those of the current bucket
-	middle, err := splitLowerBound(current.LowerBound, current.Depth)
-	if err != nil {
-		return err
-	}
+	middle := splitLowerBound(current.LowerBound, current.Depth)
 
 	// create the new buckets
 	left := &RoutingBucket{
@@ -227,7 +231,7 @@ func (rt *RoutingTable) splitBucket(bucketIdx int) error {
 
 	// fill the buckets with existing peers
 	for _, p := range current.ActivePeers {
-		if left.Contains(p.PeerId) {
+		if left.Contains(p.ID) {
 			heap.Push(left, p)
 		} else {
 			heap.Push(right, p)
@@ -249,18 +253,6 @@ func (rt *RoutingTable) splitBucket(bucketIdx int) error {
 // 	extendLowerBound(10000000, 1) -> 11000000
 //	...
 // 	extendLowerBound(11000000, 4) -> 11001000
-func splitLowerBound(lowerBound []byte, depth uint) ([]byte, error) {
-	if len(lowerBound)*8 < int(depth)+1 {
-		return nil, errors.New(fmt.Sprintf("current (%d bytes) is too short for "+
-			"extending depth %v", len(lowerBound), depth))
-	}
-	split := make([]byte, len(lowerBound))
-	b := uint(0)
-	for ; (b+1)*8 <= depth; b++ {
-		split[b] = lowerBound[b]
-	}
-
-	split[b] = lowerBound[b] | 1<<(7-(depth%8))
-
-	return split, nil
+func splitLowerBound(lowerBound *big.Int, depth uint) *big.Int {
+	return big.NewInt(0).SetBit(lowerBound, int(NodeIDLength*8-depth-1), 1)
 }

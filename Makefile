@@ -30,6 +30,10 @@ lint:
 	@echo "--> Running gometalinter"
 	@gometalinter ./... --config=.gometalinter.json
 
+proto:
+	@echo "--> Running protoc"
+	@find . -name '*.proto' -execdir protoc '{}' --go_out=plugins=grpc:. \;
+
 tools:
 	go get -u -v $(GOTOOLS)
 	gometalinter --install
