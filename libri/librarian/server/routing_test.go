@@ -53,7 +53,55 @@ func TestRoutingTable_AddPeer(t *testing.T) {
 	}
 }
 
+
 func TestRoutingTable_PopNextPeers(t *testing.T) {
+
+	setUpRoutingTable := func(selfID *big.Int, nPeers int) *RoutingTable {
+		rt := &RoutingTable{
+			SelfID:  selfID,
+			Peers:   make(map[string]*Peer),
+			Buckets: []*RoutingBucket{newFirstBucket()},
+		}
+		for _, peer := range generatePeers(nPeers) {
+			rt.AddPeer(peer)
+		}
+		return rt
+	}
+
+	// make sure we error on k < 1
+	rt := setUpRoutingTable(big.NewInt(0), 8)
+	_, _, err := rt.PopNextPeers(big.NewInt(0), -1)
+	assert.NotNil(t, err)
+	_, _, err = rt.PopNextPeers(big.NewInt(0), 0)
+	assert.NotNil(t, err)
+
+	for nPeers := 8; nPeers <= 128; nPeers *= 2 {
+		// for different numbers of total active peers
+
+		for s := 0; s < 10; s++ {
+			// for different selfIDs
+			rng := rand.New(rand.NewSource(int64(s)))
+			selfID := big.NewInt(0).Rand(rng, IDUpperBound)
+			rt := setUpRoutingTable(selfID, nPeers)
+
+			target := big.NewInt(0).Rand(rng, IDUpperBound)
+
+			for k := 2; k <= 32; k *= 2 {
+				// for different numbers of peers to get
+				numActivePeers := rt.NumActivePeers()
+				info := fmt.Sprintf("nPeers: %v, s: %v, k: %v, nap: %v", nPeers, s, k, numActivePeers)
+				nextPeers, bucketIdxs, err := rt.PopNextPeers(target, k)
+				checkNextPeers(t, rt, k, numActivePeers, nextPeers, bucketIdxs, err, info)
+
+				// check that the number of active peers has decreased by number of nextPeers
+				assert.Equal(t, numActivePeers - len(nextPeers), rt.NumActivePeers())
+			}
+
+		}
+	}
+}
+
+func TestRoutingTable_PeakNextPeers(t *testing.T) {
 
 	setUpRoutingTable := func(selfID *big.Int, nPeers int) *RoutingTable {
 		rt := &RoutingTable{
@@ -89,38 +137,11 @@ func TestRoutingTable_PopNextPeers(t *testing.T) {
 				// for different numbers of peers to get
 				numActivePeers := rt.NumActivePeers()
 				info := fmt.Sprintf("nPeers: %v, s: %v, k: %v, nap: %v", nPeers, s, k, numActivePeers)
-				nextPeers, bucketIdxs, err := rt.PopNextPeers(target, k)
+				nextPeers, bucketIdxs, err := rt.PeakNextPeers(target, k)
+				checkNextPeers(t, rt, k, numActivePeers, nextPeers, bucketIdxs, err, info)
 
-				nextPeersSet := make(map[string]struct{})
-				var s struct{}
-				for i, nextPeer := range nextPeers {
-					assert.NotNil(t, nextPeer)
-					assert.True(t, rt.Buckets[bucketIdxs[i]].Contains(nextPeer.ID))
-
-					// check peer is not yet in set
-					_, ok := nextPeersSet[nextPeer.IDStr]
-					assert.False(t, ok)
-
-					// add this peer to the set
-					nextPeersSet[nextPeer.IDStr] = s
-				}
-
-				if numActivePeers == 0 {
-					// if there are no active peers, we should have gotten an error
-					assert.NotNil(t, err, info)
-
-				} else if k < numActivePeers {
-					// should get k peers
-					assert.Nil(t, err)
-					assert.Equal(t, k, len(nextPeers), info)
-					assert.Equal(t, k, len(bucketIdxs), info)
-
-				} else {
-					// should get numActivePeers
-					assert.Nil(t, err)
-					assert.Equal(t, numActivePeers, len(nextPeers), info)
-					assert.Equal(t, numActivePeers, len(bucketIdxs), info)
-				}
+				// check that the number of active peers remains unchanged
+				assert.Equal(t, numActivePeers, rt.NumActivePeers())
 			}
 
 		}
@@ -387,4 +408,39 @@ func checkPeers(t *testing.T, rt *RoutingTable, nExpectedPeers int) {
 
 func newIntLsh(x int64, n uint) *big.Int {
 	return big.NewInt(0).Lsh(big.NewInt(x), n)
+}
+
+func checkNextPeers(t *testing.T, rt *RoutingTable, k int, numActivePeers int, nextPeers []*Peer,
+	bucketIdxs []int, err error, info string) {
+
+	nextPeersSet := make(map[string]struct{})
+	var s struct{}
+	for i, nextPeer := range nextPeers {
+		assert.NotNil(t, nextPeer)
+		assert.True(t, rt.Buckets[bucketIdxs[i]].Contains(nextPeer.ID))
+
+		// check peer is not yet in set
+		_, ok := nextPeersSet[nextPeer.IDStr]
+		assert.False(t, ok)
+
+		// add this peer to the set
+		nextPeersSet[nextPeer.IDStr] = s
+	}
+
+	if numActivePeers == 0 {
+		// if there are no active peers, we should have gotten an error
+		assert.NotNil(t, err, info)
+
+	} else if k < numActivePeers {
+		// should get k peers
+		assert.Nil(t, err)
+		assert.Equal(t, k, len(nextPeers), info)
+		assert.Equal(t, k, len(bucketIdxs), info)
+
+	} else {
+		// should get numActivePeers
+		assert.Nil(t, err)
+		assert.Equal(t, numActivePeers, len(nextPeers), info)
+		assert.Equal(t, numActivePeers, len(bucketIdxs), info)
+	}
 }

@@ -234,16 +234,16 @@ func (rt *RoutingTable) PopNextPeers(target *big.Int, k int) ([]*Peer, []int, er
 // PopNextPeers returns (but does not remove) the n peers in the bucket(s) closest to the given
 // target.
 func (rt *RoutingTable) PeakNextPeers(target *big.Int, n int) ([]*Peer, []int, error) {
-	next, bucketIdxs, err := rt.PopNextPeers(target, n)
+	nextPeers, bucketIdxs, err := rt.PopNextPeers(target, n)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	// add the peers back into their respective buckets
-	for i := 0; i < n; i++ {
-		rt.Buckets[bucketIdxs[i]].Push(next[i])
+	for i, nextPeer := range nextPeers {
+		rt.Buckets[bucketIdxs[i]].Push(nextPeer)
 	}
-	return next, bucketIdxs, nil
+	return nextPeers, bucketIdxs, nil
 }
 
 // nextBucketIndex returns either the forward or backward bucket index from which to draw peers for
