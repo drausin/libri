@@ -4,6 +4,7 @@ import (
 	"container/heap"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
 	"sort"
 )
@@ -127,6 +128,15 @@ func (rt *RoutingTable) Swap(i, j int) {
 	rt.Buckets[i], rt.Buckets[j] = rt.Buckets[j], rt.Buckets[i]
 }
 
+// NumActivePeers returns the total number of active peers across all buckets.
+func (rt *RoutingTable) NumActivePeers() int {
+	n := 0
+	for _, rb := range rt.Buckets {
+		n += rb.Len()
+	}
+	return n
+}
+
 // AddPeer adds the peer into the appropriate bucket and returns a tuple indicating one of the
 // following outcomes:
 // 	- peer already existed in bucket:	(bucket index, true, nil)
@@ -177,21 +187,103 @@ func (rt *RoutingTable) AddPeer(new *Peer) (int, bool, error) {
 	return -1, false, nil
 }
 
-// NextPeers returns the next n peers in the same bucket as the given target and the bucket index
-// from which they came.
-func (rt *RoutingTable) NextPeers(target *big.Int, n int) ([]*Peer, []int) {
-	next := make([]*Peer, n)
-	bucketIdxs := make([]int, n)
-	i := 0
-	bi := rt.bucketIndex(target)
-
-	// get as many peers as possible from the target's bucket
-	for ; i < n && rt.Buckets[bi].Len() > 0; i++ {
-		next[i] = rt.Buckets[bi].Pop().(*Peer)
-		bucketIdxs[i] = bi
+// PopNextPeers removes and returns the k peers in the bucket(s) closest to the given target.
+func (rt *RoutingTable) PopNextPeers(target *big.Int, k int) ([]*Peer, []int, error) {
+	nap := rt.NumActivePeers()
+	if nap == 0 {
+		return nil, nil, errors.New("No active peers exist")
+	}
+	if k < 1 {
+		return nil, nil, errors.New(fmt.Sprintf("number of peers (n = %d) must be "+
+			"positive", k))
+	}
+	if k > nap {
+		k = nap
 	}
 
-	return next, bucketIdxs
+	next := make([]*Peer, k)
+	bucketIdxs := make([]int, k)
+
+	fwdIdx := rt.bucketIndex(target)
+	bkwdIdx := fwdIdx - 1
+
+	// loop until we've populated all the peers or we have no more buckets to draw from
+	for i := 0; i < k; {
+		bucketIdx, err := rt.chooseBucketIndex(target, fwdIdx, bkwdIdx)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// fill peers from this bucket
+		for ; i < k && rt.Buckets[bucketIdx].Len() > 0; i++ {
+			next[i] = rt.Buckets[bucketIdx].Pop().(*Peer)
+			bucketIdxs[i] = bucketIdx
+		}
+
+		// increment forward index or decrement backward index
+		if bucketIdx == fwdIdx {
+			fwdIdx++
+		} else {
+			bkwdIdx--
+		}
+	}
+
+	return next, bucketIdxs, nil
+}
+
+// PopNextPeers returns (but does not remove) the n peers in the bucket(s) closest to the given
+// target.
+func (rt *RoutingTable) PeakNextPeers(target *big.Int, n int) ([]*Peer, []int, error) {
+	next, bucketIdxs, err := rt.PopNextPeers(target, n)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// add the peers back into their respective buckets
+	for i := 0; i < n; i++ {
+		rt.Buckets[bucketIdxs[i]].Push(next[i])
+	}
+	return next, bucketIdxs, nil
+}
+
+// nextBucketIndex returns either the forward or backward bucket index from which to draw peers for
+// a target.
+func (rt *RoutingTable) chooseBucketIndex(target *big.Int, fwdIdx int, bkwdIdx int) (int, error) {
+	hasFwd := fwdIdx < len(rt.Buckets)
+	hasBkwd := bkwdIdx >= 0
+
+	// determine whether to use the forward or backward index as the current index
+	if hasFwd && rt.Buckets[fwdIdx].Contains(target) {
+		// forward index contains target
+		return fwdIdx, nil
+	}
+
+	if hasFwd && !hasBkwd {
+		// have forward but no backward index
+		return fwdIdx, nil
+	}
+
+	if !hasFwd && hasBkwd {
+		// have backward but no forward index
+		return bkwdIdx, nil
+	}
+
+	if hasFwd && hasBkwd {
+		// have both backward and forward indices
+		fwdDist := big.NewInt(0).Xor(target, rt.Buckets[fwdIdx].UpperBound)
+		bkwdDist := big.NewInt(0).Xor(target, rt.Buckets[bkwdIdx].LowerBound)
+		log.Printf("fwdist: %v, bkwdDist: %v", fwdDist, bkwdDist)
+
+		if fwdDist.Cmp(bkwdDist) < 0 {
+			// forward upper bound is closer than backward lower bound
+			return fwdIdx, nil
+		}
+
+		// backward lower bound is closer than forward upper bound
+		return bkwdIdx, nil
+	}
+
+	return -1, errors.New("should always have either a valid forward or backward index")
 }
 
 // bucketIndex searches for bucket containing the given target

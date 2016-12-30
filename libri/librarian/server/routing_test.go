@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"log"
 	"math/big"
 	"math/rand"
 	"sort"
@@ -11,32 +10,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 )
-
-/*
-func TestRoutingTable_NextPeers(t *testing.T) {
-	setUpRoutingTable := func(selfID []byte) *RoutingTable {
-		peers := generatePeers(128)
-		rt := &RoutingTable{
-			SelfID:  selfID,
-			Peers:   make(map[string]*Peer),
-			Buckets: []*RoutingBucket{newFirstBucket()},
-		}
-		for _, peer := range peers {
-			rt.AddPeer(peer)
-		}
-		return rt
-	}
-
-	for s := 0; s < 16; s++ {
-		selfID := sha256.Sum256([]byte{byte(s)})
-		rt := setUpRoutingTable(selfID[:])
-		for n := 1; n < 20; n++ {
-			target := sha256.Sum256([]byte{byte(n)})
-			 nextPeers, bucketIdxs := rt.NextPeers(target[:], n)
-		}
-	}
-}
-*/
 
 func TestRoutingTable_AddPeer(t *testing.T) {
 	setUpRoutingTable := func(selfID *big.Int) *RoutingTable {
@@ -80,6 +53,202 @@ func TestRoutingTable_AddPeer(t *testing.T) {
 	}
 }
 
+func TestRoutingTable_PopNextPeers(t *testing.T) {
+
+	setUpRoutingTable := func(selfID *big.Int, nPeers int) *RoutingTable {
+		rt := &RoutingTable{
+			SelfID:  selfID,
+			Peers:   make(map[string]*Peer),
+			Buckets: []*RoutingBucket{newFirstBucket()},
+		}
+		for _, peer := range generatePeers(nPeers) {
+			rt.AddPeer(peer)
+		}
+		return rt
+	}
+
+	// make sure we error on k < 1
+	rt := setUpRoutingTable(big.NewInt(0), 8)
+	_, _, err := rt.PeakNextPeers(big.NewInt(0), -1)
+	assert.NotNil(t, err)
+	_, _, err = rt.PeakNextPeers(big.NewInt(0), 0)
+	assert.NotNil(t, err)
+
+	for nPeers := 8; nPeers <= 128; nPeers *= 2 {
+		// for different numbers of total active peers
+
+		for s := 0; s < 10; s++ {
+			// for different selfIDs
+			rng := rand.New(rand.NewSource(int64(s)))
+			selfID := big.NewInt(0).Rand(rng, IDUpperBound)
+			rt := setUpRoutingTable(selfID, nPeers)
+
+			target := big.NewInt(0).Rand(rng, IDUpperBound)
+
+			for k := 2; k <= 32; k *= 2 {
+				// for different numbers of peers to get
+				numActivePeers := rt.NumActivePeers()
+				info := fmt.Sprintf("nPeers: %v, s: %v, k: %v, nap: %v", nPeers, s, k, numActivePeers)
+				nextPeers, bucketIdxs, err := rt.PopNextPeers(target, k)
+
+				nextPeersSet := make(map[string]struct{})
+				var s struct{}
+				for i, nextPeer := range nextPeers {
+					assert.NotNil(t, nextPeer)
+					assert.True(t, rt.Buckets[bucketIdxs[i]].Contains(nextPeer.ID))
+
+					// check peer is not yet in set
+					_, ok := nextPeersSet[nextPeer.IDStr]
+					assert.False(t, ok)
+
+					// add this peer to the set
+					nextPeersSet[nextPeer.IDStr] = s
+				}
+
+				if numActivePeers == 0 {
+					// if there are no active peers, we should have gotten an error
+					assert.NotNil(t, err, info)
+
+				} else if k < numActivePeers {
+					// should get k peers
+					assert.Nil(t, err)
+					assert.Equal(t, k, len(nextPeers), info)
+					assert.Equal(t, k, len(bucketIdxs), info)
+
+				} else {
+					// should get numActivePeers
+					assert.Nil(t, err)
+					assert.Equal(t, numActivePeers, len(nextPeers), info)
+					assert.Equal(t, numActivePeers, len(bucketIdxs), info)
+				}
+			}
+
+		}
+	}
+}
+
+func TestRoutingTable_chooseBucketIndex(t *testing.T) {
+
+	rt := &RoutingTable{
+		Buckets: []*RoutingBucket{
+			{LowerBound: big.NewInt(0), UpperBound: big.NewInt(64)},
+			{LowerBound: big.NewInt(64), UpperBound: big.NewInt(128)},
+			{LowerBound: big.NewInt(128), UpperBound: big.NewInt(192)},
+			{LowerBound: big.NewInt(192), UpperBound: big.NewInt(255)},
+		},
+	}
+	var target *big.Int
+	var nextIdx int
+	var err error
+
+	target = big.NewInt(150)
+
+	// bucket 2 should be next since it contains target
+	nextIdx, err = rt.chooseBucketIndex(target, 2, 1)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, nextIdx)
+
+	// bucket 3 should be next because it's upper bound (255) is closer to the target than 1's
+	// lower bound (64) via XOR distance
+	// 	XOR(150, 255)	= 10010110 ^ 11111111
+	//			= 01101001
+	//			= 105
+	//
+	//	XOR(150, 64)	= 10010110 ^ 01000000
+	//			= 11010110
+	//			= 214
+	nextIdx, err = rt.chooseBucketIndex(target, 3, 1)
+	assert.Nil(t, err)
+	assert.Equal(t, 3, nextIdx)
+
+	// bucket 1 should be next since 4 is out of bounds
+	nextIdx, err = rt.chooseBucketIndex(target, 4, 1)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, nextIdx)
+
+	// bucket 0 should be next since 4 is out of bounds
+	nextIdx, err = rt.chooseBucketIndex(target, 4, 0)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, nextIdx)
+
+	// should get error because forward and backward indices are out of bounds
+	_, err = rt.chooseBucketIndex(target, 4, -1)
+	assert.NotNil(t, err)
+
+	target = big.NewInt(100)
+
+	// bucket 1 should be next since it contains target
+	nextIdx, err = rt.chooseBucketIndex(target, 1, 0)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, nextIdx)
+
+	// bucket 0 should be next since it's lower bound (0) is closer to the target than 2's
+	// upper bound (192) via XOR distance
+	//	XOR(100, 0)	= 01100100 ^ 00000000
+	//			= 01100100
+	//			= 100
+	//
+	//	XOR(100, 192)	= 01100100 ^ 11000000
+	//			= 10100100
+	//			= 164
+	nextIdx, err = rt.chooseBucketIndex(target, 2, 0)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, nextIdx)
+
+	target = big.NewInt(50)
+
+	// bucket 0 should be next since it contains target
+	nextIdx, err = rt.chooseBucketIndex(target, 0, -1)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, nextIdx)
+
+	// bucket 1 should be next since -1 is out of bounds
+	nextIdx, err = rt.chooseBucketIndex(target, 1, -1)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, nextIdx)
+
+	// bucket 2 should be next since -1 is out of bounds
+	nextIdx, err = rt.chooseBucketIndex(target, 2, -1)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, nextIdx)
+
+	// bucket 3 should be next since -1 is out of bounds
+	nextIdx, err = rt.chooseBucketIndex(target, 3, -1)
+	assert.Nil(t, err)
+	assert.Equal(t, 3, nextIdx)
+
+	// should get error because forward and backward indices are out of bounds
+	_, err = rt.chooseBucketIndex(target, 4, -1)
+	assert.NotNil(t, err)
+
+	target = big.NewInt(200)
+
+	// bucket 3 should be next since it contains target
+	nextIdx, err = rt.chooseBucketIndex(target, 3, 2)
+	assert.Nil(t, err)
+	assert.Equal(t, 3, nextIdx)
+
+	// bucket 2 should be next since 4 is out of bounds
+	nextIdx, err = rt.chooseBucketIndex(target, 4, 2)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, nextIdx)
+
+	// bucket 1 should be next since 4 is out of bounds
+	nextIdx, err = rt.chooseBucketIndex(target, 4, 1)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, nextIdx)
+
+	// bucket 0 should be next since 4 is out of bounds
+	nextIdx, err = rt.chooseBucketIndex(target, 4, 0)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, nextIdx)
+
+	// should get error because forward and backward indices are out of bounds
+	_, err = rt.chooseBucketIndex(target, 4, -1)
+	assert.NotNil(t, err)
+
+}
+
 func TestRoutingTable_SplitBucket(t *testing.T) {
 	setUpRoutingTable := func(selfID *big.Int) *RoutingTable {
 		firstBucket := newFirstBucket()
@@ -100,7 +269,7 @@ func TestRoutingTable_SplitBucket(t *testing.T) {
 	}
 
 	// try same split sequence with different selfIDs
-	for s := 0; s < 1; s++ {
+	for s := 0; s < 16; s++ {
 		rng := rand.New(rand.NewSource(int64(s)))
 		selfID := big.NewInt(0).Rand(rng, IDUpperBound)
 		rt := setUpRoutingTable(selfID)
@@ -132,7 +301,7 @@ func TestRoutingTable_SplitBucket(t *testing.T) {
 	}
 
 	// try pseudo-random split sequence with different selfIDs
-	for s := 0; s < 1; s++ {
+	for s := 0; s < 16; s++ {
 		rng := rand.New(rand.NewSource(int64(s)))
 		selfID := big.NewInt(0).Rand(rng, IDUpperBound)
 		rt := setUpRoutingTable(selfID)
@@ -153,24 +322,20 @@ func TestSplitLowerBound_Ok(t *testing.T) {
 		assert.Equal(t, expected, actual)
 	}
 
-	NewIntLsh := func(x int64, n uint) *big.Int {
-		return big.NewInt(0).Lsh(big.NewInt(x), n)
-	}
-
-	check(big.NewInt(0), 0, NewIntLsh(1, 255))                       // no prefix
-	check(NewIntLsh(128, 248), 1, NewIntLsh(192, 248))               // prefix 1
-	check(NewIntLsh(1, 254), 2, NewIntLsh(3, 253))                   // prefix 01
-	check(NewIntLsh(3, 254), 2, NewIntLsh(7, 253))                   // prefix 11
-	check(NewIntLsh(170, 248), 7, NewIntLsh(171, 248))               // prefix 1010101
-	check(NewIntLsh(128, 248), 7, NewIntLsh(129, 248))               // prefix 1000000
-	check(NewIntLsh(254, 248), 7, NewIntLsh(255, 248))               // prefix 1111111
-	check(NewIntLsh(0, 248), 8, NewIntLsh(128, 240))                 // prefix 00000000
-	check(NewIntLsh(128, 248), 8, NewIntLsh(128<<8|128, 240))        // prefix 10000000
-	check(NewIntLsh(255, 248), 8, NewIntLsh(255<<8|128, 240))        // prefix 11111111
-	check(NewIntLsh(0, 240), 9, NewIntLsh(64, 240))                  // prefix 00000000 0
-	check(NewIntLsh(128, 240), 9, NewIntLsh(192, 240))               // prefix 00000000 1
-	check(NewIntLsh(255, 248), 9, NewIntLsh(255<<8|64, 240))         // prefix 11111111 0
-	check(NewIntLsh(255<<8|128, 240), 9, NewIntLsh(255<<8|192, 240)) // prefix 11111111 1
+	check(big.NewInt(0), 0, newIntLsh(1, 255))                       // no prefix
+	check(newIntLsh(128, 248), 1, newIntLsh(192, 248))               // prefix 1
+	check(newIntLsh(1, 254), 2, newIntLsh(3, 253))                   // prefix 01
+	check(newIntLsh(3, 254), 2, newIntLsh(7, 253))                   // prefix 11
+	check(newIntLsh(170, 248), 7, newIntLsh(171, 248))               // prefix 1010101
+	check(newIntLsh(128, 248), 7, newIntLsh(129, 248))               // prefix 1000000
+	check(newIntLsh(254, 248), 7, newIntLsh(255, 248))               // prefix 1111111
+	check(newIntLsh(0, 248), 8, newIntLsh(128, 240))                 // prefix 00000000
+	check(newIntLsh(128, 248), 8, newIntLsh(128<<8|128, 240))        // prefix 10000000
+	check(newIntLsh(255, 248), 8, newIntLsh(255<<8|128, 240))        // prefix 11111111
+	check(newIntLsh(0, 240), 9, newIntLsh(64, 240))                  // prefix 00000000 0
+	check(newIntLsh(128, 240), 9, newIntLsh(192, 240))               // prefix 00000000 1
+	check(newIntLsh(255, 248), 9, newIntLsh(255<<8|64, 240))         // prefix 11111111 0
+	check(newIntLsh(255<<8|128, 240), 9, newIntLsh(255<<8|192, 240)) // prefix 11111111 1
 }
 
 func generatePeers(nPeers int) map[string]*Peer {
@@ -211,7 +376,6 @@ func checkPeers(t *testing.T, rt *RoutingTable, nExpectedPeers int) {
 		}
 		for p := range rt.Buckets[b].ActivePeers {
 			pId := rt.Buckets[b].ActivePeers[p].ID
-			log.Printf("pId: %v, lowerBound: %s", pId, lowerBound)
 			assert.True(t, pId.Cmp(lowerBound) >= 0)
 			assert.True(t, pId.Cmp(upperBound) < 0)
 			nPeers++
@@ -219,4 +383,8 @@ func checkPeers(t *testing.T, rt *RoutingTable, nExpectedPeers int) {
 	}
 	assert.Equal(t, nExpectedPeers, nPeers)
 	assert.Equal(t, 1, nContainSelf)
+}
+
+func newIntLsh(x int64, n uint) *big.Int {
+	return big.NewInt(0).Lsh(big.NewInt(x), n)
 }
