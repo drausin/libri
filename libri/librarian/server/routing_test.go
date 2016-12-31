@@ -12,20 +12,12 @@ import (
 )
 
 func TestRoutingTable_AddPeer(t *testing.T) {
-	setUpRoutingTable := func(selfID *big.Int) *RoutingTable {
-		return &RoutingTable{
-			SelfID:  selfID,
-			Peers:   make(map[string]*Peer),
-			Buckets: []*RoutingBucket{newFirstBucket()},
-		}
-	}
-
 	// try pseudo-random split sequence with different selfIDs
 	for s := 0; s < 16; s++ {
 		rng := rand.New(rand.NewSource(int64(s)))
 		selfID := big.NewInt(0)
 		selfID.Rand(rng, IDUpperBound)
-		rt := setUpRoutingTable(selfID)
+		rt := NewEmptyRoutingTable(selfID)
 		nPeers := 0
 		peers := generatePeers(100)
 		repeatedPeers := make([]*Peer, 0)
@@ -53,23 +45,10 @@ func TestRoutingTable_AddPeer(t *testing.T) {
 	}
 }
 
-
 func TestRoutingTable_PopNextPeers(t *testing.T) {
 
-	setUpRoutingTable := func(selfID *big.Int, nPeers int) *RoutingTable {
-		rt := &RoutingTable{
-			SelfID:  selfID,
-			Peers:   make(map[string]*Peer),
-			Buckets: []*RoutingBucket{newFirstBucket()},
-		}
-		for _, peer := range generatePeers(nPeers) {
-			rt.AddPeer(peer)
-		}
-		return rt
-	}
-
 	// make sure we error on k < 1
-	rt := setUpRoutingTable(big.NewInt(0), 8)
+	rt := NewRoutingTableWithPeers(big.NewInt(0), generatePeers(8))
 	_, _, err := rt.PopNextPeers(big.NewInt(0), -1)
 	assert.NotNil(t, err)
 	_, _, err = rt.PopNextPeers(big.NewInt(0), 0)
@@ -82,7 +61,7 @@ func TestRoutingTable_PopNextPeers(t *testing.T) {
 			// for different selfIDs
 			rng := rand.New(rand.NewSource(int64(s)))
 			selfID := big.NewInt(0).Rand(rng, IDUpperBound)
-			rt := setUpRoutingTable(selfID, nPeers)
+			rt := NewRoutingTableWithPeers(selfID, generatePeers(nPeers))
 
 			target := big.NewInt(0).Rand(rng, IDUpperBound)
 
@@ -94,7 +73,15 @@ func TestRoutingTable_PopNextPeers(t *testing.T) {
 				checkNextPeers(t, rt, k, numActivePeers, nextPeers, bucketIdxs, err, info)
 
 				// check that the number of active peers has decreased by number of nextPeers
-				assert.Equal(t, numActivePeers - len(nextPeers), rt.NumActivePeers())
+				assert.Equal(t, numActivePeers-len(nextPeers), rt.NumActivePeers())
+
+				// check that no peer exists in our peers maps
+				for i, nextPeer := range nextPeers {
+					_, exists := rt.Peers[nextPeer.IDStr]
+					assert.False(t, exists)
+					_, exists = rt.Buckets[bucketIdxs[i]].Positions[nextPeer.IDStr]
+					assert.False(t, exists)
+				}
 			}
 
 		}
@@ -103,20 +90,8 @@ func TestRoutingTable_PopNextPeers(t *testing.T) {
 
 func TestRoutingTable_PeakNextPeers(t *testing.T) {
 
-	setUpRoutingTable := func(selfID *big.Int, nPeers int) *RoutingTable {
-		rt := &RoutingTable{
-			SelfID:  selfID,
-			Peers:   make(map[string]*Peer),
-			Buckets: []*RoutingBucket{newFirstBucket()},
-		}
-		for _, peer := range generatePeers(nPeers) {
-			rt.AddPeer(peer)
-		}
-		return rt
-	}
-
 	// make sure we error on k < 1
-	rt := setUpRoutingTable(big.NewInt(0), 8)
+	rt := NewRoutingTableWithPeers(big.NewInt(0), generatePeers(8))
 	_, _, err := rt.PeakNextPeers(big.NewInt(0), -1)
 	assert.NotNil(t, err)
 	_, _, err = rt.PeakNextPeers(big.NewInt(0), 0)
@@ -129,7 +104,7 @@ func TestRoutingTable_PeakNextPeers(t *testing.T) {
 			// for different selfIDs
 			rng := rand.New(rand.NewSource(int64(s)))
 			selfID := big.NewInt(0).Rand(rng, IDUpperBound)
-			rt := setUpRoutingTable(selfID, nPeers)
+			rt := NewRoutingTableWithPeers(selfID, generatePeers(nPeers))
 
 			target := big.NewInt(0).Rand(rng, IDUpperBound)
 
@@ -142,6 +117,14 @@ func TestRoutingTable_PeakNextPeers(t *testing.T) {
 
 				// check that the number of active peers remains unchanged
 				assert.Equal(t, numActivePeers, rt.NumActivePeers())
+
+				// check that every peer exists in our peers maps
+				for i, nextPeer := range nextPeers {
+					_, exists := rt.Peers[nextPeer.IDStr]
+					assert.True(t, exists)
+					_, exists = rt.Buckets[bucketIdxs[i]].Positions[nextPeer.IDStr]
+					assert.True(t, exists)
+				}
 			}
 
 		}
@@ -420,8 +403,8 @@ func checkNextPeers(t *testing.T, rt *RoutingTable, k int, numActivePeers int, n
 		assert.True(t, rt.Buckets[bucketIdxs[i]].Contains(nextPeer.ID))
 
 		// check peer is not yet in set
-		_, ok := nextPeersSet[nextPeer.IDStr]
-		assert.False(t, ok)
+		_, exists := nextPeersSet[nextPeer.IDStr]
+		assert.False(t, exists)
 
 		// add this peer to the set
 		nextPeersSet[nextPeer.IDStr] = s

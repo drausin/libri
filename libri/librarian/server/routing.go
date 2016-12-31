@@ -7,10 +7,13 @@ import (
 	"log"
 	"math/big"
 	"sort"
+
+	"github.com/drausin/libri/libri/db"
 )
 
 var (
 	defaultMaxActivePeers = 20
+	RoutingTableKey       = []byte("RoutingTable")
 )
 
 // RoutingBucket is collection of peers stored as a heap.
@@ -86,21 +89,29 @@ type RoutingTable struct {
 }
 
 // NewRoutingTable creates a new routing table without peers.
-func NewEmptyRoutingTable() *RoutingTable {
+func NewEmptyRoutingTable(selfID *big.Int) *RoutingTable {
 	firstBucket := newFirstBucket()
 	return &RoutingTable{
+		SelfID:  selfID,
+		Peers:   make(map[string]*Peer),
 		Buckets: []*RoutingBucket{firstBucket},
 	}
 }
 
 // NewRoutingTableWithPeers creates a new routing table from a collection of peers.
-func NewRoutingTableWithPeers(peers map[string]Peer) *RoutingTable {
-	rt := NewEmptyRoutingTable()
+func NewRoutingTableWithPeers(selfId *big.Int, peers map[string]*Peer) *RoutingTable {
+	rt := NewEmptyRoutingTable(selfId)
 	for _, peer := range peers {
-		rt.AddPeer(&peer)
+		rt.AddPeer(peer)
 	}
 
 	return rt
+}
+
+// Load retrieves the routing table form the KV DB.
+func Load(db *db.KVDB) (*RoutingTable, error) {
+	// TODO
+	return nil, nil
 }
 
 // newFirstBucket creates a new instance of the first bucket (spanning the entire ID range)
@@ -137,6 +148,12 @@ func (rt *RoutingTable) NumActivePeers() int {
 	return n
 }
 
+// Save stores a representation of the routing table to the KV DB.
+func (rt *RoutingTable) Save(db *db.KVDB) error {
+	// TODO (drausin)
+	return nil
+}
+
 // AddPeer adds the peer into the appropriate bucket and returns a tuple indicating one of the
 // following outcomes:
 // 	- peer already existed in bucket:	(bucket index, true, nil)
@@ -157,6 +174,10 @@ func (rt *RoutingTable) AddPeer(new *Peer) (int, bool, error) {
 				errors.New(fmt.Sprintf("existing peer does not have same nodeId "+
 					"(%s) as new peer (%s)", existing.ID, new.ID))
 		}
+		if _, exists := rt.Peers[new.IDStr]; !exists {
+			return bucketIdx, true, errors.New(fmt.Sprintf("existing peer (%v) not "+
+				"found in routing table peers map", new.IDStr))
+		}
 
 		// move node to bottom of heap
 		heap.Remove(insertBucket, pHeapIdx)
@@ -167,8 +188,13 @@ func (rt *RoutingTable) AddPeer(new *Peer) (int, bool, error) {
 
 	if insertBucket.Vacancy() {
 		// node isn't already in the bucket and there's vacancy, so add it
-		heap.Push(insertBucket, new)
+		if _, exists := rt.Peers[new.IDStr]; exists {
+			return bucketIdx, true, errors.New(fmt.Sprintf("new peer (%v) should"+
+				" not be found in routing table peers map", new.IDStr))
+		}
 
+		heap.Push(insertBucket, new)
+		rt.Peers[new.IDStr] = new
 		return bucketIdx, false, nil
 	}
 
@@ -218,6 +244,7 @@ func (rt *RoutingTable) PopNextPeers(target *big.Int, k int) ([]*Peer, []int, er
 		for ; i < k && rt.Buckets[bucketIdx].Len() > 0; i++ {
 			next[i] = rt.Buckets[bucketIdx].Pop().(*Peer)
 			bucketIdxs[i] = bucketIdx
+			delete(rt.Peers, next[i].IDStr)
 		}
 
 		// increment forward index or decrement backward index
@@ -241,7 +268,12 @@ func (rt *RoutingTable) PeakNextPeers(target *big.Int, n int) ([]*Peer, []int, e
 
 	// add the peers back into their respective buckets
 	for i, nextPeer := range nextPeers {
+		if _, exists := rt.Peers[nextPeer.IDStr]; exists {
+			return nil, nil, errors.New(fmt.Sprintf("new peer (%v) should"+
+				" not be found in routing table peers map", nextPeer.IDStr))
+		}
 		rt.Buckets[bucketIdxs[i]].Push(nextPeer)
+		rt.Peers[nextPeer.IDStr] = nextPeer
 	}
 	return nextPeers, bucketIdxs, nil
 }
