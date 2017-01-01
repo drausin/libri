@@ -3,7 +3,6 @@ package server
 import (
 	"bytes"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"math/big"
 	"net"
@@ -11,14 +10,12 @@ import (
 )
 
 var (
-	IDUpperBound = big.NewInt(0)
-	IDLowerBound = big.NewInt(0)
-)
+	// IDUpperBound is the upper bound of the ID space, i.e., all 256 bits on.
+	IDUpperBound = big.NewInt(0).SetBytes(bytes.Repeat([]byte{255}, PeerIDLength))
 
-func init() {
-	IDLowerBound.SetBytes(make([]byte, NodeIDLength))
-	IDUpperBound.SetBytes(bytes.Repeat([]byte{255}, NodeIDLength))
-}
+	// IDLowerBound is the lower bound of the ID space, i.e., all 256 bits off.
+	IDLowerBound = big.NewInt(0).SetBytes(make([]byte, PeerIDLength))
+)
 
 // Peer represents a peer in the network.
 type Peer struct {
@@ -38,32 +35,31 @@ type Peer struct {
 	LatestResponse time.Time
 }
 
+// NewPeer creates a new Peer instance.
 func NewPeer(id *big.Int, name string, publicAddress *net.TCPAddr,
-	latestResponse time.Time) (Peer, error) {
+	latestResponse time.Time) (*Peer, error) {
 	if latestResponse.Location() != time.UTC {
-		return Peer{}, errors.New(fmt.Sprintf("latestResponse should have a UTC location, "+
-			"instead found %v", latestResponse.Location()))
+		return nil, fmt.Errorf("latestResponse should have a UTC location, instead found "+
+			"%v", latestResponse.Location())
 	}
 
-	return Peer{
+	return &Peer{
 		ID:             id,
-		IDStr:          base64.URLEncoding.EncodeToString(id.Bytes()),
+		IDStr:          IDString(id),
 		Name:           name,
 		PublicAddress:  publicAddress,
 		LatestResponse: latestResponse,
 	}, nil
 }
 
-func NewPeerFromStorage(stored StoredPeer) (Peer, error) {
-	if len(stored.Id) != NodeIDLength {
-		return Peer{}, errors.New(fmt.Sprintf("stored.Id (length %d) should have byte "+
-			"length %d", NodeIDLength, len(stored.Id)))
+// NewPeerFromStorage creates a new Peer instance from a StoredPeer instance.
+func NewPeerFromStorage(stored *StoredPeer) (*Peer, error) {
+	if len(stored.Id) != PeerIDLength {
+		return nil, fmt.Errorf("stored.Id (length %d) should have byte length %d",
+			PeerIDLength, len(stored.Id))
 	}
-	var id *big.Int
-	id.SetBytes(stored.Id)
-
 	return NewPeer(
-		id,
+		big.NewInt(0).SetBytes(stored.Id),
 		stored.Name,
 		&net.TCPAddr{
 			IP:   net.ParseIP(stored.AddressIp),
@@ -71,4 +67,20 @@ func NewPeerFromStorage(stored StoredPeer) (Peer, error) {
 		},
 		time.Unix(stored.LatestResponse, int64(0)).UTC(),
 	)
+}
+
+// NewStoredPeer creates a new StoredPeer instance from the Peer instance.
+func (peer *Peer) NewStoredPeer() *StoredPeer {
+	return &StoredPeer{
+		Id:             peer.ID.Bytes(),
+		Name:           peer.Name,
+		AddressIp:      peer.PublicAddress.IP.String(),
+		AddressPort:    uint32(peer.PublicAddress.Port),
+		LatestResponse: peer.LatestResponse.Unix(),
+	}
+}
+
+// IDString gives the string encoding of the ID.
+func IDString(id *big.Int) string {
+	return base64.URLEncoding.EncodeToString(id.Bytes())
 }

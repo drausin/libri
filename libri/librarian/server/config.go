@@ -18,8 +18,8 @@ type Config struct {
 	// NodeNumber is the index (starting at 0) of the node on the host
 	NodeIndex uint8
 
-	// NodeName is the public facing name of the node.
-	NodeName string
+	// PeerName is the public facing name of the node.
+	PeerName string
 
 	// DataDir is the local directory to store the node states
 	DataDir string
@@ -54,13 +54,14 @@ func DefaultConfig() *Config {
 
 	return &Config{
 		NodeIndex:    ni,
-		NodeName:     nn,
+		PeerName:     nn,
 		DataDir:      ddir,
 		DbDir:        dbdir,
 		RPCLocalAddr: defaultRPCAddr,
 	}
 }
 
+// SetDataDir sets the config's data directory, which also sets the database directory.
 func (c *Config) SetDataDir(dataDir string) {
 	c.DataDir = dataDir
 	c.DbDir = dbDir(dataDir, localNodeName(c.NodeIndex))

@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"log"
 
+	"github.com/drausin/libri/libri/common"
 	"github.com/drausin/libri/libri/librarian/api"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -20,7 +21,7 @@ func main() {
 		log.Fatalf("did not connect: %v", err)
 		panic(err)
 	}
-	defer conn.Close()
+	defer common.MaybePanic(conn.Close())
 	c := api.NewLibrarianClient(conn)
 
 	// Ping the server
@@ -34,6 +35,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("could not ping: %v", err)
 	}
-	log.Printf("Node name: %s", r2.NodeName)
-	log.Printf("Node ID: %v", base64.URLEncoding.EncodeToString(r2.NodeId))
+	log.Printf("Peer name: %s", r2.PeerName)
+	log.Printf("Peer ID: %v", base64.URLEncoding.EncodeToString(r2.PeerId))
 }

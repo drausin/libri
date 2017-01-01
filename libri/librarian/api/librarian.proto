@@ -11,8 +11,8 @@ message PingResponse {
 message IdentityRequest {}
 
 message IdentityResponse {
-    string node_name = 1;
-    bytes node_id = 2;
+    string peer_name = 1;
+    bytes peer_id = 2;
 }
 
 // The Librarian service handles all of the main Libri functionality.

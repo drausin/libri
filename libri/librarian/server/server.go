@@ -2,7 +2,7 @@ package server
 
 import (
 	"crypto/rand"
-	"encoding/base64"
+	"math/big"
 	"os"
 
 	"github.com/drausin/libri/libri/db"
@@ -11,16 +11,18 @@ import (
 )
 
 const (
-	NodeIDLength = 32
+	// PeerIDLength is the number of bytes in a peer ID.
+	PeerIDLength = 32
 )
 
 var (
-	NodeIDKey = []byte("NodeID")
+	peerIDKey = []byte("PeerID")
 )
 
-type librarian struct {
-	// NodeID is the random 256-bit identification number of this node in the hash table
-	NodeID []byte
+// Librarian is the main service of a single peer in the peer to peer network.
+type Librarian struct {
+	// PeerID is the random 256-bit identification number of this node in the hash table
+	PeerID *big.Int
 
 	// Config holds the configuration parameters of the server
 	Config *Config
@@ -30,40 +32,43 @@ type librarian struct {
 }
 
 // NewLibrarian creates a new librarian instance.
-func NewLibrarian(config *Config) (*librarian, error) {
+func NewLibrarian(config *Config) (*Librarian, error) {
 	rdb, err := db.NewRocksDB(config.DbDir)
 	if err != nil {
 		return nil, err
 	}
 
-	nodeID, err := rdb.Get(NodeIDKey)
+	var peerID *big.Int
+	peerIDB, err := rdb.Get(peerIDKey)
 	if err != nil {
 		return nil, err
 	}
-	if nodeID == nil {
-		nodeID, err = generateNodeID()
+	if peerIDB != nil {
+		peerID = big.NewInt(0).SetBytes(peerIDB)
+	} else {
+		peerID, err = generatePeerID()
 		if err != nil {
 			return nil, err
 		}
-		if rdb.Put(NodeIDKey, nodeID) != nil {
+		if rdb.Put(peerIDKey, peerID.Bytes()) != nil {
 			return nil, err
 		}
 	}
 
-	return &librarian{
-		NodeID: nodeID,
+	return &Librarian{
+		PeerID: peerID,
 		Config: config,
 		DB:     rdb,
 	}, nil
 }
 
 // Close handles cleanup involved in closing down the server.
-func (l *librarian) Close() error {
+func (l *Librarian) Close() error {
 	return l.DB.Close()
 }
 
 // CloseAndRemove cleans up and removes any local state from the server.
-func (l *librarian) CloseAndRemove() error {
+func (l *Librarian) CloseAndRemove() error {
 	err := l.Close()
 	if err != nil {
 		return err
@@ -71,28 +76,26 @@ func (l *librarian) CloseAndRemove() error {
 	return os.RemoveAll(l.Config.DataDir)
 }
 
-func (l *librarian) Ping(ctx context.Context, rq *api.PingRequest) (*api.PingResponse, error) {
+// Ping confirms simple request/response connectivity.
+func (l *Librarian) Ping(ctx context.Context, rq *api.PingRequest) (*api.PingResponse, error) {
 	return &api.PingResponse{Message: "pong"}, nil
 }
 
-func (l *librarian) Identify(ctx context.Context, rq *api.IdentityRequest) (*api.IdentityResponse, error) {
-
+// Identify gives the identifying information about the peer in the network.
+func (l *Librarian) Identify(ctx context.Context, rq *api.IdentityRequest) (*api.IdentityResponse,
+	error) {
 	return &api.IdentityResponse{
-		NodeName: l.Config.NodeName,
-		NodeId:   l.NodeID,
+		PeerName: l.Config.PeerName,
+		PeerId:   l.PeerID.Bytes(),
 	}, nil
 }
 
-// Generate a random node ID
-func generateNodeID() ([]byte, error) {
-	nodeID := make([]byte, NodeIDLength)
-	_, err := rand.Read(nodeID)
+// generatePeerID returns a random peer ID.
+func generatePeerID() (*big.Int, error) {
+	idB := make([]byte, PeerIDLength)
+	_, err := rand.Read(idB)
 	if err != nil {
 		return nil, err
 	}
-	return nodeID, nil
-}
-
-func IDString(id []byte) string {
-	return base64.URLEncoding.EncodeToString(id)
+	return big.NewInt(0).SetBytes(idB), nil
 }

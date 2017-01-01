@@ -54,6 +54,7 @@ func NewRocksDB(dbDir string) (*RocksDB, error) {
 	}, nil
 }
 
+// Get returns the value for a key.
 func (db *RocksDB) Get(key []byte) ([]byte, error) {
 	// Return copy of bytes instead of a slice to make it simpler for the user. If this proves slow for large reads
 	// we might want to add a separate method for getting the slice (or an abstraction of it) directly.
@@ -66,14 +67,17 @@ func (db *RocksDB) Get(key []byte) ([]byte, error) {
 	return db.rdb.GetBytes(db.ro, key)
 }
 
+// Put stores the value for a key.
 func (db *RocksDB) Put(key []byte, value []byte) error {
 	return db.rdb.Put(db.wo, key, value)
 }
 
+// Delete removes the value for a key.
 func (db *RocksDB) Delete(key []byte) error {
 	return db.rdb.Delete(db.wo, key)
 }
 
+// Close gracefully shuts down the database.
 func (db *RocksDB) Close() error {
 	db.rdb.Close()
 	return nil

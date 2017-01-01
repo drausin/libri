@@ -4,16 +4,16 @@ import (
 	"container/heap"
 	"errors"
 	"fmt"
-	"log"
 	"math/big"
 	"sort"
 
 	"github.com/drausin/libri/libri/db"
+	"github.com/gogo/protobuf/proto"
 )
 
 var (
 	defaultMaxActivePeers = 20
-	RoutingTableKey       = []byte("RoutingTable")
+	routingTableKey       = []byte("RoutingTableKey")
 )
 
 // RoutingBucket is collection of peers stored as a heap.
@@ -54,11 +54,13 @@ func (rb *RoutingBucket) Swap(i, j int) {
 	rb.Positions[rb.ActivePeers[j].IDStr] = j
 }
 
+// Push adds a peer to the routing bucket.
 func (rb *RoutingBucket) Push(p interface{}) {
 	rb.ActivePeers = append(rb.ActivePeers, p.(*Peer))
 	rb.Positions[p.(*Peer).IDStr] = len(rb.ActivePeers) - 1
 }
 
+// Pop removes the root peer from the routing bucket.
 func (rb *RoutingBucket) Pop() interface{} {
 	root := rb.ActivePeers[len(rb.ActivePeers)-1]
 	rb.ActivePeers = rb.ActivePeers[0 : len(rb.ActivePeers)-1]
@@ -71,6 +73,7 @@ func (rb *RoutingBucket) Vacancy() bool {
 	return len(rb.ActivePeers) < rb.MaxActivePeers
 }
 
+// Contains returns whether the bucket's ID range contains the target.
 func (rb *RoutingBucket) Contains(target *big.Int) bool {
 	return target.Cmp(rb.LowerBound) >= 0 && target.Cmp(rb.UpperBound) < 0
 }
@@ -88,7 +91,7 @@ type RoutingTable struct {
 	Buckets []*RoutingBucket
 }
 
-// NewRoutingTable creates a new routing table without peers.
+// NewEmptyRoutingTable creates a new routing table without peers.
 func NewEmptyRoutingTable(selfID *big.Int) *RoutingTable {
 	firstBucket := newFirstBucket()
 	return &RoutingTable{
@@ -99,19 +102,50 @@ func NewEmptyRoutingTable(selfID *big.Int) *RoutingTable {
 }
 
 // NewRoutingTableWithPeers creates a new routing table from a collection of peers.
-func NewRoutingTableWithPeers(selfId *big.Int, peers map[string]*Peer) *RoutingTable {
-	rt := NewEmptyRoutingTable(selfId)
+func NewRoutingTableWithPeers(selfID *big.Int, peers map[string]*Peer) (*RoutingTable, int, error) {
+	rt := NewEmptyRoutingTable(selfID)
+	nAdded := 0
 	for _, peer := range peers {
-		rt.AddPeer(peer)
+		bucketIdx, existed, err := rt.AddPeer(peer)
+		if err != nil {
+			return nil, 0, err
+		}
+		if bucketIdx != -1 && !existed {
+			// increment added peers it didn't already exist in the bucket
+			nAdded++
+		}
 	}
+	return rt, nAdded, nil
+}
 
-	return rt
+// NewRoutingTableFromStorage returns a new RoutingTable instance from a
+// StoredRoutingTable instance.
+func NewRoutingTableFromStorage(stored *StoredRoutingTable) (*RoutingTable, error) {
+	peers := make(map[string]*Peer)
+	var err error
+	for idStr, storedPeer := range stored.Peers {
+		peers[idStr], err = NewPeerFromStorage(storedPeer)
+		if err != nil {
+			return nil, err
+		}
+	}
+	selfID := big.NewInt(0).SetBytes(stored.SelfId)
+	rt, _, err := NewRoutingTableWithPeers(selfID, peers)
+	return rt, err
 }
 
 // Load retrieves the routing table form the KV DB.
-func Load(db *db.KVDB) (*RoutingTable, error) {
-	// TODO
-	return nil, nil
+func Load(db db.KVDB) (*RoutingTable, error) {
+	storedRoutingTableB, err := db.Get(routingTableKey)
+	if err != nil {
+		return nil, err
+	}
+	stored := &StoredRoutingTable{}
+	err = proto.Unmarshal(storedRoutingTableB, stored)
+	if err != nil {
+		return nil, err
+	}
+	return NewRoutingTableFromStorage(stored)
 }
 
 // newFirstBucket creates a new instance of the first bucket (spanning the entire ID range)
@@ -124,6 +158,18 @@ func newFirstBucket() *RoutingBucket {
 		ActivePeers:    make([]*Peer, 0),
 		Positions:      make(map[string]int),
 		ContainsSelf:   true,
+	}
+}
+
+// NewStoredRoutingTable creates a new StoredRoutingTable instance from the RoutingTable instance.
+func (rt *RoutingTable) NewStoredRoutingTable() *StoredRoutingTable {
+	storedPeers := make(map[string]*StoredPeer, len(rt.Peers))
+	for idStr, peer := range rt.Peers {
+		storedPeers[idStr] = peer.NewStoredPeer()
+	}
+	return &StoredRoutingTable{
+		SelfId: rt.SelfID.Bytes(),
+		Peers:  storedPeers,
 	}
 }
 
@@ -149,9 +195,12 @@ func (rt *RoutingTable) NumActivePeers() int {
 }
 
 // Save stores a representation of the routing table to the KV DB.
-func (rt *RoutingTable) Save(db *db.KVDB) error {
-	// TODO (drausin)
-	return nil
+func (rt *RoutingTable) Save(db db.KVDB) error {
+	storedRoutingTableB, err := proto.Marshal(rt.NewStoredRoutingTable())
+	if err != nil {
+		return err
+	}
+	return db.Put(routingTableKey, storedRoutingTableB)
 }
 
 // AddPeer adds the peer into the appropriate bucket and returns a tuple indicating one of the
@@ -170,13 +219,12 @@ func (rt *RoutingTable) AddPeer(new *Peer) (int, bool, error) {
 
 		existing := insertBucket.ActivePeers[pHeapIdx]
 		if existing.ID.Cmp(new.ID) != 0 {
-			return bucketIdx, true,
-				errors.New(fmt.Sprintf("existing peer does not have same nodeId "+
-					"(%s) as new peer (%s)", existing.ID, new.ID))
+			return bucketIdx, true, fmt.Errorf("existing peer does not have same "+
+				"nodeId (%s) as new peer (%s)", existing.ID, new.ID)
 		}
 		if _, exists := rt.Peers[new.IDStr]; !exists {
-			return bucketIdx, true, errors.New(fmt.Sprintf("existing peer (%v) not "+
-				"found in routing table peers map", new.IDStr))
+			return bucketIdx, true, fmt.Errorf("existing peer (%v) not found in "+
+				"routing table peers map", new.IDStr)
 		}
 
 		// move node to bottom of heap
@@ -189,8 +237,8 @@ func (rt *RoutingTable) AddPeer(new *Peer) (int, bool, error) {
 	if insertBucket.Vacancy() {
 		// node isn't already in the bucket and there's vacancy, so add it
 		if _, exists := rt.Peers[new.IDStr]; exists {
-			return bucketIdx, true, errors.New(fmt.Sprintf("new peer (%v) should"+
-				" not be found in routing table peers map", new.IDStr))
+			return bucketIdx, true, fmt.Errorf("new peer (%v) should not be found in "+
+				"routing table peers map", new.IDStr)
 		}
 
 		heap.Push(insertBucket, new)
@@ -220,8 +268,7 @@ func (rt *RoutingTable) PopNextPeers(target *big.Int, k int) ([]*Peer, []int, er
 		return nil, nil, errors.New("No active peers exist")
 	}
 	if k < 1 {
-		return nil, nil, errors.New(fmt.Sprintf("number of peers (n = %d) must be "+
-			"positive", k))
+		return nil, nil, fmt.Errorf("number of peers (n = %d) must be positive", k)
 	}
 	if k > nap {
 		k = nap
@@ -258,7 +305,7 @@ func (rt *RoutingTable) PopNextPeers(target *big.Int, k int) ([]*Peer, []int, er
 	return next, bucketIdxs, nil
 }
 
-// PopNextPeers returns (but does not remove) the n peers in the bucket(s) closest to the given
+// PeakNextPeers returns (but does not remove) the n peers in the bucket(s) closest to the given
 // target.
 func (rt *RoutingTable) PeakNextPeers(target *big.Int, n int) ([]*Peer, []int, error) {
 	nextPeers, bucketIdxs, err := rt.PopNextPeers(target, n)
@@ -269,8 +316,8 @@ func (rt *RoutingTable) PeakNextPeers(target *big.Int, n int) ([]*Peer, []int, e
 	// add the peers back into their respective buckets
 	for i, nextPeer := range nextPeers {
 		if _, exists := rt.Peers[nextPeer.IDStr]; exists {
-			return nil, nil, errors.New(fmt.Sprintf("new peer (%v) should"+
-				" not be found in routing table peers map", nextPeer.IDStr))
+			return nil, nil, fmt.Errorf("new peer (%v) should not be found in "+
+				"routing table peers map", nextPeer.IDStr)
 		}
 		rt.Buckets[bucketIdxs[i]].Push(nextPeer)
 		rt.Peers[nextPeer.IDStr] = nextPeer
@@ -304,7 +351,6 @@ func (rt *RoutingTable) chooseBucketIndex(target *big.Int, fwdIdx int, bkwdIdx i
 		// have both backward and forward indices
 		fwdDist := big.NewInt(0).Xor(target, rt.Buckets[fwdIdx].UpperBound)
 		bkwdDist := big.NewInt(0).Xor(target, rt.Buckets[bkwdIdx].LowerBound)
-		log.Printf("fwdist: %v, bkwdDist: %v", fwdDist, bkwdDist)
 
 		if fwdDist.Cmp(bkwdDist) < 0 {
 			// forward upper bound is closer than backward lower bound
@@ -378,5 +424,5 @@ func (rt *RoutingTable) splitBucket(bucketIdx int) error {
 //	...
 // 	extendLowerBound(11000000, 4) -> 11001000
 func splitLowerBound(lowerBound *big.Int, depth uint) *big.Int {
-	return big.NewInt(0).SetBit(lowerBound, int(NodeIDLength*8-depth-1), 1)
+	return big.NewInt(0).SetBit(lowerBound, int(PeerIDLength*8-depth-1), 1)
 }

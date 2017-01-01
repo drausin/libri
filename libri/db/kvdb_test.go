@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"github.com/drausin/libri/libri/common"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -17,7 +18,7 @@ func TestRocksDB_NewRocksDB(t *testing.T) {
 	assert.Nil(t, err)
 	db, err := NewRocksDB(dir)
 	assert.Nil(t, err)
-	defer db.Close()
+	defer common.MaybePanic(db.Close())
 
 	assert.Nil(t, err)
 	assert.NotNil(t, db.wo)
@@ -31,13 +32,14 @@ func TestRocksDB_PutGet(t *testing.T) {
 	assert.Nil(t, err)
 	db, err := NewRocksDB(dir)
 	assert.Nil(t, err)
-	defer db.Close()
 	key, value1 := []byte("key"), []byte("value1")
 
 	assert.Nil(t, db.Put(key, value1))
 	getValue1, err := db.Get(key)
 	assert.Nil(t, err)
 	assert.Equal(t, value1, getValue1)
+
+	common.MaybePanic(db.Close())
 }
 
 // Test a second put overwrites the value of the first.
@@ -46,7 +48,6 @@ func TestRocksDB_PutGetPutGet(t *testing.T) {
 	assert.Nil(t, err)
 	db, err := NewRocksDB(dir)
 	assert.Nil(t, err)
-	defer db.rdb.Close()
 	key, value1, value2 := []byte("key"), []byte("value1"), []byte("value2")
 
 	assert.Nil(t, db.Put(key, value1))
@@ -58,6 +59,8 @@ func TestRocksDB_PutGetPutGet(t *testing.T) {
 	getValue2, err := db.Get(key)
 	assert.Nil(t, err)
 	assert.Equal(t, value2, getValue2)
+
+	common.MaybePanic(db.Close())
 }
 
 // Test deleting a put value.

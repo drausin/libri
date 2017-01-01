@@ -8,8 +8,31 @@ import (
 	"testing"
 	"time"
 
+	"math"
+
 	"github.com/stretchr/testify/assert"
 )
+
+func TestRoutingTable_NumActivePeers(t *testing.T) {
+	for s := 0; s < 16; s++ {
+		rng := rand.New(rand.NewSource(int64(s)))
+		selfID := big.NewInt(0).Rand(rng, IDUpperBound)
+
+		// make sure handles zero peers
+		rt, nAdded, err := NewRoutingTableWithPeers(selfID, generatePeers(0))
+		assert.Nil(t, err)
+		assert.Equal(t, 0, nAdded)
+		assert.Equal(t, 0, rt.NumActivePeers())
+
+		for i := 0.0; i <= 8; i++ {
+			nPeers := int(math.Pow(2, i))
+			info := fmt.Sprintf("s: %v, nPeers: %v", s, nPeers)
+			rt, nAdded, err = NewRoutingTableWithPeers(selfID, generatePeers(nPeers))
+			assert.Nil(t, err)
+			assert.Equal(t, nAdded, rt.NumActivePeers(), info)
+		}
+	}
+}
 
 func TestRoutingTable_AddPeer(t *testing.T) {
 	// try pseudo-random split sequence with different selfIDs
@@ -48,8 +71,9 @@ func TestRoutingTable_AddPeer(t *testing.T) {
 func TestRoutingTable_PopNextPeers(t *testing.T) {
 
 	// make sure we error on k < 1
-	rt := NewRoutingTableWithPeers(big.NewInt(0), generatePeers(8))
-	_, _, err := rt.PopNextPeers(big.NewInt(0), -1)
+	rt, _, err := NewRoutingTableWithPeers(big.NewInt(0), generatePeers(8))
+	assert.Nil(t, err)
+	_, _, err = rt.PopNextPeers(big.NewInt(0), -1)
 	assert.NotNil(t, err)
 	_, _, err = rt.PopNextPeers(big.NewInt(0), 0)
 	assert.NotNil(t, err)
@@ -61,25 +85,30 @@ func TestRoutingTable_PopNextPeers(t *testing.T) {
 			// for different selfIDs
 			rng := rand.New(rand.NewSource(int64(s)))
 			selfID := big.NewInt(0).Rand(rng, IDUpperBound)
-			rt := NewRoutingTableWithPeers(selfID, generatePeers(nPeers))
+			rt, _, err := NewRoutingTableWithPeers(selfID, generatePeers(nPeers))
+			assert.Nil(t, err)
 
 			target := big.NewInt(0).Rand(rng, IDUpperBound)
 
 			for k := 2; k <= 32; k *= 2 {
 				// for different numbers of peers to get
 				numActivePeers := rt.NumActivePeers()
-				info := fmt.Sprintf("nPeers: %v, s: %v, k: %v, nap: %v", nPeers, s, k, numActivePeers)
+				info := fmt.Sprintf("nPeers: %v, s: %v, k: %v, nap: %v", nPeers, s,
+					k, numActivePeers)
 				nextPeers, bucketIdxs, err := rt.PopNextPeers(target, k)
-				checkNextPeers(t, rt, k, numActivePeers, nextPeers, bucketIdxs, err, info)
+				checkNextPeers(t, rt, k, numActivePeers, nextPeers, bucketIdxs,
+					err, info)
 
-				// check that the number of active peers has decreased by number of nextPeers
+				// check that the number of active peers has decreased by number
+				// of nextPeers
 				assert.Equal(t, numActivePeers-len(nextPeers), rt.NumActivePeers())
 
 				// check that no peer exists in our peers maps
 				for i, nextPeer := range nextPeers {
 					_, exists := rt.Peers[nextPeer.IDStr]
 					assert.False(t, exists)
-					_, exists = rt.Buckets[bucketIdxs[i]].Positions[nextPeer.IDStr]
+					_, exists =
+						rt.Buckets[bucketIdxs[i]].Positions[nextPeer.IDStr]
 					assert.False(t, exists)
 				}
 			}
@@ -91,8 +120,9 @@ func TestRoutingTable_PopNextPeers(t *testing.T) {
 func TestRoutingTable_PeakNextPeers(t *testing.T) {
 
 	// make sure we error on k < 1
-	rt := NewRoutingTableWithPeers(big.NewInt(0), generatePeers(8))
-	_, _, err := rt.PeakNextPeers(big.NewInt(0), -1)
+	rt, _, err := NewRoutingTableWithPeers(big.NewInt(0), generatePeers(8))
+	assert.Nil(t, err)
+	_, _, err = rt.PeakNextPeers(big.NewInt(0), -1)
 	assert.NotNil(t, err)
 	_, _, err = rt.PeakNextPeers(big.NewInt(0), 0)
 	assert.NotNil(t, err)
@@ -104,16 +134,19 @@ func TestRoutingTable_PeakNextPeers(t *testing.T) {
 			// for different selfIDs
 			rng := rand.New(rand.NewSource(int64(s)))
 			selfID := big.NewInt(0).Rand(rng, IDUpperBound)
-			rt := NewRoutingTableWithPeers(selfID, generatePeers(nPeers))
+			rt, _, err := NewRoutingTableWithPeers(selfID, generatePeers(nPeers))
+			assert.Nil(t, err)
 
 			target := big.NewInt(0).Rand(rng, IDUpperBound)
 
 			for k := 2; k <= 32; k *= 2 {
 				// for different numbers of peers to get
 				numActivePeers := rt.NumActivePeers()
-				info := fmt.Sprintf("nPeers: %v, s: %v, k: %v, nap: %v", nPeers, s, k, numActivePeers)
+				info := fmt.Sprintf("nPeers: %v, s: %v, k: %v, nap: %v", nPeers,
+					s, k, numActivePeers)
 				nextPeers, bucketIdxs, err := rt.PeakNextPeers(target, k)
-				checkNextPeers(t, rt, k, numActivePeers, nextPeers, bucketIdxs, err, info)
+				checkNextPeers(t, rt, k, numActivePeers, nextPeers, bucketIdxs,
+					err, info)
 
 				// check that the number of active peers remains unchanged
 				assert.Equal(t, numActivePeers, rt.NumActivePeers())
@@ -122,7 +155,8 @@ func TestRoutingTable_PeakNextPeers(t *testing.T) {
 				for i, nextPeer := range nextPeers {
 					_, exists := rt.Peers[nextPeer.IDStr]
 					assert.True(t, exists)
-					_, exists = rt.Buckets[bucketIdxs[i]].Positions[nextPeer.IDStr]
+					_, exists =
+						rt.Buckets[bucketIdxs[i]].Positions[nextPeer.IDStr]
 					assert.True(t, exists)
 				}
 			}
@@ -358,7 +392,7 @@ func generatePeers(nPeers int) map[string]*Peer {
 			panic(err)
 		}
 
-		peers[peer.IDStr] = &peer
+		peers[peer.IDStr] = peer
 	}
 	return peers
 }
@@ -379,9 +413,9 @@ func checkPeers(t *testing.T, rt *RoutingTable, nExpectedPeers int) {
 			assert.False(t, rt.Buckets[b].Contains(rt.SelfID))
 		}
 		for p := range rt.Buckets[b].ActivePeers {
-			pId := rt.Buckets[b].ActivePeers[p].ID
-			assert.True(t, pId.Cmp(lowerBound) >= 0)
-			assert.True(t, pId.Cmp(upperBound) < 0)
+			pID := rt.Buckets[b].ActivePeers[p].ID
+			assert.True(t, pID.Cmp(lowerBound) >= 0)
+			assert.True(t, pID.Cmp(upperBound) < 0)
 			nPeers++
 		}
 	}
