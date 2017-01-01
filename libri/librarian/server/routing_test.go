@@ -1,17 +1,83 @@
 package server
 
 import (
+	"container/heap"
 	"fmt"
+	"math"
 	"math/big"
 	"math/rand"
+	"net"
 	"sort"
 	"testing"
 	"time"
 
-	"math"
-
+	"github.com/drausin/libri/libri/db"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestRoutingBucket_PushPop(t *testing.T) {
+	for i := 2.0; i <= 8; i++ {
+		nPeers := int(math.Pow(2, i))
+		rb := newFirstBucket()
+		for _, peer := range generatePeers(nPeers) {
+			heap.Push(rb, peer)
+		}
+		prevPeer := heap.Pop(rb).(*Peer)
+		for rb.Len() > 0 {
+			curPeer := heap.Pop(rb).(*Peer)
+			info := fmt.Sprintf("prev: %v, cur: %v", prevPeer.LatestResponse,
+				curPeer.LatestResponse)
+			assert.True(t, prevPeer.LatestResponse.Before(curPeer.LatestResponse), info)
+			prevPeer = curPeer
+		}
+	}
+}
+
+func TestRoutingTable_SaveLoad(t *testing.T) {
+	for s := 0; s < 8; s++ {
+		rng := rand.New(rand.NewSource(int64(s)))
+		selfID := big.NewInt(0).Rand(rng, IDUpperBound)
+
+		for i := 0.0; i <= 7; i++ {
+			nPeers := int(math.Pow(2, i))
+			rt1, _, err := NewRoutingTableWithPeers(selfID, generatePeers(nPeers))
+			assert.Nil(t, err)
+
+			kvdb, err := db.NewTempDirRocksDB()
+			assert.Nil(t, err)
+
+			err = rt1.Save(kvdb)
+			assert.Nil(t, err)
+
+			rt2, err := Load(kvdb)
+			assert.Nil(t, err)
+
+			// check that routing tables are the same
+			assert.Equal(t, rt1.SelfID, rt2.SelfID)
+			assert.Equal(t, rt1.Peers, rt2.Peers)
+			assert.Equal(t, rt1.Len(), rt2.Len())
+			for bi, bucket1 := range rt1.Buckets {
+				bucket2 := rt2.Buckets[bi]
+				assert.Equal(t, bucket1.Depth, bucket2.Depth)
+				assert.Equal(t, bucket1.LowerBound, bucket2.LowerBound)
+				assert.Equal(t, bucket1.UpperBound, bucket2.UpperBound)
+				assert.Equal(t, bucket1.ContainsSelf, bucket2.ContainsSelf)
+				assert.Equal(t, bucket1.Len(), bucket2.Len())
+
+				// the ActivePeers array may have some small differences in
+				// ordering (and thus the Position map will also reflect those
+				// differences), but here we check that the same peers are popped
+				// off at the same time, which is really want we care about
+				for bucket2.Len() > 0 {
+					peer1, peer2 := heap.Pop(bucket1), heap.Pop(bucket2)
+					assert.Equal(t, peer1, peer2)
+				}
+			}
+
+			kvdb.Close()
+		}
+	}
+}
 
 func TestRoutingTable_NumActivePeers(t *testing.T) {
 	for s := 0; s < 16; s++ {
@@ -382,10 +448,14 @@ func generatePeers(nPeers int) map[string]*Peer {
 	for p := 0; p < nPeers; p++ {
 		id := big.NewInt(0)
 		id.Rand(rng, IDUpperBound)
+		address, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("localhost:%v", 11000+p))
+		if err != nil {
+			panic(err)
+		}
 		peer, err := NewPeer(
 			id,
 			fmt.Sprintf("peer-%d", p),
-			nil, // we don't need the host into for these tests
+			address,
 			time.Unix(int64(p), 0).UTC(),
 		)
 		if err != nil {

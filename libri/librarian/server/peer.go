@@ -54,10 +54,6 @@ func NewPeer(id *big.Int, name string, publicAddress *net.TCPAddr,
 
 // NewPeerFromStorage creates a new Peer instance from a StoredPeer instance.
 func NewPeerFromStorage(stored *StoredPeer) (*Peer, error) {
-	if len(stored.Id) != PeerIDLength {
-		return nil, fmt.Errorf("stored.Id (length %d) should have byte length %d",
-			PeerIDLength, len(stored.Id))
-	}
 	return NewPeer(
 		big.NewInt(0).SetBytes(stored.Id),
 		stored.Name,

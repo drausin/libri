@@ -2,6 +2,7 @@ package db
 
 import (
 	"errors"
+	"io/ioutil"
 	"os"
 
 	"github.com/tecbot/gorocksdb"
@@ -19,7 +20,7 @@ type KVDB interface {
 	Delete(key []byte) error
 
 	// Close gracefully shuts down the database.
-	Close() error
+	Close()
 }
 
 // RocksDB implements the KVStore interface with a thinly wrapped RocksDB instance.
@@ -54,10 +55,21 @@ func NewRocksDB(dbDir string) (*RocksDB, error) {
 	}, nil
 }
 
+// NewTempDirRocksDB creates a new RocksDB instance (used mostly for local testing) in a local
+// temporary directory.
+func NewTempDirRocksDB() (*RocksDB, error) {
+	dir, err := ioutil.TempDir("", "kvdb-test-rocksdb")
+	if err != nil {
+		return nil, err
+	}
+	return NewRocksDB(dir)
+}
+
 // Get returns the value for a key.
 func (db *RocksDB) Get(key []byte) ([]byte, error) {
-	// Return copy of bytes instead of a slice to make it simpler for the user. If this proves slow for large reads
-	// we might want to add a separate method for getting the slice (or an abstraction of it) directly.
+	// Return copy of bytes instead of a slice to make it simpler for the user. If this proves
+	// slow for large reads we might want to add a separate method for getting the slice
+	// (or an abstraction of it) directly.
 	if db == nil {
 		return nil, errors.New("RocksDB struct is nil!")
 	}
@@ -78,7 +90,6 @@ func (db *RocksDB) Delete(key []byte) error {
 }
 
 // Close gracefully shuts down the database.
-func (db *RocksDB) Close() error {
+func (db *RocksDB) Close() {
 	db.rdb.Close()
-	return nil
 }

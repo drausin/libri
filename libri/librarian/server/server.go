@@ -64,7 +64,8 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 
 // Close handles cleanup involved in closing down the server.
 func (l *Librarian) Close() error {
-	return l.DB.Close()
+	l.DB.Close()
+	return nil
 }
 
 // CloseAndRemove cleans up and removes any local state from the server.

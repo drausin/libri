@@ -243,6 +243,7 @@ func (rt *RoutingTable) AddPeer(new *Peer) (int, bool, error) {
 
 		heap.Push(insertBucket, new)
 		rt.Peers[new.IDStr] = new
+
 		return bucketIdx, false, nil
 	}
 
@@ -289,7 +290,7 @@ func (rt *RoutingTable) PopNextPeers(target *big.Int, k int) ([]*Peer, []int, er
 
 		// fill peers from this bucket
 		for ; i < k && rt.Buckets[bucketIdx].Len() > 0; i++ {
-			next[i] = rt.Buckets[bucketIdx].Pop().(*Peer)
+			next[i] = heap.Pop(rt.Buckets[bucketIdx]).(*Peer)
 			bucketIdxs[i] = bucketIdx
 			delete(rt.Peers, next[i].IDStr)
 		}
