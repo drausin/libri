@@ -5,6 +5,30 @@ machine:
       PATH: "/usr/local/go/bin:/usr/local/go_workspace/bin:${HOME}/.go_workspace/bin:${PATH}"
       GOPATH: "${HOME}/.go_workspace:/usr/local/go_workspace:${HOME}/.go_project"
 
+dependencies:
+  override:
+    # symlink the project into GO's expected project hierarchy
+    - mkdir -k ~/.go_project/src/github.com/drausin
+    - ln -s ~/libri ~/.go_project/src/github.com/drausin/libri
+    - cd ~/.go_project/src/github.com/drausin/libri
+
+    # install project dependencies
+    - go get -t -d -v ./...
+
+    # install RocksDB
+    - wget https://github.com/facebook/rocksdb/archive/v4.13.5.zip
+    - unzip v4.13.5.zip
+    - cd rocksdb-4.13.5
+    - make static_lib
+    - sudo make install
+
+    # checkout and build gorocksdb driver that actually works with version v4.13.5
+    - cd ~/.go_workspace/src/github.com/tecbot/gorocksdb
+    - git checkout f2a0b10
+    - CGO_CFLAGS="-I/usr/local/include/rocksdb" \
+      CGO_LDFLAGS="-L/usr/local/opt/rocksdb -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy -llz4" \
+        go get github.com/tecbot/gorocksdb
+
 compile:
   override:
     - cd ~/.go_project/src/github.com/drausin/libri
