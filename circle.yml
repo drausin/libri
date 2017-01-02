@@ -2,8 +2,6 @@ machine:
   pre:
     - wget https://github.com/google/protobuf/releases/download/v3.1.0/protoc-3.1.0-linux-x86_64.zip
     - unzip protoc-3.1.0-linux-x86_64.zip -d protoc
-    - echo 'export PATH=~/protoc/bin:$PATH' > ~/.bashrc
-    - protoc --version
   environment:
       # GOROOT is not set by default
       GOROOT: ""
@@ -11,7 +9,7 @@ machine:
       GOPATH: "${HOME}/.go_workspace:/usr/local/go_workspace:${HOME}/.go_project"
 
 dependencies:
-  pre:
+  post:
     - go get -u github.com/golang/protobuf/{proto,protoc-gen-go}
 
 compile:
