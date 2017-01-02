@@ -14,6 +14,7 @@ dependencies:
 
 compile:
   override:
+    - cd ~/.go_project/src/github.com/drausin/libri
     - make build
 
 test:
