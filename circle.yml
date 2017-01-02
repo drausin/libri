@@ -1,3 +1,10 @@
+machine:
+  pre:
+    - wget https://github.com/google/protobuf/releases/download/v3.1.0/protoc-3.1.0-linux-x86_64.zip
+    - unzip protoc-3.1.0-linux-x86_64.zip -d /usr/local/share/protoc-3.1.0-linux-x86_64
+    - ln -s /usr/local/share/protoc-3.1.0-linux-x86_64 /usr/local/share/protoc
+    - protoc --version
+
 compile:
   override:
     - make build
