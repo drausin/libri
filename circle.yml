@@ -1,0 +1,8 @@
+compile:
+  override:
+    - make build
+
+test:
+  override:
+    - make lint
+    - make test

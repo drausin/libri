@@ -8,7 +8,7 @@ VETARGS?=-asmdecl -atomic -bool -buildtags -copylocks -methods \
 # all builds binaries for all targets
 all: build fix lint test
 
-build:
+build: proto
 	@echo "--> Running go build"
 	@go build $(PACKAGES)
 
