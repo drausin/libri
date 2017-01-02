@@ -8,19 +8,75 @@ message PingResponse {
     string message = 1;
 }
 
-message IdentityRequest {}
+message IdentityRequest {
+    // 32-byte unique request ID
+    bytes request_id = 1;
+}
 
 message IdentityResponse {
-    string peer_name = 1;
+    // ID of request that generated this response
+    bytes request_id = 1;
+
+    // 32-byte peer ID
     bytes peer_id = 2;
+
+    // self-reported name of the peer
+    string peer_name = 3;
+}
+
+message FindRequest {
+    // 32-byte unique request ID
+    bytes request_id = 1;
+
+    // 32-byte target to find peers around
+    bytes target = 2;
+
+    // the number of closests peers to return
+    uint32 num_peers = 3;
+}
+
+message Peer {
+    // 32-byte peer ID
+    bytes peer_id = 1;
+
+    // public IP address
+    string address_ip = 3;
+
+    // public address TCP port
+    uint32 address_port = 4;
+}
+
+message FindPeersReponse {
+    // ID of request that generated this response
+    bytes request_id = 1;
+
+    // list of peers closest to target
+    repeated Peer peers = 2;
+}
+
+message FindValueReponse {
+    // ID of request that generated this response
+    bytes request_id = 1;
+
+    // list of peers closest to target
+    repeated Peer peers = 2;
+
+    // the target value if it is found
+    bytes target_value = 3;
 }
 
 // The Librarian service handles all of the main Libri functionality.
 service Librarian {
 
-    // Confirms simple request/response connectivity.
+    // Ping confirms simple request/response connectivity.
     rpc Ping (PingRequest) returns (PingResponse) {}
 
-    // Identifies the node by name and ID.
+    // Identify identifies the node by name and ID.
     rpc Identify (IdentityRequest) returns (IdentityResponse) {}
+
+    // FindPeers returns the closest peers to a given target.
+    rpc FindPeers (FindRequest) returns (FindPeersResponse) {}
+
+    // FindValue returns the value of the target (if avilable) or its closest peers.
+    rpc FindValue (FindRequest) returns (FindValueResponse) {}
 }
