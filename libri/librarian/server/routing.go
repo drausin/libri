@@ -135,9 +135,9 @@ func NewRoutingTableFromStorage(stored *StoredRoutingTable) (*RoutingTable, erro
 }
 
 // Load retrieves the routing table form the KV DB.
-func Load(db db.KVDB) (*RoutingTable, error) {
+func LoadRoutingTable(db db.KVDB) (*RoutingTable, error) {
 	storedRoutingTableB, err := db.Get(routingTableKey)
-	if err != nil {
+	if storedRoutingTableB == nil || err != nil {
 		return nil, err
 	}
 	stored := &StoredRoutingTable{}
@@ -201,6 +201,19 @@ func (rt *RoutingTable) Save(db db.KVDB) error {
 		return err
 	}
 	return db.Put(routingTableKey, storedRoutingTableB)
+}
+
+// Close disconnects all client connections and saves the routing table state to the DB.
+func (rt *RoutingTable) Close(db db.KVDB) error {
+	// disconnect from all peers
+	for _, peer := range rt.Peers {
+		if err := peer.Disconnect(); err != nil {
+			return err
+		}
+	}
+
+	// save to DB
+	return rt.Save(db)
 }
 
 // AddPeer adds the peer into the appropriate bucket and returns a tuple indicating one of the
@@ -308,8 +321,8 @@ func (rt *RoutingTable) PopNextPeers(target *big.Int, k int) ([]*Peer, []int, er
 
 // PeakNextPeers returns (but does not remove) the n peers in the bucket(s) closest to the given
 // target.
-func (rt *RoutingTable) PeakNextPeers(target *big.Int, n int) ([]*Peer, []int, error) {
-	nextPeers, bucketIdxs, err := rt.PopNextPeers(target, n)
+func (rt *RoutingTable) PeakNextPeers(target *big.Int, k int) ([]*Peer, []int, error) {
+	nextPeers, bucketIdxs, err := rt.PopNextPeers(target, k)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -425,5 +438,5 @@ func (rt *RoutingTable) splitBucket(bucketIdx int) error {
 //	...
 // 	extendLowerBound(11000000, 4) -> 11001000
 func splitLowerBound(lowerBound *big.Int, depth uint) *big.Int {
-	return big.NewInt(0).SetBit(lowerBound, int(PeerIDLength*8-depth-1), 1)
+	return big.NewInt(0).SetBit(lowerBound, int(IDLength*8-depth-1), 1)
 }

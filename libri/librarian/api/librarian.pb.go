@@ -13,6 +13,9 @@ It has these top-level messages:
 	PingResponse
 	IdentityRequest
 	IdentityResponse
+	FindRequest
+	Peer
+	FindPeersResponse
 */
 package api
 
@@ -61,6 +64,8 @@ func (m *PingResponse) GetMessage() string {
 }
 
 type IdentityRequest struct {
+	// 32-byte unique request ID
+	RequestId []byte `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 }
 
 func (m *IdentityRequest) Reset()                    { *m = IdentityRequest{} }
@@ -68,9 +73,20 @@ func (m *IdentityRequest) String() string            { return proto.CompactTextS
 func (*IdentityRequest) ProtoMessage()               {}
 func (*IdentityRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
 
+func (m *IdentityRequest) GetRequestId() []byte {
+	if m != nil {
+		return m.RequestId
+	}
+	return nil
+}
+
 type IdentityResponse struct {
-	PeerName string `protobuf:"bytes,1,opt,name=peer_name,json=peerName" json:"peer_name,omitempty"`
-	PeerId   []byte `protobuf:"bytes,2,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
+	// ID of request that generated this response
+	RequestId []byte `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	// 32-byte peer ID
+	PeerId []byte `protobuf:"bytes,2,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
+	// self-reported name of the peer
+	PeerName string `protobuf:"bytes,3,opt,name=peer_name,json=peerName" json:"peer_name,omitempty"`
 }
 
 func (m *IdentityResponse) Reset()                    { *m = IdentityResponse{} }
@@ -78,11 +94,11 @@ func (m *IdentityResponse) String() string            { return proto.CompactText
 func (*IdentityResponse) ProtoMessage()               {}
 func (*IdentityResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
 
-func (m *IdentityResponse) GetPeerName() string {
+func (m *IdentityResponse) GetRequestId() []byte {
 	if m != nil {
-		return m.PeerName
+		return m.RequestId
 	}
-	return ""
+	return nil
 }
 
 func (m *IdentityResponse) GetPeerId() []byte {
@@ -92,11 +108,117 @@ func (m *IdentityResponse) GetPeerId() []byte {
 	return nil
 }
 
+func (m *IdentityResponse) GetPeerName() string {
+	if m != nil {
+		return m.PeerName
+	}
+	return ""
+}
+
+type FindRequest struct {
+	// 32-byte unique request ID
+	RequestId []byte `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	// 32-byte target to find peers around
+	Target []byte `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
+	// the number of closests peers to return
+	NumPeers uint32 `protobuf:"varint,3,opt,name=num_peers,json=numPeers" json:"num_peers,omitempty"`
+}
+
+func (m *FindRequest) Reset()                    { *m = FindRequest{} }
+func (m *FindRequest) String() string            { return proto.CompactTextString(m) }
+func (*FindRequest) ProtoMessage()               {}
+func (*FindRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
+
+func (m *FindRequest) GetRequestId() []byte {
+	if m != nil {
+		return m.RequestId
+	}
+	return nil
+}
+
+func (m *FindRequest) GetTarget() []byte {
+	if m != nil {
+		return m.Target
+	}
+	return nil
+}
+
+func (m *FindRequest) GetNumPeers() uint32 {
+	if m != nil {
+		return m.NumPeers
+	}
+	return 0
+}
+
+type Peer struct {
+	// 32-byte peer ID
+	PeerId []byte `protobuf:"bytes,1,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
+	// public IP address
+	AddressIp string `protobuf:"bytes,3,opt,name=address_ip,json=addressIp" json:"address_ip,omitempty"`
+	// public address TCP port
+	AddressPort uint32 `protobuf:"varint,4,opt,name=address_port,json=addressPort" json:"address_port,omitempty"`
+}
+
+func (m *Peer) Reset()                    { *m = Peer{} }
+func (m *Peer) String() string            { return proto.CompactTextString(m) }
+func (*Peer) ProtoMessage()               {}
+func (*Peer) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
+
+func (m *Peer) GetPeerId() []byte {
+	if m != nil {
+		return m.PeerId
+	}
+	return nil
+}
+
+func (m *Peer) GetAddressIp() string {
+	if m != nil {
+		return m.AddressIp
+	}
+	return ""
+}
+
+func (m *Peer) GetAddressPort() uint32 {
+	if m != nil {
+		return m.AddressPort
+	}
+	return 0
+}
+
+type FindPeersResponse struct {
+	// ID of request that generated this response
+	RequestId []byte `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	// list of peers closest to target
+	Peers []*Peer `protobuf:"bytes,2,rep,name=peers" json:"peers,omitempty"`
+}
+
+func (m *FindPeersResponse) Reset()                    { *m = FindPeersResponse{} }
+func (m *FindPeersResponse) String() string            { return proto.CompactTextString(m) }
+func (*FindPeersResponse) ProtoMessage()               {}
+func (*FindPeersResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
+
+func (m *FindPeersResponse) GetRequestId() []byte {
+	if m != nil {
+		return m.RequestId
+	}
+	return nil
+}
+
+func (m *FindPeersResponse) GetPeers() []*Peer {
+	if m != nil {
+		return m.Peers
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterType((*PingRequest)(nil), "api.PingRequest")
 	proto.RegisterType((*PingResponse)(nil), "api.PingResponse")
 	proto.RegisterType((*IdentityRequest)(nil), "api.IdentityRequest")
 	proto.RegisterType((*IdentityResponse)(nil), "api.IdentityResponse")
+	proto.RegisterType((*FindRequest)(nil), "api.FindRequest")
+	proto.RegisterType((*Peer)(nil), "api.Peer")
+	proto.RegisterType((*FindPeersResponse)(nil), "api.FindPeersResponse")
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -110,10 +232,12 @@ const _ = grpc.SupportPackageIsVersion4
 // Client API for Librarian service
 
 type LibrarianClient interface {
-	// Confirms simple request/response connectivity.
+	// Ping confirms simple request/response connectivity.
 	Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error)
-	// Identifies the node by name and ID.
+	// Identify identifies the node by name and ID.
 	Identify(ctx context.Context, in *IdentityRequest, opts ...grpc.CallOption) (*IdentityResponse, error)
+	// FindPeers returns the closest peers to a given target.
+	FindPeers(ctx context.Context, in *FindRequest, opts ...grpc.CallOption) (*FindPeersResponse, error)
 }
 
 type librarianClient struct {
@@ -142,13 +266,24 @@ func (c *librarianClient) Identify(ctx context.Context, in *IdentityRequest, opt
 	return out, nil
 }
 
+func (c *librarianClient) FindPeers(ctx context.Context, in *FindRequest, opts ...grpc.CallOption) (*FindPeersResponse, error) {
+	out := new(FindPeersResponse)
+	err := grpc.Invoke(ctx, "/api.Librarian/FindPeers", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // Server API for Librarian service
 
 type LibrarianServer interface {
-	// Confirms simple request/response connectivity.
+	// Ping confirms simple request/response connectivity.
 	Ping(context.Context, *PingRequest) (*PingResponse, error)
-	// Identifies the node by name and ID.
+	// Identify identifies the node by name and ID.
 	Identify(context.Context, *IdentityRequest) (*IdentityResponse, error)
+	// FindPeers returns the closest peers to a given target.
+	FindPeers(context.Context, *FindRequest) (*FindPeersResponse, error)
 }
 
 func RegisterLibrarianServer(s *grpc.Server, srv LibrarianServer) {
@@ -191,6 +326,24 @@ func _Librarian_Identify_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Librarian_FindPeers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FindRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LibrarianServer).FindPeers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.Librarian/FindPeers",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LibrarianServer).FindPeers(ctx, req.(*FindRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _Librarian_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "api.Librarian",
 	HandlerType: (*LibrarianServer)(nil),
@@ -203,6 +356,10 @@ var _Librarian_serviceDesc = grpc.ServiceDesc{
 			MethodName: "Identify",
 			Handler:    _Librarian_Identify_Handler,
 		},
+		{
+			MethodName: "FindPeers",
+			Handler:    _Librarian_FindPeers_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "librarian.proto",
@@ -211,19 +368,28 @@ var _Librarian_serviceDesc = grpc.ServiceDesc{
 func init() { proto.RegisterFile("librarian.proto", fileDescriptor0) }
 
 var fileDescriptor0 = []byte{
-	// 210 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xe2, 0xe2, 0xcf, 0xc9, 0x4c, 0x2a,
-	0x4a, 0x2c, 0xca, 0x4c, 0xcc, 0xd3, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x4e, 0x2c, 0xc8,
-	0x54, 0xe2, 0xe5, 0xe2, 0x0e, 0xc8, 0xcc, 0x4b, 0x0f, 0x4a, 0x2d, 0x2c, 0x4d, 0x2d, 0x2e, 0x51,
-	0xd2, 0xe0, 0xe2, 0x81, 0x70, 0x8b, 0x0b, 0xf2, 0xf3, 0x8a, 0x53, 0x85, 0x24, 0xb8, 0xd8, 0x73,
-	0x53, 0x8b, 0x8b, 0x13, 0xd3, 0x53, 0x25, 0x18, 0x15, 0x18, 0x35, 0x38, 0x83, 0x60, 0x5c, 0x25,
-	0x41, 0x2e, 0x7e, 0xcf, 0x94, 0xd4, 0xbc, 0x92, 0xcc, 0x92, 0x4a, 0x98, 0x66, 0x0f, 0x2e, 0x01,
-	0x84, 0x10, 0xd4, 0x00, 0x69, 0x2e, 0xce, 0x82, 0xd4, 0xd4, 0xa2, 0xf8, 0xbc, 0xc4, 0x5c, 0x98,
-	0x11, 0x1c, 0x20, 0x01, 0xbf, 0xc4, 0xdc, 0x54, 0x21, 0x71, 0x2e, 0x76, 0xb0, 0x64, 0x66, 0x8a,
-	0x04, 0x93, 0x02, 0xa3, 0x06, 0x4f, 0x10, 0x1b, 0x88, 0xeb, 0x99, 0x62, 0x54, 0xca, 0xc5, 0xe9,
-	0x03, 0x73, 0xad, 0x90, 0x2e, 0x17, 0x0b, 0xc8, 0x4d, 0x42, 0x02, 0x7a, 0x89, 0x05, 0x99, 0x7a,
-	0x48, 0xae, 0x95, 0x12, 0x44, 0x12, 0x81, 0xd8, 0xa7, 0xc4, 0x20, 0x64, 0xc9, 0xc5, 0x01, 0x71,
-	0x45, 0x5a, 0xa5, 0x90, 0x08, 0x58, 0x01, 0x9a, 0x3b, 0xa5, 0x44, 0xd1, 0x44, 0x61, 0x5a, 0x93,
-	0xd8, 0xc0, 0x01, 0x63, 0x0c, 0x08, 0x00, 0x00, 0xff, 0xff, 0xa8, 0xca, 0x02, 0xc9, 0x2b, 0x01,
-	0x00, 0x00,
+	// 353 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0x8c, 0x52, 0xdb, 0x6a, 0x2a, 0x31,
+	0x14, 0x75, 0xd4, 0xa3, 0xce, 0x1e, 0x45, 0x0d, 0xe7, 0x78, 0x06, 0x8b, 0xd4, 0xe6, 0xc9, 0x97,
+	0x4a, 0xb1, 0x0f, 0xa5, 0x3f, 0x50, 0x18, 0x28, 0x45, 0xa6, 0x1f, 0x20, 0x91, 0xa4, 0x43, 0xa0,
+	0x93, 0x49, 0x93, 0xf8, 0xe0, 0x4f, 0xf5, 0x1b, 0x4b, 0x2e, 0xe3, 0xed, 0xa1, 0xf8, 0x96, 0xb5,
+	0xf6, 0x65, 0xad, 0x9d, 0xbd, 0x61, 0xf8, 0xc9, 0xb7, 0x8a, 0x28, 0x4e, 0xc4, 0x52, 0xaa, 0xca,
+	0x54, 0xa8, 0x45, 0x24, 0xc7, 0x03, 0x48, 0xd6, 0x5c, 0x14, 0x39, 0xfb, 0xda, 0x31, 0x6d, 0xf0,
+	0x02, 0xfa, 0x1e, 0x6a, 0x59, 0x09, 0xcd, 0x50, 0x0a, 0xdd, 0x92, 0x69, 0x4d, 0x0a, 0x96, 0x46,
+	0xf3, 0x68, 0x11, 0xe7, 0x35, 0xc4, 0x0f, 0x30, 0xcc, 0x28, 0x13, 0x86, 0x9b, 0x7d, 0x28, 0x46,
+	0x33, 0x00, 0xe5, 0x9f, 0x1b, 0x4e, 0x5d, 0x7e, 0x3f, 0x8f, 0x03, 0x93, 0x51, 0x5c, 0xc0, 0xe8,
+	0x58, 0x11, 0xfa, 0xff, 0x5e, 0x82, 0xfe, 0x43, 0x57, 0x32, 0xa6, 0x6c, 0xac, 0xe9, 0x62, 0x1d,
+	0x0b, 0x33, 0x8a, 0x6e, 0x20, 0x76, 0x01, 0x41, 0x4a, 0x96, 0xb6, 0x9c, 0xb3, 0x9e, 0x25, 0xde,
+	0x48, 0xc9, 0x30, 0x81, 0xe4, 0x85, 0x0b, 0x7a, 0x9d, 0x2d, 0x34, 0x81, 0x8e, 0x21, 0xaa, 0x60,
+	0xa6, 0x96, 0xf0, 0xc8, 0x4a, 0x88, 0x5d, 0xb9, 0xb1, 0x5d, 0xb5, 0x93, 0x18, 0xe4, 0x3d, 0xb1,
+	0x2b, 0xd7, 0x16, 0x63, 0x02, 0x6d, 0xfb, 0x38, 0x35, 0x18, 0x9d, 0x19, 0x9c, 0x01, 0x10, 0x4a,
+	0x15, 0xd3, 0x7a, 0xc3, 0x65, 0x70, 0x18, 0x07, 0x26, 0x93, 0xe8, 0x0e, 0xfa, 0x75, 0x58, 0x56,
+	0xca, 0xa4, 0x6d, 0xd7, 0x3f, 0x09, 0xdc, 0xba, 0x52, 0x06, 0xbf, 0xc3, 0xd8, 0x4e, 0xe1, 0xf4,
+	0xae, 0xfd, 0xaf, 0x5b, 0xf8, 0xe3, 0xfd, 0x36, 0xe7, 0xad, 0x45, 0xb2, 0x8a, 0x97, 0x44, 0xf2,
+	0xa5, 0xed, 0x90, 0x7b, 0x7e, 0xf5, 0x1d, 0x41, 0xfc, 0x5a, 0xdf, 0x01, 0xba, 0x87, 0xb6, 0xdd,
+	0x36, 0x1a, 0xf9, 0xbc, 0xe3, 0x1d, 0x4c, 0xc7, 0x27, 0x8c, 0x97, 0xc6, 0x0d, 0xf4, 0x0c, 0x3d,
+	0xbf, 0xc0, 0x8f, 0x3d, 0xfa, 0xeb, 0x12, 0x2e, 0x2e, 0x60, 0xfa, 0xef, 0x82, 0x3d, 0x94, 0x3e,
+	0x41, 0x7c, 0x18, 0x26, 0xc8, 0x9d, 0xac, 0x68, 0x3a, 0x39, 0x30, 0x67, 0xe3, 0xe2, 0xc6, 0xb6,
+	0xe3, 0x6e, 0xf5, 0xf1, 0x27, 0x00, 0x00, 0xff, 0xff, 0x9c, 0x33, 0x36, 0xcf, 0xbe, 0x02, 0x00,
+	0x00,
 }

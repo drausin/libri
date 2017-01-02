@@ -46,23 +46,12 @@ message Peer {
     uint32 address_port = 4;
 }
 
-message FindPeersReponse {
+message FindPeersResponse {
     // ID of request that generated this response
     bytes request_id = 1;
 
     // list of peers closest to target
     repeated Peer peers = 2;
-}
-
-message FindValueReponse {
-    // ID of request that generated this response
-    bytes request_id = 1;
-
-    // list of peers closest to target
-    repeated Peer peers = 2;
-
-    // the target value if it is found
-    bytes target_value = 3;
 }
 
 // The Librarian service handles all of the main Libri functionality.
@@ -76,7 +65,4 @@ service Librarian {
 
     // FindPeers returns the closest peers to a given target.
     rpc FindPeers (FindRequest) returns (FindPeersResponse) {}
-
-    // FindValue returns the value of the target (if avilable) or its closest peers.
-    rpc FindValue (FindRequest) returns (FindValueResponse) {}
 }

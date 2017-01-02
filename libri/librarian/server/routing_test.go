@@ -49,7 +49,7 @@ func TestRoutingTable_SaveLoad(t *testing.T) {
 			err = rt1.Save(kvdb)
 			assert.Nil(t, err)
 
-			rt2, err := Load(kvdb)
+			rt2, err := LoadRoutingTable(kvdb)
 			assert.Nil(t, err)
 
 			// check that routing tables are the same

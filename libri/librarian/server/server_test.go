@@ -20,7 +20,7 @@ func TestLibrarian_Ping(t *testing.T) {
 // TestLibrarian_Identify verifies that we get the expected response from a an identification
 // request.
 func TestLibrarian_Identify(t *testing.T) {
-	peerID, err := generatePeerID()
+	peerID, err := NewRandomID()
 	assert.Nil(t, err)
 	peerName := "Test Node"
 	lib := &Librarian{
@@ -30,10 +30,14 @@ func TestLibrarian_Identify(t *testing.T) {
 		PeerID: peerID,
 	}
 
-	r, err := lib.Identify(nil, &api.IdentityRequest{})
+	requestID, err := NewRandomID()
 	assert.Nil(t, err)
-	assert.Equal(t, r.PeerId, peerID.Bytes())
-	assert.Equal(t, r.PeerName, peerName)
+	rq := &api.IdentityRequest{RequestId: requestID.Bytes()}
+	rp, err := lib.Identify(nil, rq)
+	assert.Nil(t, err)
+	assert.Equal(t, peerID.Bytes(), rp.PeerId)
+	assert.Equal(t, peerName, rp.PeerName)
+	assert.Equal(t, rq.RequestId, rp.RequestId)
 }
 
 // TestNewLibrarian checks that we can create a new instance, close it, and create it again as
