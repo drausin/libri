@@ -4,6 +4,11 @@ machine:
     - unzip protoc-3.1.0-linux-x86_64.zip -d protoc
     - echo 'export PATH=~/protoc/bin:$PATH' > ~/.bashrc
     - protoc --version
+
+dependencies:
+  pre:
+    - go get -u github.com/golang/protobuf/{proto,protoc-gen-go}
+
 compile:
   override:
     - make build
