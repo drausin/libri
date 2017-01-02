@@ -15,13 +15,12 @@ dependencies:
     - go get -t -d -v ./...
 
     # install RocksDB
-    - wget https://github.com/facebook/rocksdb/archive/v4.13.5.zip
-    - unzip v4.13.5.zip
-    - cd rocksdb-4.13.5 && make static_lib && sudo make install
+    - cd ~ && wget https://github.com/facebook/rocksdb/archive/v4.11.2.zip
+    - unzip ~/v4.11.2.zip
+    - cd ~/rocksdb-4.11.2 && make static_lib && sudo make install
 
-    # checkout and build gorocksdb driver that actually works with version v4.13.5
-    - cd ~/.go_workspace/src/github.com/tecbot/gorocksdb
-    - git checkout f2a0b10
+    # checkout and build gorocksdb driver that actually works with version v4.11.2
+    - cd ~/.go_workspace/src/github.com/tecbot/gorocksdb && git checkout f2a0b10
     - CGO_CFLAGS="-I/usr/local/include/rocksdb" \
       CGO_LDFLAGS="-L/usr/local/opt/rocksdb -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy -llz4" \
         go get github.com/tecbot/gorocksdb
