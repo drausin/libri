@@ -1,4 +1,6 @@
 machine:
+  pre:
+    - sudo apt-get install libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev
   environment:
       # GOROOT is not set by default
       GOROOT: ""
@@ -6,8 +8,6 @@ machine:
       GOPATH: "${HOME}/.go_workspace:/usr/local/go_workspace:${HOME}/.go_project"
 
 dependencies:
-  pre:
-    - sudo apt-get install libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev
   override:
     # symlink the project into golang's expected project hierarchy
     - mkdir -p ~/.go_project/src/github.com/drausin
@@ -17,14 +17,15 @@ dependencies:
     - go get -t -d -v ./...
     - make tools
 
-    # install RocksDB
-    - cd ~ && wget https://github.com/facebook/rocksdb/archive/v4.11.2.zip
-    - unzip ~/v4.11.2.zip -d ~
+    # install RocksDB (possibly using cached directory if it exists)
+    - if [ -d "~/rocksdb-4.11.2" ]; then cd ~ && wget https://github.com/facebook/rocksdb/archive/v4.11.2.zip && unzip ~/v4.11.2.zip -d ~; fi
     - cd ~/rocksdb-4.11.2 && make static_lib && sudo make install
 
     # checkout and build gorocksdb driver that actually works with version v4.11.2
     - cd ~/.go_workspace/src/github.com/tecbot/gorocksdb && git checkout f2a0b10
     - CGO_CFLAGS="-I/usr/local/include/rocksdb" CGO_LDFLAGS="-L/usr/local/lib/librocksdb.a -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy" go get github.com/tecbot/gorocksdb
+  cache_directories:
+    - ~/rocksdb-4.11.2
 
 compile:
   override:
