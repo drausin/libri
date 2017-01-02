@@ -9,6 +9,10 @@ dependencies:
   pre:
     - sudo apt-get install libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev
   override:
+    # symlink the project into golang's expected project hierarchy
+    - mkdir -p ~/.go_project/src/github.com/drausin
+    - ln -s ~/libri ~/.go_project/src/github.com/drausin/libri
+
     # install project golang dependencies
     - go get -t -d -v ./...
     - make tools
