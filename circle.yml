@@ -6,13 +6,12 @@ machine:
       GOPATH: "${HOME}/.go_workspace:/usr/local/go_workspace:${HOME}/.go_project"
 
 dependencies:
+  pre:
+    - sudo apt-get install libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev
   override:
-    # symlink the project into GO's expected project hierarchy
-    - mkdir -p ~/.go_project/src/github.com/drausin
-    - ln -s ~/libri ~/.go_project/src/github.com/drausin/libri
-
-    # install project dependencies
+    # install project golang dependencies
     - go get -t -d -v ./...
+    - make tools
 
     # install RocksDB
     - cd ~ && wget https://github.com/facebook/rocksdb/archive/v4.11.2.zip
@@ -21,12 +20,12 @@ dependencies:
 
     # checkout and build gorocksdb driver that actually works with version v4.11.2
     - cd ~/.go_workspace/src/github.com/tecbot/gorocksdb && git checkout f2a0b10
-    - sudo apt-get install libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev
-    - CGO_CFLAGS="-I/usr/local/include/rocksdb" CGO_LDFLAGS="-L/usr/local/lib/librocksdb.a -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy" go get github.com/tecbot/gorocksdb
+    - CGO_CFLAGS="-I/usr/local/include/rocksdb" \
+      CGO_LDFLAGS="-L/usr/local/lib/librocksdb.a -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy" \
+      go get github.com/tecbot/gorocksdb
 
 compile:
   override:
-    - cd ~/.go_project/src/github.com/drausin/libri
     - make build
 
 test:
