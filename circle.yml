@@ -18,7 +18,7 @@ dependencies:
     - make tools
 
     # install RocksDB (possibly using cached directory if it exists)
-    - if [ ! -d "~/rocksdb-4.11.2" ]; then cd ~ && wget https://github.com/facebook/rocksdb/archive/v4.11.2.zip && unzip ~/v4.11.2.zip -d ~; fi
+    - if [ ! -d "${HOME}/rocksdb-4.11.2" ]; then cd ~ && wget https://github.com/facebook/rocksdb/archive/v4.11.2.zip && unzip ~/v4.11.2.zip -d ~; fi
     - cd ~/rocksdb-4.11.2 && make static_lib && sudo make install
 
     # checkout and build gorocksdb driver that actually works with version v4.11.2
