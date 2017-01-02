@@ -1,10 +1,8 @@
 machine:
   pre:
     - wget https://github.com/google/protobuf/releases/download/v3.1.0/protoc-3.1.0-linux-x86_64.zip
-    - sudo unzip protoc-3.1.0-linux-x86_64.zip -d /opt/protoc-3.1.0-linux-x86_64
-    - sudo ln -s /opt/protoc-3.1.0-linux-x86_64 /opt/protoc
-    - sudo chown ubuntu -R /opt/protoc
-    - echo 'export PATH=/opt/protoc/bin:$PATH' > ~/.bashrc
+    - unzip protoc-3.1.0-linux-x86_64.zip -d protoc
+    - echo 'export PATH=~/protoc/bin:$PATH' > ~/.bashrc
     - protoc --version
 compile:
   override:
