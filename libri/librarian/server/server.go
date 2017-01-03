@@ -2,6 +2,7 @@ package server
 
 import (
 	"crypto/rand"
+	"fmt"
 	"math/big"
 	"os"
 
@@ -11,8 +12,8 @@ import (
 )
 
 const (
-	// PeerIDLength is the number of bytes in a peer ID.
-	PeerIDLength = 32
+	// IDLength is the number of bytes in an ID
+	IDLength = 32
 )
 
 var (
@@ -27,8 +28,11 @@ type Librarian struct {
 	// Config holds the configuration parameters of the server
 	Config *Config
 
-	// DB is the key-value store DB used for all external storage
-	DB db.KVDB
+	// db is the key-value store DB used for all external storage
+	db db.KVDB
+
+	// rt is the routing table of peers
+	rt *RoutingTable
 }
 
 // NewLibrarian creates a new librarian instance.
@@ -38,33 +42,74 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 		return nil, err
 	}
 
-	var peerID *big.Int
-	peerIDB, err := rdb.Get(peerIDKey)
+	peerID, err := loadOrCreatePeerID(rdb)
 	if err != nil {
 		return nil, err
 	}
-	if peerIDB != nil {
-		peerID = big.NewInt(0).SetBytes(peerIDB)
-	} else {
-		peerID, err = generatePeerID()
-		if err != nil {
-			return nil, err
-		}
-		if rdb.Put(peerIDKey, peerID.Bytes()) != nil {
-			return nil, err
-		}
+
+	rt, err := loadOrCreateRoutingTable(rdb, peerID)
+	if err != nil {
+		return nil, err
 	}
 
 	return &Librarian{
 		PeerID: peerID,
 		Config: config,
-		DB:     rdb,
+		db:     rdb,
+		rt:     rt,
 	}, nil
+}
+
+func loadOrCreatePeerID(db db.KVDB) (*big.Int, error) {
+	peerIDB, err := db.Get(peerIDKey)
+	if err != nil {
+		return nil, err
+	}
+
+	if peerIDB != nil {
+		// return saved PeerID
+		return NewID(peerIDB), nil
+	}
+
+	// create new PeerID
+	peerID, err := NewRandomID()
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: move this up to a Librarian.Save() method
+	// save new PeerID
+	if db.Put(peerIDKey, peerID.Bytes()) != nil {
+		return nil, err
+	}
+	return peerID, nil
+
+}
+
+func loadOrCreateRoutingTable(db db.KVDB, selfID *big.Int) (*RoutingTable, error) {
+	rt, err := LoadRoutingTable(db)
+	if err != nil {
+		return nil, err
+	}
+
+	if rt != nil {
+		if selfID.Cmp(rt.SelfID) != 0 {
+			return nil, fmt.Errorf("selfID (%v) of loaded routing table does not "+
+				"match Librarian selfID (%v)", rt.SelfID, selfID)
+		}
+		return rt, nil
+	}
+
+	return NewEmptyRoutingTable(selfID), nil
 }
 
 // Close handles cleanup involved in closing down the server.
 func (l *Librarian) Close() error {
-	l.DB.Close()
+	if err := l.rt.Close(l.db); err != nil {
+		return err
+	}
+	l.db.Close()
+
 	return nil
 }
 
@@ -86,17 +131,41 @@ func (l *Librarian) Ping(ctx context.Context, rq *api.PingRequest) (*api.PingRes
 func (l *Librarian) Identify(ctx context.Context, rq *api.IdentityRequest) (*api.IdentityResponse,
 	error) {
 	return &api.IdentityResponse{
-		PeerName: l.Config.PeerName,
-		PeerId:   l.PeerID.Bytes(),
+		RequestId: rq.RequestId,
+		PeerName:  l.Config.PeerName,
+		PeerId:    l.PeerID.Bytes(),
 	}, nil
 }
 
-// generatePeerID returns a random peer ID.
-func generatePeerID() (*big.Int, error) {
-	idB := make([]byte, PeerIDLength)
+// FindPeers returns the closest peers to a given target.
+func (l *Librarian) FindPeers(ctx context.Context, rq *api.FindRequest) (*api.FindPeersResponse,
+	error) {
+	target := NewID(rq.Target)
+	closest, _, err := l.rt.PeakNextPeers(target, int(rq.NumPeers))
+	if err != nil {
+		return nil, err
+	}
+	foundPeers := make([]*api.Peer, len(closest))
+	for i, peer := range closest {
+		foundPeers[i] = peer.NewAPIPeer()
+	}
+	return &api.FindPeersResponse{
+		RequestId: rq.RequestId,
+		Peers:     foundPeers,
+	}, nil
+}
+
+// NewRandomID returns a random 32-byte ID.
+func NewRandomID() (*big.Int, error) {
+	idB := make([]byte, IDLength)
 	_, err := rand.Read(idB)
 	if err != nil {
 		return nil, err
 	}
-	return big.NewInt(0).SetBytes(idB), nil
+	return NewID(idB), nil
+}
+
+// NewID creates a *big.Int from a big-endian byte array.
+func NewID(id []byte) *big.Int {
+	return big.NewInt(0).SetBytes(id)
 }

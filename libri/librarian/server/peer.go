@@ -7,14 +7,17 @@ import (
 	"math/big"
 	"net"
 	"time"
+
+	"github.com/drausin/libri/libri/librarian/api"
+	"google.golang.org/grpc"
 )
 
 var (
 	// IDUpperBound is the upper bound of the ID space, i.e., all 256 bits on.
-	IDUpperBound = big.NewInt(0).SetBytes(bytes.Repeat([]byte{255}, PeerIDLength))
+	IDUpperBound = NewID(bytes.Repeat([]byte{255}, IDLength))
 
 	// IDLowerBound is the lower bound of the ID space, i.e., all 256 bits off.
-	IDLowerBound = big.NewInt(0).SetBytes(make([]byte, PeerIDLength))
+	IDLowerBound = NewID(make([]byte, IDLength))
 )
 
 // Peer represents a peer in the network.
@@ -30,6 +33,12 @@ type Peer struct {
 
 	// RPC TCP address
 	PublicAddress *net.TCPAddr
+
+	// Librarian client to peer
+	Client *api.LibrarianClient
+
+	// client connection to the peer
+	conn *grpc.ClientConn
 
 	// time of latest response from the peer
 	LatestResponse time.Time
@@ -74,6 +83,38 @@ func (peer *Peer) NewStoredPeer() *StoredPeer {
 		AddressPort:    uint32(peer.PublicAddress.Port),
 		LatestResponse: peer.LatestResponse.Unix(),
 	}
+}
+
+// NewAPIPeer creates a new api.Peer (from protobuf) instance from the Peer instance.
+func (peer *Peer) NewAPIPeer() *api.Peer {
+	return &api.Peer{
+		PeerId:      peer.ID.Bytes(),
+		AddressIp:   peer.PublicAddress.IP.String(),
+		AddressPort: uint32(peer.PublicAddress.Port),
+	}
+}
+
+// Connect establishes the TCP connection with the peer and establishes the Librarian client with
+// it.
+func (peer *Peer) Connect() error {
+	// TODO (drausin) add SSL
+	conn, err := grpc.Dial(peer.PublicAddress.String(), grpc.WithInsecure())
+	if err != nil {
+		return err
+	}
+	client := api.NewLibrarianClient(conn)
+	peer.conn = conn
+	peer.Client = &client
+	return nil
+}
+
+// Disconnect closes the connection with the peer.
+func (peer *Peer) Disconnect() error {
+	if peer.Client != nil {
+		peer.Client = nil
+		return peer.conn.Close()
+	}
+	return nil
 }
 
 // IDString gives the string encoding of the ID.
