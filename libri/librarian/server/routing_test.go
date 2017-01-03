@@ -19,7 +19,8 @@ func TestRoutingBucket_PushPop(t *testing.T) {
 	for i := 2.0; i <= 8; i++ {
 		nPeers := int(math.Pow(2, i))
 		rb := newFirstBucket()
-		for _, peer := range generatePeers(nPeers) {
+		rng := rand.New(rand.NewSource(int64(nPeers)))
+		for _, peer := range generatePeers(nPeers, rng) {
 			heap.Push(rb, peer)
 		}
 		prevPeer := heap.Pop(rb).(*Peer)
@@ -40,7 +41,7 @@ func TestRoutingTable_SaveLoad(t *testing.T) {
 
 		for i := 0.0; i <= 7; i++ {
 			nPeers := int(math.Pow(2, i))
-			rt1, _, err := NewRoutingTableWithPeers(selfID, generatePeers(nPeers))
+			rt1, _, err := NewRoutingTableWithPeers(selfID, generatePeers(nPeers, rng))
 			assert.Nil(t, err)
 
 			kvdb, err := db.NewTempDirRocksDB()
@@ -82,10 +83,10 @@ func TestRoutingTable_SaveLoad(t *testing.T) {
 func TestRoutingTable_NumActivePeers(t *testing.T) {
 	for s := 0; s < 16; s++ {
 		rng := rand.New(rand.NewSource(int64(s)))
-		selfID := big.NewInt(0).Rand(rng, IDUpperBound)
+		selfID := newPseudoRandomID(rng)
 
 		// make sure handles zero peers
-		rt, nAdded, err := NewRoutingTableWithPeers(selfID, generatePeers(0))
+		rt, nAdded, err := NewRoutingTableWithPeers(selfID, generatePeers(0, rng))
 		assert.Nil(t, err)
 		assert.Equal(t, 0, nAdded)
 		assert.Equal(t, 0, rt.NumActivePeers())
@@ -93,7 +94,8 @@ func TestRoutingTable_NumActivePeers(t *testing.T) {
 		for i := 0.0; i <= 8; i++ {
 			nPeers := int(math.Pow(2, i))
 			info := fmt.Sprintf("s: %v, nPeers: %v", s, nPeers)
-			rt, nAdded, err = NewRoutingTableWithPeers(selfID, generatePeers(nPeers))
+			rt, nAdded, err = NewRoutingTableWithPeers(selfID,
+				generatePeers(nPeers, rng))
 			assert.Nil(t, err)
 			assert.Equal(t, nAdded, rt.NumActivePeers(), info)
 		}
@@ -104,11 +106,10 @@ func TestRoutingTable_AddPeer(t *testing.T) {
 	// try pseudo-random split sequence with different selfIDs
 	for s := 0; s < 16; s++ {
 		rng := rand.New(rand.NewSource(int64(s)))
-		selfID := big.NewInt(0)
-		selfID.Rand(rng, IDUpperBound)
+		selfID := newPseudoRandomID(rng)
 		rt := NewEmptyRoutingTable(selfID)
 		nPeers := 0
-		peers := generatePeers(100)
+		peers := generatePeers(100, rng)
 		repeatedPeers := make([]*Peer, 0)
 		for _, peer := range peers {
 			bucketIdx, alreadyPresent, err := rt.AddPeer(peer)
@@ -137,7 +138,8 @@ func TestRoutingTable_AddPeer(t *testing.T) {
 func TestRoutingTable_PopNextPeers(t *testing.T) {
 
 	// make sure we error on k < 1
-	rt, _, err := NewRoutingTableWithPeers(big.NewInt(0), generatePeers(8))
+	rng := rand.New(rand.NewSource(int64(8)))
+	rt, _, err := NewRoutingTableWithPeers(big.NewInt(0), generatePeers(8, rng))
 	assert.Nil(t, err)
 	_, _, err = rt.PopNextPeers(big.NewInt(0), -1)
 	assert.NotNil(t, err)
@@ -150,8 +152,8 @@ func TestRoutingTable_PopNextPeers(t *testing.T) {
 		for s := 0; s < 10; s++ {
 			// for different selfIDs
 			rng := rand.New(rand.NewSource(int64(s)))
-			selfID := big.NewInt(0).Rand(rng, IDUpperBound)
-			rt, _, err := NewRoutingTableWithPeers(selfID, generatePeers(nPeers))
+			selfID := newPseudoRandomID(rng)
+			rt, _, err := NewRoutingTableWithPeers(selfID, generatePeers(nPeers, rng))
 			assert.Nil(t, err)
 
 			target := big.NewInt(0).Rand(rng, IDUpperBound)
@@ -186,7 +188,8 @@ func TestRoutingTable_PopNextPeers(t *testing.T) {
 func TestRoutingTable_PeakNextPeers(t *testing.T) {
 
 	// make sure we error on k < 1
-	rt, _, err := NewRoutingTableWithPeers(big.NewInt(0), generatePeers(8))
+	rng := rand.New(rand.NewSource(int64(8)))
+	rt, _, err := NewRoutingTableWithPeers(big.NewInt(0), generatePeers(8, rng))
 	assert.Nil(t, err)
 	_, _, err = rt.PeakNextPeers(big.NewInt(0), -1)
 	assert.NotNil(t, err)
@@ -199,8 +202,8 @@ func TestRoutingTable_PeakNextPeers(t *testing.T) {
 		for s := 0; s < 10; s++ {
 			// for different selfIDs
 			rng := rand.New(rand.NewSource(int64(s)))
-			selfID := big.NewInt(0).Rand(rng, IDUpperBound)
-			rt, _, err := NewRoutingTableWithPeers(selfID, generatePeers(nPeers))
+			selfID := newPseudoRandomID(rng)
+			rt, _, err := NewRoutingTableWithPeers(selfID, generatePeers(nPeers, rng))
 			assert.Nil(t, err)
 
 			target := big.NewInt(0).Rand(rng, IDUpperBound)
@@ -354,9 +357,9 @@ func TestRoutingTable_chooseBucketIndex(t *testing.T) {
 }
 
 func TestRoutingTable_SplitBucket(t *testing.T) {
-	setUpRoutingTable := func(selfID *big.Int) *RoutingTable {
+	setUpRoutingTable := func(selfID *big.Int, rng *rand.Rand) *RoutingTable {
 		firstBucket := newFirstBucket()
-		peers := generatePeers(firstBucket.MaxActivePeers)
+		peers := generatePeers(firstBucket.MaxActivePeers, rng)
 		for _, peer := range peers {
 			firstBucket.Push(peer)
 		}
@@ -375,8 +378,8 @@ func TestRoutingTable_SplitBucket(t *testing.T) {
 	// try same split sequence with different selfIDs
 	for s := 0; s < 16; s++ {
 		rng := rand.New(rand.NewSource(int64(s)))
-		selfID := big.NewInt(0).Rand(rng, IDUpperBound)
-		rt := setUpRoutingTable(selfID)
+		selfID := newPseudoRandomID(rng)
+		rt := setUpRoutingTable(selfID, rng)
 
 		// lower bounds: [0 1]
 		err := rt.splitBucket(0)
@@ -408,7 +411,7 @@ func TestRoutingTable_SplitBucket(t *testing.T) {
 	for s := 0; s < 16; s++ {
 		rng := rand.New(rand.NewSource(int64(s)))
 		selfID := big.NewInt(0).Rand(rng, IDUpperBound)
-		rt := setUpRoutingTable(selfID)
+		rt := setUpRoutingTable(selfID, rng)
 
 		// do pseudo-random splits
 		for i := 0; i < 10; i++ {
@@ -442,12 +445,10 @@ func TestSplitLowerBound_Ok(t *testing.T) {
 	check(newIntLsh(255<<8|128, 240), 9, newIntLsh(255<<8|192, 240)) // prefix 11111111 1
 }
 
-func generatePeers(nPeers int) map[string]*Peer {
-	rng := rand.New(rand.NewSource(int64(nPeers)))
+func generatePeers(nPeers int, rng *rand.Rand) map[string]*Peer {
 	peers := make(map[string]*Peer)
 	for p := 0; p < nPeers; p++ {
-		id := big.NewInt(0)
-		id.Rand(rng, IDUpperBound)
+		id := newPseudoRandomID(rng)
 		address, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("localhost:%v", 11000+p))
 		if err != nil {
 			panic(err)
@@ -530,4 +531,8 @@ func checkNextPeers(t *testing.T, rt *RoutingTable, k int, numActivePeers int, n
 		assert.Equal(t, numActivePeers, len(nextPeers), info)
 		assert.Equal(t, numActivePeers, len(bucketIdxs), info)
 	}
+}
+
+func newPseudoRandomID(rng *rand.Rand) *big.Int {
+	return big.NewInt(0).Rand(rng, IDUpperBound)
 }

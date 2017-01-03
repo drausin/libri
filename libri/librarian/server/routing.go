@@ -104,18 +104,8 @@ func NewEmptyRoutingTable(selfID *big.Int) *RoutingTable {
 // NewRoutingTableWithPeers creates a new routing table from a collection of peers.
 func NewRoutingTableWithPeers(selfID *big.Int, peers map[string]*Peer) (*RoutingTable, int, error) {
 	rt := NewEmptyRoutingTable(selfID)
-	nAdded := 0
-	for _, peer := range peers {
-		bucketIdx, existed, err := rt.AddPeer(peer)
-		if err != nil {
-			return nil, 0, err
-		}
-		if bucketIdx != -1 && !existed {
-			// increment added peers it didn't already exist in the bucket
-			nAdded++
-		}
-	}
-	return rt, nAdded, nil
+	nAdded, err := rt.AddPeers(peers)
+	return rt, nAdded, err
 }
 
 // NewRoutingTableFromStorage returns a new RoutingTable instance from a
@@ -134,7 +124,7 @@ func NewRoutingTableFromStorage(stored *StoredRoutingTable) (*RoutingTable, erro
 	return rt, err
 }
 
-// Load retrieves the routing table form the KV DB.
+// LoadRoutingTable retrieves the routing table form the KV DB.
 func LoadRoutingTable(db db.KVDB) (*RoutingTable, error) {
 	storedRoutingTableB, err := db.Get(routingTableKey)
 	if storedRoutingTableB == nil || err != nil {
@@ -273,6 +263,22 @@ func (rt *RoutingTable) AddPeer(new *Peer) (int, bool, error) {
 
 	// no vacancy in the bucket and it doesn't contain the self ID, so just drop it on the floor
 	return -1, false, nil
+}
+
+// AddPeers adds a collection (as a map) of peers to the routing table.
+func (rt *RoutingTable) AddPeers(peers map[string]*Peer) (int, error) {
+	nAdded := 0
+	for _, peer := range peers {
+		bucketIdx, existed, err := rt.AddPeer(peer)
+		if err != nil {
+			return 0, err
+		}
+		if bucketIdx != -1 && !existed {
+			// increment added peers it didn't already exist in the bucket
+			nAdded++
+		}
+	}
+	return nAdded, nil
 }
 
 // PopNextPeers removes and returns the k peers in the bucket(s) closest to the given target.

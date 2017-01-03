@@ -2,6 +2,7 @@ package server
 
 import (
 	"crypto/rand"
+	"fmt"
 	"math/big"
 	"os"
 
@@ -55,7 +56,7 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 		PeerID: peerID,
 		Config: config,
 		db:     rdb,
-		rt: 	rt,
+		rt:     rt,
 	}, nil
 }
 
@@ -76,6 +77,7 @@ func loadOrCreatePeerID(db db.KVDB) (*big.Int, error) {
 		return nil, err
 	}
 
+	// TODO: move this up to a Librarian.Save() method
 	// save new PeerID
 	if db.Put(peerIDKey, peerID.Bytes()) != nil {
 		return nil, err
@@ -91,6 +93,10 @@ func loadOrCreateRoutingTable(db db.KVDB, selfID *big.Int) (*RoutingTable, error
 	}
 
 	if rt != nil {
+		if selfID.Cmp(rt.SelfID) != 0 {
+			return nil, fmt.Errorf("selfID (%v) of loaded routing table does not "+
+				"match Librarian selfID (%v)", rt.SelfID, selfID)
+		}
 		return rt, nil
 	}
 
@@ -126,8 +132,8 @@ func (l *Librarian) Identify(ctx context.Context, rq *api.IdentityRequest) (*api
 	error) {
 	return &api.IdentityResponse{
 		RequestId: rq.RequestId,
-		PeerName: l.Config.PeerName,
-		PeerId:   l.PeerID.Bytes(),
+		PeerName:  l.Config.PeerName,
+		PeerId:    l.PeerID.Bytes(),
 	}, nil
 }
 
