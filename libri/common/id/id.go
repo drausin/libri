@@ -2,15 +2,15 @@ package id
 
 import (
 	"bytes"
-	"math/big"
 	crand "crypto/rand"
-	mrand "math/rand"
-	"encoding/hex"
 	"fmt"
+	"math/big"
+	mrand "math/rand"
 )
 
 const (
-	// Length is the number of bytes in an ID
+	// Length is the number of bytes in an ID, though actual representations may be shorter
+	// (with the assumption that left-padded zero bytes can be omitted)
 	Length = 32
 )
 
@@ -19,14 +19,14 @@ var (
 	UpperBound = FromBytes(bytes.Repeat([]byte{255}, Length))
 
 	// LowerBound is the lower bound of the ID space, i.e., all 256 bits off.
-	LowerBound = FromBytes(make([]byte, Length))
+	LowerBound = big.NewInt(0)
 )
 
 // FromBytes creates a *big.Int from a big-endian byte array.
 func FromBytes(id []byte) *big.Int {
-	if len(id) != Length {
-		panic(fmt.Errorf("unexpected ID byte length receieved: %v, expected %v",
-			len(id), Length))
+	if len(id) > Length {
+		panic(fmt.Errorf("ID byte length too long: received %v, expected <= %v", len(id),
+			Length))
 	}
 	return big.NewInt(0).SetBytes(id)
 }
@@ -41,8 +41,8 @@ func NewRandom() *big.Int {
 	return FromBytes(b)
 }
 
-// NewPseudoRandom returns a psuedo-random ID from a random number generator.
-func NewPseudoRandom(rng mrand.Rand) *big.Int {
+// NewPseudoRandom returns a pseudo-random ID from a random number generator.
+func NewPseudoRandom(rng *mrand.Rand) *big.Int {
 	return big.NewInt(0).Rand(rng, UpperBound)
 }
 
@@ -52,6 +52,6 @@ func Distance(x, y *big.Int) *big.Int {
 }
 
 // String gives the string (hex) encoding of the ID.
-func String(id *big.Int) {
-	return hex.EncodeToString(id.Bytes())
+func String(id *big.Int) string {
+	return fmt.Sprintf("%064X", id.Bytes())
 }

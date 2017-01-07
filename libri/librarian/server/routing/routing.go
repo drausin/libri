@@ -6,8 +6,6 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/db"
 	"github.com/drausin/libri/libri/librarian/server/peer"
-	"github.com/drausin/libri/libri/librarian/server/storage"
-	"github.com/gogo/protobuf/proto"
 	"math/big"
 	"sort"
 )
@@ -23,7 +21,6 @@ const (
 
 var (
 	defaultMaxActivePeers = 20
-	routingTableKey       = []byte("RoutingTableKey")
 )
 
 // RoutingTable defines how routes to a particular target map to specific peers, held in a tree of
@@ -58,28 +55,6 @@ func NewWithPeers(selfID *big.Int, peers []*peer.Peer) *RoutingTable {
 	return rt
 }
 
-// Load retrieves the routing table form the KV DB.
-func Load(db db.KVDB) (*RoutingTable, error) {
-	srtBytes, err := db.Get(routingTableKey)
-	if srtBytes == nil || err != nil {
-		return nil, err
-	}
-	stored := &storage.RoutingTable{}
-	err = proto.Unmarshal(srtBytes, stored)
-	if err != nil {
-		return nil, err
-	}
-	return storage.ToRoutingTable(stored)
-}
-
-// Save stores a representation of the routing table to the KV DB.
-func (rt *RoutingTable) Save(db db.KVDB) error {
-	srtBytes, err := proto.Marshal(storage.FromRoutingTable(rt))
-	if err != nil {
-		return err
-	}
-	return db.Put(routingTableKey, srtBytes)
-}
 
 // NumPeers returns the total number of active peers across all buckets.
 func (rt *RoutingTable) NumPeers() int {

@@ -6,8 +6,19 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	"time"
 	"github.com/drausin/libri/libri/librarian/server/routing"
-	"github.com/drausin/libri/libri/librarian/server/storage"
+	"github.com/drausin/libri/libri/db"
+	"github.com/gogo/protobuf/proto"
 )
+
+const (
+	// Keys are the []byte keys used for storing different components.
+	Keys = struct{
+		RoutingTable []byte
+	}{
+		RoutingTable: []byte("RoutingTable"),
+	}
+)
+
 
 // ToAddress creates a net.TCPAddr from a storage.Address.
 func ToAddress(stored *Address) *net.TCPAddr {
@@ -82,9 +93,32 @@ func FromRoutingTable(rt *routing.RoutingTable) *RoutingTable {
 		storedPeers[i] = FromPeer(p)
 		i++
 	}
-	return &storage.RoutingTable{
+	return &RoutingTable{
 		SelfId: rt.SelfID.Bytes(),
 		Peers:  storedPeers,
 	}
+}
+
+// Load retrieves the routing table form the KV DB.
+func LoadRoutingTable(db db.KVDB) (*RoutingTable, error) {
+	bytes, err := db.Get(Keys.RoutingTable)
+	if bytes == nil || err != nil {
+		return nil, err
+	}
+	stored := &RoutingTable{}
+	err = proto.Unmarshal(bytes, stored)
+	if err != nil {
+		return nil, err
+	}
+	return ToRoutingTable(stored)
+}
+
+// Save stores a representation of the routing table to the KV DB.
+func SaveRoutingTable(db db.KVDB, rt *routing.RoutingTable) error {
+	bytes, err := proto.Marshal(FromRoutingTable(rt))
+	if err != nil {
+		return err
+	}
+	return db.Put(Keys.RoutingTable, bytes)
 }
 
