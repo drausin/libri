@@ -1,4 +1,4 @@
-package server
+package routing
 
 import (
 	"container/heap"
@@ -41,7 +41,7 @@ func TestRoutingTable_SaveLoad(t *testing.T) {
 
 		for i := 0.0; i <= 7; i++ {
 			nPeers := int(math.Pow(2, i))
-			rt1, _, err := NewRoutingTableWithPeers(selfID, generatePeers(nPeers, rng))
+			rt1, _, err := NewWithPeers(selfID, generatePeers(nPeers, rng))
 			assert.Nil(t, err)
 
 			kvdb, err := db.NewTempDirRocksDB()
@@ -59,10 +59,10 @@ func TestRoutingTable_SaveLoad(t *testing.T) {
 			assert.Equal(t, rt1.Len(), rt2.Len())
 			for bi, bucket1 := range rt1.Buckets {
 				bucket2 := rt2.Buckets[bi]
-				assert.Equal(t, bucket1.Depth, bucket2.Depth)
-				assert.Equal(t, bucket1.LowerBound, bucket2.LowerBound)
-				assert.Equal(t, bucket1.UpperBound, bucket2.UpperBound)
-				assert.Equal(t, bucket1.ContainsSelf, bucket2.ContainsSelf)
+				assert.Equal(t, bucket1.depth, bucket2.Depth)
+				assert.Equal(t, bucket1.lowerBound, bucket2.LowerBound)
+				assert.Equal(t, bucket1.upperBound, bucket2.UpperBound)
+				assert.Equal(t, bucket1.containsSelf, bucket2.ContainsSelf)
 				assert.Equal(t, bucket1.Len(), bucket2.Len())
 
 				// the ActivePeers array may have some small differences in
@@ -86,18 +86,18 @@ func TestRoutingTable_NumActivePeers(t *testing.T) {
 		selfID := newPseudoRandomID(rng)
 
 		// make sure handles zero peers
-		rt, nAdded, err := NewRoutingTableWithPeers(selfID, generatePeers(0, rng))
+		rt, nAdded, err := NewWithPeers(selfID, generatePeers(0, rng))
 		assert.Nil(t, err)
 		assert.Equal(t, 0, nAdded)
-		assert.Equal(t, 0, rt.NumActivePeers())
+		assert.Equal(t, 0, rt.NumPeers())
 
 		for i := 0.0; i <= 8; i++ {
 			nPeers := int(math.Pow(2, i))
 			info := fmt.Sprintf("s: %v, nPeers: %v", s, nPeers)
-			rt, nAdded, err = NewRoutingTableWithPeers(selfID,
+			rt, nAdded, err = NewWithPeers(selfID,
 				generatePeers(nPeers, rng))
 			assert.Nil(t, err)
-			assert.Equal(t, nAdded, rt.NumActivePeers(), info)
+			assert.Equal(t, nAdded, rt.NumPeers(), info)
 		}
 	}
 }
@@ -107,12 +107,12 @@ func TestRoutingTable_AddPeer(t *testing.T) {
 	for s := 0; s < 16; s++ {
 		rng := rand.New(rand.NewSource(int64(s)))
 		selfID := newPseudoRandomID(rng)
-		rt := NewEmptyRoutingTable(selfID)
+		rt := NewEmpty(selfID)
 		nPeers := 0
 		peers := generatePeers(100, rng)
 		repeatedPeers := make([]*Peer, 0)
 		for _, peer := range peers {
-			bucketIdx, alreadyPresent, err := rt.AddPeer(peer)
+			bucketIdx, alreadyPresent, err := rt.Push(peer)
 			assert.Nil(t, err)
 			assert.False(t, alreadyPresent)
 			if bucketIdx != -1 {
@@ -127,7 +127,7 @@ func TestRoutingTable_AddPeer(t *testing.T) {
 
 		// add a few other peers a second time
 		for _, peer := range repeatedPeers {
-			_, alreadyPresent, err := rt.AddPeer(peer)
+			_, alreadyPresent, err := rt.Push(peer)
 			assert.Nil(t, err)
 			assert.True(t, alreadyPresent)
 			checkPeers(t, rt, nPeers)
@@ -139,11 +139,11 @@ func TestRoutingTable_PopNextPeers(t *testing.T) {
 
 	// make sure we error on k < 1
 	rng := rand.New(rand.NewSource(int64(8)))
-	rt, _, err := NewRoutingTableWithPeers(big.NewInt(0), generatePeers(8, rng))
+	rt, _, err := NewWithPeers(big.NewInt(0), generatePeers(8, rng))
 	assert.Nil(t, err)
-	_, _, err = rt.PopNextPeers(big.NewInt(0), -1)
+	_, _, err = rt.Pop(big.NewInt(0), -1)
 	assert.NotNil(t, err)
-	_, _, err = rt.PopNextPeers(big.NewInt(0), 0)
+	_, _, err = rt.Pop(big.NewInt(0), 0)
 	assert.NotNil(t, err)
 
 	for nPeers := 8; nPeers <= 128; nPeers *= 2 {
@@ -153,30 +153,30 @@ func TestRoutingTable_PopNextPeers(t *testing.T) {
 			// for different selfIDs
 			rng := rand.New(rand.NewSource(int64(s)))
 			selfID := newPseudoRandomID(rng)
-			rt, _, err := NewRoutingTableWithPeers(selfID, generatePeers(nPeers, rng))
+			rt, _, err := NewWithPeers(selfID, generatePeers(nPeers, rng))
 			assert.Nil(t, err)
 
 			target := big.NewInt(0).Rand(rng, IDUpperBound)
 
 			for k := 2; k <= 32; k *= 2 {
 				// for different numbers of peers to get
-				numActivePeers := rt.NumActivePeers()
+				numActivePeers := rt.NumPeers()
 				info := fmt.Sprintf("nPeers: %v, s: %v, k: %v, nap: %v", nPeers, s,
 					k, numActivePeers)
-				nextPeers, bucketIdxs, err := rt.PopNextPeers(target, k)
+				nextPeers, bucketIdxs, err := rt.Pop(target, k)
 				checkNextPeers(t, rt, k, numActivePeers, nextPeers, bucketIdxs,
 					err, info)
 
 				// check that the number of active peers has decreased by number
 				// of nextPeers
-				assert.Equal(t, numActivePeers-len(nextPeers), rt.NumActivePeers())
+				assert.Equal(t, numActivePeers-len(nextPeers), rt.NumPeers())
 
 				// check that no peer exists in our peers maps
 				for i, nextPeer := range nextPeers {
 					_, exists := rt.Peers[nextPeer.IDStr]
 					assert.False(t, exists)
 					_, exists =
-						rt.Buckets[bucketIdxs[i]].Positions[nextPeer.IDStr]
+						rt.Buckets[bucketIdxs[i]].positions[nextPeer.IDStr]
 					assert.False(t, exists)
 				}
 			}
@@ -189,11 +189,11 @@ func TestRoutingTable_PeakNextPeers(t *testing.T) {
 
 	// make sure we error on k < 1
 	rng := rand.New(rand.NewSource(int64(8)))
-	rt, _, err := NewRoutingTableWithPeers(big.NewInt(0), generatePeers(8, rng))
+	rt, _, err := NewWithPeers(big.NewInt(0), generatePeers(8, rng))
 	assert.Nil(t, err)
-	_, _, err = rt.PeakNextPeers(big.NewInt(0), -1)
+	_, _, err = rt.Peak(big.NewInt(0), -1)
 	assert.NotNil(t, err)
-	_, _, err = rt.PeakNextPeers(big.NewInt(0), 0)
+	_, _, err = rt.Peak(big.NewInt(0), 0)
 	assert.NotNil(t, err)
 
 	for nPeers := 8; nPeers <= 128; nPeers *= 2 {
@@ -203,29 +203,29 @@ func TestRoutingTable_PeakNextPeers(t *testing.T) {
 			// for different selfIDs
 			rng := rand.New(rand.NewSource(int64(s)))
 			selfID := newPseudoRandomID(rng)
-			rt, _, err := NewRoutingTableWithPeers(selfID, generatePeers(nPeers, rng))
+			rt, _, err := NewWithPeers(selfID, generatePeers(nPeers, rng))
 			assert.Nil(t, err)
 
 			target := big.NewInt(0).Rand(rng, IDUpperBound)
 
 			for k := 2; k <= 32; k *= 2 {
 				// for different numbers of peers to get
-				numActivePeers := rt.NumActivePeers()
+				numActivePeers := rt.NumPeers()
 				info := fmt.Sprintf("nPeers: %v, s: %v, k: %v, nap: %v", nPeers,
 					s, k, numActivePeers)
-				nextPeers, bucketIdxs, err := rt.PeakNextPeers(target, k)
+				nextPeers, bucketIdxs, err := rt.Peak(target, k)
 				checkNextPeers(t, rt, k, numActivePeers, nextPeers, bucketIdxs,
 					err, info)
 
 				// check that the number of active peers remains unchanged
-				assert.Equal(t, numActivePeers, rt.NumActivePeers())
+				assert.Equal(t, numActivePeers, rt.NumPeers())
 
 				// check that every peer exists in our peers maps
 				for i, nextPeer := range nextPeers {
 					_, exists := rt.Peers[nextPeer.IDStr]
 					assert.True(t, exists)
 					_, exists =
-						rt.Buckets[bucketIdxs[i]].Positions[nextPeer.IDStr]
+						rt.Buckets[bucketIdxs[i]].positions[nextPeer.IDStr]
 					assert.True(t, exists)
 				}
 			}
@@ -237,11 +237,11 @@ func TestRoutingTable_PeakNextPeers(t *testing.T) {
 func TestRoutingTable_chooseBucketIndex(t *testing.T) {
 
 	rt := &RoutingTable{
-		Buckets: []*RoutingBucket{
-			{LowerBound: big.NewInt(0), UpperBound: big.NewInt(64)},
-			{LowerBound: big.NewInt(64), UpperBound: big.NewInt(128)},
-			{LowerBound: big.NewInt(128), UpperBound: big.NewInt(192)},
-			{LowerBound: big.NewInt(192), UpperBound: big.NewInt(255)},
+		Buckets: []*routingBucket{
+			{lowerBound: big.NewInt(0), upperBound: big.NewInt(64)},
+			{lowerBound: big.NewInt(64), upperBound: big.NewInt(128)},
+			{lowerBound: big.NewInt(128), upperBound: big.NewInt(192)},
+			{lowerBound: big.NewInt(192), upperBound: big.NewInt(255)},
 		},
 	}
 	var target *big.Int
@@ -359,14 +359,14 @@ func TestRoutingTable_chooseBucketIndex(t *testing.T) {
 func TestRoutingTable_SplitBucket(t *testing.T) {
 	setUpRoutingTable := func(selfID *big.Int, rng *rand.Rand) *RoutingTable {
 		firstBucket := newFirstBucket()
-		peers := generatePeers(firstBucket.MaxActivePeers, rng)
+		peers := generatePeers(firstBucket.maxActivePeers, rng)
 		for _, peer := range peers {
 			firstBucket.Push(peer)
 		}
 		return &RoutingTable{
 			SelfID:  selfID,
 			Peers:   peers,
-			Buckets: []*RoutingBucket{firstBucket},
+			Buckets: []*routingBucket{firstBucket},
 		}
 	}
 
@@ -473,18 +473,18 @@ func checkPeers(t *testing.T, rt *RoutingTable, nExpectedPeers int) {
 	nPeers := 0
 	assert.True(t, sort.IsSorted(rt))
 	for b := 0; b < len(rt.Buckets); b++ {
-		lowerBound, upperBound := rt.Buckets[b].LowerBound, rt.Buckets[b].UpperBound
+		lowerBound, upperBound := rt.Buckets[b].lowerBound, rt.Buckets[b].upperBound
 		if b > 0 {
-			assert.Equal(t, lowerBound, rt.Buckets[b-1].UpperBound)
+			assert.Equal(t, lowerBound, rt.Buckets[b-1].upperBound)
 		}
-		if rt.Buckets[b].ContainsSelf {
+		if rt.Buckets[b].containsSelf {
 			assert.True(t, rt.Buckets[b].Contains(rt.SelfID))
 			nContainSelf++
 		} else {
 			assert.False(t, rt.Buckets[b].Contains(rt.SelfID))
 		}
-		for p := range rt.Buckets[b].ActivePeers {
-			pID := rt.Buckets[b].ActivePeers[p].ID
+		for p := range rt.Buckets[b].activePeers {
+			pID := rt.Buckets[b].activePeers[p].ID
 			assert.True(t, pID.Cmp(lowerBound) >= 0)
 			assert.True(t, pID.Cmp(upperBound) < 0)
 			nPeers++
