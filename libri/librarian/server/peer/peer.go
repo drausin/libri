@@ -4,53 +4,58 @@ import (
 	"math/big"
 	"net"
 	"time"
+
 	"github.com/drausin/libri/libri/librarian/api"
+	cid "github.com/drausin/libri/libri/common/id"
 	"google.golang.org/grpc"
 )
-
 
 // Peer represents a peer in the network.
 type Peer struct {
 	// 256-bit ID
-	ID            *big.Int
+	ID *big.Int
+
+	// string encoding of ID
+	IDStr string
 
 	// self-reported name
-	Name          string
+	Name string
 
 	// RPC TCP address
 	PublicAddress *net.TCPAddr
 
 	// time of latest response from the peer
-	Responses     *ResponseStats
+	Responses *ResponseStats
 
 	// Librarian client to peer
-	client        *api.LibrarianClient
+	client *api.LibrarianClient
 
 	// client connection to the peer
-	conn          *grpc.ClientConn
+	conn *grpc.ClientConn
 }
 
 // New creates a new Peer instance with empty response stats.
 func New(id *big.Int, name string, publicAddress *net.TCPAddr) *Peer {
 	return &Peer{
-		ID:             id,
-		Name:           name,
-		PublicAddress:  publicAddress,
-		Responses: ResponseStats{},
+		ID:            id,
+		IDStr:         cid.String(id),
+		Name:          name,
+		PublicAddress: publicAddress,
+		Responses:     newResponseStats(),
 	}
 }
 
 // Connect establishes the TCP connection with the peer and establishes the Librarian client with
 // it.
-func (peer *Peer) Connect() error {
+func (p *Peer) Connect() error {
 	// TODO (drausin) add SSL
-	conn, err := grpc.Dial(peer.PublicAddress.String(), grpc.WithInsecure())
+	conn, err := grpc.Dial(p.PublicAddress.String(), grpc.WithInsecure())
 	if err != nil {
 		return err
 	}
 	client := api.NewLibrarianClient(conn)
-	peer.conn = conn
-	peer.client = &client
+	p.conn = conn
+	p.client = &client
 	return nil
 }
 
@@ -69,12 +74,12 @@ func (p *Peer) Before(q *Peer) bool {
 	return p.Responses.Latest.Before(q.Responses.Latest)
 }
 
-// MarkResponseSuccess records a successful response from the peer.
+// RecordResponseSuccess records a successful response from the peer.
 func (p *Peer) RecordResponseSuccess() {
 	p.recordResponse()
 }
 
-// MarkResponseError records an unsuccessful or error-laden response from the peer.
+// RecordResponseError records an unsuccessful or error-laden response from the peer.
 func (p *Peer) RecordResponseError() {
 	p.Responses.NErrors++
 	p.recordResponse()
@@ -84,7 +89,7 @@ func (p *Peer) RecordResponseError() {
 func (p *Peer) recordResponse() {
 	p.Responses.NQueries++
 	p.Responses.Latest = time.Now().UTC()
-	if p.Responses.Earliest == nil {
+	if p.Responses.Earliest.Unix() == 0 {
 		p.Responses.Earliest = p.Responses.Latest
 	}
 }
@@ -104,3 +109,11 @@ type ResponseStats struct {
 	NErrors uint64
 }
 
+func newResponseStats() *ResponseStats {
+	return &ResponseStats{
+		Earliest: time.Unix(0, 0),
+		Latest:   time.Unix(0, 0),
+		NQueries: 0,
+		NErrors:  0,
+	}
+}
