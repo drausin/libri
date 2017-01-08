@@ -3,6 +3,9 @@ GOTOOLS= github.com/alecthomas/gometalinter \
 	 gopkg.in/matm/v1/gocov-html
 VETARGS?=-asmdecl -atomic -bool -buildtags -copylocks -methods \
          -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
+ALL_PKGS=$(shell go list ./... | sed -r 's|github.com/drausin/libri/||g' | sort)
+GIT_STATUS_PKGS=$(shell git status --porcelain | grep -e '\.go$$' | sed -r 's|^...(.+)/[^/]+\.go$$|\1|' | sort | uniq)
+CHANGED_PKGS=$(shell echo $(ALL_PKGS) $(GIT_STATUS_PKGS) | tr " " "\n" | sort | uniq -d)
 
 # all builds binaries for all targets
 all: build fix lint test
@@ -29,6 +32,11 @@ fix:
 lint:
 	@echo "--> Running gometalinter"
 	@gometalinter ./... --config=.gometalinter.json
+
+lint-diff:
+	@echo "--> Running gometalinter on packages with uncommitted changes on"
+	@echo $(CHANGED_PKGS) | tr " " "\n"
+	@echo $(CHANGED_PKGS) | xargs gometalinter --config=.gometalinter.json
 
 proto:
 	@echo "--> Running protoc"
