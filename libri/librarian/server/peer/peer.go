@@ -13,25 +13,25 @@ import (
 // Peer represents a peer in the network.
 type Peer struct {
 	// 256-bit ID
-	ID *big.Int
+	ID            *big.Int
 
 	// string encoding of ID
-	IDStr string
+	IDStr         string
 
 	// self-reported name
-	Name string
+	Name          string
 
 	// RPC TCP address
 	PublicAddress *net.TCPAddr
 
 	// time of latest response from the peer
-	Responses *ResponseStats
+	Responses     *ResponseStats
 
 	// Librarian client to peer
-	client *api.LibrarianClient
+	client        *api.LibrarianClient
 
 	// client connection to the peer
-	conn *grpc.ClientConn
+	conn          *grpc.ClientConn
 }
 
 // New creates a new Peer instance with empty response stats.
@@ -100,13 +100,13 @@ type ResponseStats struct {
 	Earliest time.Time
 
 	// latest response time form the peer
-	Latest time.Time
+	Latest   time.Time
 
 	// number of queries sent to the peer
 	NQueries uint64
 
 	// number of queries that resulted an in error
-	NErrors uint64
+	NErrors  uint64
 }
 
 func newResponseStats() *ResponseStats {
