@@ -37,7 +37,7 @@ func newFirstBucket() *bucket {
 		Depth:          0,
 		LowerBound:     id.LowerBound,
 		UpperBound:     id.UpperBound,
-		MaxActivePeers: defaultMaxActivePeers,
+		MaxActivePeers: DefaultMaxActivePeers,
 		ActivePeers:    make([]*peer.Peer, 0),
 		Positions:      make(map[string]int),
 		ContainsSelf:   true,

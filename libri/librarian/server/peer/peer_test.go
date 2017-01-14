@@ -69,6 +69,7 @@ func TestPeer_RecordResponseSuccess(t *testing.T) {
 	assert.True(t, p.Responses.Latest.Unix() > 0)
 	assert.True(t, p.Responses.Earliest.Unix() > 0)
 	assert.True(t, p.Responses.Latest.Equal(p.Responses.Earliest))
+	time.Sleep(1 * time.Second)
 
 	p.RecordResponseSuccess()
 	assert.Equal(t, uint64(2), p.Responses.NQueries)

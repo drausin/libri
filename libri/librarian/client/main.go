@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"log"
 
-	"github.com/drausin/libri/libri/common"
 	"github.com/drausin/libri/libri/librarian/api"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -21,7 +20,7 @@ func main() {
 		log.Fatalf("did not connect: %v", err)
 		panic(err)
 	}
-	defer common.MaybePanic(conn.Close())
+	defer conn.Close()
 	c := api.NewLibrarianClient(conn)
 
 	// Ping the server

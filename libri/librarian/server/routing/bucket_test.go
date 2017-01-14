@@ -13,7 +13,7 @@ import (
 
 
 func TestBucket_PushPop(t *testing.T) {
-	for n := 1; n <= 256; n *= 2 {
+	for n := 1; n <= 128; n *= 2 {
 		b := newFirstBucket()
 		rng := rand.New(rand.NewSource(int64(n)))
 		for _, p := range peer.NewTestPeers(rng, n) {

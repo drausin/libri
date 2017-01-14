@@ -281,7 +281,7 @@ func TestTable_splitBucket(t *testing.T) {
 	// try same split sequence with different selfIDs
 	for s := 0; s < 16; s++ {
 		rng := rand.New(rand.NewSource(int64(s)))
-		rt := NewTestWithPeers(rng, defaultMaxActivePeers)
+		rt := NewTestWithPeers(rng, DefaultMaxActivePeers)
 
 		// lower bounds: [0 1]
 		rt.splitBucket(0)
@@ -312,7 +312,7 @@ func TestTable_splitBucket(t *testing.T) {
 	// try pseudo-random split sequence with different selfIDs
 	for s := 0; s < 16; s++ {
 		rng := rand.New(rand.NewSource(int64(s)))
-		rt := NewTestWithPeers(rng, defaultMaxActivePeers)
+		rt := NewTestWithPeers(rng, DefaultMaxActivePeers)
 
 		// do pseudo-random splits
 		for c := 0; c < 10; c++ {

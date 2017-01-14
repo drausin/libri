@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/db"
 	"github.com/drausin/libri/libri/librarian/api"
-	"golang.org/x/net/context"
 	"github.com/drausin/libri/libri/librarian/server/routing"
-	"github.com/drausin/libri/libri/common/id"
+	"golang.org/x/net/context"
 )
 
 var (
@@ -27,7 +28,7 @@ type Librarian struct {
 	db db.KVDB
 
 	// rt is the routing table of peers
-	rt *routing.RoutingTable
+	rt *routing.Table
 }
 
 // NewLibrarian creates a new librarian instance.
@@ -78,7 +79,7 @@ func loadOrCreatePeerID(db db.KVDB) (*big.Int, error) {
 
 }
 
-func loadOrCreateRoutingTable(db db.KVDB, selfID *big.Int) (*routing.RoutingTable, error) {
+func loadOrCreateRoutingTable(db db.KVDB, selfID *big.Int) (*routing.Table, error) {
 	rt, err := routing.Load(db)
 	if err != nil {
 		return nil, err
@@ -130,16 +131,16 @@ func (l *Librarian) Identify(ctx context.Context, rq *api.IdentityRequest) (*api
 }
 
 // FindPeers returns the closest peers to a given target.
-func (l *Librarian) FindPeers(ctx context.Context, rq *api.FindRequest) (*api.FindPeersResponse) {
+func (l *Librarian) FindPeers(ctx context.Context, rq *api.FindRequest) (*api.FindPeersResponse,
+	error) {
 	target := id.FromBytes(rq.Target)
-	closest := l.rt.Peak(target, int(rq.NumPeers))
+	closest := l.rt.Peak(target, uint(rq.NumPeers))
 	addresses := make([]*api.PeerAddress, len(closest))
 	for i, peer := range closest {
 		addresses[i] = api.FromAddress(peer.ID, peer.PublicAddress)
 	}
 	return &api.FindPeersResponse{
 		RequestId: rq.RequestId,
-		Addresses:     addresses,
-	}
+		Addresses: addresses,
+	}, nil
 }
-

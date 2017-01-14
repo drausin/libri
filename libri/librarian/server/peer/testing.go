@@ -10,6 +10,7 @@ import (
 	"time"
 	"github.com/stretchr/testify/assert"
 	"github.com/drausin/libri/libri/librarian/server/storage"
+	"log"
 )
 
 
@@ -22,7 +23,13 @@ func NewTestPeer(rng *rand.Rand, idx int) *Peer {
 		panic(err)
 	}
 	p := New(id, fmt.Sprintf("peer-%d", idx + 1), address)
-	p.RecordResponseSuccess()
+	now := time.Unix(int64(idx), 0).UTC()
+	p.Responses = &ResponseStats{
+		Earliest: now,
+		Latest: now,
+		NQueries: 1,
+		NErrors: 0,
+	}
 	return p
 }
 
@@ -55,6 +62,7 @@ func NewTestStoredPeer(rng *rand.Rand, idx int) *storage.Peer {
 }
 
 func AssertPeersEqual(t *testing.T, sp *storage.Peer, p *Peer) {
+	log.Printf("sp: %v, p: %v", sp, p)
 	assert.Equal(t, sp.Id, p.ID.Bytes())
 	assert.Equal(t, sp.Name, p.Name)
 	assert.Equal(t, sp.PublicAddress.Ip, p.PublicAddress.IP.String())

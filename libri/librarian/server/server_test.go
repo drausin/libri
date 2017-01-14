@@ -5,9 +5,10 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/drausin/libri/libri/common"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
+	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/server/routing"
 )
 
 // TestLibrarian_Ping verifies that we receive the expected response ("pong") to a ping request.
@@ -22,7 +23,7 @@ func TestLibrarian_Ping(t *testing.T) {
 // request.
 func TestLibrarian_Identify(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	peerID := newPseudoRandomID(rng)
+	peerID := id.NewPseudoRandom(rng)
 	peerName := "Test Node"
 	lib := &Librarian{
 		Config: &Config{
@@ -31,7 +32,7 @@ func TestLibrarian_Identify(t *testing.T) {
 		PeerID: peerID,
 	}
 
-	requestID := newPseudoRandomID(rng)
+	requestID := id.NewPseudoRandom(rng)
 	rq := &api.IdentityRequest{RequestId: requestID.Bytes()}
 	rp, err := lib.Identify(nil, rq)
 	assert.Nil(t, err)
@@ -41,44 +42,43 @@ func TestLibrarian_Identify(t *testing.T) {
 }
 
 func TestLibrarian_FindPeers(t *testing.T) {
-	for nPeers := 8; nPeers <= 128; nPeers *= 2 {
+	for n := 8; n <= 128; n *= 2 {
 		// for different numbers of total active peers
 
 		for s := 0; s < 10; s++ {
 			// for different selfIDs
 
 			rng := rand.New(rand.NewSource(int64(s)))
-			selfID := newPseudoRandomID(rng)
-			rt, _, err := NewRoutingTableWithPeers(selfID, generatePeers(nPeers, rng))
-			assert.Nil(t, err)
+			selfID := id.NewPseudoRandom(rng)
+			rt := routing.NewTestWithPeers(rng, n)
 			l := &Librarian{
 				PeerID: selfID,
 				rt:     rt,
 			}
 
-			numClosest := uint32(defaultMaxActivePeers)
+			numClosest := uint32(routing.DefaultMaxActivePeers)
 			rq := &api.FindRequest{
-				RequestId: newPseudoRandomID(rng).Bytes(),
-				Target:    newPseudoRandomID(rng).Bytes(),
+				RequestId: id.NewPseudoRandom(rng).Bytes(),
+				Target:    id.NewPseudoRandom(rng).Bytes(),
 				NumPeers:  numClosest,
 			}
 
-			beforeNumActivePeers := l.rt.NumActivePeers()
+			beforeNumActivePeers := l.rt.NumPeers()
 			rp, err := l.FindPeers(nil, rq)
+			assert.Nil(t, err)
 
 			// check
-			assert.Nil(t, err)
 			assert.Equal(t, rq.RequestId, rp.RequestId)
-			assert.Equal(t, beforeNumActivePeers, l.rt.NumActivePeers())
-			if int(numClosest) > beforeNumActivePeers {
-				assert.Equal(t, beforeNumActivePeers, len(rp.Peers))
+			assert.Equal(t, beforeNumActivePeers, l.rt.NumPeers())
+			if uint(numClosest) > beforeNumActivePeers {
+				assert.Equal(t, int(beforeNumActivePeers), len(rp.Addresses))
 			} else {
-				assert.Equal(t, numClosest, uint32(len(rp.Peers)))
+				assert.Equal(t, numClosest, uint32(len(rp.Addresses)))
 			}
-			for _, peer := range rp.Peers {
-				assert.NotNil(t, peer.PeerId)
-				assert.NotNil(t, peer.AddressIp)
-				assert.NotNil(t, peer.AddressPort)
+			for _, a := range rp.Addresses {
+				assert.NotNil(t, a.PeerId)
+				assert.NotNil(t, a.Ip)
+				assert.NotNil(t, a.Port)
 			}
 		}
 	}
@@ -96,7 +96,7 @@ func TestNewLibrarian(t *testing.T) {
 
 	lib2, err := NewLibrarian(lib1.Config)
 	assert.Nil(t, err)
-	defer common.MaybePanic(lib2.Close())
+	lib2.Close()
 	assert.Equal(t, nodeID1, lib2.PeerID)
 }
 

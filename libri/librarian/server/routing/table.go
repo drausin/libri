@@ -22,8 +22,10 @@ const (
 )
 
 var (
-	defaultMaxActivePeers = 20
+	DefaultMaxActivePeers = 20
 )
+
+// TODO (drausin): replace public struct w/ interface + private struct
 
 // Table defines how routes to a particular target map to specific peers, held in a tree of
 // buckets.
