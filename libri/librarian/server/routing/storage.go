@@ -10,7 +10,7 @@ import (
 
 var tableKey = []byte("RoutingTable")
 
-// LoadRoutingTable retrieves the routing table form the KV DB.
+// Load retrieves the routing table form the KV DB.
 func Load(db db.KVDB) (*Table, error) {
 	bytes, err := db.Get(tableKey)
 	if bytes == nil || err != nil {
@@ -24,7 +24,7 @@ func Load(db db.KVDB) (*Table, error) {
 	return fromStored(stored), nil
 }
 
-// SaveRoutingTable stores a representation of the routing table to the KV DB.
+// Save stores a representation of the routing table to the KV DB.
 func Save(db db.KVDB, rt *Table) error {
 	bytes, err := proto.Marshal(toStored(rt))
 	if err != nil {
@@ -33,8 +33,7 @@ func Save(db db.KVDB, rt *Table) error {
 	return db.Put(tableKey, bytes)
 }
 
-// ToRoutingTable returns a new RoutingTable instance from a
-// StoredRoutingTable instance.
+// fromStored returns a new RoutingTable instance from a StoredRoutingTable instance.
 func fromStored(stored *storage.RoutingTable) *Table {
 	peers := make([]*peer.Peer, len(stored.Peers))
 	for i, sp := range stored.Peers {
@@ -43,7 +42,7 @@ func fromStored(stored *storage.RoutingTable) *Table {
 	return NewWithPeers(id.FromBytes(stored.SelfId), peers)
 }
 
-// FromRoutingTable creates a new StoredRoutingTable instance from the RoutingTable instance.
+// toStored creates a new StoredRoutingTable instance from the RoutingTable instance.
 func toStored(rt *Table) *storage.RoutingTable {
 	storedPeers := make([]*storage.Peer, len(rt.Peers))
 	i := 0

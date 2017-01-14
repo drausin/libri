@@ -42,8 +42,10 @@ func NewTestPeers(rng *rand.Rand, n int) []*Peer {
 	return ps
 }
 
+// NewTestStoredPeer generates a new storage.Peer suitable for testing using a random number
+// generator for the ID and an index.
 func NewTestStoredPeer(rng *rand.Rand, idx int) *storage.Peer {
-	now := time.Now().UTC()
+	now := time.Unix(int64(idx), 0).UTC()
 	return &storage.Peer{
 		Id:   cid.NewPseudoRandom(rng).Bytes(),
 		Name: fmt.Sprintf("peer-%d", idx+1),
@@ -60,6 +62,7 @@ func NewTestStoredPeer(rng *rand.Rand, idx int) *storage.Peer {
 	}
 }
 
+// AssertPeersEqual checks that the stored and non-stored representations of a peer are equal.
 func AssertPeersEqual(t *testing.T, sp *storage.Peer, p *Peer) {
 	log.Printf("sp: %v, p: %v", sp, p)
 	assert.Equal(t, sp.Id, p.ID.Bytes())

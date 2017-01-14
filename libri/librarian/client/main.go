@@ -20,7 +20,6 @@ func main() {
 		log.Fatalf("did not connect: %v", err)
 		panic(err)
 	}
-	defer conn.Close()
 	c := api.NewLibrarianClient(conn)
 
 	// Ping the server
@@ -36,4 +35,9 @@ func main() {
 	}
 	log.Printf("Peer name: %s", r2.PeerName)
 	log.Printf("Peer ID: %v", base64.URLEncoding.EncodeToString(r2.PeerId))
+
+	err = conn.Close()
+	if err != nil {
+		panic(err)
+	}
 }

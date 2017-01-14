@@ -139,14 +139,7 @@ func TestTable_Peak(t *testing.T) {
 }
 
 func TestTable_Less(t *testing.T) {
-	rt := &Table{
-		Buckets: []*bucket{
-			{LowerBound: big.NewInt(0), UpperBound: big.NewInt(64)},
-			{LowerBound: big.NewInt(64), UpperBound: big.NewInt(128)},
-			{LowerBound: big.NewInt(128), UpperBound: big.NewInt(192)},
-			{LowerBound: big.NewInt(192), UpperBound: big.NewInt(255)},
-		},
-	}
+	rt := newSimpleTable()
 	for i := 1; i < len(rt.Buckets); i++ {
 		assert.True(t, rt.Less(i-1, i))
 		assert.False(t, rt.Less(i, i-1))
@@ -155,30 +148,24 @@ func TestTable_Less(t *testing.T) {
 
 func TestTable_Sort(t *testing.T) {
 	// tests Len, Less, & Swap all together
-	rt := &Table{
-		Buckets: []*bucket{
-			{LowerBound: big.NewInt(192), UpperBound: big.NewInt(255)},
-			{LowerBound: big.NewInt(128), UpperBound: big.NewInt(192)},
-			{LowerBound: big.NewInt(0), UpperBound: big.NewInt(64)},
-			{LowerBound: big.NewInt(64), UpperBound: big.NewInt(128)},
-		},
-	}
+	rt := newSimpleTable()
+	rt.Buckets[0], rt.Buckets[2] = rt.Buckets[2], rt.Buckets[0]
+	rt.Buckets[1], rt.Buckets[3] = rt.Buckets[3], rt.Buckets[1]
+
+	// check it's current not sorted
+	assert.False(t, rt.Buckets[0].Before(rt.Buckets[2]))
+	assert.False(t, rt.Buckets[1].Before(rt.Buckets[3]))
+
 	sort.Sort(rt)
+
+	// check it's now sorted
 	for i := 1; i < len(rt.Buckets); i++ {
 		assert.True(t, rt.Buckets[i-1].Before(rt.Buckets[i]))
 	}
 }
 
 func TestTable_chooseBucketIndex(t *testing.T) {
-
-	rt := &Table{
-		Buckets: []*bucket{
-			{LowerBound: big.NewInt(0), UpperBound: big.NewInt(64)},
-			{LowerBound: big.NewInt(64), UpperBound: big.NewInt(128)},
-			{LowerBound: big.NewInt(128), UpperBound: big.NewInt(192)},
-			{LowerBound: big.NewInt(192), UpperBound: big.NewInt(255)},
-		},
-	}
+	rt := newSimpleTable()
 
 	target := big.NewInt(150)
 
@@ -343,6 +330,17 @@ func TestSplitLowerBound_Ok(t *testing.T) {
 	check(newIntLsh(128, 240), 9, newIntLsh(192, 240))               // prefix 00000000 1
 	check(newIntLsh(255, 248), 9, newIntLsh(255<<8|64, 240))         // prefix 11111111 0
 	check(newIntLsh(255<<8|128, 240), 9, newIntLsh(255<<8|192, 240)) // prefix 11111111 1
+}
+
+func newSimpleTable() *Table {
+	return &Table{
+		Buckets: []*bucket{
+			{LowerBound: big.NewInt(0), UpperBound: big.NewInt(64)},
+			{LowerBound: big.NewInt(64), UpperBound: big.NewInt(128)},
+			{LowerBound: big.NewInt(128), UpperBound: big.NewInt(192)},
+			{LowerBound: big.NewInt(192), UpperBound: big.NewInt(255)},
+		},
+	}
 }
 
 func checkTableConsistent(t *testing.T, rt *Table, nExpectedPeers int) {

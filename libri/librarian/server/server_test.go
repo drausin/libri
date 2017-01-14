@@ -95,8 +95,9 @@ func TestNewLibrarian(t *testing.T) {
 
 	lib2, err := NewLibrarian(lib1.Config)
 	assert.Nil(t, err)
-	lib2.Close()
 	assert.Equal(t, nodeID1, lib2.PeerID)
+	err = lib2.Close()
+	assert.Nil(t, err)
 }
 
 func newTestLibrarian() *Librarian {

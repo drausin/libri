@@ -8,7 +8,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/storage"
 )
 
-// ToPeer creates a new server.Peer instance from a storage.Peer instance.
+// FromStored creates a new peer.Peer instance from a storage.Peer instance.
 func FromStored(stored *storage.Peer) *Peer {
 	to := New(
 		id.FromBytes(stored.Id),
@@ -19,7 +19,7 @@ func FromStored(stored *storage.Peer) *Peer {
 	return to
 }
 
-// FromPeer creates a storage.Peer from a peer.Peer.
+// ToStored creates a storage.Peer from a peer.Peer.
 func ToStored(peer *Peer) *storage.Peer {
 	return &storage.Peer{
 		Id:            peer.ID.Bytes(),
@@ -29,7 +29,7 @@ func ToStored(peer *Peer) *storage.Peer {
 	}
 }
 
-// ToAddress creates a net.TCPAddr from a storage.Address.
+// fromStoredAddress creates a net.TCPAddr from a storage.Address.
 func fromStoredAddress(stored *storage.Address) *net.TCPAddr {
 	return &net.TCPAddr{
 		IP:   net.ParseIP(stored.Ip),
@@ -37,7 +37,7 @@ func fromStoredAddress(stored *storage.Address) *net.TCPAddr {
 	}
 }
 
-// FromAddress creates a storage.Address from a net.TCPAddr.
+// toStoredAddress creates a storage.Address from a net.TCPAddr.
 func toStoredAddress(address *net.TCPAddr) *storage.Address {
 	return &storage.Address{
 		Ip:   address.IP.String(),
@@ -45,7 +45,7 @@ func toStoredAddress(address *net.TCPAddr) *storage.Address {
 	}
 }
 
-// ToResponseStats creates a peer.ResponseStats from a storage.ResponseStats
+// fromStoredResponseStats creates a peer.ResponseStats from a storage.ResponseStats
 func fromStoredResponseStats(stored *storage.ResponseStats) *ResponseStats {
 	return &ResponseStats{
 		Earliest: time.Unix(stored.Earliest, int64(0)).UTC(),
@@ -55,7 +55,7 @@ func fromStoredResponseStats(stored *storage.ResponseStats) *ResponseStats {
 	}
 }
 
-// FromResponseStats creates a storage.ResponseStats from a peer.ResponseStats.
+// toStoredResponseStats creates a storage.ResponseStats from a peer.ResponseStats.
 func toStoredResponseStats(stats *ResponseStats) *storage.ResponseStats {
 	return &storage.ResponseStats{
 		Earliest: stats.Earliest.Unix(),
