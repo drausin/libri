@@ -1,14 +1,15 @@
 package routing
 
 import (
-	"testing"
-	"github.com/drausin/libri/libri/db"
-	"github.com/stretchr/testify/assert"
 	"container/heap"
-	"github.com/drausin/libri/libri/librarian/server/storage"
-	cid "github.com/drausin/libri/libri/common/id"
 	"math/rand"
+	"testing"
+
+	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/db"
 	"github.com/drausin/libri/libri/librarian/server/peer"
+	"github.com/drausin/libri/libri/librarian/server/storage"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestFromStored(t *testing.T) {
@@ -62,7 +63,7 @@ func TestRoutingTable_SaveLoad(t *testing.T) {
 func newTestStoredTable(rng *rand.Rand, n int) *storage.RoutingTable {
 	rt := &storage.RoutingTable{
 		SelfId: cid.NewPseudoRandom(rng).Bytes(),
-		Peers: make([]*storage.Peer, n),
+		Peers:  make([]*storage.Peer, n),
 	}
 	for i := 0; i < n; i++ {
 		rt.Peers[i] = peer.NewTestStoredPeer(rng, i)

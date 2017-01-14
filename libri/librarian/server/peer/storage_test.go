@@ -1,12 +1,13 @@
 package peer
 
 import (
-	"testing"
-	"github.com/stretchr/testify/assert"
-	"net"
-	"time"
 	"math/rand"
+	"net"
+	"testing"
+	"time"
+
 	"github.com/drausin/libri/libri/librarian/server/storage"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestFromStored(t *testing.T) {
@@ -26,7 +27,7 @@ func TestToStored(t *testing.T) {
 
 func TestFromStoredAddress(t *testing.T) {
 	ip, port := "192.168.1.1", uint32(1000)
-	sa := &storage.Address{Ip:ip, Port: port}
+	sa := &storage.Address{Ip: ip, Port: port}
 	a := fromStoredAddress(sa)
 	assert.Equal(t, ip, a.IP.String())
 	assert.Equal(t, int(port), a.Port)
@@ -59,4 +60,3 @@ func TestToStoredResponseStats(t *testing.T) {
 	assert.Equal(t, nQueries, from.NQueries)
 	assert.Equal(t, nErrors, from.NErrors)
 }
-

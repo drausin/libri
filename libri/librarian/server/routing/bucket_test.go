@@ -11,7 +11,6 @@ import (
 
 // TODO: add unit tests for all bucket methods
 
-
 func TestBucket_PushPop(t *testing.T) {
 	for n := 1; n <= 128; n *= 2 {
 		b := newFirstBucket()

@@ -4,12 +4,12 @@ import (
 	"container/heap"
 	"errors"
 	"math/big"
+	"math/rand"
 	"sort"
 
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/db"
 	"github.com/drausin/libri/libri/librarian/server/peer"
-	"math/rand"
 )
 
 // AddStatus indicates different outcomes when adding a peer to the routing table.
@@ -263,7 +263,6 @@ func (rt *Table) splitBucket(bucketIdx int) {
 	rt.Buckets = append(rt.Buckets, right) // right should actually be just to the right of left
 	sort.Sort(rt)                          // but we let Sort handle moving it back there
 }
-
 
 // splitLowerBound extends a lower bound one bit deeper with a 1 bit, thereby splitting
 // the domain implied by the current lower bound and depth

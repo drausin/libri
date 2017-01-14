@@ -138,7 +138,6 @@ func TestTable_Peak(t *testing.T) {
 	}
 }
 
-
 func TestTable_Less(t *testing.T) {
 	rt := &Table{
 		Buckets: []*bucket{
@@ -149,8 +148,8 @@ func TestTable_Less(t *testing.T) {
 		},
 	}
 	for i := 1; i < len(rt.Buckets); i++ {
-		assert.True(t, rt.Less(i - 1, i))
-		assert.False(t, rt.Less(i, i - 1))
+		assert.True(t, rt.Less(i-1, i))
+		assert.False(t, rt.Less(i, i-1))
 	}
 }
 
@@ -166,7 +165,7 @@ func TestTable_Sort(t *testing.T) {
 	}
 	sort.Sort(rt)
 	for i := 1; i < len(rt.Buckets); i++ {
-		assert.True(t, rt.Buckets[i - 1].Before(rt.Buckets[i]))
+		assert.True(t, rt.Buckets[i-1].Before(rt.Buckets[i]))
 	}
 }
 
@@ -208,7 +207,7 @@ func TestTable_chooseBucketIndex(t *testing.T) {
 	assert.Equal(t, 0, i)
 
 	// should panic because forward and backward indices are out of bounds
-	assert.Panics(t, func(){
+	assert.Panics(t, func() {
 		rt.chooseBucketIndex(target, 4, -1)
 	})
 
@@ -249,7 +248,7 @@ func TestTable_chooseBucketIndex(t *testing.T) {
 	assert.Equal(t, 3, i)
 
 	// should panic because forward and backward indices are out of bounds
-	assert.Panics(t, func(){
+	assert.Panics(t, func() {
 		rt.chooseBucketIndex(target, 4, -1)
 	})
 
@@ -272,7 +271,7 @@ func TestTable_chooseBucketIndex(t *testing.T) {
 	assert.Equal(t, 0, i)
 
 	// should panic because forward and backward indices are out of bounds
-	assert.Panics(t, func(){
+	assert.Panics(t, func() {
 		rt.chooseBucketIndex(target, 4, -1)
 	})
 }
@@ -318,7 +317,7 @@ func TestTable_splitBucket(t *testing.T) {
 		for c := 0; c < 10; c++ {
 			i := int(rng.Uint32()) % len(rt.Buckets)
 			rt.splitBucket(i)
-			assert.Equal(t, c + 2, len(rt.Buckets))
+			assert.Equal(t, c+2, len(rt.Buckets))
 			checkTableConsistent(t, rt, len(rt.Peers))
 		}
 	}

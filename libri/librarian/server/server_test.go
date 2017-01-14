@@ -5,10 +5,10 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/stretchr/testify/assert"
 	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/routing"
+	"github.com/stretchr/testify/assert"
 )
 
 // TestLibrarian_Ping verifies that we receive the expected response ("pong") to a ping request.
@@ -82,7 +82,6 @@ func TestLibrarian_FindPeers(t *testing.T) {
 			}
 		}
 	}
-
 }
 
 // TestNewLibrarian checks that we can create a new instance, close it, and create it again as
