@@ -34,7 +34,7 @@ type Table struct {
 	SelfID *big.Int
 
 	// All known peers, keyed by string encoding of the ID
-	Peers map[string]*peer.Peer
+	Peers map[string]peer.Peer
 
 	// Routing buckets ordered by the max ID possible in each bucket.
 	Buckets []*bucket
@@ -45,13 +45,13 @@ func NewEmpty(selfID *big.Int) *Table {
 	firstBucket := newFirstBucket()
 	return &Table{
 		SelfID:  selfID,
-		Peers:   make(map[string]*peer.Peer),
+		Peers:   make(map[string]peer.Peer),
 		Buckets: []*bucket{firstBucket},
 	}
 }
 
 // NewWithPeers creates a new routing table with peers.
-func NewWithPeers(selfID *big.Int, peers []*peer.Peer) *Table {
+func NewWithPeers(selfID *big.Int, peers []peer.Peer) *Table {
 	rt := NewEmpty(selfID)
 	for _, p := range peers {
 		rt.Push(p)
@@ -85,12 +85,12 @@ func (rt *Table) Close(db db.KVDB) error {
 }
 
 // Push adds the peer into the appropriate bucket and returns an AddStatus result.
-func (rt *Table) Push(new *peer.Peer) PushStatus {
+func (rt *Table) Push(new peer.Peer) PushStatus {
 	// get the bucket to insert into
-	bucketIdx := rt.bucketIndex(new.ID)
+	bucketIdx := rt.bucketIndex(new.ID())
 	insertBucket := rt.Buckets[bucketIdx]
 
-	if pHeapIdx, ok := insertBucket.Positions[new.IDStr]; ok {
+	if pHeapIdx, ok := insertBucket.Positions[new.IDStr()]; ok {
 		// node is already in the bucket, so update it and re-heap
 		heap.Remove(insertBucket, pHeapIdx)
 		heap.Push(insertBucket, new)
@@ -100,7 +100,7 @@ func (rt *Table) Push(new *peer.Peer) PushStatus {
 	if insertBucket.Vacancy() {
 		// node isn't already in the bucket and there's vacancy, so add it
 		heap.Push(insertBucket, new)
-		rt.Peers[new.IDStr] = new
+		rt.Peers[new.IDStr()] = new
 		return Added
 	}
 
@@ -117,7 +117,7 @@ func (rt *Table) Push(new *peer.Peer) PushStatus {
 }
 
 // Pop removes and returns the k peers in the bucket(s) closest to the given target.
-func (rt *Table) Pop(target *big.Int, k uint) []*peer.Peer {
+func (rt *Table) Pop(target *big.Int, k uint) []peer.Peer {
 	if np := rt.NumPeers(); k > np {
 		// if we're requesting more peers than we have, just return number we have
 		k = np
@@ -127,14 +127,14 @@ func (rt *Table) Pop(target *big.Int, k uint) []*peer.Peer {
 	bkwdIdx := fwdIdx - 1
 
 	// loop until we've populated all the peers or we have no more buckets to draw from
-	next := make([]*peer.Peer, k)
+	next := make([]peer.Peer, k)
 	for i := uint(0); i < k; {
 		bucketIdx := rt.chooseBucketIndex(target, fwdIdx, bkwdIdx)
 
 		// fill peers from this bucket
 		for ; i < k && rt.Buckets[bucketIdx].Len() > 0; i++ {
-			next[i] = heap.Pop(rt.Buckets[bucketIdx]).(*peer.Peer)
-			delete(rt.Peers, next[i].IDStr)
+			next[i] = heap.Pop(rt.Buckets[bucketIdx]).(peer.Peer)
+			delete(rt.Peers, next[i].IDStr())
 		}
 
 		// (in|de)crement the appropriate index
@@ -150,7 +150,7 @@ func (rt *Table) Pop(target *big.Int, k uint) []*peer.Peer {
 
 // Peak returns the k peers in the bucket(s) closest to the given target by popping and then
 // pushing them back into the table.
-func (rt *Table) Peak(target *big.Int, k uint) []*peer.Peer {
+func (rt *Table) Peak(target *big.Int, k uint) []peer.Peer {
 	popped := rt.Pop(target, k)
 
 	// add the peers back
@@ -234,7 +234,7 @@ func (rt *Table) splitBucket(bucketIdx int) {
 		LowerBound:     current.LowerBound,
 		UpperBound:     middle,
 		MaxActivePeers: current.MaxActivePeers,
-		ActivePeers:    make([]*peer.Peer, 0),
+		ActivePeers:    make([]peer.Peer, 0),
 		Positions:      make(map[string]int),
 	}
 	left.ContainsSelf = left.Contains(rt.SelfID)
@@ -244,14 +244,14 @@ func (rt *Table) splitBucket(bucketIdx int) {
 		LowerBound:     middle,
 		UpperBound:     current.UpperBound,
 		MaxActivePeers: current.MaxActivePeers,
-		ActivePeers:    make([]*peer.Peer, 0),
+		ActivePeers:    make([]peer.Peer, 0),
 		Positions:      make(map[string]int),
 	}
 	right.ContainsSelf = right.Contains(rt.SelfID)
 
 	// fill the buckets with existing peers
 	for _, p := range current.ActivePeers {
-		if left.Contains(p.ID) {
+		if left.Contains(p.ID()) {
 			heap.Push(left, p)
 		} else {
 			heap.Push(right, p)

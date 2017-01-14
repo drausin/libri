@@ -25,7 +25,7 @@ type bucket struct {
 	MaxActivePeers int
 
 	// active peers in the bucket.
-	ActivePeers []*peer.Peer
+	ActivePeers []peer.Peer
 
 	// positions (i.e., indices) of each peer (keyed by ID string) in the heap.
 	Positions map[string]int
@@ -38,7 +38,7 @@ func newFirstBucket() *bucket {
 		LowerBound:     id.LowerBound,
 		UpperBound:     id.UpperBound,
 		MaxActivePeers: DefaultMaxActivePeers,
-		ActivePeers:    make([]*peer.Peer, 0),
+		ActivePeers:    make([]peer.Peer, 0),
 		Positions:      make(map[string]int),
 		ContainsSelf:   true,
 	}
@@ -54,21 +54,21 @@ func (b *bucket) Less(i, j int) bool {
 
 func (b *bucket) Swap(i, j int) {
 	b.ActivePeers[i], b.ActivePeers[j] = b.ActivePeers[j], b.ActivePeers[i]
-	b.Positions[b.ActivePeers[i].IDStr] = i
-	b.Positions[b.ActivePeers[j].IDStr] = j
+	b.Positions[b.ActivePeers[i].IDStr()] = i
+	b.Positions[b.ActivePeers[j].IDStr()] = j
 }
 
 // Push adds a peer to the routing bucket.
 func (b *bucket) Push(p interface{}) {
-	b.ActivePeers = append(b.ActivePeers, p.(*peer.Peer))
-	b.Positions[p.(*peer.Peer).IDStr] = len(b.ActivePeers) - 1
+	b.ActivePeers = append(b.ActivePeers, p.(peer.Peer))
+	b.Positions[p.(peer.Peer).IDStr()] = len(b.ActivePeers) - 1
 }
 
 // Pop removes the root peer from the routing bucket.
 func (b *bucket) Pop() interface{} {
 	root := b.ActivePeers[len(b.ActivePeers)-1]
 	b.ActivePeers = b.ActivePeers[0 : len(b.ActivePeers)-1]
-	delete(b.Positions, root.IDStr)
+	delete(b.Positions, root.IDStr())
 	return root
 }
 

@@ -18,9 +18,9 @@ func TestBucket_PushPop(t *testing.T) {
 		for _, p := range peer.NewTestPeers(rng, n) {
 			heap.Push(b, p)
 		}
-		prev := heap.Pop(b).(*peer.Peer)
+		prev := heap.Pop(b).(peer.Peer)
 		for b.Len() > 0 {
-			cur := heap.Pop(b).(*peer.Peer)
+			cur := heap.Pop(b).(peer.Peer)
 			assert.True(t, prev.Before(cur))
 			prev = cur
 		}

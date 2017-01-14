@@ -21,7 +21,7 @@ func TestToStored(t *testing.T) {
 	p.RecordResponseSuccess()
 	p.RecordResponseSuccess()
 	p.RecordResponseError()
-	sp := ToStored(p)
+	sp := p.ToStored()
 	AssertPeersEqual(t, sp, p)
 }
 
@@ -45,18 +45,18 @@ func TestFromStoredResponseStats(t *testing.T) {
 	now, nQueries, nErrors := time.Now().Unix(), uint64(2), uint64(1)
 	from := &storage.ResponseStats{Earliest: now, Latest: now, NQueries: nQueries, NErrors: nErrors}
 	to := fromStoredResponseStats(from)
-	assert.Equal(t, time.Unix(now, 0).UTC(), to.Earliest)
-	assert.Equal(t, time.Unix(now, 0).UTC(), to.Latest)
-	assert.Equal(t, nQueries, to.NQueries)
-	assert.Equal(t, nErrors, to.NErrors)
+	assert.Equal(t, time.Unix(now, 0).UTC(), to.earliest)
+	assert.Equal(t, time.Unix(now, 0).UTC(), to.latest)
+	assert.Equal(t, nQueries, to.nQueries)
+	assert.Equal(t, nErrors, to.nErrors)
 }
 
 func TestToStoredResponseStats(t *testing.T) {
 	now, nQueries, nErrors := time.Now().UTC(), uint64(2), uint64(1)
-	to := &ResponseStats{Earliest: now, Latest: now, NQueries: nQueries, NErrors: nErrors}
-	from := toStoredResponseStats(to)
-	assert.Equal(t, now.Unix(), from.Earliest)
-	assert.Equal(t, now.Unix(), from.Latest)
-	assert.Equal(t, nQueries, from.NQueries)
-	assert.Equal(t, nErrors, from.NErrors)
+	rs := &responseStats{earliest: now, latest: now, nQueries: nQueries, nErrors: nErrors}
+	srs := rs.toStoredResponseStats()
+	assert.Equal(t, now.Unix(), srs.Earliest)
+	assert.Equal(t, now.Unix(), srs.Latest)
+	assert.Equal(t, nQueries, srs.NQueries)
+	assert.Equal(t, nErrors, srs.NErrors)
 }

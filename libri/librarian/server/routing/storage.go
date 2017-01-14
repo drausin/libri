@@ -35,7 +35,7 @@ func Save(db db.KVDB, rt *Table) error {
 
 // fromStored returns a new RoutingTable instance from a StoredRoutingTable instance.
 func fromStored(stored *storage.RoutingTable) *Table {
-	peers := make([]*peer.Peer, len(stored.Peers))
+	peers := make([]peer.Peer, len(stored.Peers))
 	for i, sp := range stored.Peers {
 		peers[i] = peer.FromStored(sp)
 	}
@@ -47,7 +47,7 @@ func toStored(rt *Table) *storage.RoutingTable {
 	storedPeers := make([]*storage.Peer, len(rt.Peers))
 	i := 0
 	for _, p := range rt.Peers {
-		storedPeers[i] = peer.ToStored(p)
+		storedPeers[i] = p.ToStored()
 		i++
 	}
 	return &storage.RoutingTable{

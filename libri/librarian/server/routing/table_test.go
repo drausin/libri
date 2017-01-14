@@ -41,7 +41,7 @@ func TestTable_Push(t *testing.T) {
 		rng := rand.New(rand.NewSource(int64(s)))
 		rt := NewTestWithPeers(rng, 0) // empty
 		peers := peer.NewTestPeers(rng, 128)
-		repeatedPeers := make([]*peer.Peer, 0)
+		repeatedPeers := make([]peer.Peer, 0)
 		c := 0
 		for _, p := range peers {
 			status := rt.Push(p)
@@ -92,7 +92,7 @@ func TestTable_Pop(t *testing.T) {
 
 				// check that no peer exists in our peers maps
 				for _, nextPeer := range ps {
-					_, exists := rt.Peers[nextPeer.IDStr]
+					_, exists := rt.Peers[nextPeer.IDStr()]
 					assert.False(t, exists)
 				}
 			}
@@ -129,7 +129,7 @@ func TestTable_Peak(t *testing.T) {
 
 				// check that peers exist in our peers maps
 				for _, nextPeer := range ps {
-					_, exists := rt.Peers[nextPeer.IDStr]
+					_, exists := rt.Peers[nextPeer.IDStr()]
 					assert.True(t, exists)
 				}
 			}
@@ -367,7 +367,7 @@ func checkTableConsistent(t *testing.T, rt *Table, nExpectedPeers int) {
 func checkBucketConsistent(t *testing.T, b *bucket, selfID *big.Int) {
 	assert.Equal(t, b.ContainsSelf, b.Contains(selfID))
 	for p := range b.ActivePeers {
-		pID := b.ActivePeers[p].ID
+		pID := b.ActivePeers[p].ID()
 		assert.True(t, pID.Cmp(b.LowerBound) >= 0)
 		assert.True(t, pID.Cmp(b.UpperBound) < 0)
 	}
@@ -377,7 +377,7 @@ func newIntLsh(x int64, n uint) *big.Int {
 	return big.NewInt(0).Lsh(big.NewInt(x), n)
 }
 
-func checkPoppedPeers(t *testing.T, k uint, numActivePeers uint, ps []*peer.Peer, info string) {
+func checkPoppedPeers(t *testing.T, k uint, numActivePeers uint, ps []peer.Peer, info string) {
 	if k < numActivePeers {
 		// should get k peers
 		assert.Equal(t, int(k), len(ps), info)
@@ -392,10 +392,10 @@ func checkPoppedPeers(t *testing.T, k uint, numActivePeers uint, ps []*peer.Peer
 		assert.NotNil(t, p)
 
 		// check we haven't previously seen this peer
-		_, exists := seen[p.IDStr]
+		_, exists := seen[p.IDStr()]
 		assert.False(t, exists)
 
 		// mark this peer as seen
-		seen[p.IDStr] = struct{}{}
+		seen[p.IDStr()] = struct{}{}
 	}
 }

@@ -9,23 +9,22 @@ import (
 )
 
 // FromStored creates a new peer.Peer instance from a storage.Peer instance.
-func FromStored(stored *storage.Peer) *Peer {
-	to := New(
+func FromStored(stored *storage.Peer) Peer {
+	return NewWithResponseStats(
 		id.FromBytes(stored.Id),
 		stored.Name,
 		fromStoredAddress(stored.PublicAddress),
+		fromStoredResponseStats(stored.Responses),
 	)
-	to.Responses = fromStoredResponseStats(stored.Responses)
-	return to
 }
 
 // ToStored creates a storage.Peer from a peer.Peer.
-func ToStored(peer *Peer) *storage.Peer {
+func (p *peer) ToStored() *storage.Peer {
 	return &storage.Peer{
-		Id:            peer.ID.Bytes(),
-		Name:          peer.Name,
-		PublicAddress: toStoredAddress(peer.PublicAddress),
-		Responses:     toStoredResponseStats(peer.Responses),
+		Id:            p.id.Bytes(),
+		Name:          p.name,
+		PublicAddress: toStoredAddress(p.publicAddress),
+		Responses:     p.responses.toStoredResponseStats(),
 	}
 }
 
@@ -46,21 +45,21 @@ func toStoredAddress(address *net.TCPAddr) *storage.Address {
 }
 
 // fromStoredResponseStats creates a peer.ResponseStats from a storage.ResponseStats
-func fromStoredResponseStats(stored *storage.ResponseStats) *ResponseStats {
-	return &ResponseStats{
-		Earliest: time.Unix(stored.Earliest, int64(0)).UTC(),
-		Latest:   time.Unix(stored.Earliest, int64(0)).UTC(),
-		NQueries: stored.NQueries,
-		NErrors:  stored.NErrors,
+func fromStoredResponseStats(stored *storage.ResponseStats) *responseStats {
+	return &responseStats{
+		earliest: time.Unix(stored.Earliest, int64(0)).UTC(),
+		latest:   time.Unix(stored.Earliest, int64(0)).UTC(),
+		nQueries: stored.NQueries,
+		nErrors:  stored.NErrors,
 	}
 }
 
 // toStoredResponseStats creates a storage.ResponseStats from a peer.ResponseStats.
-func toStoredResponseStats(stats *ResponseStats) *storage.ResponseStats {
+func (rs *responseStats) toStoredResponseStats() *storage.ResponseStats {
 	return &storage.ResponseStats{
-		Earliest: stats.Earliest.Unix(),
-		Latest:   stats.Latest.Unix(),
-		NQueries: stats.NQueries,
-		NErrors:  stats.NErrors,
+		Earliest: rs.earliest.Unix(),
+		Latest:   rs.latest.Unix(),
+		NQueries: rs.nQueries,
+		NErrors:  rs.nErrors,
 	}
 }
