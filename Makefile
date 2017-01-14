@@ -28,7 +28,7 @@ fix:
 
 lint:
 	@echo "--> Running gometalinter"
-	@gometalinter ./... --config=.gometalinter.json --deadline=30s
+	@gometalinter ./... --config=.gometalinter.json --deadline=60s
 
 proto:
 	@echo "--> Running protoc"
