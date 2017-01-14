@@ -28,7 +28,7 @@ type Librarian struct {
 	db db.KVDB
 
 	// rt is the routing table of peers
-	rt *routing.Table
+	rt routing.Table
 }
 
 // NewLibrarian creates a new librarian instance.
@@ -79,16 +79,16 @@ func loadOrCreatePeerID(db db.KVDB) (*big.Int, error) {
 
 }
 
-func loadOrCreateRoutingTable(db db.KVDB, selfID *big.Int) (*routing.Table, error) {
+func loadOrCreateRoutingTable(db db.KVDB, selfID *big.Int) (routing.Table, error) {
 	rt, err := routing.Load(db)
 	if err != nil {
 		return nil, err
 	}
 
 	if rt != nil {
-		if selfID.Cmp(rt.SelfID) != 0 {
+		if selfID.Cmp(rt.SelfID()) != 0 {
 			return nil, fmt.Errorf("selfID (%v) of loaded routing table does not "+
-				"match Librarian selfID (%v)", rt.SelfID, selfID)
+				"match Librarian selfID (%v)", rt.SelfID(), selfID)
 		}
 		return rt, nil
 	}
@@ -98,7 +98,10 @@ func loadOrCreateRoutingTable(db db.KVDB, selfID *big.Int) (*routing.Table, erro
 
 // Close handles cleanup involved in closing down the server.
 func (l *Librarian) Close() error {
-	if err := l.rt.Close(l.db); err != nil {
+	if err := l.rt.Disconnect(); err != nil {
+		return err
+	}
+	if err := l.rt.Save(l.db); err != nil {
 		return err
 	}
 	l.db.Close()

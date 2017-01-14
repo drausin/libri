@@ -29,22 +29,25 @@ func TestRoutingTable_SaveLoad(t *testing.T) {
 	kvdb, err := db.NewTempDirRocksDB()
 	assert.Nil(t, err)
 
-	err = Save(kvdb, rt1)
+	err = rt1.Save(kvdb)
 	assert.Nil(t, err)
 
 	rt2, err := Load(kvdb)
 	assert.Nil(t, err)
 
 	// check that routing tables are the same
-	assert.Equal(t, rt1.SelfID, rt2.SelfID)
-	assert.Equal(t, rt1.Peers, rt2.Peers)
-	assert.Equal(t, rt1.Len(), rt2.Len())
-	for bi, bucket1 := range rt1.Buckets {
-		bucket2 := rt2.Buckets[bi]
-		assert.Equal(t, bucket1.Depth, bucket2.Depth)
-		assert.Equal(t, bucket1.LowerBound, bucket2.LowerBound)
-		assert.Equal(t, bucket1.UpperBound, bucket2.UpperBound)
-		assert.Equal(t, bucket1.ContainsSelf, bucket2.ContainsSelf)
+	assert.Equal(t, rt1.SelfID(), rt2.SelfID())
+	assert.Equal(t, len(rt1.Peers()), len(rt2.Peers()))
+	assert.Equal(t, rt1.NumPeers(), rt2.NumPeers())
+	assert.Equal(t, rt1.Peers(), rt2.Peers())
+
+	// descend into the protected table fields to check equality
+	for bi, bucket1 := range rt1.(*table).buckets {
+		bucket2 := rt2.(*table).buckets[bi]
+		assert.Equal(t, bucket1.depth, bucket2.depth)
+		assert.Equal(t, bucket1.lowerBound, bucket2.lowerBound)
+		assert.Equal(t, bucket1.upperBound, bucket2.upperBound)
+		assert.Equal(t, bucket1.containsSelf, bucket2.containsSelf)
 		assert.Equal(t, bucket1.Len(), bucket2.Len())
 
 		// the ActivePeers array may have some small differences in
@@ -71,11 +74,11 @@ func newTestStoredTable(rng *rand.Rand, n int) *storage.RoutingTable {
 	return rt
 }
 
-func assertRoutingTablesEqual(t *testing.T, rt *Table, srt *storage.RoutingTable) {
-	assert.Equal(t, srt.SelfId, rt.SelfID.Bytes())
+func assertRoutingTablesEqual(t *testing.T, rt Table, srt *storage.RoutingTable) {
+	assert.Equal(t, srt.SelfId, rt.SelfID().Bytes())
 	for _, sp := range srt.Peers {
 		spIDStr := cid.String(cid.FromBytes(sp.Id))
-		if toPeer, exists := rt.Peers[spIDStr]; exists {
+		if toPeer, exists := rt.Peers()[spIDStr]; exists {
 			peer.AssertPeersEqual(t, sp, toPeer)
 		}
 	}
