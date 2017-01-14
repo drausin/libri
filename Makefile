@@ -31,7 +31,7 @@ fix:
 
 lint:
 	@echo "--> Running gometalinter"
-	@gometalinter ./... --config=.gometalinter.json --deadline=120s
+	@gometalinter ./... --config=.gometalinter.json --deadline=240s
 
 lint-diff:
 	@echo "--> Running gometalinter on packages with uncommitted changes on"
