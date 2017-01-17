@@ -19,20 +19,74 @@ var (
 	UpperBound = FromBytes(bytes.Repeat([]byte{255}, Length))
 
 	// LowerBound is the lower bound of the ID space, i.e., all 256 bits off.
-	LowerBound = big.NewInt(0)
+	LowerBound = FromInt(big.NewInt(0))
 )
 
-// FromBytes creates a *big.Int from a big-endian byte array.
-func FromBytes(id []byte) *big.Int {
-	if len(id) > Length {
-		panic(fmt.Errorf("ID byte length too long: received %v, expected <= %v", len(id),
+// ID is an identifier of arbitrary byte length
+type ID interface {
+	// String() returns the string representation
+	fmt.Stringer
+
+	// Bytes returns the byte representation
+	Bytes() []byte
+
+	// Int returns the big.Int representation
+	Int() *big.Int
+
+	// Cmp compares the ID to another
+	Cmp(ID) int
+
+	// Distance computes the XOR distance between two IDs
+	Distance(ID) *big.Int
+}
+
+// for simplicity we just store the int-representation, but we can later add and the string and/or
+// bytes representations as well for speed if we want
+type id struct {
+	intVal *big.Int
+}
+
+func (x *id) Int() *big.Int {
+	return x.intVal
+}
+
+func (x *id) Bytes() []byte {
+	return x.Int().Bytes()
+}
+
+func (x *id) String() string {
+	return fmt.Sprintf("%064X", x.Bytes())
+}
+
+func (x *id) Cmp(other ID) int {
+	return x.Int().Cmp(other.Int())
+}
+
+func (x *id) Distance(y ID) *big.Int {
+	return new(big.Int).Xor(x.Int(), y.Int())
+}
+
+// FromInt creates an ID from a *big.Int.
+func FromInt(intVal *big.Int) ID {
+	return &id{intVal: intVal}
+}
+
+// FromInt64 creates an ID from an int64.
+func FromInt64(x int64) ID {
+	return FromInt(big.NewInt(x))
+}
+
+// FromBytes creates an ID from a big-endian byte array.
+func FromBytes(bytes []byte) ID {
+	if len(bytes) > Length {
+		panic(fmt.Errorf("ID byte length too long: received %v, expected <= %v", len(bytes),
 			Length))
 	}
-	return big.NewInt(0).SetBytes(id)
+	return FromInt(new(big.Int).SetBytes(bytes))
 }
 
 // NewRandomID returns a random 32-byte ID using local machine's local random number generator.
-func NewRandom() *big.Int {
+func NewRandom() ID {
 	b := make([]byte, Length)
 	_, err := crand.Read(b)
 	if err != nil {
@@ -42,16 +96,7 @@ func NewRandom() *big.Int {
 }
 
 // NewPseudoRandom returns a pseudo-random ID from a random number generator.
-func NewPseudoRandom(rng *mrand.Rand) *big.Int {
-	return big.NewInt(0).Rand(rng, UpperBound)
-}
-
-// Distance computes the XOR distance between two IDs.
-func Distance(x, y *big.Int) *big.Int {
-	return big.NewInt(0).Xor(x, y)
-}
-
-// String gives the string (hex) encoding of the ID.
-func String(id *big.Int) string {
-	return fmt.Sprintf("%064X", id.Bytes())
+func NewPseudoRandom(rng *mrand.Rand) ID {
+	intVal := new(big.Int).Rand(rng, UpperBound.Int())
+	return FromInt(intVal)
 }

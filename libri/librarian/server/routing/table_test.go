@@ -92,7 +92,7 @@ func TestTable_Pop(t *testing.T) {
 
 				// check that no peer exists in our peers maps
 				for _, nextPeer := range ps {
-					_, exists := rt.Peers()[nextPeer.IDStr()]
+					_, exists := rt.Peers()[nextPeer.ID().String()]
 					assert.False(t, exists)
 				}
 			}
@@ -129,7 +129,7 @@ func TestTable_Peak(t *testing.T) {
 
 				// check that peers exist in our peers maps
 				for _, nextPeer := range ps {
-					_, exists := rt.Peers()[nextPeer.IDStr()]
+					_, exists := rt.Peers()[nextPeer.ID().String()]
 					assert.True(t, exists)
 				}
 			}
@@ -167,7 +167,7 @@ func TestTable_Sort(t *testing.T) {
 func TestTable_chooseBucketIndex(t *testing.T) {
 	rt := newSimpleTable()
 
-	target := big.NewInt(150)
+	target := cid.FromInt64(150)
 
 	// bucket 2 should be next since it contains target
 	i := rt.chooseBucketIndex(target, 2, 1)
@@ -198,7 +198,7 @@ func TestTable_chooseBucketIndex(t *testing.T) {
 		rt.chooseBucketIndex(target, 4, -1)
 	})
 
-	target = big.NewInt(100)
+	target = cid.FromInt64(100)
 
 	// bucket 1 should be next since it contains target
 	i = rt.chooseBucketIndex(target, 1, 0)
@@ -216,7 +216,7 @@ func TestTable_chooseBucketIndex(t *testing.T) {
 	i = rt.chooseBucketIndex(target, 2, 0)
 	assert.Equal(t, 0, i)
 
-	target = big.NewInt(50)
+	target = cid.FromInt64(50)
 
 	// bucket 0 should be next since it contains target
 	i = rt.chooseBucketIndex(target, 0, -1)
@@ -239,7 +239,7 @@ func TestTable_chooseBucketIndex(t *testing.T) {
 		rt.chooseBucketIndex(target, 4, -1)
 	})
 
-	target = big.NewInt(200)
+	target = cid.FromInt64(200)
 
 	// bucket 3 should be next since it contains target
 	i = rt.chooseBucketIndex(target, 3, 2)
@@ -311,34 +311,34 @@ func TestTable_splitBucket(t *testing.T) {
 }
 
 func TestSplitLowerBound_Ok(t *testing.T) {
-	check := func(lowerBound *big.Int, depth uint, expected *big.Int) {
+	check := func(lowerBound cid.ID, depth uint, expected cid.ID) {
 		actual := splitLowerBound(lowerBound, depth)
 		assert.Equal(t, expected, actual)
 	}
 
-	check(big.NewInt(0), 0, newIntLsh(1, 255))                       // no prefix
-	check(newIntLsh(128, 248), 1, newIntLsh(192, 248))               // prefix 1
-	check(newIntLsh(1, 254), 2, newIntLsh(3, 253))                   // prefix 01
-	check(newIntLsh(3, 254), 2, newIntLsh(7, 253))                   // prefix 11
-	check(newIntLsh(170, 248), 7, newIntLsh(171, 248))               // prefix 1010101
-	check(newIntLsh(128, 248), 7, newIntLsh(129, 248))               // prefix 1000000
-	check(newIntLsh(254, 248), 7, newIntLsh(255, 248))               // prefix 1111111
-	check(newIntLsh(0, 248), 8, newIntLsh(128, 240))                 // prefix 00000000
-	check(newIntLsh(128, 248), 8, newIntLsh(128<<8|128, 240))        // prefix 10000000
-	check(newIntLsh(255, 248), 8, newIntLsh(255<<8|128, 240))        // prefix 11111111
-	check(newIntLsh(0, 240), 9, newIntLsh(64, 240))                  // prefix 00000000 0
-	check(newIntLsh(128, 240), 9, newIntLsh(192, 240))               // prefix 00000000 1
-	check(newIntLsh(255, 248), 9, newIntLsh(255<<8|64, 240))         // prefix 11111111 0
-	check(newIntLsh(255<<8|128, 240), 9, newIntLsh(255<<8|192, 240)) // prefix 11111111 1
+	check(cid.FromInt64(0), 0, newIDLsh(1, 255))                   // no prefix
+	check(newIDLsh(128, 248), 1, newIDLsh(192, 248))               // prefix 1
+	check(newIDLsh(1, 254), 2, newIDLsh(3, 253))                   // prefix 01
+	check(newIDLsh(3, 254), 2, newIDLsh(7, 253))                   // prefix 11
+	check(newIDLsh(170, 248), 7, newIDLsh(171, 248))               // prefix 1010101
+	check(newIDLsh(128, 248), 7, newIDLsh(129, 248))               // prefix 1000000
+	check(newIDLsh(254, 248), 7, newIDLsh(255, 248))               // prefix 1111111
+	check(newIDLsh(0, 248), 8, newIDLsh(128, 240))                 // prefix 00000000
+	check(newIDLsh(128, 248), 8, newIDLsh(128<<8|128, 240))        // prefix 10000000
+	check(newIDLsh(255, 248), 8, newIDLsh(255<<8|128, 240))        // prefix 11111111
+	check(newIDLsh(0, 240), 9, newIDLsh(64, 240))                  // prefix 00000000 0
+	check(newIDLsh(128, 240), 9, newIDLsh(192, 240))               // prefix 00000000 1
+	check(newIDLsh(255, 248), 9, newIDLsh(255<<8|64, 240))         // prefix 11111111 0
+	check(newIDLsh(255<<8|128, 240), 9, newIDLsh(255<<8|192, 240)) // prefix 11111111 1
 }
 
 func newSimpleTable() *table {
 	return &table{
 		buckets: []*bucket{
-			{lowerBound: big.NewInt(0), upperBound: big.NewInt(64)},
-			{lowerBound: big.NewInt(64), upperBound: big.NewInt(128)},
-			{lowerBound: big.NewInt(128), upperBound: big.NewInt(192)},
-			{lowerBound: big.NewInt(192), upperBound: big.NewInt(255)},
+			{lowerBound: cid.FromInt64(0), upperBound: cid.FromInt64(64)},
+			{lowerBound: cid.FromInt64(64), upperBound: cid.FromInt64(128)},
+			{lowerBound: cid.FromInt64(128), upperBound: cid.FromInt64(192)},
+			{lowerBound: cid.FromInt64(192), upperBound: cid.FromInt64(255)},
 		},
 	}
 }
@@ -366,7 +366,7 @@ func checkTableConsistent(t *testing.T, rt Table, nExpectedPeers int) {
 	assert.Equal(t, 1, nContainSelf)
 }
 
-func checkBucketConsistent(t *testing.T, b *bucket, selfID *big.Int) {
+func checkBucketConsistent(t *testing.T, b *bucket, selfID cid.ID) {
 	assert.Equal(t, b.containsSelf, b.Contains(selfID))
 	for p := range b.activePeers {
 		pID := b.activePeers[p].ID()
@@ -375,8 +375,8 @@ func checkBucketConsistent(t *testing.T, b *bucket, selfID *big.Int) {
 	}
 }
 
-func newIntLsh(x int64, n uint) *big.Int {
-	return big.NewInt(0).Lsh(big.NewInt(x), n)
+func newIDLsh(x int64, n uint) cid.ID {
+	return cid.FromInt(new(big.Int).Lsh(big.NewInt(x), n))
 }
 
 func checkPoppedPeers(t *testing.T, k uint, numActivePeers uint, ps []peer.Peer, info string) {
@@ -394,10 +394,10 @@ func checkPoppedPeers(t *testing.T, k uint, numActivePeers uint, ps []peer.Peer,
 		assert.NotNil(t, p)
 
 		// check we haven't previously seen this peer
-		_, exists := seen[p.IDStr()]
+		_, exists := seen[p.ID().String()]
 		assert.False(t, exists)
 
 		// mark this peer as seen
-		seen[p.IDStr()] = struct{}{}
+		seen[p.ID().String()] = struct{}{}
 	}
 }

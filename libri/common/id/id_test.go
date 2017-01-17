@@ -10,20 +10,20 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestFromBytes_ok(t *testing.T) {
+func TestID_FromBytes_ok(t *testing.T) {
 	cases := []struct {
 		in  []byte
-		out *big.Int
+		out ID
 	}{
-		{in: []byte{}, out: big.NewInt(0)},
-		{in: []byte{0}, out: big.NewInt(0)},
-		{in: []byte{1}, out: big.NewInt(1)},
-		{in: bytes.Repeat([]byte{0}, Length), out: big.NewInt(0)},
+		{in: []byte{}, out: FromInt(big.NewInt(0))},
+		{in: []byte{0}, out: FromInt(big.NewInt(0))},
+		{in: []byte{1}, out: FromInt(big.NewInt(1))},
+		{in: bytes.Repeat([]byte{0}, Length), out: FromInt(big.NewInt(0))},
 		{
 			// 256 one bits, or 2^256 - 1
 			in: bytes.Repeat([]byte{255}, Length),
-			out: big.NewInt(0).Sub(big.NewInt(0).Lsh(big.NewInt(1), 256),
-				big.NewInt(1)),
+			out: FromInt(big.NewInt(0).Sub(big.NewInt(0).Lsh(big.NewInt(1), 256),
+				big.NewInt(1))),
 		},
 	}
 	for _, c := range cases {
@@ -64,25 +64,25 @@ func TestNewPsuedoRandom(t *testing.T) {
 
 func TestDistance(t *testing.T) {
 	cases := []struct {
-		x   *big.Int
-		y   *big.Int
+		x   ID
+		y   ID
 		out *big.Int
 	}{
-		{x: big.NewInt(0), y: big.NewInt(0), out: big.NewInt(0)},
-		{x: big.NewInt(0), y: big.NewInt(1), out: big.NewInt(1)},
-		{x: big.NewInt(0), y: big.NewInt(128), out: big.NewInt(128)},
-		{x: big.NewInt(1), y: big.NewInt(255), out: big.NewInt(254)},
-		{x: big.NewInt(2), y: big.NewInt(255), out: big.NewInt(253)},
+		{x: FromInt(big.NewInt(0)), y: FromInt(big.NewInt(0)), out: big.NewInt(0)},
+		{x: FromInt(big.NewInt(0)), y: FromInt(big.NewInt(1)), out: big.NewInt(1)},
+		{x: FromInt(big.NewInt(0)), y: FromInt(big.NewInt(128)), out: big.NewInt(128)},
+		{x: FromInt(big.NewInt(1)), y: FromInt(big.NewInt(255)), out: big.NewInt(254)},
+		{x: FromInt(big.NewInt(2)), y: FromInt(big.NewInt(255)), out: big.NewInt(253)},
 	}
 	for _, c := range cases {
-		assert.Equal(t, 0, Distance(c.x, c.y).Cmp(c.out), "x: %v, y: %v", c.x, c.y)
+		assert.Equal(t, 0, c.x.Distance(c.y).Cmp(c.out), "x: %v, y: %v", c.x, c.y)
 	}
 }
 
 func TestString(t *testing.T) {
-	assert.Equal(t, strings.Repeat("00", Length), String(big.NewInt(0)))
-	assert.Equal(t, strings.Repeat("00", Length-1)+"01", String(big.NewInt(1)))
-	assert.Equal(t, strings.Repeat("00", Length-1)+"FF", String(big.NewInt(255)))
-	assert.Equal(t, strings.Repeat("00", Length), String(LowerBound))
-	assert.Equal(t, strings.Repeat("FF", Length), String(UpperBound))
+	assert.Equal(t, strings.Repeat("00", Length), FromInt(big.NewInt(0)).String())
+	assert.Equal(t, strings.Repeat("00", Length-1)+"01", FromInt(big.NewInt(1)).String())
+	assert.Equal(t, strings.Repeat("00", Length-1)+"FF", FromInt(big.NewInt(255)).String())
+	assert.Equal(t, strings.Repeat("00", Length), LowerBound.String())
+	assert.Equal(t, strings.Repeat("FF", Length), UpperBound.String())
 }

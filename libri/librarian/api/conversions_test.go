@@ -1,10 +1,10 @@
 package api
 
 import (
-	"math/big"
 	"net"
 	"testing"
 
+	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,13 +27,13 @@ func TestToAddress(t *testing.T) {
 
 func TestFromAddress(t *testing.T) {
 	cases := []struct {
-		id   *big.Int
+		id   cid.ID
 		ip   string
 		port int
 	}{
-		{id: big.NewInt(0), ip: "192.168.1.1", port: 1234},
-		{id: big.NewInt(1), ip: "10.11.12.13", port: 100000},
-		{id: big.NewInt(2), ip: "10.11.12.13", port: 1100},
+		{id: cid.FromInt64(0), ip: "192.168.1.1", port: 1234},
+		{id: cid.FromInt64(1), ip: "10.11.12.13", port: 100000},
+		{id: cid.FromInt64(2), ip: "10.11.12.13", port: 1100},
 	}
 	for _, c := range cases {
 		to := &net.TCPAddr{IP: net.ParseIP(c.ip), Port: c.port}

@@ -36,7 +36,7 @@ lint:
 lint-diff:
 	@echo "--> Running gometalinter on packages with uncommitted changes on"
 	@echo $(CHANGED_PKGS) | tr " " "\n"
-	@echo $(CHANGED_PKGS) | xargs gometalinter --config=.gometalinter.json
+	@echo $(CHANGED_PKGS) | xargs gometalinter --config=.gometalinter.json --deadline=240s
 
 proto:
 	@echo "--> Running protoc"
