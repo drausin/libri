@@ -2,10 +2,9 @@ package server
 
 import (
 	"fmt"
-	"math/big"
 	"os"
 
-	"github.com/drausin/libri/libri/common/id"
+	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/db"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/routing"
@@ -19,7 +18,7 @@ var (
 // Librarian is the main service of a single peer in the peer to peer network.
 type Librarian struct {
 	// PeerID is the random 256-bit identification number of this node in the hash table
-	PeerID *big.Int
+	PeerID cid.ID
 
 	// Config holds the configuration parameters of the server
 	Config *Config
@@ -56,7 +55,7 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 	}, nil
 }
 
-func loadOrCreatePeerID(db db.KVDB) (*big.Int, error) {
+func loadOrCreatePeerID(db db.KVDB) (cid.ID, error) {
 	peerIDB, err := db.Get(peerIDKey)
 	if err != nil {
 		return nil, err
@@ -64,11 +63,11 @@ func loadOrCreatePeerID(db db.KVDB) (*big.Int, error) {
 
 	if peerIDB != nil {
 		// return saved PeerID
-		return id.FromBytes(peerIDB), nil
+		return cid.FromBytes(peerIDB), nil
 	}
 
 	// create new PeerID
-	peerID := id.NewRandom()
+	peerID := cid.NewRandom()
 
 	// TODO: move this up to a Librarian.Save() method
 	// save new PeerID
@@ -79,7 +78,7 @@ func loadOrCreatePeerID(db db.KVDB) (*big.Int, error) {
 
 }
 
-func loadOrCreateRoutingTable(db db.KVDB, selfID *big.Int) (routing.Table, error) {
+func loadOrCreateRoutingTable(db db.KVDB, selfID cid.ID) (routing.Table, error) {
 	rt, err := routing.Load(db)
 	if err != nil {
 		return nil, err
@@ -136,7 +135,7 @@ func (l *Librarian) Identify(ctx context.Context, rq *api.IdentityRequest) (*api
 // FindPeers returns the closest peers to a given target.
 func (l *Librarian) FindPeers(ctx context.Context, rq *api.FindRequest) (*api.FindPeersResponse,
 	error) {
-	target := id.FromBytes(rq.Target)
+	target := cid.FromBytes(rq.Target)
 	closest := l.rt.Peak(target, uint(rq.NumPeers))
 	addresses := make([]*api.PeerAddress, len(closest))
 	for i, peer := range closest {

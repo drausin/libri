@@ -1,7 +1,6 @@
 package peer
 
 import (
-	"math/big"
 	"net"
 	"time"
 
@@ -15,10 +14,7 @@ import (
 type Peer interface {
 
 	// ID returns the peer ID.
-	ID() *big.Int
-
-	// IDStr returns the string encoding of the peer ID.
-	IDStr() string
+	ID() cid.ID
 
 	// Name returns the self-reported name.
 	Name() string
@@ -52,10 +48,7 @@ type Peer interface {
 
 type peer struct {
 	// 256-bit ID
-	id *big.Int
-
-	// string encoding of ID
-	idStr string
+	id cid.ID
 
 	// self-reported name
 	name string
@@ -74,28 +67,23 @@ type peer struct {
 }
 
 // New creates a new Peer instance with empty response stats.
-func New(id *big.Int, name string, publicAddress *net.TCPAddr) Peer {
+func New(id cid.ID, name string, publicAddress *net.TCPAddr) Peer {
 	return NewWithResponseStats(id, name, publicAddress, newResponseStats())
 }
 
 // NewWithResponseStats creates a new Peer instance with the given response stats.
-func NewWithResponseStats(id *big.Int, name string, publicAddress *net.TCPAddr,
+func NewWithResponseStats(id cid.ID, name string, publicAddress *net.TCPAddr,
 	rs *responseStats) Peer {
 	return &peer{
 		id:            id,
-		idStr:         cid.String(id),
 		name:          name,
 		publicAddress: publicAddress,
 		responses:     rs,
 	}
 }
 
-func (p *peer) ID() *big.Int {
+func (p *peer) ID() cid.ID {
 	return p.id
-}
-
-func (p *peer) IDStr() string {
-	return p.idStr
 }
 
 func (p *peer) Name() string {

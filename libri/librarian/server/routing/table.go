@@ -7,7 +7,7 @@ import (
 	"math/rand"
 	"sort"
 
-	"github.com/drausin/libri/libri/common/id"
+	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/db"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 )
@@ -30,7 +30,7 @@ var (
 type Table interface {
 
 	// SelfID returns the table's selfID.
-	SelfID() *big.Int
+	SelfID() cid.ID
 
 	// Peers returns all known peers, keyed by string encoding of the ID.
 	Peers() map[string]peer.Peer
@@ -42,11 +42,11 @@ type Table interface {
 	Push(new peer.Peer) PushStatus
 
 	// Pop removes and returns the k peers in the bucket(s) closest to the given target.
-	Pop(target *big.Int, k uint) []peer.Peer
+	Pop(target cid.ID, k uint) []peer.Peer
 
 	// Peak returns the k peers in the bucket(s) closest to the given target by popping and then
 	// pushing them back into the table.
-	Peak(target *big.Int, k uint) []peer.Peer
+	Peak(target cid.ID, k uint) []peer.Peer
 
 	// Disconnect disconnects all client connections.
 	Disconnect() error
@@ -57,7 +57,7 @@ type Table interface {
 
 type table struct {
 	// This peer's node ID
-	selfID *big.Int
+	selfID cid.ID
 
 	// All known peers, keyed by string encoding of the ID
 	peers map[string]peer.Peer
@@ -67,7 +67,7 @@ type table struct {
 }
 
 // NewEmpty creates a new routing table without peers.
-func NewEmpty(selfID *big.Int) Table {
+func NewEmpty(selfID cid.ID) Table {
 	firstBucket := newFirstBucket()
 	return &table{
 		selfID:  selfID,
@@ -77,7 +77,7 @@ func NewEmpty(selfID *big.Int) Table {
 }
 
 // NewWithPeers creates a new routing table with peers.
-func NewWithPeers(selfID *big.Int, peers []peer.Peer) Table {
+func NewWithPeers(selfID cid.ID, peers []peer.Peer) Table {
 	rt := NewEmpty(selfID)
 	for _, p := range peers {
 		rt.Push(p)
@@ -87,11 +87,11 @@ func NewWithPeers(selfID *big.Int, peers []peer.Peer) Table {
 
 // NewTestWithPeers creates a new test routing table with pseudo-random SelfID and n peers.
 func NewTestWithPeers(rng *rand.Rand, n int) Table {
-	return NewWithPeers(id.NewPseudoRandom(rng), peer.NewTestPeers(rng, n))
+	return NewWithPeers(cid.NewPseudoRandom(rng), peer.NewTestPeers(rng, n))
 }
 
 // SelfID returns the table's selfID.
-func (rt *table) SelfID() *big.Int {
+func (rt *table) SelfID() cid.ID {
 	return rt.selfID
 }
 
@@ -115,7 +115,7 @@ func (rt *table) Push(new peer.Peer) PushStatus {
 	bucketIdx := rt.bucketIndex(new.ID())
 	insertBucket := rt.buckets[bucketIdx]
 
-	if pHeapIdx, ok := insertBucket.positions[new.IDStr()]; ok {
+	if pHeapIdx, ok := insertBucket.positions[new.ID().String()]; ok {
 		// node is already in the bucket, so update it and re-heap
 		heap.Remove(insertBucket, pHeapIdx)
 		heap.Push(insertBucket, new)
@@ -125,7 +125,7 @@ func (rt *table) Push(new peer.Peer) PushStatus {
 	if insertBucket.Vacancy() {
 		// node isn't already in the bucket and there's vacancy, so add it
 		heap.Push(insertBucket, new)
-		rt.peers[new.IDStr()] = new
+		rt.peers[new.ID().String()] = new
 		return Added
 	}
 
@@ -142,7 +142,7 @@ func (rt *table) Push(new peer.Peer) PushStatus {
 }
 
 // Pop removes and returns the k peers in the bucket(s) closest to the given target.
-func (rt *table) Pop(target *big.Int, k uint) []peer.Peer {
+func (rt *table) Pop(target cid.ID, k uint) []peer.Peer {
 	if np := rt.NumPeers(); k > np {
 		// if we're requesting more peers than we have, just return number we have
 		k = np
@@ -159,7 +159,7 @@ func (rt *table) Pop(target *big.Int, k uint) []peer.Peer {
 		// fill peers from this bucket
 		for ; i < k && rt.buckets[bucketIdx].Len() > 0; i++ {
 			next[i] = heap.Pop(rt.buckets[bucketIdx]).(peer.Peer)
-			delete(rt.peers, next[i].IDStr())
+			delete(rt.peers, next[i].ID().String())
 		}
 
 		// (in|de)crement the appropriate index
@@ -175,7 +175,7 @@ func (rt *table) Pop(target *big.Int, k uint) []peer.Peer {
 
 // Peak returns the k peers in the bucket(s) closest to the given target by popping and then
 // pushing them back into the table.
-func (rt *table) Peak(target *big.Int, k uint) []peer.Peer {
+func (rt *table) Peak(target cid.ID, k uint) []peer.Peer {
 	popped := rt.Pop(target, k)
 
 	// add the peers back
@@ -213,7 +213,7 @@ func (rt *table) Swap(i, j int) {
 
 // chooseBucketIndex returns either the forward or backward bucket index from which to draw peers
 // for a target.
-func (rt *table) chooseBucketIndex(target *big.Int, fwdIdx int, bkwdIdx int) int {
+func (rt *table) chooseBucketIndex(target cid.ID, fwdIdx int, bkwdIdx int) int {
 	hasFwd := fwdIdx < len(rt.buckets)
 	hasBkwd := bkwdIdx >= 0
 
@@ -235,8 +235,8 @@ func (rt *table) chooseBucketIndex(target *big.Int, fwdIdx int, bkwdIdx int) int
 
 	if hasFwd && hasBkwd {
 		// have both backward and forward indices
-		fwdDist := id.Distance(target, rt.buckets[fwdIdx].upperBound)
-		bkwdDist := id.Distance(target, rt.buckets[bkwdIdx].lowerBound)
+		fwdDist := target.Distance(rt.buckets[fwdIdx].upperBound)
+		bkwdDist := target.Distance(rt.buckets[bkwdIdx].lowerBound)
 
 		if fwdDist.Cmp(bkwdDist) < 0 {
 			// forward upper bound is closer than backward lower bound
@@ -251,7 +251,7 @@ func (rt *table) chooseBucketIndex(target *big.Int, fwdIdx int, bkwdIdx int) int
 }
 
 // bucketIndex searches for bucket containing the given target
-func (rt *table) bucketIndex(target *big.Int) int {
+func (rt *table) bucketIndex(target cid.ID) int {
 	return sort.Search(len(rt.buckets), func(i int) bool {
 		return target.Cmp(rt.buckets[i].upperBound) < 0
 	})
@@ -307,6 +307,6 @@ func (rt *table) splitBucket(bucketIdx int) {
 // 	extendLowerBound(10000000, 1) -> 11000000
 //	...
 // 	extendLowerBound(11000000, 4) -> 11001000
-func splitLowerBound(lowerBound *big.Int, depth uint) *big.Int {
-	return big.NewInt(0).SetBit(lowerBound, int(id.Length*8-depth-1), 1)
+func splitLowerBound(lowerBound cid.ID, depth uint) cid.ID {
+	return cid.FromInt(new(big.Int).SetBit(lowerBound.Int(), int(cid.Length*8-depth-1), 1))
 }

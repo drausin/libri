@@ -1,9 +1,7 @@
 package routing
 
 import (
-	"math/big"
-
-	"github.com/drausin/libri/libri/common/id"
+	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 )
 
@@ -13,10 +11,10 @@ type bucket struct {
 	depth uint
 
 	// (inclusive) lower bound of IDs in this bucket
-	lowerBound *big.Int
+	lowerBound cid.ID
 
 	// (exclusive) upper bound of IDs in this bucket
-	upperBound *big.Int
+	upperBound cid.ID
 
 	// whether the bucket contains the current node's ID.
 	containsSelf bool
@@ -35,8 +33,8 @@ type bucket struct {
 func newFirstBucket() *bucket {
 	return &bucket{
 		depth:          0,
-		lowerBound:     id.LowerBound,
-		upperBound:     id.UpperBound,
+		lowerBound:     cid.LowerBound,
+		upperBound:     cid.UpperBound,
 		maxActivePeers: DefaultMaxActivePeers,
 		activePeers:    make([]peer.Peer, 0),
 		positions:      make(map[string]int),
@@ -54,21 +52,21 @@ func (b *bucket) Less(i, j int) bool {
 
 func (b *bucket) Swap(i, j int) {
 	b.activePeers[i], b.activePeers[j] = b.activePeers[j], b.activePeers[i]
-	b.positions[b.activePeers[i].IDStr()] = i
-	b.positions[b.activePeers[j].IDStr()] = j
+	b.positions[b.activePeers[i].ID().String()] = i
+	b.positions[b.activePeers[j].ID().String()] = j
 }
 
 // Push adds a peer to the routing bucket.
 func (b *bucket) Push(p interface{}) {
 	b.activePeers = append(b.activePeers, p.(peer.Peer))
-	b.positions[p.(peer.Peer).IDStr()] = len(b.activePeers) - 1
+	b.positions[p.(peer.Peer).ID().String()] = len(b.activePeers) - 1
 }
 
 // Pop removes the root peer from the routing bucket.
 func (b *bucket) Pop() interface{} {
 	root := b.activePeers[len(b.activePeers)-1]
 	b.activePeers = b.activePeers[0 : len(b.activePeers)-1]
-	delete(b.positions, root.IDStr())
+	delete(b.positions, root.ID().String())
 	return root
 }
 
@@ -82,6 +80,6 @@ func (b *bucket) Vacancy() bool {
 }
 
 // Contains returns whether the bucket's ID range contains the target.
-func (b *bucket) Contains(target *big.Int) bool {
+func (b *bucket) Contains(target cid.ID) bool {
 	return target.Cmp(b.lowerBound) >= 0 && target.Cmp(b.upperBound) < 0
 }

@@ -77,7 +77,7 @@ func newTestStoredTable(rng *rand.Rand, n int) *storage.RoutingTable {
 func assertRoutingTablesEqual(t *testing.T, rt Table, srt *storage.RoutingTable) {
 	assert.Equal(t, srt.SelfId, rt.SelfID().Bytes())
 	for _, sp := range srt.Peers {
-		spIDStr := cid.String(cid.FromBytes(sp.Id))
+		spIDStr := cid.FromBytes(sp.Id).String()
 		if toPeer, exists := rt.Peers()[spIDStr]; exists {
 			peer.AssertPeersEqual(t, sp, toPeer)
 		}

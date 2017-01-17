@@ -1,8 +1,9 @@
 package api
 
 import (
-	"math/big"
 	"net"
+
+	cid "github.com/drausin/libri/libri/common/id"
 )
 
 // ToAddress creates a net.TCPAddr from an api.PeerAddress.
@@ -14,7 +15,7 @@ func ToAddress(addr *PeerAddress) *net.TCPAddr {
 }
 
 // FromAddress creates an api.PeerAddress from a net.TCPAddr.
-func FromAddress(id *big.Int, addr *net.TCPAddr) *PeerAddress {
+func FromAddress(id cid.ID, addr *net.TCPAddr) *PeerAddress {
 	return &PeerAddress{
 		PeerId: id.Bytes(),
 		Ip:     addr.IP.String(),
