@@ -1,13 +1,10 @@
 package peer
 
 import (
-	"net"
 	"time"
 
 	cid "github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/storage"
-	"google.golang.org/grpc"
 )
 
 // Peer represents a peer in the network.
@@ -18,9 +15,6 @@ type Peer interface {
 
 	// Name returns the self-reported name.
 	Name() string
-
-	// PublicAddress returns the peer's public address.
-	PublicAddress() *net.TCPAddr
 
 	// ResponseStats returns the peer's response stats.
 	ResponseStats() *responseStats
@@ -35,14 +29,10 @@ type Peer interface {
 	// RecordResponseError records an unsuccessful or error-laden response from the peer.
 	RecordResponseError()
 
-	// Connect establishes the TCP connection with the peer and establishes the Librarian
-	// client with it.
-	Connect() error
+	// Connector returns the Connector instance for connecting to the peer.
+	Connector() Connector
 
-	// Disconnect closes the connection with the peer.
-	Disconnect() error
-
-	// ToStored returns a storage.Peer versin of the peer.
+	// ToStored returns a storage.Peer version of the peer.
 	ToStored() *storage.Peer
 }
 
@@ -53,32 +43,25 @@ type peer struct {
 	// self-reported name
 	name string
 
-	// RPC TCP address
-	publicAddress *net.TCPAddr
-
 	// time of latest response from the peer
 	responses *responseStats
 
-	// Librarian client to peer
-	client *api.LibrarianClient
-
-	// client connection to the peer
-	conn *grpc.ClientConn
+	// Connector instance for the peer
+	conn Connector
 }
 
 // New creates a new Peer instance with empty response stats.
-func New(id cid.ID, name string, publicAddress *net.TCPAddr) Peer {
-	return NewWithResponseStats(id, name, publicAddress, newResponseStats())
+func New(id cid.ID, name string, conn Connector) Peer {
+	return NewWithResponseStats(id, name, conn, newResponseStats())
 }
 
 // NewWithResponseStats creates a new Peer instance with the given response stats.
-func NewWithResponseStats(id cid.ID, name string, publicAddress *net.TCPAddr,
-	rs *responseStats) Peer {
+func NewWithResponseStats(id cid.ID, name string, conn Connector, rs *responseStats) Peer {
 	return &peer{
-		id:            id,
-		name:          name,
-		publicAddress: publicAddress,
-		responses:     rs,
+		id:        id,
+		name:      name,
+		conn:      conn,
+		responses: rs,
 	}
 }
 
@@ -90,52 +73,34 @@ func (p *peer) Name() string {
 	return p.name
 }
 
-func (p *peer) PublicAddress() *net.TCPAddr {
-	return p.publicAddress
-}
-
 func (p *peer) ResponseStats() *responseStats {
 	return p.responses
 }
 
-// Before returns whether p should be ordered before q in the priority queue of peers to query.
-// Currently, it just uses whether p's latest response time is before q's.
 func (p *peer) Before(q Peer) bool {
 	return p.ResponseStats().latest.Before(q.ResponseStats().latest)
 }
 
-// RecordResponseSuccess records a successful response from the peer.
 func (p *peer) RecordResponseSuccess() {
 	p.recordResponse()
 }
 
-// RecordResponseError records an unsuccessful or error-laden response from the peer.
 func (p *peer) RecordResponseError() {
 	p.responses.nErrors++
 	p.recordResponse()
 }
 
-// Connect establishes the TCP connection with the peer and establishes the Librarian client with
-// it.
-func (p *peer) Connect() error {
-	// TODO (drausin) add SSL
-	conn, err := grpc.Dial(p.publicAddress.String(), grpc.WithInsecure())
-	if err != nil {
-		return err
-	}
-	client := api.NewLibrarianClient(conn)
-	p.conn = conn
-	p.client = &client
-	return nil
+func (p *peer) Connector() Connector {
+	return p.conn
 }
 
-// Disconnect closes the connection with the peer.
-func (p *peer) Disconnect() error {
-	if p.client != nil {
-		p.client = nil
-		return p.conn.Close()
+func (p *peer) ToStored() *storage.Peer {
+	return &storage.Peer{
+		Id:            p.id.Bytes(),
+		Name:          p.name,
+		PublicAddress: toStoredAddress(p.conn.PublicAddress()),
+		Responses:     p.responses.toStoredResponseStats(),
 	}
-	return nil
 }
 
 // recordsResponse records any response from the peer.
@@ -168,5 +133,15 @@ func newResponseStats() *responseStats {
 		latest:   time.Unix(0, 0),
 		nQueries: 0,
 		nErrors:  0,
+	}
+}
+
+// toStoredResponseStats creates a storage.ResponseStats from a peer.ResponseStats.
+func (rs *responseStats) toStoredResponseStats() *storage.ResponseStats {
+	return &storage.ResponseStats{
+		Earliest: rs.earliest.Unix(),
+		Latest:   rs.latest.Unix(),
+		NQueries: rs.nQueries,
+		NErrors:  rs.nErrors,
 	}
 }

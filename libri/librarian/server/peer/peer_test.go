@@ -12,7 +12,7 @@ import (
 func TestNew(t *testing.T) {
 	id, name := cid.FromInt64(0), "test name"
 	addr := &net.TCPAddr{IP: net.ParseIP("192.168.1.1"), Port: 1000}
-	p := New(id, name, addr)
+	p := New(id, name, NewConnector(addr))
 	assert.Equal(t, 0, id.Cmp(p.ID()))
 	assert.Equal(t, name, p.Name())
 	assert.Equal(t, addr, addr)

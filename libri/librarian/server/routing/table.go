@@ -189,7 +189,7 @@ func (rt *table) Peak(target cid.ID, k uint) []peer.Peer {
 func (rt *table) Disconnect() error {
 	// disconnect from all peers
 	for _, p := range rt.peers {
-		if err := p.Disconnect(); err != nil {
+		if err := p.Connector().Disconnect(); err != nil {
 			return err
 		}
 	}

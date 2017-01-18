@@ -13,19 +13,9 @@ func FromStored(stored *storage.Peer) Peer {
 	return NewWithResponseStats(
 		id.FromBytes(stored.Id),
 		stored.Name,
-		fromStoredAddress(stored.PublicAddress),
+		NewConnector(fromStoredAddress(stored.PublicAddress)),
 		fromStoredResponseStats(stored.Responses),
 	)
-}
-
-// ToStored creates a storage.Peer from a peer.Peer.
-func (p *peer) ToStored() *storage.Peer {
-	return &storage.Peer{
-		Id:            p.id.Bytes(),
-		Name:          p.name,
-		PublicAddress: toStoredAddress(p.publicAddress),
-		Responses:     p.responses.toStoredResponseStats(),
-	}
 }
 
 // fromStoredAddress creates a net.TCPAddr from a storage.Address.
@@ -51,15 +41,5 @@ func fromStoredResponseStats(stored *storage.ResponseStats) *responseStats {
 		latest:   time.Unix(stored.Earliest, int64(0)).UTC(),
 		nQueries: stored.NQueries,
 		nErrors:  stored.NErrors,
-	}
-}
-
-// toStoredResponseStats creates a storage.ResponseStats from a peer.ResponseStats.
-func (rs *responseStats) toStoredResponseStats() *storage.ResponseStats {
-	return &storage.ResponseStats{
-		Earliest: rs.earliest.Unix(),
-		Latest:   rs.latest.Unix(),
-		NQueries: rs.nQueries,
-		NErrors:  rs.nErrors,
 	}
 }

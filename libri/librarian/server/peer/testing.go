@@ -22,12 +22,16 @@ func NewTestPeer(rng *rand.Rand, idx int) Peer {
 		panic(err)
 	}
 	now := time.Unix(int64(idx), 0).UTC()
-	return NewWithResponseStats(id, fmt.Sprintf("peer-%d", idx+1), address, &responseStats{
-		earliest: now,
-		latest:   now,
-		nQueries: 1,
-		nErrors:  0,
-	})
+	return NewWithResponseStats(
+		id,
+		fmt.Sprintf("peer-%d", idx+1),
+		NewConnector(address),
+		&responseStats{
+			earliest: now,
+			latest:   now,
+			nQueries: 1,
+			nErrors:  0,
+		})
 }
 
 // NewTestPeers generates n new peers suitable for testing use with random IDs and incrementing
@@ -65,8 +69,9 @@ func AssertPeersEqual(t *testing.T, sp *storage.Peer, p Peer) {
 	log.Printf("sp: %v, p: %v", sp, p)
 	assert.Equal(t, sp.Id, p.ID().Bytes())
 	assert.Equal(t, sp.Name, p.Name())
-	assert.Equal(t, sp.PublicAddress.Ip, p.PublicAddress().IP.String())
-	assert.Equal(t, sp.PublicAddress.Port, uint32(p.PublicAddress().Port))
+	publicAddres := p.(*peer).conn.(*connector).publicAddress
+	assert.Equal(t, sp.PublicAddress.Ip, publicAddres.IP.String())
+	assert.Equal(t, sp.PublicAddress.Port, uint32(publicAddres.Port))
 	assert.Equal(t, sp.Responses.Earliest, p.ResponseStats().earliest.Unix())
 	assert.Equal(t, sp.Responses.Latest, p.ResponseStats().latest.Unix())
 	assert.Equal(t, sp.Responses.NQueries, p.ResponseStats().nQueries)
