@@ -11,8 +11,8 @@ message Address {
     uint32 port = 3;
 }
 
-// ResponseStats contains statistics about a Peer's response history.
-message ResponseStats {
+// Responses contains statistics about a Peer's response history.
+message Responses {
     // epoch time (seconds since 1970 UTC) of the earliest response from the peer
     int64 earliest = 1;
 
@@ -38,7 +38,7 @@ message Peer {
     Address public_address = 3;
 
     // response history
-    ResponseStats responses = 4;
+    Responses responses = 4;
 }
 
 // StoredRoutingTable contains the essential information associated with a routing table.

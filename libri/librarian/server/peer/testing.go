@@ -55,7 +55,7 @@ func NewTestStoredPeer(rng *rand.Rand, idx int) *storage.Peer {
 			Ip:   "192.168.1.1",
 			Port: uint32(11000 + idx),
 		},
-		Responses: &storage.ResponseStats{
+		Responses: &storage.Responses{
 			Earliest: now.Unix(),
 			Latest:   now.Unix(),
 			NQueries: 1,
@@ -68,12 +68,13 @@ func NewTestStoredPeer(rng *rand.Rand, idx int) *storage.Peer {
 func AssertPeersEqual(t *testing.T, sp *storage.Peer, p Peer) {
 	log.Printf("sp: %v, p: %v", sp, p)
 	assert.Equal(t, sp.Id, p.ID().Bytes())
-	assert.Equal(t, sp.Name, p.Name())
-	publicAddres := p.(*peer).conn.(*connector).publicAddress
+	publicAddres := p.(*peer).connector.(*connector).publicAddress
 	assert.Equal(t, sp.PublicAddress.Ip, publicAddres.IP.String())
 	assert.Equal(t, sp.PublicAddress.Port, uint32(publicAddres.Port))
-	assert.Equal(t, sp.Responses.Earliest, p.ResponseStats().earliest.Unix())
-	assert.Equal(t, sp.Responses.Latest, p.ResponseStats().latest.Unix())
-	assert.Equal(t, sp.Responses.NQueries, p.ResponseStats().nQueries)
-	assert.Equal(t, sp.Responses.NErrors, p.ResponseStats().nErrors)
+
+	prs := p.Responses().(*responseStats)
+	assert.Equal(t, sp.Responses.Earliest, prs.earliest.Unix())
+	assert.Equal(t, sp.Responses.Latest, prs.latest.Unix())
+	assert.Equal(t, sp.Responses.NQueries, prs.nQueries)
+	assert.Equal(t, sp.Responses.NErrors, prs.nErrors)
 }

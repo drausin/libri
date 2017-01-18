@@ -35,7 +35,7 @@ func toStoredAddress(address *net.TCPAddr) *storage.Address {
 }
 
 // fromStoredResponseStats creates a peer.ResponseStats from a storage.ResponseStats
-func fromStoredResponseStats(stored *storage.ResponseStats) *responseStats {
+func fromStoredResponseStats(stored *storage.Responses) *responseStats {
 	return &responseStats{
 		earliest: time.Unix(stored.Earliest, int64(0)).UTC(),
 		latest:   time.Unix(stored.Earliest, int64(0)).UTC(),

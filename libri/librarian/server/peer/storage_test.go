@@ -18,9 +18,9 @@ func TestFromStored(t *testing.T) {
 
 func TestToStored(t *testing.T) {
 	p := NewTestPeer(rand.New(rand.NewSource(0)), 0)
-	p.RecordResponseSuccess()
-	p.RecordResponseSuccess()
-	p.RecordResponseError()
+	p.Responses().Success()
+	p.Responses().Success()
+	p.Responses().Error()
 	sp := p.ToStored()
 	AssertPeersEqual(t, sp, p)
 }
@@ -43,7 +43,7 @@ func TestToStoredAddress(t *testing.T) {
 
 func TestFromStoredResponseStats(t *testing.T) {
 	now, nQueries, nErrors := time.Now().Unix(), uint64(2), uint64(1)
-	from := &storage.ResponseStats{Earliest: now, Latest: now, NQueries: nQueries, NErrors: nErrors}
+	from := &storage.Responses{Earliest: now, Latest: now, NQueries: nQueries, NErrors: nErrors}
 	to := fromStoredResponseStats(from)
 	assert.Equal(t, time.Unix(now, 0).UTC(), to.earliest)
 	assert.Equal(t, time.Unix(now, 0).UTC(), to.latest)
@@ -54,7 +54,7 @@ func TestFromStoredResponseStats(t *testing.T) {
 func TestToStoredResponseStats(t *testing.T) {
 	now, nQueries, nErrors := time.Now().UTC(), uint64(2), uint64(1)
 	rs := &responseStats{earliest: now, latest: now, nQueries: nQueries, nErrors: nErrors}
-	srs := rs.toStoredResponseStats()
+	srs := rs.ToStored()
 	assert.Equal(t, now.Unix(), srs.Earliest)
 	assert.Equal(t, now.Unix(), srs.Latest)
 	assert.Equal(t, nQueries, srs.NQueries)
