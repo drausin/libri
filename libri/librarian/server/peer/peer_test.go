@@ -12,14 +12,16 @@ import (
 func TestNew(t *testing.T) {
 	id, name := cid.FromInt64(0), "test name"
 	addr := &net.TCPAddr{IP: net.ParseIP("192.168.1.1"), Port: 1000}
-	p := New(id, name, addr)
+	p := New(id, name, NewConnector(addr))
 	assert.Equal(t, 0, id.Cmp(p.ID()))
-	assert.Equal(t, name, p.Name())
+	assert.Equal(t, name, p.(*peer).name)
 	assert.Equal(t, addr, addr)
-	assert.Equal(t, uint64(0), p.ResponseStats().nQueries)
-	assert.Equal(t, uint64(0), p.ResponseStats().nErrors)
-	assert.Equal(t, int64(0), p.ResponseStats().latest.Unix())
-	assert.Equal(t, int64(0), p.ResponseStats().earliest.Unix())
+
+	rs := p.Responses().(*responseStats)
+	assert.Equal(t, uint64(0), rs.nQueries)
+	assert.Equal(t, uint64(0), rs.nErrors)
+	assert.Equal(t, int64(0), rs.latest.Unix())
+	assert.Equal(t, int64(0), rs.earliest.Unix())
 }
 
 func TestPeer_Before(t *testing.T) {
@@ -55,41 +57,4 @@ func TestPeer_Before(t *testing.T) {
 		q := &peer{responses: c.qrs}
 		assert.Equal(t, c.out, p.Before(q))
 	}
-}
-
-func TestPeer_RecordResponseSuccess(t *testing.T) {
-	p := New(cid.FromInt64(0), "", nil)
-
-	p.RecordResponseSuccess()
-	assert.Equal(t, uint64(1), p.ResponseStats().nQueries)
-	assert.Equal(t, uint64(0), p.ResponseStats().nErrors)
-	assert.True(t, p.ResponseStats().latest.Unix() > 0)
-	assert.True(t, p.ResponseStats().earliest.Unix() > 0)
-	assert.True(t, p.ResponseStats().latest.Equal(p.ResponseStats().earliest))
-	time.Sleep(1 * time.Second)
-
-	p.RecordResponseSuccess()
-	assert.Equal(t, uint64(2), p.ResponseStats().nQueries)
-	assert.Equal(t, uint64(0), p.ResponseStats().nErrors)
-	assert.True(t, p.ResponseStats().latest.Unix() > 0)
-	assert.True(t, p.ResponseStats().earliest.Unix() > 0)
-	assert.True(t, p.ResponseStats().latest.After(p.ResponseStats().earliest))
-}
-
-func TestPeer_RecordResponseError(t *testing.T) {
-	p := New(cid.FromInt64(0), "", nil)
-
-	p.RecordResponseError()
-	assert.Equal(t, uint64(1), p.ResponseStats().nQueries)
-	assert.Equal(t, uint64(1), p.ResponseStats().nErrors)
-	assert.True(t, p.ResponseStats().latest.Unix() > 0)
-	assert.True(t, p.ResponseStats().earliest.Unix() > 0)
-	assert.True(t, p.ResponseStats().latest.Equal(p.ResponseStats().earliest))
-
-	p.RecordResponseSuccess()
-	assert.Equal(t, uint64(2), p.ResponseStats().nQueries)
-	assert.Equal(t, uint64(1), p.ResponseStats().nErrors)
-	assert.True(t, p.ResponseStats().latest.Unix() > 0)
-	assert.True(t, p.ResponseStats().earliest.Unix() > 0)
-	assert.True(t, p.ResponseStats().latest.After(p.ResponseStats().earliest))
 }

@@ -22,12 +22,16 @@ func NewTestPeer(rng *rand.Rand, idx int) Peer {
 		panic(err)
 	}
 	now := time.Unix(int64(idx), 0).UTC()
-	return NewWithResponseStats(id, fmt.Sprintf("peer-%d", idx+1), address, &responseStats{
-		earliest: now,
-		latest:   now,
-		nQueries: 1,
-		nErrors:  0,
-	})
+	return NewWithResponseStats(
+		id,
+		fmt.Sprintf("peer-%d", idx+1),
+		NewConnector(address),
+		&responseStats{
+			earliest: now,
+			latest:   now,
+			nQueries: 1,
+			nErrors:  0,
+		})
 }
 
 // NewTestPeers generates n new peers suitable for testing use with random IDs and incrementing
@@ -51,7 +55,7 @@ func NewTestStoredPeer(rng *rand.Rand, idx int) *storage.Peer {
 			Ip:   "192.168.1.1",
 			Port: uint32(11000 + idx),
 		},
-		Responses: &storage.ResponseStats{
+		Responses: &storage.Responses{
 			Earliest: now.Unix(),
 			Latest:   now.Unix(),
 			NQueries: 1,
@@ -64,11 +68,13 @@ func NewTestStoredPeer(rng *rand.Rand, idx int) *storage.Peer {
 func AssertPeersEqual(t *testing.T, sp *storage.Peer, p Peer) {
 	log.Printf("sp: %v, p: %v", sp, p)
 	assert.Equal(t, sp.Id, p.ID().Bytes())
-	assert.Equal(t, sp.Name, p.Name())
-	assert.Equal(t, sp.PublicAddress.Ip, p.PublicAddress().IP.String())
-	assert.Equal(t, sp.PublicAddress.Port, uint32(p.PublicAddress().Port))
-	assert.Equal(t, sp.Responses.Earliest, p.ResponseStats().earliest.Unix())
-	assert.Equal(t, sp.Responses.Latest, p.ResponseStats().latest.Unix())
-	assert.Equal(t, sp.Responses.NQueries, p.ResponseStats().nQueries)
-	assert.Equal(t, sp.Responses.NErrors, p.ResponseStats().nErrors)
+	publicAddres := p.(*peer).connector.(*connector).publicAddress
+	assert.Equal(t, sp.PublicAddress.Ip, publicAddres.IP.String())
+	assert.Equal(t, sp.PublicAddress.Port, uint32(publicAddres.Port))
+
+	prs := p.Responses().(*responseStats)
+	assert.Equal(t, sp.Responses.Earliest, prs.earliest.Unix())
+	assert.Equal(t, sp.Responses.Latest, prs.latest.Unix())
+	assert.Equal(t, sp.Responses.NQueries, prs.nQueries)
+	assert.Equal(t, sp.Responses.NErrors, prs.nErrors)
 }

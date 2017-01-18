@@ -139,7 +139,7 @@ func (l *Librarian) FindPeers(ctx context.Context, rq *api.FindRequest) (*api.Fi
 	closest := l.rt.Peak(target, uint(rq.NumPeers))
 	addresses := make([]*api.PeerAddress, len(closest))
 	for i, peer := range closest {
-		addresses[i] = api.FromAddress(peer.ID(), peer.PublicAddress())
+		addresses[i] = api.FromAddress(peer.ID(), peer.Connector().PublicAddress())
 	}
 	return &api.FindPeersResponse{
 		RequestId: rq.RequestId,
