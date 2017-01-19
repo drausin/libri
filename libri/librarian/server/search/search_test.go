@@ -39,7 +39,7 @@ func testClosePeers(t *testing.T, minHeap bool) {
 
 	// make sure our peak methods behave as expected
 	curDist := cp.PeakDistance()
-	assert.Equal(t, curDist, id.Distance(target, cp.PeakPeer().ID()))
+	assert.Equal(t, curDist, target.Distance(cp.PeakPeer().ID()))
 	assert.Equal(t, curDist, cp.distance(cp.PeakPeer()))
 	heap.Pop(cp)
 
@@ -57,7 +57,7 @@ func testClosePeers(t *testing.T, minHeap bool) {
 
 
 type clientMock struct {
-	addresses []api.PeerAddress
+	addresses []*api.PeerAddress
 }
 
 func (c *clientMock) Ping(ctx context.Context, in *api.PingRequest, opts ...grpc.CallOption) (
@@ -72,13 +72,9 @@ func (c *clientMock) Identify(ctx context.Context, in *api.IdentityRequest,
 
 func (c *clientMock) FindPeers(ctx context.Context, in *api.FindRequest,
 	opts ...grpc.CallOption) (*api.FindPeersResponse, error) {
-	return api.FindPeersResponse{RequestId: in.RequestId, Addresses: c.addresses}, nil
+	return &api.FindPeersResponse{RequestId: in.RequestId, Addresses: c.addresses}, nil
 }
 
-func newTestPeer() {
-	client := clientMock{}
-
-}
 
 func TestFind(t *testing.T) {
 	// create n peers
@@ -96,7 +92,8 @@ func TestFind(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		peers[i] = peer.New(id.NewPseudoRandom(rng), fmt.Sprintf("peer-%02d", i), addr)
+		peers[i] = peer.New(id.NewPseudoRandom(rng), fmt.Sprintf("peer-%02d", i),
+			peer.NewConnector(addr))
 	}
 
 

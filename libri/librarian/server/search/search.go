@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"container/heap"
 	"fmt"
-	"github.com/drausin/libri/libri/common/id"
+	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
@@ -16,7 +16,7 @@ import (
 // closePeers represents a heap of peers sorted by closest distance to a given target.
 type closePeers struct {
 	// target to compute distance to
-	target *big.Int
+	target cid.ID
 
 	// peers we know about, sorted in a heap with farthest from the target at the root
 	peers []peer.Peer
@@ -32,7 +32,7 @@ type closePeers struct {
 	sign int
 }
 
-func newClosePeersMinHeap(target *big.Int) *closePeers {
+func newClosePeersMinHeap(target cid.ID) *closePeers {
 	return &closePeers{
 		target:    target,
 		peers:     make([]peer.Peer, 0),
@@ -42,7 +42,7 @@ func newClosePeersMinHeap(target *big.Int) *closePeers {
 	}
 }
 
-func newClosePeersMaxHeap(target *big.Int) *closePeers {
+func newClosePeersMaxHeap(target cid.ID) *closePeers {
 	return &closePeers{
 		target:    target,
 		peers:     make([]peer.Peer, 0),
@@ -63,7 +63,7 @@ func (cp *closePeers) Less(i, j int) bool {
 }
 
 func (cp *closePeers) distance(p peer.Peer) *big.Int {
-	return id.Distance(p.ID(), cp.target)
+	return p.ID().Distance(cp.target)
 }
 
 func less(sign int, x, y *big.Int) bool {
@@ -79,19 +79,19 @@ func (cp *closePeers) Swap(i, j int) {
 func (cp *closePeers) Push(p interface{}) {
 	cp.peers = append(cp.peers, p.(peer.Peer))
 	cp.distances = append(cp.distances, cp.distance(p.(peer.Peer)))
-	cp.ids[p.(peer.Peer).IDStr()] = struct{}{}
+	cp.ids[p.(peer.Peer).ID().String()] = struct{}{}
 }
 
 func (cp *closePeers) Pop() interface{} {
 	root := cp.peers[len(cp.peers)-1]
 	cp.peers = cp.peers[0 : len(cp.peers)-1]
 	cp.distances = cp.distances[0 : len(cp.distances)-1]
-	delete(cp.ids, root.IDStr())
+	delete(cp.ids, root.ID().String())
 	return root
 }
 
-func (cp *closePeers) In(p peer.Peer) bool {
-	_, in := cp.ids[p.IDStr()]
+func (cp *closePeers) In(id cid.ID) bool {
+	_, in := cp.ids[id.String()]
 	return in
 }
 
@@ -107,7 +107,7 @@ func (cp *closePeers) PeakPeer() peer.Peer {
 
 type search struct {
 	// what we're searching for
-	target *big.Int
+	target cid.ID
 
 	// min heap of peers we know about but haven't yet queried
 	unqueried *closePeers
@@ -119,7 +119,7 @@ type search struct {
 	nClosestResponses uint
 }
 
-func newSearch(target *big.Int, nClosestResponses uint) *search {
+func newSearch(target cid.ID, nClosestResponses uint) *search {
 	return &search{
 		target:            target,
 		unqueried:         newClosePeersMinHeap(target),
@@ -137,7 +137,7 @@ func (s *search) finished() bool {
 }
 
 func (s *search) distance(p peer.Peer) *big.Int {
-	return id.Distance(s.target, p.ID())
+	return p.ID().Distance(s.target)
 }
 
 func (s *search) newFindRequest() *api.FindRequest {
@@ -165,18 +165,18 @@ func (s *search) Closest() []peer.Peer {
 	return s.responded.peers
 }
 
-func (s *search) Seen(p peer.Peer) bool {
-	return s.responded.In(p) || s.unqueried.In(p)
+func (s *search) Seen(id cid.ID) bool {
+	return s.responded.In(id) || s.unqueried.In(id)
 }
 
 type findResult struct {
-	target  *big.Int
+	target  cid.ID
 	found   bool
 	err     error
 	closest []peer.Peer
 }
 
-func Find(target *big.Int, rt routing.Table, nClosestResponses uint, concurrency uint) *findResult {
+func Find(target cid.ID, rt routing.Table, nClosestResponses uint, concurrency uint) *findResult {
 	s := newSearch(target, nClosestResponses)
 	maxErrs := 3
 
@@ -192,7 +192,7 @@ func Find(target *big.Int, rt routing.Table, nClosestResponses uint, concurrency
 		// get next peer to query
 		next := heap.Pop(s.unqueried).(peer.Peer)
 
-		client, err := next.MaybeConnect()
+		client, err := next.Connector().Connect()
 		if err != nil {
 			continue
 		}
@@ -200,17 +200,17 @@ func Find(target *big.Int, rt routing.Table, nClosestResponses uint, concurrency
 		response, err := s.query(client)
 		if err != nil {
 			// increment error count if something went wrong
-			next.RecordResponseError()
+			next.Responses().Error()
 			nErr++
 			continue
 		}
-		next.RecordResponseSuccess()
+		next.Responses().Success()
 
 		// add or update peer in routing table
 		rt.Push(next)
 
 		// add peer to responded heap
-		if s.responded.In(next) {
+		if s.responded.In(next.ID()) {
 			// should never happen but check just in case
 			panic(fmt.Errorf("peer unexpectedly already in responded heap: %v", next))
 
@@ -223,10 +223,14 @@ func Find(target *big.Int, rt routing.Table, nClosestResponses uint, concurrency
 		}
 
 		for _, a := range response.Addresses {
-			discovered := peer.FromAPIAddress(a)
-			if !s.Seen(discovered) {
+			peerID := cid.FromBytes(a.PeerId)
+			if !s.Seen(peerID) {
 				// only add discovered peers that we haven't already seen
-				heap.Push(s.unqueried, discovered)
+				heap.Push(s.unqueried, peer.New(
+					peerID,
+					"",
+					peer.NewConnector(api.ToAddress(a)),
+				))
 			}
 		}
 	}
