@@ -20,7 +20,7 @@ type bucket struct {
 	containsSelf bool
 
 	// maximum number of active peers for the bucket.
-	maxActivePeers int
+	maxActivePeers uint
 
 	// active peers in the bucket.
 	activePeers []peer.Peer
@@ -76,7 +76,7 @@ func (b *bucket) Before(c *bucket) bool {
 
 // Vacancy returns whether the bucket has room for more peers.
 func (b *bucket) Vacancy() bool {
-	return len(b.activePeers) < b.maxActivePeers
+	return len(b.activePeers) < int(b.maxActivePeers)
 }
 
 // Contains returns whether the bucket's ID range contains the target.
