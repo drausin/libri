@@ -10,12 +10,9 @@ import (
 
 // FromStored creates a new peer.Peer instance from a storage.Peer instance.
 func FromStored(stored *storage.Peer) Peer {
-	return NewWithResponseStats(
-		id.FromBytes(stored.Id),
-		stored.Name,
-		NewConnector(fromStoredAddress(stored.PublicAddress)),
-		fromStoredResponseStats(stored.Responses),
-	)
+	conn := NewConnector(fromStoredAddress(stored.PublicAddress))
+	return New(id.FromBytes(stored.Id), stored.Name, conn).(*peer).
+		WithResponseRecorder(fromStoredResponseStats(stored.Responses))
 }
 
 // fromStoredAddress creates a net.TCPAddr from a storage.Address.
@@ -34,7 +31,7 @@ func toStoredAddress(address *net.TCPAddr) *storage.Address {
 	}
 }
 
-// fromStoredResponseStats creates a peer.ResponseStats from a storage.ResponseStats
+// fromStoredResponseStats creates a responseStats from a storage.ResponseStats
 func fromStoredResponseStats(stored *storage.Responses) *responseStats {
 	return &responseStats{
 		earliest: time.Unix(stored.Earliest, int64(0)).UTC(),

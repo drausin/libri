@@ -52,11 +52,14 @@ message PeerAddress {
     // 32-byte peer ID
     bytes peer_id = 1;
 
+    // self-reported name of the peer
+    string peer_name = 2;
+
     // public IP address
-    string ip = 2;
+    string ip = 3;
 
     // public address TCP port
-    uint32 port = 3;
+    uint32 port = 4;
 }
 
 message FindPeersResponse {

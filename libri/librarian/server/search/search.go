@@ -9,146 +9,182 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"golang.org/x/net/context"
-	"math/big"
 	"time"
 )
 
-// closePeers represents a heap of peers sorted by closest distance to a given target.
-type closePeers struct {
-	// target to compute distance to
-	target cid.ID
+var (
+	// maximum number of errors tolerated during a search
+	DefaultNMaxErrors = uint(3)
 
-	// peers we know about, sorted in a heap with farthest from the target at the root
-	peers []peer.Peer
+	// number of parallel search workers
+	DefaultConcurrency = uint(3)
 
-	// the distances of each peer to the target
-	distances []*big.Int
+	DefaultQueryTimeout = 5 * time.Second
+)
 
-	// set of IDStrs of the peers in the heap
-	ids map[string]struct{}
-
-	//  1: root is closest to target (min heap)
-	// -1: root is farthest from target (max heap)
-	sign int
+// PeerSearcher searches for the peers closest to a given target.
+type PeerSearcher interface {
+	// Search executes a search from a list of seeds.
+	Search(seeds []peer.Peer) (*SearchResult, error)
 }
 
-func newClosePeersMinHeap(target cid.ID) *closePeers {
-	return &closePeers{
-		target:    target,
-		peers:     make([]peer.Peer, 0),
-		distances: make([]*big.Int, 0),
-		ids:       make(map[string]struct{}),
-		sign:      1,
-	}
+type SearchResult struct {
+	target    cid.ID
+	found     bool
+	err       error
+	closest   ClosestPeers
+	responded []peer.Peer
 }
 
-func newClosePeersMaxHeap(target cid.ID) *closePeers {
-	return &closePeers{
-		target:    target,
-		peers:     make([]peer.Peer, 0),
-		distances: make([]*big.Int, 0),
-		ids:       make(map[string]struct{}),
-		sign:      -1,
-	}
-}
-
-// Len returns the current number of peers.
-func (cp *closePeers) Len() int {
-	return len(cp.peers)
-}
-
-// Less returns whether peer i is closer (or farther in case of max heap) to the target than peer j.
-func (cp *closePeers) Less(i, j int) bool {
-	return less(cp.sign, cp.distances[i], cp.distances[j])
-}
-
-func (cp *closePeers) distance(p peer.Peer) *big.Int {
-	return p.ID().Distance(cp.target)
-}
-
-func less(sign int, x, y *big.Int) bool {
-	return sign*x.Cmp(y) < 0
-}
-
-// Swap swaps the peers in position i and j.
-func (cp *closePeers) Swap(i, j int) {
-	cp.peers[i], cp.peers[j] = cp.peers[j], cp.peers[i]
-	cp.distances[i], cp.distances[j] = cp.distances[j], cp.distances[i]
-}
-
-func (cp *closePeers) Push(p interface{}) {
-	cp.peers = append(cp.peers, p.(peer.Peer))
-	cp.distances = append(cp.distances, cp.distance(p.(peer.Peer)))
-	cp.ids[p.(peer.Peer).ID().String()] = struct{}{}
-}
-
-func (cp *closePeers) Pop() interface{} {
-	root := cp.peers[len(cp.peers)-1]
-	cp.peers = cp.peers[0 : len(cp.peers)-1]
-	cp.distances = cp.distances[0 : len(cp.distances)-1]
-	delete(cp.ids, root.ID().String())
-	return root
-}
-
-func (cp *closePeers) In(id cid.ID) bool {
-	_, in := cp.ids[id.String()]
-	return in
-}
-
-// PeakDistance returns the distance from the root of the heap to the target.
-func (cp *closePeers) PeakDistance() *big.Int {
-	return cp.distances[0]
-}
-
-// PeakPeer returns (but does not remove) the the root of the heap.
-func (cp *closePeers) PeakPeer() peer.Peer {
-	return cp.peers[0]
-}
-
-type search struct {
+type peerSearcher struct {
 	// what we're searching for
 	target cid.ID
 
-	// min heap of peers we know about but haven't yet queried
-	unqueried *closePeers
-
-	// max heap of peers we've sent FIND queries to and received responses from
-	responded *closePeers
-
 	// required number of peers closest to the target we need to receive responses from
 	nClosestResponses uint
+
+	// maximum number of errors tolerated when querying peers during the search
+	nMaxErrors uint
+
+	// number of concurrent queries to use in search
+	concurrency uint
+
+	// queries the peers
+	querier Querier
+
+	// processes the responses from the peers
+	responseProcessor ResponseProcessor
 }
 
-func newSearch(target cid.ID, nClosestResponses uint) *search {
-	return &search{
+func NewSearcher(target cid.ID) *peerSearcher {
+	return &peerSearcher{
 		target:            target,
-		unqueried:         newClosePeersMinHeap(target),
-		responded:         newClosePeersMaxHeap(target),
-		nClosestResponses: nClosestResponses,
+		nClosestResponses: routing.DefaultMaxActivePeers,
+		nMaxErrors:        DefaultNMaxErrors,
+		concurrency:       DefaultConcurrency,
+		querier:           NewQuerier(target),
+		responseProcessor: NewResponseProcessor(),
 	}
+}
+
+func (s *peerSearcher) WithNClosestResponses(n uint) *peerSearcher {
+	s.nClosestResponses = n
+	return s
+}
+
+func (s *peerSearcher) WithQuerier(q Querier) *peerSearcher {
+	s.querier = q
+	return s
+}
+
+func (s *peerSearcher) WithResponseProcessor(rp ResponseProcessor) *peerSearcher {
+	s.responseProcessor = rp
+	return s
+}
+
+func (s *peerSearcher) Search(seeds []peer.Peer) (*SearchResult, error) {
+	unqueried := newClosestPeers(s.target, s.concurrency)
+	if err := unqueried.SafePushMany(seeds); err != nil {
+		panic(err)
+	}
+
+	// max-heap of closest peers that have responded with the farther peer at the root
+	closestResponded := newFarthestPeers(s.target, s.nClosestResponses)
+
+	// list of all peers that responded successfully
+	allResponded := make([]peer.Peer, 0)
+
+	// main processing loop; prob should add timeout
+	// TODO: parallelize this
+	nErrors := uint(0)
+	for !s.finished(unqueried, closestResponded) && nErrors < s.nMaxErrors &&
+		unqueried.Len() > 0 {
+
+		// get next peer to query
+		next := heap.Pop(unqueried).(peer.Peer)
+		nextClient, err := next.Connector().Connect()
+		if err != nil {
+			// if we have issues connecting, skip to next peer
+			continue
+		}
+
+		// do the query
+		response, err := s.querier.Query(nextClient)
+		if err != nil {
+			// if we had an issue querying, skip to next peer
+			nErrors++
+			next.Responses().Error()
+			continue
+		}
+		next.Responses().Success()
+
+		// add to heap of closest responded peers
+		err = closestResponded.SafePush(next)
+		if err != nil {
+			return nil, err
+		}
+
+		// process the heap's response
+		s.responseProcessor.Process(response, unqueried, closestResponded)
+
+		// add next peer to list of peers that responded
+		allResponded = append(allResponded, next)
+	}
+
+	if !s.finished(unqueried, closestResponded) {
+		return &SearchResult{
+			target: s.target,
+			found:  false,
+			err:    fmt.Errorf("encountered %d errors during find, giving up", nErrors),
+		}, nil
+	}
+
+	return &SearchResult{
+		target:    s.target,
+		found:     true,
+		closest:   closestResponded,
+		responded: allResponded,
+	}, nil
 }
 
 // finished returns whether the search is complete, which occurs when we have have received
 // responses from the required number of peers, and the max distance of those peers to the target
 // is less than the min distance of the peers we haven't queried yet.
-func (s *search) finished() bool {
-	return uint(s.responded.Len()) == s.nClosestResponses &&
-		s.responded.PeakDistance().Cmp(s.unqueried.PeakDistance()) < 0
+func (s *peerSearcher) finished(unqueried ClosestPeers, responded FarthestPeers) bool {
+	return uint(responded.Len()) == s.nClosestResponses &&
+		responded.PeakDistance().Cmp(unqueried.PeakDistance()) < 0
 }
 
-func (s *search) distance(p peer.Peer) *big.Int {
-	return p.ID().Distance(s.target)
+// Querier handles querying a peer.
+type Querier interface {
+	// Query queries a Librarian client with an api.FindRequest and returns its response.
+	Query(api.LibrarianClient) (*api.FindPeersResponse, error)
 }
 
-func (s *search) newFindRequest() *api.FindRequest {
-	return api.NewFindRequest(s.target, s.nClosestResponses)
+type querier struct {
+	// what we're search for
+	target cid.ID
+
+	// number of peers to request
+	nPeers uint
+
+	// query timeout
+	timeout time.Duration
 }
 
-func (s *search) query(client api.LibrarianClient) (*api.FindPeersResponse, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func NewQuerier(target cid.ID) Querier {
+	return &querier{
+		target:  target,
+		nPeers:  routing.DefaultMaxActivePeers,
+		timeout: DefaultQueryTimeout,
+	}
+}
+
+func (q *querier) Query(client api.LibrarianClient) (*api.FindPeersResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), q.timeout)
 	defer cancel()
 
-	rq := s.newFindRequest()
+	rq := api.NewFindRequest(q.target, q.nPeers)
 	rp, err := client.FindPeers(ctx, rq)
 	if err != nil {
 		return nil, err
@@ -161,91 +197,33 @@ func (s *search) query(client api.LibrarianClient) (*api.FindPeersResponse, erro
 	return rp, nil
 }
 
-func (s *search) Closest() []peer.Peer {
-	return s.responded.peers
+// ResponseProcessor handles an api.FindPeersResponse
+type ResponseProcessor interface {
+	// Process handles an api.FindPeersResponse, adding newly discovered peers to the unqueried
+	// ClosestPeers heap.
+	Process(*api.FindPeersResponse, ClosestPeers, FarthestPeers) error
 }
 
-func (s *search) Seen(id cid.ID) bool {
-	return s.responded.In(id) || s.unqueried.In(id)
+type responseProcessor struct {
+	peerFromer peer.Fromer
 }
 
-type findResult struct {
-	target  cid.ID
-	found   bool
-	err     error
-	closest []peer.Peer
+func NewResponseProcessor() ResponseProcessor {
+	return &responseProcessor{peerFromer: peer.NewFromer()}
 }
 
-func Find(target cid.ID, rt routing.Table, nClosestResponses uint, concurrency uint) *findResult {
-	s := newSearch(target, nClosestResponses)
-	maxErrs := 3
+func (rp *responseProcessor) Process(response *api.FindPeersResponse, unqueried ClosestPeers,
+	closestResponded FarthestPeers) error {
 
-	// get the initial set of peers to start search with
-	for _, seed := range rt.Peak(target, concurrency) {
-		heap.Push(s.unqueried, seed)
-	}
-
-	// main processing loop; prob should add timeout
-	nErr := 0
-	for !s.finished() && nErr < maxErrs {
-
-		// get next peer to query
-		next := heap.Pop(s.unqueried).(peer.Peer)
-
-		client, err := next.Connector().Connect()
-		if err != nil {
-			continue
-		}
-
-		response, err := s.query(client)
-		if err != nil {
-			// increment error count if something went wrong
-			next.Responses().Error()
-			nErr++
-			continue
-		}
-		next.Responses().Success()
-
-		// add or update peer in routing table
-		rt.Push(next)
-
-		// add peer to responded heap
-		if s.responded.In(next.ID()) {
-			// should never happen but check just in case
-			panic(fmt.Errorf("peer unexpectedly already in responded heap: %v", next))
-
-		}
-		heap.Push(s.responded, next)
-
-		if uint(s.responded.Len()) > s.nClosestResponses {
-			// this will lower the upper bound on peer distance to target
-			heap.Pop(s.responded)
-		}
-
-		for _, a := range response.Addresses {
-			peerID := cid.FromBytes(a.PeerId)
-			if !s.Seen(peerID) {
-				// only add discovered peers that we haven't already seen
-				heap.Push(s.unqueried, peer.New(
-					peerID,
-					"",
-					peer.NewConnector(api.ToAddress(a)),
-				))
+	for _, pa := range response.Addresses {
+		newID := cid.FromBytes(pa.PeerId)
+		if !unqueried.In(newID) && !closestResponded.In(newID) {
+			// only add discovered peers that we haven't already seen
+			newPeer := rp.peerFromer.FromAPI(pa)
+			if err := unqueried.SafePush(newPeer); err != nil {
+				return err
 			}
 		}
 	}
-
-	if !s.finished() {
-		return &findResult{
-			target: target,
-			found:  s.finished(),
-			err:    fmt.Errorf("encountered %d errors during find, giving up", nErr),
-		}
-	}
-
-	return &findResult{
-		target:  target,
-		found:   s.finished(),
-		closest: s.Closest(),
-	}
+	return nil
 }

@@ -91,46 +91,46 @@ func newFarthestPeers(target cid.ID, capacity uint) FarthestPeers {
 	}
 }
 
-func (cp *peerDistanceHeap) PeakDistance() *big.Int {
-	return cp.distances[0]
+func (pdh *peerDistanceHeap) PeakDistance() *big.Int {
+	return pdh.distances[0]
 }
 
-func (cp *peerDistanceHeap) PeakPeer() peer.Peer {
-	return cp.peers[0]
+func (pdh *peerDistanceHeap) PeakPeer() peer.Peer {
+	return pdh.peers[0]
 }
 
-func (cp *peerDistanceHeap) In(id cid.ID) bool {
-	_, in := cp.ids[id.String()]
+func (pdh *peerDistanceHeap) In(id cid.ID) bool {
+	_, in := pdh.ids[id.String()]
 	return in
 }
 
-func (cp *peerDistanceHeap) Distance(p peer.Peer) *big.Int {
-	return p.ID().Distance(cp.target)
+func (pdh *peerDistanceHeap) Distance(p peer.Peer) *big.Int {
+	return p.ID().Distance(pdh.target)
 }
 
-func (cp *peerDistanceHeap) SafePush(p peer.Peer) error {
-	if cp.In(p.(peer.Peer).ID()) {
+func (pdh *peerDistanceHeap) SafePush(p peer.Peer) error {
+	if pdh.In(p.(peer.Peer).ID()) {
 		return fmt.Errorf("peer unexpectedly already in responded heap: %v",
 			p.(peer.Peer).ID())
 	}
 
-	heap.Push(cp, p)
-	if cp.Len() > cp.capacity {
-		if cp.sign > 0 {
+	heap.Push(pdh, p)
+	if pdh.Len() > pdh.capacity {
+		if pdh.sign > 0 {
 			// if min-heap, remove farthest peer from bottom
-			heap.Remove(cp, cp.Len() - 1)
+			heap.Remove(pdh, pdh.Len() - 1)
 		} else {
 			// if max-heap, remove farthest peer from head
-			heap.Pop(cp)
+			heap.Pop(pdh)
 		}
 	}
 
 	return nil
 }
 
-func (cp *peerDistanceHeap) SafePushMany(ps []peer.Peer) error {
+func (pdh *peerDistanceHeap) SafePushMany(ps []peer.Peer) error {
 	for _, p := range ps {
-		if err := cp.SafePush(p); err != nil {
+		if err := pdh.SafePush(p); err != nil {
 			return err
 		}
 	}
@@ -138,37 +138,37 @@ func (cp *peerDistanceHeap) SafePushMany(ps []peer.Peer) error {
 }
 
 // Len returns the current number of peers.
-func (cp *peerDistanceHeap) Len() int {
-	return len(cp.peers)
+func (pdh *peerDistanceHeap) Len() int {
+	return len(pdh.peers)
 }
 
 // Capacity returns the maximum number of peers allowed in the heap.
-func (cp *peerDistanceHeap) Capacity() int {
-	return cp.capacity
+func (pdh *peerDistanceHeap) Capacity() int {
+	return pdh.capacity
 }
 
 // Less returns whether peer i is closer (or farther in case of max heap) to the target than peer j.
-func (cp *peerDistanceHeap) Less(i, j int) bool {
-	return less(cp.sign, cp.distances[i], cp.distances[j])
+func (pdh *peerDistanceHeap) Less(i, j int) bool {
+	return less(pdh.sign, pdh.distances[i], pdh.distances[j])
 }
 
 // Swap swaps the peers in position i and j.
-func (cp *peerDistanceHeap) Swap(i, j int) {
-	cp.peers[i], cp.peers[j] = cp.peers[j], cp.peers[i]
-	cp.distances[i], cp.distances[j] = cp.distances[j], cp.distances[i]
+func (pdh *peerDistanceHeap) Swap(i, j int) {
+	pdh.peers[i], pdh.peers[j] = pdh.peers[j], pdh.peers[i]
+	pdh.distances[i], pdh.distances[j] = pdh.distances[j], pdh.distances[i]
 }
 
-func (cp *peerDistanceHeap) Push(p interface{}) {
-	cp.peers = append(cp.peers, p.(peer.Peer))
-	cp.distances = append(cp.distances, cp.Distance(p.(peer.Peer)))
-	cp.ids[p.(peer.Peer).ID().String()] = struct{}{}
+func (pdh *peerDistanceHeap) Push(p interface{}) {
+	pdh.peers = append(pdh.peers, p.(peer.Peer))
+	pdh.distances = append(pdh.distances, pdh.Distance(p.(peer.Peer)))
+	pdh.ids[p.(peer.Peer).ID().String()] = struct{}{}
 }
 
-func (cp *peerDistanceHeap) Pop() interface{} {
-	root := cp.peers[len(cp.peers)-1]
-	cp.peers = cp.peers[0 : len(cp.peers)-1]
-	cp.distances = cp.distances[0 : len(cp.distances)-1]
-	delete(cp.ids, root.ID().String())
+func (pdh *peerDistanceHeap) Pop() interface{} {
+	root := pdh.peers[len(pdh.peers)-1]
+	pdh.peers = pdh.peers[0 : len(pdh.peers)-1]
+	pdh.distances = pdh.distances[0 : len(pdh.distances)-1]
+	delete(pdh.ids, root.ID().String())
 	return root
 }
 

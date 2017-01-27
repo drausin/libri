@@ -53,8 +53,8 @@ func TestPeer_Before(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		p := &peer{responses: c.prs}
-		q := &peer{responses: c.qrs}
+		p := &peer{resp: c.prs}
+		q := &peer{resp: c.qrs}
 		assert.Equal(t, c.out, p.Before(q))
 	}
 }
