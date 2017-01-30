@@ -2,6 +2,7 @@ package peer
 
 import (
 	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/storage"
 )
 
@@ -23,6 +24,9 @@ type Peer interface {
 
 	// ToStored returns a storage.Peer version of the peer.
 	ToStored() *storage.Peer
+
+	// ToAPI returns an api.PeerAddress version of the peer.
+	ToAPI() *api.PeerAddress
 }
 
 type peer struct {
@@ -33,26 +37,25 @@ type peer struct {
 	name string
 
 	// Connector instance for the peer
-	connector Connector
+	conn Connector
 
 	// time of latest response from the peer
-	responses ResponseRecorder
+	resp ResponseRecorder
 }
 
 // New creates a new Peer instance with empty response stats.
-func New(id cid.ID, name string, connector Connector) Peer {
-	return NewWithResponseStats(id, name, connector, newResponseStats())
+func New(id cid.ID, name string, conn Connector) Peer {
+	return &peer{
+		id:   id,
+		name: name,
+		conn: conn,
+		resp: newResponseStats(),
+	}
 }
 
-// NewWithResponseStats creates a new Peer instance with the given response stats.
-func NewWithResponseStats(id cid.ID, name string, connector Connector,
-	responses ResponseRecorder) Peer {
-	return &peer{
-		id:        id,
-		name:      name,
-		connector: connector,
-		responses: responses,
-	}
+func (p *peer) WithResponseRecorder(resp ResponseRecorder) *peer {
+	p.resp = resp
+	return p
 }
 
 func (p *peer) ID() cid.ID {
@@ -60,23 +63,53 @@ func (p *peer) ID() cid.ID {
 }
 
 func (p *peer) Before(q Peer) bool {
-	pr, qr := p.responses.(*responseStats), q.(*peer).responses.(*responseStats)
+	pr, qr := p.resp.(*responseStats), q.(*peer).resp.(*responseStats)
 	return pr.latest.Before(qr.latest)
 }
 
 func (p *peer) Connector() Connector {
-	return p.connector
+	return p.conn
 }
 
 func (p *peer) Responses() ResponseRecorder {
-	return p.responses
+	return p.resp
 }
 
 func (p *peer) ToStored() *storage.Peer {
 	return &storage.Peer{
 		Id:            p.id.Bytes(),
 		Name:          p.name,
-		PublicAddress: toStoredAddress(p.connector.PublicAddress()),
-		Responses:     p.responses.ToStored(),
+		PublicAddress: toStoredAddress(p.conn.(*connector).publicAddress),
+		Responses:     p.resp.ToStored(),
 	}
+}
+
+func (p *peer) ToAPI() *api.PeerAddress {
+	return &api.PeerAddress{
+		PeerId:   p.id.Bytes(),
+		PeerName: p.name,
+		Ip:       p.conn.(*connector).publicAddress.IP.String(),
+		Port:     uint32(p.conn.(*connector).publicAddress.Port),
+	}
+}
+
+// Fromer creates new Peer instances from api.PeerAddresses.
+type Fromer interface {
+	// New creates a new Peer instance.
+	FromAPI(address *api.PeerAddress) Peer
+}
+
+type fromer struct{}
+
+// NewFromer returns a new Fromer instance.
+func NewFromer() Fromer {
+	return &fromer{}
+}
+
+func (f *fromer) FromAPI(apiAddress *api.PeerAddress) Peer {
+	return New(
+		cid.FromBytes(apiAddress.PeerId),
+		apiAddress.PeerName,
+		NewConnector(api.ToAddress(apiAddress)),
+	)
 }

@@ -9,10 +9,6 @@ import (
 
 // Connector creates and destroys connections with a peer.
 type Connector interface {
-
-	// PublicAddress returns the public address to connect to.
-	PublicAddress() *net.TCPAddr
-
 	// Connect establishes the TCP connection with the peer if it doesn't already exist
 	// and returns an api.LibrarianClient.
 	Connect() (api.LibrarianClient, error)
@@ -36,10 +32,6 @@ type connector struct {
 // NewConnector creates a Connector instance from an address.
 func NewConnector(address *net.TCPAddr) Connector {
 	return &connector{publicAddress: address}
-}
-
-func (c *connector) PublicAddress() *net.TCPAddr {
-	return c.publicAddress
 }
 
 // Connect establishes the TCP connection with the peer and establishes the Librarian client with

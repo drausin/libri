@@ -22,7 +22,7 @@ const (
 )
 
 var (
-	DefaultMaxActivePeers = 20
+	DefaultMaxActivePeers = uint(20)
 )
 
 // Table defines how routes to a particular target map to specific peers, held in a tree of

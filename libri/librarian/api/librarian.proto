@@ -12,7 +12,7 @@ service Librarian {
     rpc Identify (IdentityRequest) returns (IdentityResponse) {}
 
     // FindPeers returns the closest peers to a given target.
-    rpc FindPeers (FindRequest) returns (FindPeersResponse) {}
+    rpc FindPeers (FindRequest) returns (FindResponse) {}
 }
 
 message PingRequest {}
@@ -52,18 +52,23 @@ message PeerAddress {
     // 32-byte peer ID
     bytes peer_id = 1;
 
+    // self-reported name of the peer
+    string peer_name = 2;
+
     // public IP address
-    string ip = 2;
+    string ip = 3;
 
     // public address TCP port
-    uint32 port = 3;
+    uint32 port = 4;
 }
 
-message FindPeersResponse {
+message FindResponse {
     // ID of request that generated this response
     bytes request_id = 1;
 
     // list of peers closest to target
     repeated PeerAddress addresses = 2;
-}
 
+    // value, if found
+    bytes value = 3;
+}
