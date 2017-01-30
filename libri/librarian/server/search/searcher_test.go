@@ -130,7 +130,7 @@ func TestSearch(t *testing.T) {
 	search := NewSearch(target, Peers, &Parameters{
 		nClosestResponses: nClosestResponses,
 		nMaxErrors:        DefaultNMaxErrors,
-		concurrency:       1,
+		concurrency:       3,
 		queryTimeout:      DefaultQueryTimeout,
 	})
 

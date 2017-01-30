@@ -39,8 +39,10 @@ func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
 	}
 
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go s.do(search, &wg)
+	for c := uint(0); c < search.params.concurrency; c++ {
+		wg.Add(1)
+		go s.do(search, &wg)
+	}
 	wg.Wait()
 
 	return search.fatalErr
