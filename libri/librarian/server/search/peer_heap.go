@@ -3,10 +3,11 @@ package search
 import (
 	"math/big"
 
-	cid "github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/librarian/server/peer"
 	"container/heap"
 	"fmt"
+
+	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/server/peer"
 )
 
 // PeerDistanceHeap represents a heap of peers sorted by their distance to a given target.
@@ -33,6 +34,7 @@ type PeerDistanceHeap interface {
 	// Distance returns the distance from a peer to the target.
 	Distance(peer.Peer) *big.Int
 
+	// Capacity return the maximum number of peers allowed in the heap.
 	Capacity() int
 }
 
@@ -68,7 +70,6 @@ type peerDistanceHeap struct {
 	capacity int
 }
 
-
 func newClosestPeers(target cid.ID, capacity uint) ClosestPeers {
 	return &peerDistanceHeap{
 		target:    target,
@@ -87,7 +88,7 @@ func newFarthestPeers(target cid.ID, capacity uint) FarthestPeers {
 		distances: make([]*big.Int, 0),
 		ids:       make(map[string]struct{}),
 		sign:      -1,
-		capacity: int(capacity),
+		capacity:  int(capacity),
 	}
 }
 
@@ -118,7 +119,7 @@ func (pdh *peerDistanceHeap) SafePush(p peer.Peer) error {
 	if pdh.Len() > pdh.capacity {
 		if pdh.sign > 0 {
 			// if min-heap, remove farthest peer from bottom
-			heap.Remove(pdh, pdh.Len() - 1)
+			heap.Remove(pdh, pdh.Len()-1)
 		} else {
 			// if max-heap, remove farthest peer from head
 			heap.Pop(pdh)
@@ -175,4 +176,3 @@ func (pdh *peerDistanceHeap) Pop() interface{} {
 func less(sign int, x, y *big.Int) bool {
 	return sign*x.Cmp(y) < 0
 }
-

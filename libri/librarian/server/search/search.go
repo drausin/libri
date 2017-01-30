@@ -1,45 +1,39 @@
 package search
 
 import (
-	"bytes"
-	"container/heap"
-	"fmt"
+	"sync"
+	"time"
+
 	cid "github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
-	"golang.org/x/net/context"
-	"time"
+	"github.com/pkg/errors"
+)
+
+// Type indicates a type of search.
+type Type int
+
+const (
+	// Peers searches are for peers close to a target.
+	Peers Type = iota
+
+	// Value searches are for a target value.
+	Value
 )
 
 var (
-	// maximum number of errors tolerated during a search
+	// DefaultNMaxErrors is the maximum number of errors tolerated during a search.
 	DefaultNMaxErrors = uint(3)
 
-	// number of parallel search workers
+	// DefaultConcurrency is the number of parallel search workers.
 	DefaultConcurrency = uint(3)
 
+	// DefaultQueryTimeout is the timeout for each query to a peer.
 	DefaultQueryTimeout = 5 * time.Second
 )
 
-// PeerSearcher searches for the peers closest to a given target.
-type PeerSearcher interface {
-	// Search executes a search from a list of seeds.
-	Search(seeds []peer.Peer) (*SearchResult, error)
-}
-
-type SearchResult struct {
-	target    cid.ID
-	found     bool
-	err       error
-	closest   ClosestPeers
-	responded []peer.Peer
-}
-
-type peerSearcher struct {
-	// what we're searching for
-	target cid.ID
-
+// Parameters defines the parameters of the search.
+type Parameters struct {
 	// required number of peers closest to the target we need to receive responses from
 	nClosestResponses uint
 
@@ -49,181 +43,130 @@ type peerSearcher struct {
 	// number of concurrent queries to use in search
 	concurrency uint
 
-	// queries the peers
-	querier Querier
-
-	// processes the responses from the peers
-	responseProcessor ResponseProcessor
+	// timeout for queries to individual peers
+	queryTimeout time.Duration
 }
 
-func NewSearcher(target cid.ID) *peerSearcher {
-	return &peerSearcher{
-		target:            target,
+// NewParameters creates an instance with default parameters.
+func NewParameters() *Parameters {
+	return &Parameters{
 		nClosestResponses: routing.DefaultMaxActivePeers,
 		nMaxErrors:        DefaultNMaxErrors,
 		concurrency:       DefaultConcurrency,
-		querier:           NewQuerier(target),
-		responseProcessor: NewResponseProcessor(),
 	}
 }
 
-func (s *peerSearcher) WithNClosestResponses(n uint) *peerSearcher {
-	s.nClosestResponses = n
-	return s
+// Result holds search's (intermediate) result: collections of peers and possibly the value.
+type Result struct {
+
+	// found value when searchType = Value, otherwise nil
+	value []byte
+
+	// heap of the responding peers found closest to the target
+	closest FarthestPeers
+
+	// heap of peers that were not yet queried before search ended
+	unqueried ClosestPeers
+
+	// map of all peers that responded during search
+	responded map[string]peer.Peer
 }
 
-func (s *peerSearcher) WithQuerier(q Querier) *peerSearcher {
-	s.querier = q
-	return s
-}
-
-func (s *peerSearcher) WithResponseProcessor(rp ResponseProcessor) *peerSearcher {
-	s.responseProcessor = rp
-	return s
-}
-
-func (s *peerSearcher) Search(seeds []peer.Peer) (*SearchResult, error) {
-	unqueried := newClosestPeers(s.target, s.concurrency)
-	if err := unqueried.SafePushMany(seeds); err != nil {
-		panic(err)
+// NewInitialResult creates a new Result object for the beginning of a search.
+func NewInitialResult(target cid.ID, params *Parameters) *Result {
+	return &Result{
+		value:     nil,
+		closest:   newFarthestPeers(target, params.nClosestResponses),
+		unqueried: newClosestPeers(target, params.nClosestResponses),
+		responded: make(map[string]peer.Peer),
 	}
-
-	// max-heap of closest peers that have responded with the farther peer at the root
-	closestResponded := newFarthestPeers(s.target, s.nClosestResponses)
-
-	// list of all peers that responded successfully
-	allResponded := make([]peer.Peer, 0)
-
-	// main processing loop; prob should add timeout
-	// TODO: parallelize this
-	nErrors := uint(0)
-	for !s.finished(unqueried, closestResponded) && nErrors < s.nMaxErrors &&
-		unqueried.Len() > 0 {
-
-		// get next peer to query
-		next := heap.Pop(unqueried).(peer.Peer)
-		nextClient, err := next.Connector().Connect()
-		if err != nil {
-			// if we have issues connecting, skip to next peer
-			continue
-		}
-
-		// do the query
-		response, err := s.querier.Query(nextClient)
-		if err != nil {
-			// if we had an issue querying, skip to next peer
-			nErrors++
-			next.Responses().Error()
-			continue
-		}
-		next.Responses().Success()
-
-		// add to heap of closest responded peers
-		err = closestResponded.SafePush(next)
-		if err != nil {
-			return nil, err
-		}
-
-		// process the heap's response
-		s.responseProcessor.Process(response, unqueried, closestResponded)
-
-		// add next peer to list of peers that responded
-		allResponded = append(allResponded, next)
-	}
-
-	if !s.finished(unqueried, closestResponded) {
-		return &SearchResult{
-			target: s.target,
-			found:  false,
-			err:    fmt.Errorf("encountered %d errors during find, giving up", nErrors),
-		}, nil
-	}
-
-	return &SearchResult{
-		target:    s.target,
-		found:     true,
-		closest:   closestResponded,
-		responded: allResponded,
-	}, nil
 }
 
-// finished returns whether the search is complete, which occurs when we have have received
-// responses from the required number of peers, and the max distance of those peers to the target
-// is less than the min distance of the peers we haven't queried yet.
-func (s *peerSearcher) finished(unqueried ClosestPeers, responded FarthestPeers) bool {
-	return uint(responded.Len()) == s.nClosestResponses &&
-		responded.PeakDistance().Cmp(unqueried.PeakDistance()) < 0
-}
+// Search contains things involved in a search for a particular target.
+type Search struct {
+	// type of search
+	searchType Type
 
-// Querier handles querying a peer.
-type Querier interface {
-	// Query queries a Librarian client with an api.FindRequest and returns its response.
-	Query(api.LibrarianClient) (*api.FindPeersResponse, error)
-}
-
-type querier struct {
-	// what we're search for
+	// ID search is looking for or close to
 	target cid.ID
 
-	// number of peers to request
-	nPeers uint
+	// result of the search
+	result *Result
 
-	// query timeout
-	timeout time.Duration
+	// parameters defining the search
+	params *Parameters
+
+	// number of errors encounters while querying peers
+	nErrors uint
+
+	// fatal error that occurred during the search
+	fatalErr error
+
+	// mutex used to synchronizes reads and writes to this instance
+	mu sync.Mutex
 }
 
-func NewQuerier(target cid.ID) Querier {
-	return &querier{
-		target:  target,
-		nPeers:  routing.DefaultMaxActivePeers,
-		timeout: DefaultQueryTimeout,
+// NewSearch creates a new Search instance for a given target, search type, and search parameters.
+func NewSearch(target cid.ID, searchType Type, params *Parameters) *Search {
+	return &Search{
+		searchType: searchType,
+		target:     target,
+		result:     NewInitialResult(target, params),
+		params:     params,
+		nErrors:    0,
 	}
 }
 
-func (q *querier) Query(client api.LibrarianClient) (*api.FindPeersResponse, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), q.timeout)
-	defer cancel()
-
-	rq := api.NewFindRequest(q.target, q.nPeers)
-	rp, err := client.FindPeers(ctx, rq)
-	if err != nil {
-		return nil, err
-	}
-	if !bytes.Equal(rp.RequestId, rq.RequestId) {
-		return nil, fmt.Errorf("unexpected response request ID received: %v, "+
-			"expected %v", rp.RequestId, rq.RequestId)
+// FoundClosestPeers returns whether the search has found the closest peers to a target. This event
+// occurs when it has received responses from the required number of peers, and the max distance of
+// those peers to the target is less than the min distance of the peers we haven't queried yet.
+func (s *Search) FoundClosestPeers() bool {
+	if s.result.unqueried.Len() == 0 {
+		// if we have no unqueried peers, just make sure closest peers heap is full
+		return uint(s.result.closest.Len()) == s.params.nClosestResponses
 	}
 
-	return rp, nil
+	// closest peers heap should be full and have a max distance less than the min unqueried
+	// distance
+	return uint(s.result.closest.Len()) == s.params.nClosestResponses &&
+		s.result.closest.PeakDistance().Cmp(s.result.unqueried.PeakDistance()) <= 0
 }
 
-// ResponseProcessor handles an api.FindPeersResponse
-type ResponseProcessor interface {
-	// Process handles an api.FindPeersResponse, adding newly discovered peers to the unqueried
-	// ClosestPeers heap.
-	Process(*api.FindPeersResponse, ClosestPeers, FarthestPeers) error
+// FoundValue returns whether the search has found the target value. This can only happen with a
+// Value search type.
+func (s *Search) FoundValue() bool {
+	return s.searchType == Value && s.result.value != nil
 }
 
-type responseProcessor struct {
-	peerFromer peer.Fromer
+// Missing returns whether the search target is missing. This happens during a Value search that
+// has found the peers closest to the target but not the target's value.
+func (s *Search) Missing() bool {
+	return s.searchType == Value && !s.FoundValue() && s.FoundClosestPeers()
 }
 
-func NewResponseProcessor() ResponseProcessor {
-	return &responseProcessor{peerFromer: peer.NewFromer()}
+// Errored returns whether the search has encountered too many errors when querying the peers.
+func (s *Search) Errored() bool {
+	return s.nErrors >= s.params.nMaxErrors || s.fatalErr != nil
 }
 
-func (rp *responseProcessor) Process(response *api.FindPeersResponse, unqueried ClosestPeers,
-	closestResponded FarthestPeers) error {
+// Exhausted returns whether the search has exhausted all unqueried peers close to the target.
+func (s *Search) Exhausted() bool {
+	return s.result.unqueried.Len() == 0
+}
 
-	for _, pa := range response.Addresses {
-		newID := cid.FromBytes(pa.PeerId)
-		if !unqueried.In(newID) && !closestResponded.In(newID) {
-			// only add discovered peers that we haven't already seen
-			newPeer := rp.peerFromer.FromAPI(pa)
-			if err := unqueried.SafePush(newPeer); err != nil {
-				return err
-			}
-		}
+// Finished returns whether the search has finished, either because it has found the target or
+// closest peers or errored or exhausted the list of peers to query. This operation is concurrency
+// safe.
+func (s *Search) Finished() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.searchType == Value {
+		return s.FoundValue() || s.Missing() || s.Errored() || s.Exhausted()
+
 	}
-	return nil
+	if s.searchType == Peers {
+		return s.FoundClosestPeers() || s.Errored() || s.Exhausted()
+	}
+
+	panic(errors.New("should never get here"))
 }

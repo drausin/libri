@@ -33,7 +33,7 @@ func TestPeerDistanceHeap_In(t *testing.T) {
 	cp := newClosestPeers(target, 8)
 	for _, p := range peer.NewTestPeers(rng, 8) {
 		assert.False(t, cp.In(p.ID()))
-		cp.SafePush(p)
+		assert.Nil(t, cp.SafePush(p))
 		assert.True(t, cp.In(p.ID()))
 	}
 }
@@ -44,7 +44,7 @@ func TestPeerDistanceHeap_SafePush_exists(t *testing.T) {
 	cp := newClosestPeers(target, 8)
 	p := peer.NewTestPeer(rng, 0)
 	assert.Nil(t, cp.SafePush(p))
-	assert.NotNil(t, cp.SafePush(p))  // should break b/c p0 already in there
+	assert.NotNil(t, cp.SafePush(p)) // should break b/c p0 already in there
 }
 
 func testPeerDistanceHeap(t *testing.T, minHeap bool) {
@@ -82,17 +82,17 @@ func TestClosestPeers_SafePush_capacity(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	target := cid.NewPseudoRandom(rng)
 	n := 8
-	testPeerDistanceHeap_SafePush_capacity(t, rng, newClosestPeers(target, uint(n)))
+	testPeerDistanceHeapSafePushCapacity(t, rng, newClosestPeers(target, uint(n)))
 }
 
 func TestFarthestPeers_SafePush_capacity(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	target := cid.NewPseudoRandom(rng)
 	n := 8
-	testPeerDistanceHeap_SafePush_capacity(t, rng, newFarthestPeers(target, uint(n)))
+	testPeerDistanceHeapSafePushCapacity(t, rng, newFarthestPeers(target, uint(n)))
 }
 
-func testPeerDistanceHeap_SafePush_capacity(t *testing.T, rng *rand.Rand, pdh PeerDistanceHeap) {
+func testPeerDistanceHeapSafePushCapacity(t *testing.T, rng *rand.Rand, pdh PeerDistanceHeap) {
 	for _, p := range peer.NewTestPeers(rng, pdh.Capacity()) {
 		assert.True(t, pdh.Capacity() > pdh.Len())
 		assert.Nil(t, pdh.SafePush(p))
@@ -111,4 +111,3 @@ func testPeerDistanceHeap_SafePush_capacity(t *testing.T, rng *rand.Rand, pdh Pe
 		prevDistance = pdh.PeakDistance()
 	}
 }
-

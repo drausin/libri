@@ -2,8 +2,8 @@ package peer
 
 import (
 	cid "github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/librarian/server/storage"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/server/storage"
 )
 
 // Peer represents a peer in the network.
@@ -31,7 +31,7 @@ type Peer interface {
 
 type peer struct {
 	// 256-bit ID
-	id   cid.ID
+	id cid.ID
 
 	// self-reported name
 	name string
@@ -46,8 +46,8 @@ type peer struct {
 // New creates a new Peer instance with empty response stats.
 func New(id cid.ID, name string, conn Connector) Peer {
 	return &peer{
-		id:        id,
-		name:      name,
+		id:   id,
+		name: name,
 		conn: conn,
 		resp: newResponseStats(),
 	}
@@ -86,21 +86,20 @@ func (p *peer) ToStored() *storage.Peer {
 
 func (p *peer) ToAPI() *api.PeerAddress {
 	return &api.PeerAddress{
-		PeerId: p.id.Bytes(),
+		PeerId:   p.id.Bytes(),
 		PeerName: p.name,
-		Ip: p.conn.(*connector).publicAddress.IP.String(),
-		Port: uint32(p.conn.(*connector).publicAddress.Port),
+		Ip:       p.conn.(*connector).publicAddress.IP.String(),
+		Port:     uint32(p.conn.(*connector).publicAddress.Port),
 	}
 }
 
-
-// Newer creates new Peer instances from api.PeerAddresses.
+// Fromer creates new Peer instances from api.PeerAddresses.
 type Fromer interface {
 	// New creates a new Peer instance.
 	FromAPI(address *api.PeerAddress) Peer
 }
 
-type fromer struct {}
+type fromer struct{}
 
 // NewFromer returns a new Fromer instance.
 func NewFromer() Fromer {
@@ -114,4 +113,3 @@ func (f *fromer) FromAPI(apiAddress *api.PeerAddress) Peer {
 		NewConnector(api.ToAddress(apiAddress)),
 	)
 }
-

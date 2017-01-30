@@ -8,7 +8,7 @@ import (
 func NewFindRequest(target cid.ID, nPeers uint) *FindRequest {
 	return &FindRequest{
 		RequestId: cid.NewRandom().Bytes(),
-		Target: target.Bytes(),
-		NumPeers: uint32(nPeers),
+		Target:    target.Bytes(),
+		NumPeers:  uint32(nPeers),
 	}
 }

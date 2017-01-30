@@ -17,9 +17,9 @@ func ToAddress(addr *PeerAddress) *net.TCPAddr {
 // FromAddress creates an api.PeerAddress from a net.TCPAddr.
 func FromAddress(id cid.ID, name string, addr *net.TCPAddr) *PeerAddress {
 	return &PeerAddress{
-		PeerId: id.Bytes(),
+		PeerId:   id.Bytes(),
 		PeerName: name,
-		Ip:     addr.IP.String(),
-		Port:   uint32(addr.Port),
+		Ip:       addr.IP.String(),
+		Port:     uint32(addr.Port),
 	}
 }

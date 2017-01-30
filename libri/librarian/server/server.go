@@ -133,7 +133,7 @@ func (l *Librarian) Identify(ctx context.Context, rq *api.IdentityRequest) (*api
 }
 
 // FindPeers returns the closest peers to a given target.
-func (l *Librarian) FindPeers(ctx context.Context, rq *api.FindRequest) (*api.FindPeersResponse,
+func (l *Librarian) FindPeers(ctx context.Context, rq *api.FindRequest) (*api.FindResponse,
 	error) {
 	target := cid.FromBytes(rq.Target)
 	closest := l.rt.Peak(target, uint(rq.NumPeers))
@@ -141,7 +141,7 @@ func (l *Librarian) FindPeers(ctx context.Context, rq *api.FindRequest) (*api.Fi
 	for i, peer := range closest {
 		addresses[i] = peer.ToAPI()
 	}
-	return &api.FindPeersResponse{
+	return &api.FindResponse{
 		RequestId: rq.RequestId,
 		Addresses: addresses,
 	}, nil
