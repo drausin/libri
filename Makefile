@@ -38,6 +38,10 @@ lint-diff:
 	@echo $(CHANGED_PKGS) | tr " " "\n"
 	@echo $(CHANGED_PKGS) | xargs gometalinter --config=.gometalinter.json --deadline=240s
 
+lint-optional:
+	@echo "--> Running gometalinter with optional linters"
+	@gometalinter ./... --config=.gometalinter.optional.json --deadline=240s
+
 proto:
 	@echo "--> Running protoc"
 	@find . -name '*.proto' -execdir protoc '{}' --go_out=plugins=grpc:. \;
