@@ -78,46 +78,7 @@ func (f *testFromer) FromAPI(apiAddress *api.PeerAddress) peer.Peer {
 func TestSearch(t *testing.T) {
 	n, nClosestResponses := 32, uint(8)
 	rng := rand.New(rand.NewSource(int64(n)))
-	addresses := make([]*net.TCPAddr, n)
-	ids := make([]cid.ID, n)
-	names := make([]string, n)
-
-	// create the addresses and IDs
-	for i := 0; i < n; i++ {
-		ids[i] = cid.NewPseudoRandom(rng)
-		names[i] = fmt.Sprintf("peer-%03d", i)
-		address, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("localhost:%v", 11000+i))
-		if err != nil {
-			panic(err)
-		}
-		addresses[i] = address
-	}
-
-	// create our connections for each peer
-	peers := make([]peer.Peer, n)
-	peersMap := make(map[string]peer.Peer)
-	selfPeerIdxs := make([]int, 0) // peer indices that peer 0 has in its routing table
-	for i := 0; i < n; i++ {
-		nConnectedPeers := rng.Int31n(8) + 3 // sample number of connected peers in [3, 8]
-		connectedAddresses := make([]*api.PeerAddress, nConnectedPeers)
-		for j := int32(0); j < nConnectedPeers; j++ {
-			k := rng.Int31n(int32(n)) // sample a random peer to connect to
-			connectedAddresses[j] = api.FromAddress(ids[k], names[k], addresses[k])
-			if i == 0 {
-				selfPeerIdxs = append(selfPeerIdxs, int(k))
-			}
-		}
-
-		// create test connector with a test client that returns pre-determined set of
-		// addresses
-		conn := testConnector{
-			client: &testClient{
-				addresses: connectedAddresses,
-			},
-		}
-		peers[i] = peer.New(ids[i], names[i], &conn)
-		peersMap[ids[i].String()] = peers[i]
-	}
+	peers, peersMap, selfPeerIdxs := newTestPeers(rng, n)
 
 	// create our searcher
 	target := cid.NewPseudoRandom(rng)
@@ -128,7 +89,7 @@ func TestSearch(t *testing.T) {
 		},
 	)
 
-	for concurrency := 1; concurrency <= 3; concurrency++ {
+	for concurrency := uint(1); concurrency <= 3; concurrency++ {
 
 		search := NewSearch(target, Peers, &Parameters{
 			nClosestResponses: nClosestResponses,
@@ -174,6 +135,51 @@ func TestSearch(t *testing.T) {
 			assert.True(t, in)
 		}
 	}
+}
+
+func newTestPeers(rng *rand.Rand, n int) ([]peer.Peer, map[string]peer.Peer, []int) {
+	addresses := make([]*net.TCPAddr, n)
+	ids := make([]cid.ID, n)
+	names := make([]string, n)
+
+	// create the addresses and IDs
+	for i := 0; i < n; i++ {
+		ids[i] = cid.NewPseudoRandom(rng)
+		names[i] = fmt.Sprintf("peer-%03d", i)
+		address, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("localhost:%v", 11000+i))
+		if err != nil {
+			panic(err)
+		}
+		addresses[i] = address
+	}
+
+	// create our connections for each peer
+	peers := make([]peer.Peer, n)
+	peersMap := make(map[string]peer.Peer)
+	selfPeerIdxs := make([]int, 0) // peer indices that peer 0 has in its routing table
+	for i := 0; i < n; i++ {
+		nConnectedPeers := rng.Int31n(8) + 3 // sample number of connected peers in [3, 8]
+		connectedAddresses := make([]*api.PeerAddress, nConnectedPeers)
+		for j := int32(0); j < nConnectedPeers; j++ {
+			k := rng.Int31n(int32(n)) // sample a random peer to connect to
+			connectedAddresses[j] = api.FromAddress(ids[k], names[k], addresses[k])
+			if i == 0 {
+				selfPeerIdxs = append(selfPeerIdxs, int(k))
+			}
+		}
+
+		// create test connector with a test client that returns pre-determined set of
+		// addresses
+		conn := testConnector{
+			client: &testClient{
+				addresses: connectedAddresses,
+			},
+		}
+		peers[i] = peer.New(ids[i], names[i], &conn)
+		peersMap[ids[i].String()] = peers[i]
+	}
+
+	return peers, peersMap, selfPeerIdxs
 }
 
 func TestFindPeersQuerier_ok(t *testing.T) {
