@@ -127,48 +127,52 @@ func TestSearch(t *testing.T) {
 			peerFromer: &testFromer{peers: peersMap},
 		},
 	)
-	search := NewSearch(target, Peers, &Parameters{
-		nClosestResponses: nClosestResponses,
-		nMaxErrors:        DefaultNMaxErrors,
-		concurrency:       3,
-		queryTimeout:      DefaultQueryTimeout,
-	})
 
-	// init the seeds of our search: usually this comes from the routing.Table.Peak()
-	// method, but we'll just allocate directly
-	seeds := make([]peer.Peer, len(selfPeerIdxs))
-	for i := 0; i < len(selfPeerIdxs); i++ {
-		seeds[i] = peers[selfPeerIdxs[i]]
-	}
+	for concurrency := 1; concurrency <= 3; concurrency++ {
 
-	// do the search!
-	err := searcher.Search(search, seeds)
+		search := NewSearch(target, Peers, &Parameters{
+			nClosestResponses: nClosestResponses,
+			nMaxErrors:        DefaultNMaxErrors,
+			concurrency:       concurrency,
+			queryTimeout:      DefaultQueryTimeout,
+		})
 
-	// checks
-	assert.Nil(t, err)
-	assert.True(t, search.Finished())
-	assert.True(t, search.FoundClosestPeers())
-	assert.False(t, search.Errored())
-	assert.False(t, search.Exhausted())
-	assert.Equal(t, uint(0), search.nErrors)
-	assert.Equal(t, int(nClosestResponses), search.result.closest.Len())
-	assert.True(t, search.result.closest.Len() <= len(search.result.responded))
-
-	// build set of closest peers by iteratively looking at all of them
-	expectedClosestsPeers := make(map[string]struct{})
-	farthestCloseDist := search.result.closest.PeakDistance()
-	for _, p := range peers {
-		pDist := target.Distance(p.ID())
-		if pDist.Cmp(farthestCloseDist) <= 0 {
-			expectedClosestsPeers[p.ID().String()] = struct{}{}
+		// init the seeds of our search: usually this comes from the routing.Table.Peak()
+		// method, but we'll just allocate directly
+		seeds := make([]peer.Peer, len(selfPeerIdxs))
+		for i := 0; i < len(selfPeerIdxs); i++ {
+			seeds[i] = peers[selfPeerIdxs[i]]
 		}
-	}
 
-	// check all closest peers are in set of peers within farther close distance to the target
-	for search.result.closest.Len() > 0 {
-		p := heap.Pop(search.result.closest).(peer.Peer)
-		_, in := expectedClosestsPeers[p.ID().String()]
-		assert.True(t, in)
+		// do the search!
+		err := searcher.Search(search, seeds)
+
+		// checks
+		assert.Nil(t, err)
+		assert.True(t, search.Finished())
+		assert.True(t, search.FoundClosestPeers())
+		assert.False(t, search.Errored())
+		assert.False(t, search.Exhausted())
+		assert.Equal(t, uint(0), search.nErrors)
+		assert.Equal(t, int(nClosestResponses), search.result.closest.Len())
+		assert.True(t, search.result.closest.Len() <= len(search.result.responded))
+
+		// build set of closest peers by iteratively looking at all of them
+		expectedClosestsPeers := make(map[string]struct{})
+		farthestCloseDist := search.result.closest.PeakDistance()
+		for _, p := range peers {
+			pDist := target.Distance(p.ID())
+			if pDist.Cmp(farthestCloseDist) <= 0 {
+				expectedClosestsPeers[p.ID().String()] = struct{}{}
+			}
+		}
+
+		// check all closest peers are in set of peers within farther close distance to the target
+		for search.result.closest.Len() > 0 {
+			p := heap.Pop(search.result.closest).(peer.Peer)
+			_, in := expectedClosestsPeers[p.ID().String()]
+			assert.True(t, in)
+		}
 	}
 }
 
