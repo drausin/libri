@@ -8,8 +8,8 @@ import (
 	"sort"
 
 	cid "github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/db"
 	"github.com/drausin/libri/libri/librarian/server/peer"
+	"github.com/drausin/libri/libri/librarian/server/storage"
 )
 
 // AddStatus indicates different outcomes when adding a peer to the routing table.
@@ -51,8 +51,8 @@ type Table interface {
 	// Disconnect disconnects all client connections.
 	Disconnect() error
 
-	// Save saves the table to the DB.
-	Save(db db.KVDB) error
+	// Save saves the table via the NamespaceStorer
+	Save(ns storage.NamespaceStorer) error
 }
 
 type table struct {

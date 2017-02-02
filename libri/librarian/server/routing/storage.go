@@ -2,7 +2,6 @@ package routing
 
 import (
 	"github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/db"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/storage"
 	"github.com/golang/protobuf/proto"
@@ -11,8 +10,8 @@ import (
 var tableKey = []byte("RoutingTable")
 
 // Load retrieves the routing table form the KV DB.
-func Load(db db.KVDB) (Table, error) {
-	bytes, err := db.Get(tableKey)
+func Load(nl storage.NamespaceLoader) (Table, error) {
+	bytes, err := nl.Load(tableKey)
 	if bytes == nil || err != nil {
 		return nil, err
 	}
@@ -25,12 +24,12 @@ func Load(db db.KVDB) (Table, error) {
 }
 
 // Save stores a representation of the routing table to the KV DB.
-func (rt *table) Save(db db.KVDB) error {
+func (rt *table) Save(ns storage.NamespaceStorer) error {
 	bytes, err := proto.Marshal(toStored(rt))
 	if err != nil {
 		return err
 	}
-	return db.Put(tableKey, bytes)
+	return ns.Store(tableKey, bytes)
 }
 
 // fromStored returns a new Table instance from a StoredRoutingTable instance.

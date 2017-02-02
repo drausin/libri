@@ -52,6 +52,16 @@ func (c *testClient) FindPeers(ctx context.Context, in *api.FindRequest, opts ..
 	return nil, nil
 }
 
+func (c *testClient) FindValue(ctx context.Context, in *api.FindRequest, opts ...grpc.CallOption) (
+*api.FindResponse, error) {
+	return nil, nil
+}
+
+func (* testClient) Store(ctx context.Context, in *api.StoreRequest, opts ...grpc.CallOption) (
+	*api.StoreResponse, error) {
+	return nil, nil
+}
+
 // testQuerier mocks the Querier interface. The Query() method returns a fixed
 // api.FindPeersResponse, derived from a list of addresses in the client.
 type testQuerier struct{}
