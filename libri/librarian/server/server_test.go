@@ -5,13 +5,14 @@ import (
 	"math/rand"
 	"testing"
 
+	"bytes"
+
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/db"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/storage"
 	"github.com/stretchr/testify/assert"
-	"bytes"
 )
 
 // TestNewLibrarian checks that we can create a new instance, close it, and create it again as
@@ -222,8 +223,8 @@ func TestLibrarian_Store(t *testing.T) {
 	// make store request
 	rq := &api.StoreRequest{
 		RequestId: cid.NewPseudoRandom(rng).Bytes(),
-		Key: key,
-		Value: value,
+		Key:       key,
+		Value:     value,
 	}
 	rp, err := l.Store(nil, rq)
 	assert.Equal(t, api.StoreStatus_SUCCEEDED, rp.Status)

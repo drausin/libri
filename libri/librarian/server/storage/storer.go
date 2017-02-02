@@ -1,10 +1,11 @@
 package storage
 
 import (
+	"fmt"
+
+	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/db"
 	"github.com/pkg/errors"
-	"fmt"
-	cid "github.com/drausin/libri/libri/common/id"
 )
 
 const (
@@ -72,7 +73,7 @@ type KeyChecker interface {
 	Check(key []byte) error
 }
 
-type keySizeChecker struct {}
+type keySizeChecker struct{}
 
 // NewKeyChecker creates a new KeyChecker instance.
 func NewKeyChecker() KeyChecker {
@@ -95,7 +96,7 @@ type ValueChecker interface {
 	Check(value []byte) error
 }
 
-type valueSizeChecker struct {}
+type valueSizeChecker struct{}
 
 // NewValueChecker creates a new ValueChecker instance.
 func NewValueChecker() ValueChecker {

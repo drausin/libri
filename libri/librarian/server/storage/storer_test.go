@@ -1,21 +1,22 @@
 package storage
 
 import (
+	"bytes"
+	"math/rand"
 	"testing"
+
+	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/db"
 	"github.com/stretchr/testify/assert"
-	"bytes"
-	cid "github.com/drausin/libri/libri/common/id"
-	"math/rand"
 )
 
 func TestKvdbStorerLoader_StoreLoad(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	cases := []struct{
-		ns []byte
-		key []byte
+	cases := []struct {
+		ns    []byte
+		key   []byte
 		value []byte
-	} {
+	}{
 		{[]byte("ns"), bytes.Repeat([]byte{0}, cid.Length), []byte{0}},
 		{[]byte("ns"), bytes.Repeat([]byte{0}, cid.Length),
 			bytes.Repeat([]byte{255}, 1024)},

@@ -1,21 +1,21 @@
 package storage
 
-
 import (
+	"bytes"
+	"math/rand"
 	"testing"
+
+	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/db"
 	"github.com/stretchr/testify/assert"
-	"bytes"
-	cid "github.com/drausin/libri/libri/common/id"
-	"math/rand"
 )
 
 func TestServerStorerLoader_StoreLoad_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	cases := []struct{
-		key []byte
+	cases := []struct {
+		key   []byte
 		value []byte
-	} {
+	}{
 		{bytes.Repeat([]byte{0}, cid.Length), []byte{0}},
 		{cid.NewPseudoRandom(rng).Bytes(), []byte("test value")},
 	}
@@ -35,12 +35,11 @@ func TestServerStorerLoader_StoreLoad_ok(t *testing.T) {
 	}
 }
 
-
 func TestServerStorerLoader_StoreLoad_err(t *testing.T) {
-	cases := []struct{
-		key []byte
+	cases := []struct {
+		key   []byte
 		value []byte
-	} {
+	}{
 		{[]byte(nil), []byte{0}},
 		{[]byte(""), []byte("test value")},
 		{[]byte("test key"), []byte("")},
@@ -64,7 +63,7 @@ func TestServerStorerLoader_StoreLoad_err(t *testing.T) {
 func TestKeySizeChecker_Check_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	kc := NewKeyChecker()
-	cases := [][]byte {
+	cases := [][]byte{
 		cid.NewPseudoRandom(rng).Bytes(),
 		bytes.Repeat([]byte{0}, cid.Length),
 		bytes.Repeat([]byte{255}, cid.Length),
@@ -76,17 +75,16 @@ func TestKeySizeChecker_Check_ok(t *testing.T) {
 
 func TestKeySizeChecker_Check_err(t *testing.T) {
 	kc := NewKeyChecker()
-	cases := [][]byte {
+	cases := [][]byte{
 		nil,
 		[]byte(nil),
 		[]byte{},
 		[]byte(""),
-		[]byte{0},  // also too short
+		[]byte{0}, // also too short
 		[]byte("key too short"),
-		bytes.Repeat([]byte{255}, 45),  // too long
+		bytes.Repeat([]byte{255}, 45), // too long
 	}
 	for _, c := range cases {
 		assert.NotNil(t, kc.Check(c))
 	}
 }
-

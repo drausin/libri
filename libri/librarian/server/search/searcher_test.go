@@ -53,11 +53,11 @@ func (c *testClient) FindPeers(ctx context.Context, in *api.FindRequest, opts ..
 }
 
 func (c *testClient) FindValue(ctx context.Context, in *api.FindRequest, opts ...grpc.CallOption) (
-*api.FindResponse, error) {
+	*api.FindResponse, error) {
 	return nil, nil
 }
 
-func (* testClient) Store(ctx context.Context, in *api.StoreRequest, opts ...grpc.CallOption) (
+func (*testClient) Store(ctx context.Context, in *api.StoreRequest, opts ...grpc.CallOption) (
 	*api.StoreResponse, error) {
 	return nil, nil
 }

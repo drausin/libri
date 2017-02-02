@@ -9,8 +9,8 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/storage"
-	"golang.org/x/net/context"
 	"github.com/pkg/errors"
+	"golang.org/x/net/context"
 )
 
 var (
@@ -20,22 +20,22 @@ var (
 // Librarian is the main service of a single peer in the peer to peer network.
 type Librarian struct {
 	// PeerID is the random 256-bit identification number of this node in the hash table
-	PeerID    cid.ID
+	PeerID cid.ID
 
 	// Config holds the configuration parameters of the server
-	Config    *Config
+	Config *Config
 
 	// db is the key-value store DB used for all external storage
-	db        db.KVDB
+	db db.KVDB
 
 	// SL for server data
-	serverSL  storage.NamespaceStorerLoader
+	serverSL storage.NamespaceStorerLoader
 
 	// SL for p2p stored records
 	recordsSL storage.NamespaceStorerLoader
 
 	// rt is the routing table of peers
-	rt        routing.Table
+	rt routing.Table
 }
 
 // NewLibrarian creates a new librarian instance.
@@ -62,12 +62,12 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 	}
 
 	return &Librarian{
-		PeerID:   peerID,
-		Config:   config,
-		db:       rdb,
-		serverSL: serverSL,
-		recordsSL:  recordsSL,
-		rt:       rt,
+		PeerID:    peerID,
+		Config:    config,
+		db:        rdb,
+		serverSL:  serverSL,
+		recordsSL: recordsSL,
+		rt:        rt,
 	}, nil
 }
 
@@ -172,7 +172,7 @@ func (l *Librarian) FindValue(ctx context.Context, rq *api.FindRequest) (*api.Fi
 		// we have the value, so return it
 		return &api.FindResponse{
 			RequestId: rq.RequestId,
-			Value: value,
+			Value:     value,
 		}, nil
 	}
 
@@ -190,7 +190,7 @@ func (l *Librarian) Store(ctx context.Context, rq *api.StoreRequest) (
 	}
 	return &api.StoreResponse{
 		RequestId: rq.RequestId,
-		Status: api.StoreStatus_SUCCEEDED,
+		Status:    api.StoreStatus_SUCCEEDED,
 	}, nil
 }
 
