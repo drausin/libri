@@ -11,7 +11,7 @@ var (
 // Namespace denotes a storage namespace, which reduces to a key prefix.
 type Namespace []byte
 
-// Bytes() returns the namespace byte encoding.
+// Bytes returns the namespace byte encoding.
 func (n Namespace) Bytes() []byte {
 	return []byte(n)
 }
@@ -22,7 +22,7 @@ type NamespaceStorer interface {
 	Store(key []byte, value []byte) error
 }
 
-// NamespaceLaoder loads a value in the configured namespace from the durable storage.
+// NamespaceLoader loads a value in the configured namespace from the durable storage.
 type NamespaceLoader interface {
 	// Load the value for the key in the configured namespace.
 	Load(key []byte) ([]byte, error)

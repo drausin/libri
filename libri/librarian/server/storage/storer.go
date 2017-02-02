@@ -8,6 +8,7 @@ import (
 )
 
 const (
+	// MaxValueLength is the maximum number of bytes that can be stored in a value.
 	MaxValueLength = 2 * 1024 * 1024 // 2MB
 )
 
@@ -23,7 +24,7 @@ type Loader interface {
 	Load(namespace []byte, key []byte) ([]byte, error)
 }
 
-// StoreLoader can both store and load values.
+// StorerLoader can both store and load values.
 type StorerLoader interface {
 	Storer
 	Loader
@@ -73,6 +74,7 @@ type KeyChecker interface {
 
 type keySizeChecker struct {}
 
+// NewKeyChecker creates a new KeyChecker instance.
 func NewKeyChecker() KeyChecker {
 	return &keySizeChecker{}
 }
@@ -95,6 +97,7 @@ type ValueChecker interface {
 
 type valueSizeChecker struct {}
 
+// NewValueChecker creates a new ValueChecker instance.
 func NewValueChecker() ValueChecker {
 	return &valueSizeChecker{}
 }
