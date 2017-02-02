@@ -86,3 +86,25 @@ func TestString(t *testing.T) {
 	assert.Equal(t, strings.Repeat("00", Length), LowerBound.String())
 	assert.Equal(t, strings.Repeat("FF", Length), UpperBound.String())
 }
+
+func TestID_Bytes(t *testing.T) {
+	cases := []struct {
+		x ID
+		expected []byte
+	} {
+		{FromInt64(0), bytes.Repeat([]byte{0}, Length)},
+		{FromInt64(1), append(bytes.Repeat([]byte{0}, Length-1), []byte{1}...)},
+		{FromInt64(255), append(bytes.Repeat([]byte{0}, Length-1), []byte{255}...)},
+		{FromBytes([]byte{255}), append(bytes.Repeat([]byte{0}, Length-1), []byte{255}...)},
+		{FromInt64(65535), append(bytes.Repeat([]byte{0}, Length-2), []byte{255,255}...)},
+		{
+			FromBytes([]byte{255, 255}),
+			append(bytes.Repeat([]byte{0}, Length-2), []byte{255, 255}...),
+		},
+		{FromBytes(bytes.Repeat([]byte{255}, Length)), bytes.Repeat([]byte{255}, Length)},
+	}
+	for _, c := range cases {
+		assert.Equal(t, c.expected, c.x.Bytes())
+	}
+}
+
