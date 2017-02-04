@@ -89,14 +89,14 @@ func TestString(t *testing.T) {
 
 func TestID_Bytes(t *testing.T) {
 	cases := []struct {
-		x ID
+		x        ID
 		expected []byte
-	} {
+	}{
 		{FromInt64(0), bytes.Repeat([]byte{0}, Length)},
 		{FromInt64(1), append(bytes.Repeat([]byte{0}, Length-1), []byte{1}...)},
 		{FromInt64(255), append(bytes.Repeat([]byte{0}, Length-1), []byte{255}...)},
 		{FromBytes([]byte{255}), append(bytes.Repeat([]byte{0}, Length-1), []byte{255}...)},
-		{FromInt64(65535), append(bytes.Repeat([]byte{0}, Length-2), []byte{255,255}...)},
+		{FromInt64(65535), append(bytes.Repeat([]byte{0}, Length-2), []byte{255, 255}...)},
 		{
 			FromBytes([]byte{255, 255}),
 			append(bytes.Repeat([]byte{0}, Length-2), []byte{255, 255}...),
@@ -107,4 +107,3 @@ func TestID_Bytes(t *testing.T) {
 		assert.Equal(t, c.expected, c.x.Bytes())
 	}
 }
-

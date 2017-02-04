@@ -12,7 +12,6 @@ func TestRocksDB_NewRocksDB(t *testing.T) {
 	assert.Nil(t, err)
 	defer db.Close()
 
-	assert.Nil(t, err)
 	assert.NotNil(t, db.wo)
 	assert.NotNil(t, db.ro)
 	assert.NotNil(t, db.rdb)

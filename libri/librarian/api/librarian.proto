@@ -13,6 +13,12 @@ service Librarian {
 
     // FindPeers returns the closest peers to a given target.
     rpc FindPeers (FindRequest) returns (FindResponse) {}
+
+    // FindValue returns either the closest peers to a given target or the value itself if
+    // available.
+    rpc FindValue (FindRequest) returns (FindResponse) {}
+
+    rpc Store(StoreRequest) returns (StoreResponse) {}
 }
 
 message PingRequest {}
@@ -48,6 +54,17 @@ message FindRequest {
     uint32 num_peers = 3;
 }
 
+message FindResponse {
+    // ID of request that generated this response
+    bytes request_id = 1;
+
+    // list of peers closest to target
+    repeated PeerAddress addresses = 2;
+
+    // value, if found
+    bytes value = 3;
+}
+
 message PeerAddress {
     // 32-byte peer ID
     bytes peer_id = 1;
@@ -62,13 +79,26 @@ message PeerAddress {
     uint32 port = 4;
 }
 
-message FindResponse {
+message StoreRequest {
+    // 32-byte unique request ID
+    bytes request_id = 1;
+
+    // key to store value under
+    bytes key = 2;
+
+    // value to store for key
+    bytes value = 3;
+}
+
+message StoreResponse {
     // ID of request that generated this response
     bytes request_id = 1;
 
-    // list of peers closest to target
-    repeated PeerAddress addresses = 2;
+    // whether store operation was successful
+    StoreStatus status = 2;
+}
 
-    // value, if found
-    bytes value = 3;
+enum StoreStatus {
+    FAILED = 0;
+    SUCCEEDED = 1;
 }

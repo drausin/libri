@@ -8,6 +8,7 @@ import (
 	"github.com/drausin/libri/libri/db"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/routing"
+	"github.com/drausin/libri/libri/librarian/server/storage"
 	"golang.org/x/net/context"
 )
 
@@ -26,6 +27,15 @@ type Librarian struct {
 	// db is the key-value store DB used for all external storage
 	db db.KVDB
 
+	// SL for server data
+	serverSL storage.NamespaceStorerLoader
+
+	// SL for p2p stored records
+	entriesSL storage.NamespaceStorerLoader
+
+	// kc ensures keys are valid
+	kc storage.Checker
+
 	// rt is the routing table of peers
 	rt routing.Table
 }
@@ -36,27 +46,35 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 	if err != nil {
 		return nil, err
 	}
+	serverSL := storage.NewServerKVDBStorerLoader(rdb)
+	recordsSL := storage.NewEntriesKVDBStorerLoader(rdb)
 
-	peerID, err := loadOrCreatePeerID(rdb)
+	peerID, err := loadOrCreatePeerID(serverSL)
 	if err != nil {
 		return nil, err
 	}
+	if err = serverSL.Store(peerIDKey, peerID.Bytes()); err != nil {
+		return nil, err
+	}
 
-	rt, err := loadOrCreateRoutingTable(rdb, peerID)
+	rt, err := loadOrCreateRoutingTable(serverSL, peerID)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Librarian{
-		PeerID: peerID,
-		Config: config,
-		db:     rdb,
-		rt:     rt,
+		PeerID:    peerID,
+		Config:    config,
+		db:        rdb,
+		serverSL:  serverSL,
+		entriesSL: recordsSL,
+		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
+		rt:        rt,
 	}, nil
 }
 
-func loadOrCreatePeerID(db db.KVDB) (cid.ID, error) {
-	peerIDB, err := db.Get(peerIDKey)
+func loadOrCreatePeerID(nl storage.NamespaceLoader) (cid.ID, error) {
+	peerIDB, err := nl.Load(peerIDKey)
 	if err != nil {
 		return nil, err
 	}
@@ -66,20 +84,12 @@ func loadOrCreatePeerID(db db.KVDB) (cid.ID, error) {
 		return cid.FromBytes(peerIDB), nil
 	}
 
-	// create new PeerID
-	peerID := cid.NewRandom()
-
-	// TODO: move this up to a Librarian.Save() method
-	// save new PeerID
-	if db.Put(peerIDKey, peerID.Bytes()) != nil {
-		return nil, err
-	}
-	return peerID, nil
-
+	// return new PeerID
+	return cid.NewRandom(), nil
 }
 
-func loadOrCreateRoutingTable(db db.KVDB, selfID cid.ID) (routing.Table, error) {
-	rt, err := routing.Load(db)
+func loadOrCreateRoutingTable(nl storage.NamespaceLoader, selfID cid.ID) (routing.Table, error) {
+	rt, err := routing.Load(nl)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +110,7 @@ func (l *Librarian) Close() error {
 	if err := l.rt.Disconnect(); err != nil {
 		return err
 	}
-	if err := l.rt.Save(l.db); err != nil {
+	if err := l.rt.Save(l.serverSL); err != nil {
 		return err
 	}
 	l.db.Close()
@@ -135,6 +145,9 @@ func (l *Librarian) Identify(ctx context.Context, rq *api.IdentityRequest) (*api
 // FindPeers returns the closest peers to a given target.
 func (l *Librarian) FindPeers(ctx context.Context, rq *api.FindRequest) (*api.FindResponse,
 	error) {
+	if err := l.kc.Check(rq.Target); err != nil {
+		return nil, err
+	}
 	target := cid.FromBytes(rq.Target)
 	closest := l.rt.Peak(target, uint(rq.NumPeers))
 	addresses := make([]*api.PeerAddress, len(closest))
@@ -144,5 +157,40 @@ func (l *Librarian) FindPeers(ctx context.Context, rq *api.FindRequest) (*api.Fi
 	return &api.FindResponse{
 		RequestId: rq.RequestId,
 		Addresses: addresses,
+	}, nil
+}
+
+// FindValue returns either the value at a given target or the peers closest to it.
+func (l *Librarian) FindValue(ctx context.Context, rq *api.FindRequest) (*api.FindResponse,
+	error) {
+	if err := l.kc.Check(rq.Target); err != nil {
+		return nil, err
+	}
+	value, err := l.entriesSL.Load(rq.Target)
+	if err != nil {
+		// something went wrong during load
+		return nil, err
+	}
+	if value != nil {
+		// we have the value, so return it
+		return &api.FindResponse{
+			RequestId: rq.RequestId,
+			Value:     value,
+		}, nil
+	}
+
+	// otherwise, return peers closest to the target
+	return l.FindPeers(ctx, rq)
+}
+
+// Store stores the value
+func (l *Librarian) Store(ctx context.Context, rq *api.StoreRequest) (
+	*api.StoreResponse, error) {
+	if err := l.entriesSL.Store(rq.Key, rq.Value); err != nil {
+		return nil, err
+	}
+	return &api.StoreResponse{
+		RequestId: rq.RequestId,
+		Status:    api.StoreStatus_SUCCEEDED,
 	}, nil
 }

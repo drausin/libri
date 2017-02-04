@@ -53,7 +53,7 @@ func (x *id) Int() *big.Int {
 func (x *id) Bytes() []byte {
 	b := x.Int().Bytes()
 	if len(b) < Length {
-		lpad := make([]byte, Length - len(b))
+		lpad := make([]byte, Length-len(b))
 		return append(lpad, b...)
 	}
 	return b

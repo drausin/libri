@@ -2,14 +2,11 @@ package storage
 
 import (
 	"github.com/drausin/libri/libri/db"
-	"github.com/pkg/errors"
-	"fmt"
-	cid "github.com/drausin/libri/libri/common/id"
 )
 
 const (
-	// MaxValueLength is the maximum number of bytes that can be stored in a value.
-	MaxValueLength = 2 * 1024 * 1024 // 2MB
+	// MaxNamespaceLength is the max (byte) length of a namespace.
+	MaxNamespaceLength = 256
 )
 
 // Storer stores a value to durable storage.
@@ -32,20 +29,26 @@ type StorerLoader interface {
 
 type kvdbStorerLoader struct {
 	db db.KVDB
-	kc KeyChecker
-	vc ValueChecker
+	nc Checker
+	kc Checker
+	vc Checker
 }
 
-// NewKVDBStorerLoader returns a new StorerLoader backed by a db.KVDB instance.
-func NewKVDBStorerLoader(db db.KVDB) StorerLoader {
+// NewKVDBStorerLoader returns a new StorerLoader backed by a db.KVDB instance and with the given
+// key and value checkers.
+func NewKVDBStorerLoader(db db.KVDB, keyChecker Checker, valueChecker Checker) StorerLoader {
 	return &kvdbStorerLoader{
 		db: db,
-		kc: NewKeyChecker(),
-		vc: NewValueChecker(),
+		nc: NewMaxLengthChecker(MaxNamespaceLength),
+		kc: keyChecker,
+		vc: valueChecker,
 	}
 }
 
 func (sl *kvdbStorerLoader) Store(namespace []byte, key []byte, value []byte) error {
+	if err := sl.nc.Check(namespace); err != nil {
+		return err
+	}
 	if err := sl.kc.Check(key); err != nil {
 		return err
 	}
@@ -56,6 +59,9 @@ func (sl *kvdbStorerLoader) Store(namespace []byte, key []byte, value []byte) er
 }
 
 func (sl *kvdbStorerLoader) Load(namespace []byte, key []byte) ([]byte, error) {
+	if err := sl.nc.Check(namespace); err != nil {
+		return nil, err
+	}
 	if err := sl.kc.Check(key); err != nil {
 		return nil, err
 	}
@@ -64,54 +70,4 @@ func (sl *kvdbStorerLoader) Load(namespace []byte, key []byte) ([]byte, error) {
 
 func namespaceKey(namespace []byte, key []byte) []byte {
 	return append(namespace, key...)
-}
-
-// KeyChecker checks that a key is valid.
-type KeyChecker interface {
-	// Check that key is valid.
-	Check(key []byte) error
-}
-
-type keySizeChecker struct {}
-
-// NewKeyChecker creates a new KeyChecker instance.
-func NewKeyChecker() KeyChecker {
-	return &keySizeChecker{}
-}
-
-func (kc *keySizeChecker) Check(key []byte) error {
-	if key == nil {
-		return errors.New("key must not be nil")
-	}
-	if len(key) != cid.Length {
-		return fmt.Errorf("key (length = %v) must have length %v", len(key), cid.Length)
-	}
-	return nil
-}
-
-// ValueChecker checks that a value is valid.
-type ValueChecker interface {
-	// Check that value is valid.
-	Check(value []byte) error
-}
-
-type valueSizeChecker struct {}
-
-// NewValueChecker creates a new ValueChecker instance.
-func NewValueChecker() ValueChecker {
-	return &valueSizeChecker{}
-}
-
-func (kc *valueSizeChecker) Check(value []byte) error {
-	if value == nil {
-		return errors.New("unwilling to store nil values")
-	}
-	if len(value) == 0 {
-		return errors.New("unwilling to store values with length 0")
-	}
-	if len(value) > MaxValueLength {
-		return fmt.Errorf("unwilling to store values with length %v > %v", len(value),
-			MaxValueLength)
-	}
-	return nil
 }
