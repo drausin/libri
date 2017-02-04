@@ -131,6 +131,8 @@ func NewEntriesStorerLoader(sl StorerLoader) NamespaceStorerLoader {
 	}
 }
 
+// NewEntriesKVDBStorerLoader creates a new NamespaceStorerLoader for the "entries" namespace backed
+// by a db.KVDB instance.
 func NewEntriesKVDBStorerLoader(kvdb db.KVDB) NamespaceStorerLoader {
 	return NewEntriesStorerLoader(
 		NewKVDBStorerLoader(

@@ -231,6 +231,7 @@ func TestLibrarian_Store(t *testing.T) {
 		Value:     value,
 	}
 	rp, err := l.Store(nil, rq)
+	assert.Nil(t, err)
 	assert.Equal(t, api.StoreStatus_SUCCEEDED, rp.Status)
 
 	stored, err := l.entriesSL.Load(key[:])
