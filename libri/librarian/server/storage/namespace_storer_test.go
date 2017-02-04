@@ -140,7 +140,7 @@ func TestKeyHashNamespaceStorerLoader_Load_err(t *testing.T) {
 	for _, c := range cases {
 		// hackily put a value with a non-hash key; should never happen in the wild
 		err := kvdb.Put(append(Entries, c.key...), c.value)
-		assert.NotNil(t, err)
+		assert.Nil(t, err)
 		_, err = esl.Load(c.key)
 		assert.NotNil(t, err)
 	}
