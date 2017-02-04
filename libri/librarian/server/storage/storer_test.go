@@ -26,7 +26,7 @@ func TestKvdbStorerLoader_StoreLoad(t *testing.T) {
 	kvdb, err := db.NewTempDirRocksDB()
 	assert.Nil(t, err)
 	defer kvdb.Close()
-	sl := NewKVDBStorerLoader(kvdb)
+	sl := NewKVDBStorerLoader(kvdb, NewMaxLengthChecker(256), NewMaxLengthChecker(1024))
 
 	for _, c := range cases {
 		err := sl.Store(c.ns, c.key, c.value)

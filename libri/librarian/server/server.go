@@ -9,7 +9,6 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/storage"
-	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -32,7 +31,10 @@ type Librarian struct {
 	serverSL storage.NamespaceStorerLoader
 
 	// SL for p2p stored records
-	recordsSL storage.NamespaceStorerLoader
+	entriesSL storage.NamespaceStorerLoader
+
+	// kc ensures keys are valid
+	kc storage.Checker
 
 	// rt is the routing table of peers
 	rt routing.Table
@@ -44,15 +46,14 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 	if err != nil {
 		return nil, err
 	}
-	sl := storage.NewKVDBStorerLoader(rdb)
-	serverSL := storage.NewServerStorerLoader(sl)
-	recordsSL := storage.NewRecordsStorerLoader(sl)
+	serverSL := storage.NewServerKVDBStorerLoader(rdb)
+	recordsSL := storage.NewEntriesKVDBStorerLoader(rdb)
 
 	peerID, err := loadOrCreatePeerID(serverSL)
 	if err != nil {
 		return nil, err
 	}
-	if err := serverSL.Store(peerIDKey, peerID.Bytes()); err != nil {
+	if err = serverSL.Store(peerIDKey, peerID.Bytes()); err != nil {
 		return nil, err
 	}
 
@@ -66,7 +67,8 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 		Config:    config,
 		db:        rdb,
 		serverSL:  serverSL,
-		recordsSL: recordsSL,
+		entriesSL: recordsSL,
+		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		rt:        rt,
 	}, nil
 }
@@ -143,7 +145,7 @@ func (l *Librarian) Identify(ctx context.Context, rq *api.IdentityRequest) (*api
 // FindPeers returns the closest peers to a given target.
 func (l *Librarian) FindPeers(ctx context.Context, rq *api.FindRequest) (*api.FindResponse,
 	error) {
-	if err := checkTarget(rq.Target); err != nil {
+	if err := l.kc.Check(rq.Target); err != nil {
 		return nil, err
 	}
 	target := cid.FromBytes(rq.Target)
@@ -158,12 +160,13 @@ func (l *Librarian) FindPeers(ctx context.Context, rq *api.FindRequest) (*api.Fi
 	}, nil
 }
 
+// FindValue returns either the value at a given target or the peers closest to it.
 func (l *Librarian) FindValue(ctx context.Context, rq *api.FindRequest) (*api.FindResponse,
 	error) {
-	if err := checkTarget(rq.Target); err != nil {
+	if err := l.kc.Check(rq.Target); err != nil {
 		return nil, err
 	}
-	value, err := l.recordsSL.Load(rq.Target)
+	value, err := l.entriesSL.Load(rq.Target)
 	if err != nil {
 		// something went wrong during load
 		return nil, err
@@ -180,26 +183,14 @@ func (l *Librarian) FindValue(ctx context.Context, rq *api.FindRequest) (*api.Fi
 	return l.FindPeers(ctx, rq)
 }
 
+// Store stores the value
 func (l *Librarian) Store(ctx context.Context, rq *api.StoreRequest) (
 	*api.StoreResponse, error) {
-	if err := checkTarget(rq.Key); err != nil {
-		return nil, err
-	}
-	if err := l.recordsSL.Store(rq.Key, rq.Value); err != nil {
+	if err := l.entriesSL.Store(rq.Key, rq.Value); err != nil {
 		return nil, err
 	}
 	return &api.StoreResponse{
 		RequestId: rq.RequestId,
 		Status:    api.StoreStatus_SUCCEEDED,
 	}, nil
-}
-
-func checkTarget(target []byte) error {
-	if target == nil || len(target) == 0 {
-		return errors.New("request target not specified")
-	}
-	if len(target) > cid.Length {
-		return fmt.Errorf("request target has length %v > %v", len(target), cid.Length)
-	}
-	return nil
 }

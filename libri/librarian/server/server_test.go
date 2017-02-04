@@ -7,6 +7,8 @@ import (
 
 	"bytes"
 
+	"crypto/sha256"
+
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/db"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -87,6 +89,7 @@ func TestLibrarian_FindPeers(t *testing.T) {
 			rt := routing.NewTestWithPeers(rng, n)
 			l := &Librarian{
 				PeerID: rt.SelfID(),
+				kc:     storage.NewExactLengthChecker(storage.EntriesKeyLength),
 				rt:     rt,
 			}
 
@@ -132,30 +135,31 @@ func TestLibrarian_FindValue_present(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	kvdb, err := db.NewTempDirRocksDB()
 	assert.Nil(t, err)
-	sl := storage.NewKVDBStorerLoader(kvdb)
 
 	l := &Librarian{
 		PeerID:    cid.NewPseudoRandom(rng),
 		db:        kvdb,
-		serverSL:  storage.NewServerStorerLoader(sl),
-		recordsSL: storage.NewServerStorerLoader(sl),
+		serverSL:  storage.NewServerKVDBStorerLoader(kvdb),
+		entriesSL: storage.NewEntriesKVDBStorerLoader(kvdb),
+		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
 	}
 
 	// create key-value and store
-	key := cid.NewPseudoRandom(rng).Bytes()
 	nValueBytes := 1014
 	value := make([]byte, nValueBytes)
 	nRead, err := rand.Read(value)
 	assert.Equal(t, nValueBytes, nRead)
 	assert.Nil(t, err)
-	err = l.recordsSL.Store(key, value)
+	key := sha256.Sum256(value)
+
+	err = l.entriesSL.Store(key[:], value)
 	assert.Nil(t, err)
 
 	// make request for key
 	numClosest := uint32(routing.DefaultMaxActivePeers)
 	rq := &api.FindRequest{
 		RequestId: cid.NewPseudoRandom(rng).Bytes(),
-		Target:    key,
+		Target:    key[:],
 		NumPeers:  numClosest,
 	}
 	rp, err := l.FindValue(nil, rq)
@@ -173,14 +177,14 @@ func TestLibrarian_FindValue_missing(t *testing.T) {
 	rt := routing.NewTestWithPeers(rng, n)
 	kvdb, err := db.NewTempDirRocksDB()
 	assert.Nil(t, err)
-	sl := storage.NewKVDBStorerLoader(kvdb)
 
 	l := &Librarian{
 		PeerID:    rt.SelfID(),
 		rt:        rt,
 		db:        kvdb,
-		serverSL:  storage.NewServerStorerLoader(sl),
-		recordsSL: storage.NewServerStorerLoader(sl),
+		serverSL:  storage.NewServerKVDBStorerLoader(kvdb),
+		entriesSL: storage.NewEntriesKVDBStorerLoader(kvdb),
+		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
 	}
 
 	// make request
@@ -203,33 +207,33 @@ func TestLibrarian_Store(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	kvdb, err := db.NewTempDirRocksDB()
 	assert.Nil(t, err)
-	sl := storage.NewKVDBStorerLoader(kvdb)
 
 	l := &Librarian{
 		PeerID:    cid.NewPseudoRandom(rng),
 		db:        kvdb,
-		serverSL:  storage.NewServerStorerLoader(sl),
-		recordsSL: storage.NewServerStorerLoader(sl),
+		serverSL:  storage.NewServerKVDBStorerLoader(kvdb),
+		entriesSL: storage.NewEntriesKVDBStorerLoader(kvdb),
+		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
 	}
 
 	// create key-value
-	key := cid.NewPseudoRandom(rng).Bytes()
 	nValueBytes := 1014
 	value := make([]byte, nValueBytes)
 	nRead, err := rand.Read(value)
 	assert.Equal(t, nValueBytes, nRead)
 	assert.Nil(t, err)
+	key := sha256.Sum256(value)
 
 	// make store request
 	rq := &api.StoreRequest{
 		RequestId: cid.NewPseudoRandom(rng).Bytes(),
-		Key:       key,
+		Key:       key[:],
 		Value:     value,
 	}
 	rp, err := l.Store(nil, rq)
 	assert.Equal(t, api.StoreStatus_SUCCEEDED, rp.Status)
 
-	stored, err := l.recordsSL.Load(key)
+	stored, err := l.entriesSL.Load(key[:])
 	assert.Nil(t, err)
 	assert.True(t, bytes.Equal(value, stored))
 }
