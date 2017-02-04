@@ -2,7 +2,6 @@ package search
 
 import (
 	"net"
-
 	"container/heap"
 	"fmt"
 	"math/rand"
@@ -47,12 +46,7 @@ func (c *testClient) Identify(ctx context.Context, in *api.IdentityRequest,
 	return nil, nil
 }
 
-func (c *testClient) FindPeers(ctx context.Context, in *api.FindRequest, opts ...grpc.CallOption) (
-	*api.FindResponse, error) {
-	return nil, nil
-}
-
-func (c *testClient) FindValue(ctx context.Context, in *api.FindRequest, opts ...grpc.CallOption) (
+func (c *testClient) Find(ctx context.Context, in *api.FindRequest, opts ...grpc.CallOption) (
 	*api.FindResponse, error) {
 	return nil, nil
 }
@@ -66,7 +60,7 @@ func (*testClient) Store(ctx context.Context, in *api.StoreRequest, opts ...grpc
 // api.FindPeersResponse, derived from a list of addresses in the client.
 type testQuerier struct{}
 
-func (c *testQuerier) Query(client api.LibrarianClient, target cid.ID) (*api.FindResponse,
+func (c *testQuerier) Query(client api.LibrarianClient, key cid.ID) (*api.FindResponse,
 	error) {
 	return &api.FindResponse{
 		RequestId: nil,
@@ -91,17 +85,17 @@ func TestSearch(t *testing.T) {
 	peers, peersMap, selfPeerIdxs := newTestPeers(rng, n)
 
 	// create our searcher
-	target := cid.NewPseudoRandom(rng)
+	key := cid.NewPseudoRandom(rng)
 	searcher := NewSearcher(
 		&testQuerier{},
-		&findPeersResponseProcessor{
+		&responseProcessor{
 			peerFromer: &testFromer{peers: peersMap},
 		},
 	)
 
 	for concurrency := uint(1); concurrency <= 3; concurrency++ {
 
-		search := NewSearch(target, Peers, &Parameters{
+		search := NewSearch(key, &Parameters{
 			nClosestResponses: nClosestResponses,
 			nMaxErrors:        DefaultNMaxErrors,
 			concurrency:       concurrency,
@@ -132,13 +126,14 @@ func TestSearch(t *testing.T) {
 		expectedClosestsPeers := make(map[string]struct{})
 		farthestCloseDist := search.result.closest.PeakDistance()
 		for _, p := range peers {
-			pDist := target.Distance(p.ID())
+			pDist := key.Distance(p.ID())
 			if pDist.Cmp(farthestCloseDist) <= 0 {
 				expectedClosestsPeers[p.ID().String()] = struct{}{}
 			}
 		}
 
-		// check all closest peers are in set of peers within farther close distance to the target
+		// check all closest peers are in set of peers within farther close distance to
+		// the key
 		for search.result.closest.Len() > 0 {
 			p := heap.Pop(search.result.closest).(peer.Peer)
 			_, in := expectedClosestsPeers[p.ID().String()]
@@ -192,24 +187,30 @@ func newTestPeers(rng *rand.Rand, n int) ([]peer.Peer, map[string]peer.Peer, []i
 	return peers, peersMap, selfPeerIdxs
 }
 
-func TestFindPeersQuerier_ok(t *testing.T) {
+// fixedFinder returns a fixed set of peer addresses for all find requests
+type fixedFinder struct {
+	addresses []*api.PeerAddress
+}
+
+func (f *fixedFinder) Find(ctx context.Context, client api.LibrarianClient, fr *api.FindRequest,
+	opts ...grpc.CallOption) (*api.FindResponse, error) {
+	return &api.FindResponse{
+		RequestId: fr.RequestId,
+		Addresses: f.addresses,
+	}, nil
+}
+
+func TestFindQuerier_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 
-	// create placeholder api.PeerAddresses for our mocked api.FindPeers response
+	// create placeholder api.PeerAddresses for our mocked api.Find response
 	nAddresses := 8
-	peerAddresses := newPeerAddresses(rng, nAddresses)
 
 	// mock actual findPeers function to just return the peers we created above
-	findPeersFn := func(client api.LibrarianClient, ctx context.Context, in *api.FindRequest,
-		opts ...grpc.CallOption) (*api.FindResponse, error) {
-		return &api.FindResponse{
-			RequestId: in.RequestId,
-			Addresses: peerAddresses,
-		}, nil
-	}
+	finder := &fixedFinder{addresses: newPeerAddresses(rng, nAddresses)}
 
 	// querier that doesn't actually issue an api.FindPeers request, instead
-	q := &querier{params: NewParameters(), findFn: findPeersFn}
+	q := NewQuerier(NewParameters(), finder)
 	c := &testClient{}
 
 	rp, err := q.Query(c, cid.NewPseudoRandom(rng))
@@ -219,43 +220,74 @@ func TestFindPeersQuerier_ok(t *testing.T) {
 	assert.Nil(t, rp.Value)
 }
 
-func TestFindPeersQuerier_err(t *testing.T) {
-	rng := rand.New(rand.NewSource(int64(0)))
+// timeoutFinder returns an error simulating a request timeout
+type timeoutFinder struct{}
 
-	// return simulated timeout error
-	findPeersFn1 := func(client api.LibrarianClient, ctx context.Context, in *api.FindRequest,
-		opts ...grpc.CallOption) (*api.FindResponse, error) {
-		return nil, errors.New("simulated timeout error")
-	}
-	q1 := &querier{params: NewParameters(), findFn: findPeersFn1}
+func (f *timeoutFinder) Find(ctx context.Context, client api.LibrarianClient, fr *api.FindRequest,
+	opts ...grpc.CallOption) (*api.FindResponse, error) {
+	return nil, errors.New("simulated timeout error")
+}
+
+// diffRequestIDFinder returns a response with a different request ID
+type diffRequestIDFinder struct {
+	rng *rand.Rand
+}
+
+func (f *diffRequestIDFinder) Find(ctx context.Context, client api.LibrarianClient,
+	fr *api.FindRequest, opts ...grpc.CallOption) (*api.FindResponse, error) {
+	return &api.FindResponse{
+		RequestId: cid.NewPseudoRandom(f.rng).Bytes(),
+	}, nil
+}
+
+func TestFindQuerier_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(int64(0)))
 	c := &testClient{}
 
-	// check that the findPeers error propagates up to query
+	// check that the Find error propagates up to query
+	q1 := NewQuerier(NewParameters(), &timeoutFinder{})
 	rp1, err := q1.Query(c, cid.NewPseudoRandom(rng))
 	assert.Nil(t, rp1)
 	assert.NotNil(t, err)
 
-	// return response with different request ID
-	findPeersFn2 := func(client api.LibrarianClient, ctx context.Context, in *api.FindRequest,
-		opts ...grpc.CallOption) (*api.FindResponse, error) {
-		return &api.FindResponse{RequestId: cid.NewPseudoRandom(rng).Bytes()}, nil
-	}
-	q2 := &querier{params: NewParameters(), findFn: findPeersFn2}
+	q2 := NewQuerier(NewParameters(), &diffRequestIDFinder{rng})
 	rp2, err := q2.Query(c, cid.NewPseudoRandom(rng))
 	assert.Nil(t, rp2)
 	assert.NotNil(t, err)
 }
 
-func TestFindPeersResponseProcessor_Process(t *testing.T) {
+func TestResponseProcessor_Process_Value(t *testing.T) {
+	rng := rand.New(rand.NewSource(int64(0)))
+	key := cid.NewPseudoRandom(rng)
+	rp := NewResponseProcessor(peer.NewFromer())
+	result := NewInitialResult(key, NewParameters())
+
+	// create response with the value
+	value := cid.NewPseudoRandom(rng).Bytes() // random value
+	response2 := &api.FindResponse{
+		RequestId: cid.NewPseudoRandom(rng).Bytes(),
+		Addresses: nil,
+		Value:     value,
+	}
+
+	// check that the result value is set
+	prevUnqueriedLength := result.unqueried.Len()
+	err := rp.Process(response2, result)
+	assert.Nil(t, err)
+	assert.Equal(t, prevUnqueriedLength, result.unqueried.Len())
+	assert.Equal(t, value, result.value)
+}
+
+func TestResponseProcessor_Process_Addresses(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 
 	// create placeholder api.PeerAddresses for our mocked api.FindPeers response
 	nAddresses1 := 8
 	peerAddresses1 := newPeerAddresses(rng, nAddresses1)
 
-	target := cid.NewPseudoRandom(rng)
-	rp := NewFindPeersResponseProcessor()
-	result := NewInitialResult(target, NewParameters())
+	key := cid.NewPseudoRandom(rng)
+	rp := NewResponseProcessor(peer.NewFromer())
+	result := NewInitialResult(key, NewParameters())
 
 	// create response or nAddresses and process it
 	response1 := &api.FindResponse{
@@ -295,47 +327,20 @@ func TestFindPeersResponseProcessor_Process(t *testing.T) {
 	assert.Equal(t, nAddresses2, result.closest.Len())
 }
 
-func TestFindValueResponseProcessor_Process(t *testing.T) {
+func TestResponseProcessor_Process_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
+	key := cid.NewPseudoRandom(rng)
+	rp := NewResponseProcessor(peer.NewFromer())
+	result := NewInitialResult(key, NewParameters())
 
-	// create placeholder api.PeerAddresses for our mocked api.FindPeers response
-	nAddresses := 8
-	peerAddresses := newPeerAddresses(rng, nAddresses)
-
-	target := cid.NewPseudoRandom(rng)
-	rp := NewFindValueResponseProcessor()
-	result := NewInitialResult(target, NewParameters())
-
-	// create response or nAddresses and process it
-	response1 := &api.FindResponse{
-		RequestId: cid.NewPseudoRandom(rng).Bytes(),
-		Addresses: peerAddresses,
-		Value:     nil,
-	}
-	err := rp.Process(response1, result)
-	assert.Nil(t, err)
-
-	// check that all responses have gone into the unqueried heap
-	assert.Equal(t, nAddresses, result.unqueried.Len())
-
-	// process same response as before and check that the length of unqueried hasn't changed
-	err = rp.Process(response1, result)
-	assert.Nil(t, err)
-	assert.Equal(t, nAddresses, result.unqueried.Len())
-
-	// create response with the value
-	value := cid.NewPseudoRandom(rng).Bytes() // random value
+	// create a bad response with neither a value nor peer addresses
 	response2 := &api.FindResponse{
 		RequestId: cid.NewPseudoRandom(rng).Bytes(),
 		Addresses: nil,
-		Value:     value,
+		Value:     nil,
 	}
-
-	// check that the result value is set
-	err = rp.Process(response2, result)
-	assert.Nil(t, err)
-	assert.Equal(t, nAddresses, result.unqueried.Len())
-	assert.Equal(t, value, result.value)
+	err := rp.Process(response2, result)
+	assert.NotNil(t, err)
 }
 
 func newPeerAddresses(rng *rand.Rand, n int) []*api.PeerAddress {

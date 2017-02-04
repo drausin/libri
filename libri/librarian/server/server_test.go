@@ -4,9 +4,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"testing"
-
 	"bytes"
-
 	"crypto/sha256"
 
 	cid "github.com/drausin/libri/libri/common/id"
@@ -78,7 +76,9 @@ func TestLibrarian_Identify(t *testing.T) {
 	assert.Equal(t, peerName, rp.PeerName)
 }
 
-func TestLibrarian_FindPeers(t *testing.T) {
+func TestLibrarian_Find(t *testing.T) {
+	kvdb, err := db.NewTempDirRocksDB()
+	assert.Nil(t, err)
 	for n := 8; n <= 128; n *= 2 {
 		// for different numbers of total active peers
 
@@ -88,20 +88,21 @@ func TestLibrarian_FindPeers(t *testing.T) {
 			rng := rand.New(rand.NewSource(int64(s)))
 			rt := routing.NewTestWithPeers(rng, n)
 			l := &Librarian{
-				PeerID: rt.SelfID(),
-				kc:     storage.NewExactLengthChecker(storage.EntriesKeyLength),
-				rt:     rt,
+				PeerID:    rt.SelfID(),
+				entriesSL: storage.NewEntriesKVDBStorerLoader(kvdb),
+				kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
+				rt:        rt,
 			}
 
 			numClosest := uint32(routing.DefaultMaxActivePeers)
 			rq := &api.FindRequest{
 				RequestId: cid.NewPseudoRandom(rng).Bytes(),
-				Target:    cid.NewPseudoRandom(rng).Bytes(),
+				Key:       cid.NewPseudoRandom(rng).Bytes(),
 				NumPeers:  numClosest,
 			}
 
 			prevNumActivePeers := l.rt.NumPeers()
-			rp, err := l.FindPeers(nil, rq)
+			rp, err := l.Find(nil, rq)
 			assert.Nil(t, err)
 
 			// check
@@ -131,7 +132,7 @@ func checkPeersResponse(t *testing.T, rq *api.FindRequest, rp *api.FindResponse,
 	}
 }
 
-func TestLibrarian_FindValue_present(t *testing.T) {
+func TestLibrarian_Find_present(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	kvdb, err := db.NewTempDirRocksDB()
 	assert.Nil(t, err)
@@ -159,10 +160,10 @@ func TestLibrarian_FindValue_present(t *testing.T) {
 	numClosest := uint32(routing.DefaultMaxActivePeers)
 	rq := &api.FindRequest{
 		RequestId: cid.NewPseudoRandom(rng).Bytes(),
-		Target:    key[:],
+		Key:       key[:],
 		NumPeers:  numClosest,
 	}
-	rp, err := l.FindValue(nil, rq)
+	rp, err := l.Find(nil, rq)
 	assert.Nil(t, err)
 
 	// we should get back the value we stored
@@ -171,7 +172,7 @@ func TestLibrarian_FindValue_present(t *testing.T) {
 	assert.True(t, bytes.Equal(value, rp.Value))
 }
 
-func TestLibrarian_FindValue_missing(t *testing.T) {
+func TestLibrarian_Find_missing(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	n := 64
 	rt := routing.NewTestWithPeers(rng, n)
@@ -191,12 +192,12 @@ func TestLibrarian_FindValue_missing(t *testing.T) {
 	numClosest := uint32(routing.DefaultMaxActivePeers)
 	rq := &api.FindRequest{
 		RequestId: cid.NewPseudoRandom(rng).Bytes(),
-		Target:    cid.NewPseudoRandom(rng).Bytes(),
+		Key:       cid.NewPseudoRandom(rng).Bytes(),
 		NumPeers:  numClosest,
 	}
 
 	prevNumActivePeers := l.rt.NumPeers()
-	rp, err := l.FindValue(nil, rq)
+	rp, err := l.Find(nil, rq)
 	assert.Nil(t, err)
 
 	// should get peers since the value is missing

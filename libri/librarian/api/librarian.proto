@@ -11,13 +11,10 @@ service Librarian {
     // Identify identifies the node by name and ID.
     rpc Identify (IdentityRequest) returns (IdentityResponse) {}
 
-    // FindPeers returns the closest peers to a given target.
-    rpc FindPeers (FindRequest) returns (FindResponse) {}
+    // Find returns the value for a key or the closest peers to it.
+    rpc Find (FindRequest) returns (FindResponse) {}
 
-    // FindValue returns either the closest peers to a given target or the value itself if
-    // available.
-    rpc FindValue (FindRequest) returns (FindResponse) {}
-
+    // Store stores a value in a given key.
     rpc Store(StoreRequest) returns (StoreResponse) {}
 }
 
@@ -48,7 +45,7 @@ message FindRequest {
     bytes request_id = 1;
 
     // 32-byte target to find peers around
-    bytes target = 2;
+    bytes key = 2;
 
     // the number of closests peers to return
     uint32 num_peers = 3;
