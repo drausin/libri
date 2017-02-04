@@ -47,7 +47,7 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 		return nil, err
 	}
 	serverSL := storage.NewServerKVDBStorerLoader(rdb)
-	recordsSL := storage.NewEntriesKVDBStorerLoader(rdb)
+	entriesSL := storage.NewEntriesKVDBStorerLoader(rdb)
 
 	peerID, err := loadOrCreatePeerID(serverSL)
 	if err != nil {
@@ -67,7 +67,7 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 		Config:    config,
 		db:        rdb,
 		serverSL:  serverSL,
-		entriesSL: recordsSL,
+		entriesSL: entriesSL,
 		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		rt:        rt,
 	}, nil
@@ -142,14 +142,29 @@ func (l *Librarian) Identify(ctx context.Context, rq *api.IdentityRequest) (*api
 	}, nil
 }
 
-// FindPeers returns the closest peers to a given target.
-func (l *Librarian) FindPeers(ctx context.Context, rq *api.FindRequest) (*api.FindResponse,
+// Find returns either the value at a given target or the peers closest to it.
+func (l *Librarian) Find(ctx context.Context, rq *api.FindRequest) (*api.FindResponse,
 	error) {
-	if err := l.kc.Check(rq.Target); err != nil {
+	if err := l.kc.Check(rq.Key); err != nil {
 		return nil, err
 	}
-	target := cid.FromBytes(rq.Target)
-	closest := l.rt.Peak(target, uint(rq.NumPeers))
+	value, err := l.entriesSL.Load(rq.Key)
+	if err != nil {
+		// something went wrong during load
+		return nil, err
+	}
+
+	// we have the value, so return it
+	if value != nil {
+		return &api.FindResponse{
+			RequestId: rq.RequestId,
+			Value:     value,
+		}, nil
+	}
+
+	// otherwise, return the peers closest to the key
+	key := cid.FromBytes(rq.Key)
+	closest := l.rt.Peak(key, uint(rq.NumPeers))
 	addresses := make([]*api.PeerAddress, len(closest))
 	for i, peer := range closest {
 		addresses[i] = peer.ToAPI()
@@ -158,29 +173,6 @@ func (l *Librarian) FindPeers(ctx context.Context, rq *api.FindRequest) (*api.Fi
 		RequestId: rq.RequestId,
 		Addresses: addresses,
 	}, nil
-}
-
-// FindValue returns either the value at a given target or the peers closest to it.
-func (l *Librarian) FindValue(ctx context.Context, rq *api.FindRequest) (*api.FindResponse,
-	error) {
-	if err := l.kc.Check(rq.Target); err != nil {
-		return nil, err
-	}
-	value, err := l.entriesSL.Load(rq.Target)
-	if err != nil {
-		// something went wrong during load
-		return nil, err
-	}
-	if value != nil {
-		// we have the value, so return it
-		return &api.FindResponse{
-			RequestId: rq.RequestId,
-			Value:     value,
-		}, nil
-	}
-
-	// otherwise, return peers closest to the target
-	return l.FindPeers(ctx, rq)
 }
 
 // Store stores the value

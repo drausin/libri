@@ -10,11 +10,12 @@ import (
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/peer"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 
-// Searcher executes searches for particular targets.
+// Searcher executes searches for particular keys.
 type Searcher interface {
 	// Search executes a search from a list of seeds.
 	Search(search *Search, seeds []peer.Peer) error
@@ -63,7 +64,7 @@ func (s *searcher) do(search *Search, wg *sync.WaitGroup) {
 		}
 
 		// do the query
-		response, err := s.q.Query(nextClient, search.target)
+		response, err := s.q.Query(nextClient, search.key)
 		if err != nil {
 			// if we had an issue querying, skip to next peer
 			search.mu.Lock()
@@ -103,35 +104,31 @@ func (s *searcher) do(search *Search, wg *sync.WaitGroup) {
 
 // Querier handles Find queries to a peer.
 type Querier interface {
-	// Query queries a Librarian client for a particular target with an api.FindRequest and
+	// Query queries a Librarian client for a particular key with an api.FindRequest and
 	// returns its response.
 	Query(api.LibrarianClient, cid.ID) (*api.FindResponse, error)
 }
 
 type querier struct {
 	params *Parameters
-	findFn func(client api.LibrarianClient, ctx context.Context, in *api.FindRequest,
-		opts ...grpc.CallOption) (*api.FindResponse, error)
+	finder Finder
 }
 
-// NewFindPeersQuerier creates a new Querier instance for FindPeers queries.
-func NewFindPeersQuerier(params *Parameters) Querier {
+// NewQuerier creates a new Querier instance for FindPeers queries.
+func NewQuerier(params *Parameters, f Finder) Querier {
 	return &querier{
 		params: params,
-		findFn: func(client api.LibrarianClient, ctx context.Context, in *api.FindRequest,
-			opts ...grpc.CallOption) (*api.FindResponse, error) {
-			return client.FindPeers(ctx, in, opts...)
-		},
+		finder: f,
 	}
 }
 
-// Query issues a Find query to the client for the given target.
-func (q *querier) Query(client api.LibrarianClient, target cid.ID) (*api.FindResponse, error) {
+// Query issues a Find query to the client for the given key.
+func (q *querier) Query(client api.LibrarianClient, key cid.ID) (*api.FindResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), q.params.queryTimeout)
 	defer cancel()
 
-	rq := api.NewFindRequest(target, q.params.nClosestResponses)
-	rp, err := q.findFn(client, ctx, rq)
+	rq := api.NewFindRequest(key, q.params.nClosestResponses)
+	rp, err := q.finder.Find(ctx, client, rq)
 	if err != nil {
 		return nil, err
 	}
@@ -143,6 +140,25 @@ func (q *querier) Query(client api.LibrarianClient, target cid.ID) (*api.FindRes
 	return rp, nil
 }
 
+// Finder issues Find queries to api.LibrarianClients.
+type Finder interface {
+	// Find issues a Find query to an api.LibrarianClient.
+	Find(ctx context.Context, client api.LibrarianClient, fr *api.FindRequest,
+		opts ...grpc.CallOption) (*api.FindResponse, error)
+}
+
+// NewFinder creates a new Finder instance.
+func NewFinder() Finder {
+	return &finder{}
+}
+
+type finder struct{}
+
+func (f *finder) Find(ctx context.Context, client api.LibrarianClient, fr *api.FindRequest,
+	opts ...grpc.CallOption) (*api.FindResponse, error) {
+	return client.Find(ctx, fr, opts...)
+}
+
 // ResponseProcessor handles an api.FindPeersResponse
 type ResponseProcessor interface {
 	// Process handles an api.FindPeersResponse, adding newly discovered peers to the unqueried
@@ -150,51 +166,38 @@ type ResponseProcessor interface {
 	Process(*api.FindResponse, *Result) error
 }
 
-type findPeersResponseProcessor struct {
+type responseProcessor struct {
 	peerFromer peer.Fromer
 }
 
-// NewFindPeersResponseProcessor creates a new ResponseProcessor instance.
-func NewFindPeersResponseProcessor() ResponseProcessor {
-	return &findPeersResponseProcessor{peerFromer: peer.NewFromer()}
+// NewResponseProcessor creates a new ResponseProcessor instance.
+func NewResponseProcessor(peerFromer peer.Fromer) ResponseProcessor {
+	return &responseProcessor{peerFromer: peerFromer}
 }
 
 // Process processes an api.FindResponse, updating the result with the newly found peers.
-func (rp *findPeersResponseProcessor) Process(response *api.FindResponse, result *Result) error {
-	for _, pa := range response.Addresses {
-		newID := cid.FromBytes(pa.PeerId)
-		if !result.closest.In(newID) && !result.unqueried.In(newID) {
-			// only add discovered peers that we haven't already seen
-			newPeer := rp.peerFromer.FromAPI(pa)
-			if err := result.unqueried.SafePush(newPeer); err != nil {
-				return err
+func (rp *responseProcessor) Process(fr *api.FindResponse, result *Result) error {
+	if fr.Value != nil {
+		// response has value we're searching for
+		result.value = fr.Value
+		return nil
+	}
+
+	if fr.Addresses != nil {
+		// response has peer addresses close to key
+		for _, pa := range fr.Addresses {
+			newID := cid.FromBytes(pa.PeerId)
+			if !result.closest.In(newID) && !result.unqueried.In(newID) {
+				// only add discovered peers that we haven't already seen
+				newPeer := rp.peerFromer.FromAPI(pa)
+				if err := result.unqueried.SafePush(newPeer); err != nil {
+					return err
+				}
 			}
 		}
+		return nil
 	}
-	return nil
-}
 
-// findValueResponseProcessor implement
-type findValueResponseProcessor struct {
-	fprp ResponseProcessor
-}
-
-// NewFindValueResponseProcessor creates a new ResponseProcessor instance.
-func NewFindValueResponseProcessor() ResponseProcessor {
-	return &findValueResponseProcessor{
-		fprp: NewFindPeersResponseProcessor(),
-	}
-}
-
-// Process adds the value or the found peers to the result.
-func (rp *findValueResponseProcessor) Process(response *api.FindResponse, result *Result) error {
-	if response.Value != nil {
-		result.value = response.Value
-	} else {
-		if err := rp.fprp.Process(response, result); err != nil {
-			return err
-		}
-
-	}
-	return nil
+	// invalid response
+	return errors.New("FindResponse contains neither value nor peer addresses")
 }

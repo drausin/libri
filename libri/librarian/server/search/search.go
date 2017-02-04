@@ -7,19 +7,10 @@ import (
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
-	"github.com/pkg/errors"
 )
 
 // Type indicates a type of search.
 type Type int
-
-const (
-	// Peers searches are for peers close to a target.
-	Peers Type = iota
-
-	// Value searches are for a target value.
-	Value
-)
 
 var (
 	// DefaultNMaxErrors is the maximum number of errors tolerated during a search.
@@ -84,11 +75,8 @@ func NewInitialResult(target cid.ID, params *Parameters) *Result {
 
 // Search contains things involved in a search for a particular target.
 type Search struct {
-	// type of search
-	searchType Type
-
 	// ID search is looking for or close to
-	target cid.ID
+	key cid.ID
 
 	// result of the search
 	result *Result
@@ -107,13 +95,12 @@ type Search struct {
 }
 
 // NewSearch creates a new Search instance for a given target, search type, and search parameters.
-func NewSearch(target cid.ID, searchType Type, params *Parameters) *Search {
+func NewSearch(key cid.ID, params *Parameters) *Search {
 	return &Search{
-		searchType: searchType,
-		target:     target,
-		result:     NewInitialResult(target, params),
-		params:     params,
-		nErrors:    0,
+		key:     key,
+		result:  NewInitialResult(key, params),
+		params:  params,
+		nErrors: 0,
 	}
 }
 
@@ -132,16 +119,9 @@ func (s *Search) FoundClosestPeers() bool {
 		s.result.closest.PeakDistance().Cmp(s.result.unqueried.PeakDistance()) <= 0
 }
 
-// FoundValue returns whether the search has found the target value. This can only happen with a
-// Value search type.
+// FoundValue returns whether the search has found the target value.
 func (s *Search) FoundValue() bool {
-	return s.searchType == Value && s.result.value != nil
-}
-
-// Missing returns whether the search target is missing. This happens during a Value search that
-// has found the peers closest to the target but not the target's value.
-func (s *Search) Missing() bool {
-	return s.searchType == Value && !s.FoundValue() && s.FoundClosestPeers()
+	return s.result.value != nil
 }
 
 // Errored returns whether the search has encountered too many errors when querying the peers.
@@ -160,13 +140,5 @@ func (s *Search) Exhausted() bool {
 func (s *Search) Finished() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.searchType == Value {
-		return s.FoundValue() || s.Missing() || s.Errored() || s.Exhausted()
-
-	}
-	if s.searchType == Peers {
-		return s.FoundClosestPeers() || s.Errored() || s.Exhausted()
-	}
-
-	panic(errors.New("should never get here"))
+	return s.FoundValue() || s.FoundClosestPeers() || s.Errored() || s.Exhausted()
 }
