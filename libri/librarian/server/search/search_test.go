@@ -14,11 +14,11 @@ func TestSearch_FoundClosestPeers(t *testing.T) {
 	nClosestResponses := uint(4)
 
 	search := NewSearch(target, &Parameters{
-		nClosestResponses: nClosestResponses,
+		NClosestResponses: nClosestResponses,
 	})
 
 	// add closest peers to half the heap's capacity
-	err := search.result.closest.SafePushMany([]peer.Peer{
+	err := search.Result.Closest.SafePushMany([]peer.Peer{
 		peer.New(cid.FromInt64(1), "", nil),
 		peer.New(cid.FromInt64(2), "", nil),
 	})
@@ -28,14 +28,14 @@ func TestSearch_FoundClosestPeers(t *testing.T) {
 	assert.False(t, search.FoundClosestPeers())
 
 	// add an unqueried peer farther than the farthest closest peer
-	err = search.result.unqueried.SafePush(peer.New(cid.FromInt64(5), "", nil))
+	err = search.Result.unqueried.SafePush(peer.New(cid.FromInt64(5), "", nil))
 	assert.Nil(t, err)
 
 	// still haven't found closest peers b/c closest heap not at capacity
 	assert.False(t, search.FoundClosestPeers())
 
 	// add two more closest peers, bringing closest heap to capacity
-	err = search.result.closest.SafePushMany([]peer.Peer{
+	err = search.Result.Closest.SafePushMany([]peer.Peer{
 		peer.New(cid.FromInt64(3), "", nil),
 		peer.New(cid.FromInt64(4), "", nil),
 	})
@@ -54,7 +54,7 @@ func TestSearch_FoundValue(t *testing.T) {
 	assert.False(t, search.FoundValue())
 
 	// set the result
-	search.result.value = cid.FromInt64(1).Bytes() // arbitrary, just needs to something
+	search.Result.Value = cid.FromInt64(1).Bytes() // arbitrary, just needs to something
 	assert.True(t, search.FoundValue())
 }
 
@@ -63,17 +63,17 @@ func TestSearch_Errored(t *testing.T) {
 
 	// no-error state
 	search1 := NewSearch(target, NewParameters())
-	search1.nErrors, search1.fatalErr = 0, nil
+	search1.NErrors, search1.FatalErr = 0, nil
 	assert.False(t, search1.Errored())
 
 	// errored state b/c of too many errors
 	search2 := NewSearch(target, NewParameters())
-	search2.nErrors = search2.params.nMaxErrors
+	search2.NErrors = search2.Params.NMaxErrors
 	assert.True(t, search2.Errored())
 
 	// errored state b/c of a fatal error
 	search3 := NewSearch(target, NewParameters())
-	search3.fatalErr = errors.New("test fatal error")
+	search3.FatalErr = errors.New("test fatal error")
 	assert.True(t, search3.Errored())
 }
 
@@ -82,13 +82,13 @@ func TestSearch_Exhausted(t *testing.T) {
 
 	// not exhausted b/c it has unqueried peers
 	search1 := NewSearch(target, NewParameters())
-	err := search1.result.unqueried.SafePush(peer.New(cid.FromInt64(1), "", nil))
+	err := search1.Result.unqueried.SafePush(peer.New(cid.FromInt64(1), "", nil))
 	assert.Nil(t, err)
 	assert.False(t, search1.Exhausted())
 
 	// exhausted b/c it doesn't have unqueried peers
 	search2 := NewSearch(target, NewParameters())
-	err = search2.result.unqueried.SafePush(peer.New(cid.FromInt64(1), "", nil))
+	err = search2.Result.unqueried.SafePush(peer.New(cid.FromInt64(1), "", nil))
 	assert.Nil(t, err)
 	assert.False(t, search1.Exhausted())
 }

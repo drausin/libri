@@ -2,10 +2,9 @@ package search
 
 import (
 	"bytes"
+	"container/heap"
 	"fmt"
 	"sync"
-
-	"container/heap"
 
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -22,174 +21,169 @@ type Searcher interface {
 }
 
 type searcher struct {
-	// queries the peers
-	q Querier
+	// issues find queries to the peers
+	q FindQuerier
 
-	// processes the responses from the peers
-	rp ResponseProcessor
+	// processes the find query responses from the peers
+	rp FindResponseProcessor
 }
 
 // NewSearcher returns a new Searcher with the given Querier and ResponseProcessor.
-func NewSearcher(q Querier, rp ResponseProcessor) Searcher {
+func NewSearcher(q FindQuerier, rp FindResponseProcessor) Searcher {
 	return &searcher{q: q, rp: rp}
 }
 
+// NewDefaultSearcher creates a new Searcher with default sub-object instantiations.
+func NewDefaultSearcher() Searcher {
+	return NewSearcher(
+		NewFindQuerier(),
+		NewResponseProcessor(peer.NewFromer()),
+	)
+}
+
 func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
-	if err := search.result.unqueried.SafePushMany(seeds); err != nil {
-		return err
+	if err := search.Result.unqueried.SafePushMany(seeds); err != nil {
+		search.FatalErr = err
+		return search.FatalErr
 	}
 
 	var wg sync.WaitGroup
-	for c := uint(0); c < search.params.concurrency; c++ {
+	for c := uint(0); c < search.Params.Concurrency; c++ {
 		wg.Add(1)
-		go s.do(search, &wg)
+		go s.searchWork(search, &wg)
 	}
 	wg.Wait()
 
-	return search.fatalErr
+	return search.FatalErr
 }
 
-func (s *searcher) do(search *Search, wg *sync.WaitGroup) {
+func (s *searcher) searchWork(search *Search, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for !search.Finished() {
 
 		// get next peer to query
 		search.mu.Lock()
-		next := heap.Pop(search.result.unqueried).(peer.Peer)
+		next := heap.Pop(search.Result.unqueried).(peer.Peer)
 		search.mu.Unlock()
-		nextClient, err := next.Connector().Connect()
-		if err != nil {
+		if _, err := next.Connector().Connect(); err != nil {
 			// if we have issues connecting, skip to next peer
 			continue
 		}
 
 		// do the query
-		response, err := s.q.Query(nextClient, search.key)
+		response, err := s.query(next.Connector(), search)
 		if err != nil {
 			// if we had an issue querying, skip to next peer
 			search.mu.Lock()
-			search.nErrors++
+			search.NErrors++
 			search.mu.Unlock()
 			next.Responses().Error()
 			continue
 		}
 		next.Responses().Success()
 
-		// add to heap of closest responded peers
+		// process the heap's response
 		search.mu.Lock()
-		err = search.result.closest.SafePush(next)
+		err = s.rp.Process(response, search.Result)
 		search.mu.Unlock()
 		if err != nil {
-			search.fatalErr = err
+			search.mu.Lock()
+			search.FatalErr = err
+			search.mu.Unlock()
 			return
 		}
 
-		// process the heap's response
+		// add to heap of closest responded peers
 		search.mu.Lock()
-		err = s.rp.Process(response, search.result)
+		err = search.Result.Closest.SafePush(next)
 		search.mu.Unlock()
 		if err != nil {
-			search.fatalErr = err
+			search.mu.Lock()
+			search.FatalErr = err
+			search.mu.Unlock()
 			return
 		}
 
 		// add next peer to set of peers that responded
 		search.mu.Lock()
-		if _, in := search.result.responded[next.ID().String()]; !in {
-			search.result.responded[next.ID().String()] = next
+		if _, in := search.Result.responded[next.ID().String()]; !in {
+			search.Result.responded[next.ID().String()] = next
 		}
 		search.mu.Unlock()
 	}
 }
 
-// Querier handles Find queries to a peer.
-type Querier interface {
-	// Query queries a Librarian client for a particular key with an api.FindRequest and
-	// returns its response.
-	Query(api.LibrarianClient, cid.ID) (*api.FindResponse, error)
-}
-
-type querier struct {
-	params *Parameters
-	finder Finder
-}
-
-// NewQuerier creates a new Querier instance for FindPeers queries.
-func NewQuerier(params *Parameters, f Finder) Querier {
-	return &querier{
-		params: params,
-		finder: f,
-	}
-}
-
-// Query issues a Find query to the client for the given key.
-func (q *querier) Query(client api.LibrarianClient, key cid.ID) (*api.FindResponse, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), q.params.queryTimeout)
+func (s *searcher) query(pConn peer.Connector, search *Search) (*api.FindResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), search.Params.Timeout)
 	defer cancel()
 
-	rq := api.NewFindRequest(key, q.params.nClosestResponses)
-	rp, err := q.finder.Find(ctx, client, rq)
+	rp, err := s.q.Query(ctx, pConn, search.Request)
 	if err != nil {
 		return nil, err
 	}
-	if !bytes.Equal(rp.RequestId, rq.RequestId) {
+	if !bytes.Equal(rp.RequestId, search.Request.RequestId) {
 		return nil, fmt.Errorf("unexpected response request ID received: %v, "+
-			"expected %v", rp.RequestId, rq.RequestId)
+			"expected %v", rp.RequestId, search.Request.RequestId)
 	}
 
 	return rp, nil
 }
 
-// Finder issues Find queries to api.LibrarianClients.
-type Finder interface {
-	// Find issues a Find query to an api.LibrarianClient.
-	Find(ctx context.Context, client api.LibrarianClient, fr *api.FindRequest,
+// Querier handles Find queries to a peer.
+type FindQuerier interface {
+	// Query uses a peer connection to query for a particular key with an api.FindRequest and
+	// returns its response.
+	Query(ctx context.Context, pConn peer.Connector, rq *api.FindRequest,
 		opts ...grpc.CallOption) (*api.FindResponse, error)
 }
 
-// NewFinder creates a new Finder instance.
-func NewFinder() Finder {
-	return &finder{}
+type findQuerier struct{}
+
+// NewQuerier creates a new FindQuerier instance for FindPeers queries.
+func NewFindQuerier() FindQuerier {
+	return &findQuerier{}
 }
 
-type finder struct{}
-
-func (f *finder) Find(ctx context.Context, client api.LibrarianClient, fr *api.FindRequest,
+func (q *findQuerier) Query(ctx context.Context, pConn peer.Connector, rq *api.FindRequest,
 	opts ...grpc.CallOption) (*api.FindResponse, error) {
-	return client.Find(ctx, fr, opts...)
+	client, err := pConn.Connect() // *should* be already connected, but do here just in case
+	if err != nil {
+		return nil, err
+	}
+	return client.Find(ctx, rq, opts...)
 }
 
-// ResponseProcessor handles an api.FindPeersResponse
-type ResponseProcessor interface {
-	// Process handles an api.FindPeersResponse, adding newly discovered peers to the unqueried
+// FindResponseProcessor handles an api.FindResponse
+type FindResponseProcessor interface {
+	// Process handles an api.FindResponse, adding newly discovered peers to the unqueried
 	// ClosestPeers heap.
 	Process(*api.FindResponse, *Result) error
 }
 
-type responseProcessor struct {
+type findResponseProcessor struct {
 	peerFromer peer.Fromer
 }
 
 // NewResponseProcessor creates a new ResponseProcessor instance.
-func NewResponseProcessor(peerFromer peer.Fromer) ResponseProcessor {
-	return &responseProcessor{peerFromer: peerFromer}
+func NewResponseProcessor(peerFromer peer.Fromer) FindResponseProcessor {
+	return &findResponseProcessor{peerFromer: peerFromer}
 }
 
 // Process processes an api.FindResponse, updating the result with the newly found peers.
-func (rp *responseProcessor) Process(fr *api.FindResponse, result *Result) error {
-	if fr.Value != nil {
+func (frp *findResponseProcessor) Process(rp *api.FindResponse, result *Result) error {
+	if rp.Value != nil {
 		// response has value we're searching for
-		result.value = fr.Value
+		result.Value = rp.Value
 		return nil
 	}
 
-	if fr.Addresses != nil {
+	if rp.Addresses != nil {
 		// response has peer addresses close to key
-		for _, pa := range fr.Addresses {
+		for _, pa := range rp.Addresses {
 			newID := cid.FromBytes(pa.PeerId)
-			if !result.closest.In(newID) && !result.unqueried.In(newID) {
+			if !result.Closest.In(newID) && !result.unqueried.In(newID) {
 				// only add discovered peers that we haven't already seen
-				newPeer := rp.peerFromer.FromAPI(pa)
+				newPeer := frp.peerFromer.FromAPI(pa)
 				if err := result.unqueried.SafePush(newPeer); err != nil {
 					return err
 				}

@@ -15,7 +15,13 @@ service Librarian {
     rpc Find (FindRequest) returns (FindResponse) {}
 
     // Store stores a value in a given key.
-    rpc Store(StoreRequest) returns (StoreResponse) {}
+    rpc Store (StoreRequest) returns (StoreResponse) {}
+
+    // Get retrieves a value, if it exists.
+    rpc Get (GetRequest) returns (GetResponse) {}
+
+    // Put stores a value.
+    rpc Put (PutRequest) returns (PutResponse) {}
 }
 
 message PingRequest {}
@@ -90,12 +96,50 @@ message StoreRequest {
 message StoreResponse {
     // ID of request that generated this response
     bytes request_id = 1;
-
-    // whether store operation was successful
-    StoreStatus status = 2;
 }
 
-enum StoreStatus {
-    FAILED = 0;
-    SUCCEEDED = 1;
+message GetRequest {
+    // 32-byte unique request ID
+    bytes request_id = 1;
+
+    // 32-byte
+    bytes key = 2;
+}
+
+message GetResponse {
+    // 32-byte unique request ID
+    bytes request_id = 1;
+
+    // value to store for key
+    bytes value = 3;
+}
+
+message PutRequest {
+    // 32-byte unique request ID
+    bytes request_id = 1;
+
+    // key to store value under
+    bytes key = 2;
+
+    // value to store for key
+    bytes value = 3;
+}
+
+message PutResponse {
+    // 32-byte unique request ID
+    bytes request_id = 1;
+
+    // result of the put operation
+    PutOperation operation = 2;
+
+    // number of replicas of the stored value; only populated for operation = ADDED
+    uint32 n_replicas = 3;
+}
+
+enum PutOperation {
+    // new value was added
+    ADDED = 0;
+
+    // value already existed
+    LEFT_EXISTING = 1;
 }

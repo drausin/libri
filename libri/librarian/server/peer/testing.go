@@ -24,7 +24,7 @@ func NewTestPeer(rng *rand.Rand, idx int) Peer {
 	now := time.Unix(int64(idx), 0).UTC()
 	return New(id, fmt.Sprintf("peer-%d", idx+1), NewConnector(address)).(*peer).
 		WithResponseRecorder(
-			&responseStats{
+			&responseRecorder{
 				earliest: now,
 				latest:   now,
 				nQueries: 1,
@@ -71,7 +71,7 @@ func AssertPeersEqual(t *testing.T, sp *storage.Peer, p Peer) {
 	assert.Equal(t, sp.PublicAddress.Ip, publicAddres.IP.String())
 	assert.Equal(t, sp.PublicAddress.Port, uint32(publicAddres.Port))
 
-	prs := p.Responses().(*responseStats)
+	prs := p.Responses().(*responseRecorder)
 	assert.Equal(t, sp.Responses.Earliest, prs.earliest.Unix())
 	assert.Equal(t, sp.Responses.Latest, prs.latest.Unix())
 	assert.Equal(t, sp.Responses.NQueries, prs.nQueries)

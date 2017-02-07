@@ -1,12 +1,11 @@
 package search
 
 import (
+	"container/heap"
 	"math/big"
 
-	"container/heap"
-	"fmt"
-
 	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 )
 
@@ -27,6 +26,12 @@ type PeerDistanceHeap interface {
 
 	// PeakPeer returns (but does not remove) the the root of the heap.
 	PeakPeer() peer.Peer
+
+	// ToAPI creates an array of api.PeerAddresses from the peers in the heap.
+	ToAPI() []*api.PeerAddress
+
+	// ToSlice creates a slice (shallow) copy of the peers in the heap.
+	ToSlice() []peer.Peer
 
 	// In returns whether a peer ID is in the heap
 	In(cid.ID) bool
@@ -73,8 +78,8 @@ type peerDistanceHeap struct {
 func newClosestPeers(target cid.ID, capacity uint) ClosestPeers {
 	return &peerDistanceHeap{
 		target:    target,
-		peers:     make([]peer.Peer, 0),
-		distances: make([]*big.Int, 0),
+		peers:     make([]peer.Peer, 0, int(capacity)+1),
+		distances: make([]*big.Int, 0, int(capacity)+1),
 		ids:       make(map[string]struct{}),
 		sign:      1,
 		capacity:  int(capacity),
@@ -84,8 +89,8 @@ func newClosestPeers(target cid.ID, capacity uint) ClosestPeers {
 func newFarthestPeers(target cid.ID, capacity uint) FarthestPeers {
 	return &peerDistanceHeap{
 		target:    target,
-		peers:     make([]peer.Peer, 0),
-		distances: make([]*big.Int, 0),
+		peers:     make([]peer.Peer, 0, int(capacity)+1),
+		distances: make([]*big.Int, 0, int(capacity)+1),
 		ids:       make(map[string]struct{}),
 		sign:      -1,
 		capacity:  int(capacity),
@@ -100,6 +105,22 @@ func (pdh *peerDistanceHeap) PeakPeer() peer.Peer {
 	return pdh.peers[0]
 }
 
+func (pdh *peerDistanceHeap) ToAPI() []*api.PeerAddress {
+	addresses := make([]*api.PeerAddress, pdh.Len())
+	for i, p := range pdh.peers {
+		addresses[i] = p.ToAPI()
+	}
+	return addresses
+}
+
+func (pdh *peerDistanceHeap) ToSlice() []peer.Peer {
+	peers := make([]peer.Peer, pdh.Len())
+	for i, p := range pdh.peers {
+		peers[i] = p
+	}
+	return peers
+}
+
 func (pdh *peerDistanceHeap) In(id cid.ID) bool {
 	_, in := pdh.ids[id.String()]
 	return in
@@ -111,8 +132,8 @@ func (pdh *peerDistanceHeap) Distance(p peer.Peer) *big.Int {
 
 func (pdh *peerDistanceHeap) SafePush(p peer.Peer) error {
 	if pdh.In(p.(peer.Peer).ID()) {
-		return fmt.Errorf("peer unexpectedly already in responded heap: %v",
-			p.(peer.Peer).ID())
+		// do nothing b/c it already exists
+		return nil
 	}
 
 	heap.Push(pdh, p)

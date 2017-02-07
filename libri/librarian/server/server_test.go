@@ -1,11 +1,11 @@
 package server
 
 import (
+	"bytes"
+	"crypto/sha256"
 	"io/ioutil"
 	"math/rand"
 	"testing"
-	"bytes"
-	"crypto/sha256"
 
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/db"
@@ -233,7 +233,7 @@ func TestLibrarian_Store(t *testing.T) {
 	}
 	rp, err := l.Store(nil, rq)
 	assert.Nil(t, err)
-	assert.Equal(t, api.StoreStatus_SUCCEEDED, rp.Status)
+	assert.NotNil(t, rp)
 
 	stored, err := l.entriesSL.Load(key[:])
 	assert.Nil(t, err)

@@ -17,7 +17,7 @@ func TestNew(t *testing.T) {
 	assert.Equal(t, name, p.(*peer).name)
 	assert.Equal(t, addr, addr)
 
-	rs := p.Responses().(*responseStats)
+	rs := p.Responses().(*responseRecorder)
 	assert.Equal(t, uint64(0), rs.nQueries)
 	assert.Equal(t, uint64(0), rs.nErrors)
 	assert.Equal(t, int64(0), rs.latest.Unix())
@@ -26,26 +26,26 @@ func TestNew(t *testing.T) {
 
 func TestPeer_Before(t *testing.T) {
 	cases := []struct {
-		prs *responseStats // for now, ResponseStats are the only thing that influence
-		qrs *responseStats // peer ordering, so we just define those here
+		prs *responseRecorder // for now, ResponseStats are the only thing that influence
+		qrs *responseRecorder // peer ordering, so we just define those here
 		out bool
 	}{
 		{
-			prs: &responseStats{latest: time.Unix(0, 0)},
-			qrs: &responseStats{latest: time.Unix(0, 0)},
+			prs: &responseRecorder{latest: time.Unix(0, 0)},
+			qrs: &responseRecorder{latest: time.Unix(0, 0)},
 			out: false, // before is strict
 		},
 		{
-			prs: &responseStats{latest: time.Unix(0, 0)},
-			qrs: &responseStats{latest: time.Unix(1, 0)},
+			prs: &responseRecorder{latest: time.Unix(0, 0)},
+			qrs: &responseRecorder{latest: time.Unix(1, 0)},
 			out: true,
 		},
 		{
-			prs: &responseStats{
+			prs: &responseRecorder{
 				earliest: time.Unix(0, 0),
 				latest:   time.Unix(15, 0),
 			},
-			qrs: &responseStats{
+			qrs: &responseRecorder{
 				earliest: time.Unix(5, 0),
 				latest:   time.Unix(10, 0),
 			},

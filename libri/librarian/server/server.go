@@ -8,7 +8,9 @@ import (
 	"github.com/drausin/libri/libri/db"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/routing"
+	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/storage"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -23,6 +25,9 @@ type Librarian struct {
 
 	// Config holds the configuration parameters of the server
 	Config *Config
+
+	// searcher executes searches for peers and keys
+	searcher search.Searcher
 
 	// db is the key-value store DB used for all external storage
 	db db.KVDB
@@ -65,6 +70,7 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 	return &Librarian{
 		PeerID:    peerID,
 		Config:    config,
+		searcher:  search.NewDefaultSearcher(),
 		db:        rdb,
 		serverSL:  serverSL,
 		entriesSL: entriesSL,
@@ -183,6 +189,66 @@ func (l *Librarian) Store(ctx context.Context, rq *api.StoreRequest) (
 	}
 	return &api.StoreResponse{
 		RequestId: rq.RequestId,
-		Status:    api.StoreStatus_SUCCEEDED,
 	}, nil
+}
+
+// Get returns the value for a given key, if it exists. This endpoint handles the internals of
+// searching for the key.
+func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetResponse, error) {
+	if err := l.kc.Check(rq.Key); err != nil {
+		return nil, err
+	}
+	key := cid.FromBytes(rq.Key)
+	s := search.NewSearch(key, search.NewParameters())
+	seeds := l.rt.Peak(key, s.Params.Concurrency)
+	err := l.searcher.Search(s, seeds)
+	if err != nil {
+		return nil, err
+	}
+	if s.FoundValue() {
+		// return the value found by the search
+		return &api.GetResponse{
+			RequestId: rq.RequestId,
+			Value:     s.Result.Value,
+		}, nil
+	}
+	if s.FoundClosestPeers() {
+		// return the nil value, indicating that the value wasn't found
+		return &api.GetResponse{
+			RequestId: rq.RequestId,
+			Value:     nil,
+		}, nil
+	}
+	if s.Errored() {
+		return nil, errors.New("search for key errored")
+	}
+	if s.Exhausted() {
+		return nil, errors.New("search for key exhausted")
+	}
+
+	return nil, errors.New("unexpected search result")
+}
+
+func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutResponse, error) {
+	if err := l.kc.Check(rq.Key); err != nil {
+		return nil, err
+	}
+	key := cid.FromBytes(rq.Key)
+	s := search.NewSearch(key, search.NewParameters())
+	seeds := l.rt.Peak(key, s.Params.Concurrency)
+	err := l.searcher.Search(s, seeds)
+	if err != nil {
+		return nil, err
+	}
+	if s.FoundValue() {
+		// value already exists, so no need to add it again
+		return &api.PutResponse{
+			RequestId: rq.RequestId,
+			Operation: api.PutOperation_LEFT_EXISTING,
+		}, nil
+	}
+	if s.FoundClosestPeers() {
+	}
+
+	return nil, errors.New("unexpected search result")
 }

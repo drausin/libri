@@ -1,10 +1,10 @@
 package search
 
 import (
-	"net"
 	"container/heap"
 	"fmt"
 	"math/rand"
+	"net"
 	"testing"
 
 	cid "github.com/drausin/libri/libri/common/id"
@@ -19,52 +19,26 @@ import (
 // testConnector mocks the peer.Connector interface. The Connect() method returns a fixed client
 // instead of creating one from the peer's address.
 type testConnector struct {
-	client api.LibrarianClient
+	addresses []*api.PeerAddress
 }
 
 func (c *testConnector) Connect() (api.LibrarianClient, error) {
-	return c.client, nil
+	return nil, nil
 }
 
 func (c *testConnector) Disconnect() error {
 	return nil
 }
 
-// testClient mocks the api.LibrarianClient interface and is used by the testQuerier below to
-// return a fixed list of api.PeerAddresses. All methods are just stubs.
-type testClient struct {
-	addresses []*api.PeerAddress
-}
-
-func (c *testClient) Ping(ctx context.Context, in *api.PingRequest, opts ...grpc.CallOption) (
-	*api.PingResponse, error) {
-	return nil, nil
-}
-
-func (c *testClient) Identify(ctx context.Context, in *api.IdentityRequest,
-	opts ...grpc.CallOption) (*api.IdentityResponse, error) {
-	return nil, nil
-}
-
-func (c *testClient) Find(ctx context.Context, in *api.FindRequest, opts ...grpc.CallOption) (
-	*api.FindResponse, error) {
-	return nil, nil
-}
-
-func (*testClient) Store(ctx context.Context, in *api.StoreRequest, opts ...grpc.CallOption) (
-	*api.StoreResponse, error) {
-	return nil, nil
-}
-
 // testQuerier mocks the Querier interface. The Query() method returns a fixed
 // api.FindPeersResponse, derived from a list of addresses in the client.
-type testQuerier struct{}
+type testFindQuerier struct{}
 
-func (c *testQuerier) Query(client api.LibrarianClient, key cid.ID) (*api.FindResponse,
-	error) {
+func (c *testFindQuerier) Query(ctx context.Context, pConn peer.Connector, rq *api.FindRequest,
+	opts ...grpc.CallOption) (*api.FindResponse, error) {
 	return &api.FindResponse{
-		RequestId: nil,
-		Addresses: client.(*testClient).addresses,
+		RequestId: rq.RequestId,
+		Addresses: pConn.(*testConnector).addresses,
 	}, nil
 }
 
@@ -87,8 +61,8 @@ func TestSearch(t *testing.T) {
 	// create our searcher
 	key := cid.NewPseudoRandom(rng)
 	searcher := NewSearcher(
-		&testQuerier{},
-		&responseProcessor{
+		&testFindQuerier{},
+		&findResponseProcessor{
 			peerFromer: &testFromer{peers: peersMap},
 		},
 	)
@@ -96,10 +70,10 @@ func TestSearch(t *testing.T) {
 	for concurrency := uint(1); concurrency <= 3; concurrency++ {
 
 		search := NewSearch(key, &Parameters{
-			nClosestResponses: nClosestResponses,
-			nMaxErrors:        DefaultNMaxErrors,
-			concurrency:       concurrency,
-			queryTimeout:      DefaultQueryTimeout,
+			NClosestResponses: nClosestResponses,
+			NMaxErrors:        DefaultNMaxErrors,
+			Concurrency:       concurrency,
+			Timeout:           DefaultQueryTimeout,
 		})
 
 		// init the seeds of our search: usually this comes from the routing.Table.Peak()
@@ -118,13 +92,13 @@ func TestSearch(t *testing.T) {
 		assert.True(t, search.FoundClosestPeers())
 		assert.False(t, search.Errored())
 		assert.False(t, search.Exhausted())
-		assert.Equal(t, uint(0), search.nErrors)
-		assert.Equal(t, int(nClosestResponses), search.result.closest.Len())
-		assert.True(t, search.result.closest.Len() <= len(search.result.responded))
+		assert.Equal(t, uint(0), search.NErrors)
+		assert.Equal(t, int(nClosestResponses), search.Result.Closest.Len())
+		assert.True(t, search.Result.Closest.Len() <= len(search.Result.responded))
 
 		// build set of closest peers by iteratively looking at all of them
 		expectedClosestsPeers := make(map[string]struct{})
-		farthestCloseDist := search.result.closest.PeakDistance()
+		farthestCloseDist := search.Result.Closest.PeakDistance()
 		for _, p := range peers {
 			pDist := key.Distance(p.ID())
 			if pDist.Cmp(farthestCloseDist) <= 0 {
@@ -134,8 +108,8 @@ func TestSearch(t *testing.T) {
 
 		// check all closest peers are in set of peers within farther close distance to
 		// the key
-		for search.result.closest.Len() > 0 {
-			p := heap.Pop(search.result.closest).(peer.Peer)
+		for search.Result.Closest.Len() > 0 {
+			p := heap.Pop(search.Result.Closest).(peer.Peer)
 			_, in := expectedClosestsPeers[p.ID().String()]
 			assert.True(t, in)
 		}
@@ -176,9 +150,7 @@ func newTestPeers(rng *rand.Rand, n int) ([]peer.Peer, map[string]peer.Peer, []i
 		// create test connector with a test client that returns pre-determined set of
 		// addresses
 		conn := testConnector{
-			client: &testClient{
-				addresses: connectedAddresses,
-			},
+			addresses: connectedAddresses,
 		}
 		peers[i] = peer.New(ids[i], names[i], &conn)
 		peersMap[ids[i].String()] = peers[i]
@@ -188,11 +160,11 @@ func newTestPeers(rng *rand.Rand, n int) ([]peer.Peer, map[string]peer.Peer, []i
 }
 
 // fixedFinder returns a fixed set of peer addresses for all find requests
-type fixedFinder struct {
+type fixedQuerier struct {
 	addresses []*api.PeerAddress
 }
 
-func (f *fixedFinder) Find(ctx context.Context, client api.LibrarianClient, fr *api.FindRequest,
+func (f *fixedQuerier) Query(ctx context.Context, pConn peer.Connector, fr *api.FindRequest,
 	opts ...grpc.CallOption) (*api.FindResponse, error) {
 	return &api.FindResponse{
 		RequestId: fr.RequestId,
@@ -200,58 +172,69 @@ func (f *fixedFinder) Find(ctx context.Context, client api.LibrarianClient, fr *
 	}, nil
 }
 
-func TestFindQuerier_ok(t *testing.T) {
+func TestSearcher_query_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-
-	// create placeholder api.PeerAddresses for our mocked api.Find response
 	nAddresses := 8
+	search := NewSearch(cid.NewPseudoRandom(rng), &Parameters{
+		NClosestResponses: uint(nAddresses),
+		Timeout:           DefaultQueryTimeout,
+	})
+	s := &searcher{
+		// use querier that returns fixed set of addresses
+		q:  &fixedQuerier{addresses: newPeerAddresses(rng, nAddresses)},
+		rp: nil,
+	}
+	client := peer.NewConnector(nil) // won't actually be uses since we're mocking the finder
 
-	// mock actual findPeers function to just return the peers we created above
-	finder := &fixedFinder{addresses: newPeerAddresses(rng, nAddresses)}
-
-	// querier that doesn't actually issue an api.FindPeers request, instead
-	q := NewQuerier(NewParameters(), finder)
-	c := &testClient{}
-
-	rp, err := q.Query(c, cid.NewPseudoRandom(rng))
+	rp, err := s.query(client, search)
 	assert.Nil(t, err)
 	assert.NotNil(t, rp.RequestId)
 	assert.Equal(t, nAddresses, len(rp.Addresses))
 	assert.Nil(t, rp.Value)
 }
 
-// timeoutFinder returns an error simulating a request timeout
-type timeoutFinder struct{}
+// timeoutQuerier returns an error simulating a request timeout
+type timeoutQuerier struct{}
 
-func (f *timeoutFinder) Find(ctx context.Context, client api.LibrarianClient, fr *api.FindRequest,
+func (f *timeoutQuerier) Query(ctx context.Context, pConn peer.Connector, fr *api.FindRequest,
 	opts ...grpc.CallOption) (*api.FindResponse, error) {
 	return nil, errors.New("simulated timeout error")
 }
 
 // diffRequestIDFinder returns a response with a different request ID
-type diffRequestIDFinder struct {
+type diffRequestIDQuerier struct {
 	rng *rand.Rand
 }
 
-func (f *diffRequestIDFinder) Find(ctx context.Context, client api.LibrarianClient,
+func (f *diffRequestIDQuerier) Query(ctx context.Context, pConn peer.Connector,
 	fr *api.FindRequest, opts ...grpc.CallOption) (*api.FindResponse, error) {
 	return &api.FindResponse{
 		RequestId: cid.NewPseudoRandom(f.rng).Bytes(),
 	}, nil
 }
 
-func TestFindQuerier_err(t *testing.T) {
+func TestSearcher_query_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	c := &testClient{}
+	client := peer.NewConnector(nil) // won't actually be used since we're mocking the finder
+	search := NewSearch(cid.NewPseudoRandom(rng), &Parameters{
+		Timeout: DefaultQueryTimeout,
+	})
 
-	// check that the Find error propagates up to query
-	q1 := NewQuerier(NewParameters(), &timeoutFinder{})
-	rp1, err := q1.Query(c, cid.NewPseudoRandom(rng))
+	s1 := &searcher{
+		// use querier that simulates a timeout
+		q:  &timeoutQuerier{},
+		rp: nil,
+	}
+	rp1, err := s1.query(client, search)
 	assert.Nil(t, rp1)
 	assert.NotNil(t, err)
 
-	q2 := NewQuerier(NewParameters(), &diffRequestIDFinder{rng})
-	rp2, err := q2.Query(c, cid.NewPseudoRandom(rng))
+	s2 := &searcher{
+		// use querier that simulates a timeout
+		q:  &diffRequestIDQuerier{rng: rng},
+		rp: nil,
+	}
+	rp2, err := s2.query(client, search)
 	assert.Nil(t, rp2)
 	assert.NotNil(t, err)
 }
@@ -275,7 +258,7 @@ func TestResponseProcessor_Process_Value(t *testing.T) {
 	err := rp.Process(response2, result)
 	assert.Nil(t, err)
 	assert.Equal(t, prevUnqueriedLength, result.unqueried.Len())
-	assert.Equal(t, value, result.value)
+	assert.Equal(t, value, result.Value)
 }
 
 func TestResponseProcessor_Process_Addresses(t *testing.T) {
@@ -311,7 +294,7 @@ func TestResponseProcessor_Process_Addresses(t *testing.T) {
 	peerAddresses2 := newPeerAddresses(rng, nAddresses2)
 	peerFromer := peer.NewFromer()
 	for _, pa := range peerAddresses2 {
-		err = result.closest.SafePush(peerFromer.FromAPI(pa))
+		err = result.Closest.SafePush(peerFromer.FromAPI(pa))
 		assert.Nil(t, err)
 	}
 
@@ -324,7 +307,7 @@ func TestResponseProcessor_Process_Addresses(t *testing.T) {
 	err = rp.Process(response2, result)
 	assert.Nil(t, err)
 	assert.Equal(t, nAddresses1, result.unqueried.Len())
-	assert.Equal(t, nAddresses2, result.closest.Len())
+	assert.Equal(t, nAddresses2, result.Closest.Len())
 }
 
 func TestResponseProcessor_Process_err(t *testing.T) {

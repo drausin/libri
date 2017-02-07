@@ -20,7 +20,7 @@ type ResponseRecorder interface {
 }
 
 // ResponseStats describes metrics associated with a peer's communication history.
-type responseStats struct {
+type responseRecorder struct {
 	// earliest response time from the peer
 	earliest time.Time
 
@@ -35,7 +35,7 @@ type responseStats struct {
 }
 
 func newResponseStats() ResponseRecorder {
-	return &responseStats{
+	return &responseRecorder{
 		earliest: time.Unix(0, 0),
 		latest:   time.Unix(0, 0),
 		nQueries: 0,
@@ -43,16 +43,16 @@ func newResponseStats() ResponseRecorder {
 	}
 }
 
-func (rs *responseStats) Success() {
+func (rs *responseRecorder) Success() {
 	rs.recordResponse()
 }
 
-func (rs *responseStats) Error() {
+func (rs *responseRecorder) Error() {
 	rs.nErrors++
 	rs.recordResponse()
 }
 
-func (rs *responseStats) ToStored() *storage.Responses {
+func (rs *responseRecorder) ToStored() *storage.Responses {
 	return &storage.Responses{
 		Earliest: rs.earliest.Unix(),
 		Latest:   rs.latest.Unix(),
@@ -62,7 +62,7 @@ func (rs *responseStats) ToStored() *storage.Responses {
 }
 
 // recordsResponse records any response from the peer.
-func (rs *responseStats) recordResponse() {
+func (rs *responseRecorder) recordResponse() {
 	rs.nQueries++
 	rs.latest = time.Now().UTC()
 	if rs.earliest.Unix() == 0 {
