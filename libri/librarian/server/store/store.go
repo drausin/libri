@@ -88,7 +88,7 @@ type Store struct {
 }
 
 // NewSearch creates a new Store instance for a given target, search type, and search parameters.
-func NewStore(params *Parameters, search *search.Search, value []byte) *Store {
+func NewStore(search *search.Search, value []byte, params *Parameters) *Store {
 	return &Store{
 		Request: api.NewStoreRequest(search.Key, value),
 		Search:  search,
