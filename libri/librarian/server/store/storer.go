@@ -57,7 +57,9 @@ func (s *storer) Store(store *Store, seeds []peer.Peer) error {
 
 func (s *storer) storeWork(store *Store, wg *sync.WaitGroup) {
 	defer wg.Done()
-	for !store.Finished() {
+	// work is finished when either the store is finished or we have no more unqueried peers
+	// (but the final, remaining queried peers may not have responded yet)
+	for !store.Finished() && len(store.Result.Unqueried) > 0 {
 
 		// get next peer to query
 		store.mu.Lock()

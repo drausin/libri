@@ -21,7 +21,7 @@ cov:
 
 test:
 	@echo "--> Running go test"
-	@go test ./... --cover
+	@go test -race ./... --cover
 
 fix:
 	@echo "--> Running goimports"

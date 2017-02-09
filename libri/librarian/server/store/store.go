@@ -108,5 +108,7 @@ func (s *Store) Errored() bool {
 }
 
 func (s *Store) Finished() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return s.Stored() || s.Errored()
 }
