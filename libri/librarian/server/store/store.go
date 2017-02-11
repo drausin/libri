@@ -64,6 +64,7 @@ func NewInitialResult(sr *search.Result) *Result {
 	}
 }
 
+// Store contains things involved in storing a particular key/value pair.
 type Store struct {
 	// request used when querying peers
 	Request *api.StoreRequest
@@ -87,7 +88,7 @@ type Store struct {
 	mu sync.Mutex
 }
 
-// NewSearch creates a new Store instance for a given target, search type, and search parameters.
+// NewStore creates a new Store instance for a given target, search type, and search parameters.
 func NewStore(search *search.Search, value []byte, params *Parameters) *Store {
 	return &Store{
 		Request: api.NewStoreRequest(search.Key, value),
@@ -102,13 +103,19 @@ func (s *Store) Stored() bool {
 	return uint(len(s.Result.Responded))+s.NErrors == s.Search.Params.NClosestResponses
 }
 
+// Exists returns whether the value already exists (and the search has found it).
+func (s *Store) Exists() bool {
+	return s.Search.Result.Value != nil
+}
+
 // Errored returns whether the store has encountered too many errors when querying the peers.
 func (s *Store) Errored() bool {
 	return s.NErrors >= s.Params.NMaxErrors || s.FatalErr != nil
 }
 
+// Finished returns whether the store operation has finished.
 func (s *Store) Finished() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.Stored() || s.Errored()
+	return s.Stored() || s.Errored() || s.Exists()
 }

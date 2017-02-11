@@ -13,6 +13,9 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/storage"
 	"github.com/stretchr/testify/assert"
+	"github.com/drausin/libri/libri/librarian/server/search"
+	"github.com/drausin/libri/libri/librarian/server/peer"
+	"github.com/pkg/errors"
 )
 
 // TestNewLibrarian checks that we can create a new instance, close it, and create it again as
@@ -218,24 +221,158 @@ func TestLibrarian_Store(t *testing.T) {
 	}
 
 	// create key-value
-	nValueBytes := 1014
-	value := make([]byte, nValueBytes)
-	nRead, err := rand.Read(value)
-	assert.Equal(t, nValueBytes, nRead)
-	assert.Nil(t, err)
-	key := sha256.Sum256(value)
+	key, value := newKeyValue(t, rng, 512)
 
 	// make store request
 	rq := &api.StoreRequest{
 		RequestId: cid.NewPseudoRandom(rng).Bytes(),
-		Key:       key[:],
+		Key:       key.Bytes(),
 		Value:     value,
 	}
 	rp, err := l.Store(nil, rq)
 	assert.Nil(t, err)
 	assert.NotNil(t, rp)
 
-	stored, err := l.entriesSL.Load(key[:])
+	stored, err := l.entriesSL.Load(key.Bytes())
 	assert.Nil(t, err)
 	assert.True(t, bytes.Equal(value, stored))
+}
+
+func newKeyValue(t *testing.T, rng *rand.Rand, nValueBytes int) (cid.ID, []byte) {
+	value := make([]byte, nValueBytes)
+	nRead, err := rng.Read(value)
+	assert.Equal(t, nValueBytes, nRead)
+	assert.Nil(t, err)
+	key := sha256.Sum256(value)
+	return cid.FromBytes(key[:]), value
+}
+
+type fixedSearcher struct {
+	result *search.Result
+	err error
+}
+
+func (s *fixedSearcher) Search(search *search.Search, seeds []peer.Peer) error {
+	if s.err != nil {
+		return s.err
+	}
+	search.Result = s.result
+	return nil
+}
+
+func TestLibrarian_Get_FoundValue(t *testing.T) {
+	rng := rand.New(rand.NewSource(int64(0)))
+	key, value := newKeyValue(t, rng, 512)
+
+	// create mock search result where the value has been found
+	searchParams := search.NewParameters()
+	foundValueResult := search.NewInitialResult(key, searchParams)
+	foundValueResult.Value = value
+
+	// create librarian
+	n := 8
+	rt := routing.NewTestWithPeers(rng, n)
+	l := &Librarian{
+		PeerID:    rt.SelfID(),
+		rt:        rt,
+		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
+		searcher: &fixedSearcher{
+			result: foundValueResult,
+		},
+	}
+
+	rq := api.NewGetRequest(key)
+
+	// since fixedSearcher returns fixed value, should get that back in response
+	rp, err := l.Get(nil, rq)
+	assert.Nil(t, err)
+	assert.Equal(t, value, rp.Value)
+}
+
+func TestLibrarian_Get_FoundClosestPeers(t *testing.T) {
+	rng := rand.New(rand.NewSource(int64(0)))
+	key := cid.NewPseudoRandom(rng)
+
+	// create mock search result to return FoundClosestPeers() == true
+	searchParams := search.NewParameters()
+	foundClosestPeersResult := search.NewInitialResult(key, searchParams)
+	dummyClosest := peer.NewTestPeers(rng, int(searchParams.NClosestResponses))
+	foundClosestPeersResult.Closest.SafePushMany(dummyClosest)
+
+	// create librarian
+	n := 8
+	rt := routing.NewTestWithPeers(rng, n)
+	l := &Librarian{
+		PeerID:    rt.SelfID(),
+		rt:        rt,
+		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
+		searcher: &fixedSearcher{
+			result: foundClosestPeersResult,
+		},
+	}
+
+	rq := api.NewGetRequest(key)
+
+	// since fixedSearcher returns a Search value where FoundClosestPeers() is true, shouldn't
+	// have any Value
+	rp, err := l.Get(nil, rq)
+	assert.Nil(t, err)
+	assert.Nil(t, rp.Value)
+}
+
+func TestLibrarian_Get_Errored(t *testing.T) {
+	rng := rand.New(rand.NewSource(int64(0)))
+	key := cid.NewPseudoRandom(rng)
+
+	// create mock search result with fatal error, making Errored() true
+	searchParams := search.NewParameters()
+	fatalErrorResult := search.NewInitialResult(key, searchParams)
+	fatalErrorResult.FatalErr = errors.New("some fatal error")
+
+	// create librarian
+	n := 8
+	rt := routing.NewTestWithPeers(rng, n)
+	l := &Librarian{
+		PeerID:    rt.SelfID(),
+		rt:        rt,
+		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
+		searcher: &fixedSearcher{
+			result: fatalErrorResult,
+		},
+	}
+
+	rq := api.NewGetRequest(key)
+
+	// since we have a fatal search error, Get() should also return an error
+	rp, err := l.Get(nil, rq)
+	assert.NotNil(t, err)
+	assert.Nil(t, rp)
+}
+
+func TestLibrarian_Get_Exhausted(t *testing.T) {
+	rng := rand.New(rand.NewSource(int64(0)))
+	key := cid.NewPseudoRandom(rng)
+
+	// create mock search result with Exhausted() true
+	searchParams := search.NewParameters()
+	exhaustedResult := search.NewInitialResult(key, searchParams)
+
+	// create librarian
+	n := 8
+	rt := routing.NewTestWithPeers(rng, n)
+	l := &Librarian{
+		PeerID:    rt.SelfID(),
+		rt:        rt,
+		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
+		searcher: &fixedSearcher{
+			result: exhaustedResult,
+		},
+	}
+
+	rq := api.NewGetRequest(key)
+
+	// since we have a fatal search error, Get() should also return an error
+	rp, err := l.Get(nil, rq)
+	assert.NotNil(t, err)
+	assert.Nil(t, rp)
 }

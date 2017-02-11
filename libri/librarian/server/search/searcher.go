@@ -22,29 +22,29 @@ type Searcher interface {
 
 type searcher struct {
 	// issues find queries to the peers
-	q FindQuerier
+	q  Querier
 
 	// processes the find query responses from the peers
 	rp FindResponseProcessor
 }
 
 // NewSearcher returns a new Searcher with the given Querier and ResponseProcessor.
-func NewSearcher(q FindQuerier, rp FindResponseProcessor) Searcher {
+func NewSearcher(q Querier, rp FindResponseProcessor) Searcher {
 	return &searcher{q: q, rp: rp}
 }
 
 // NewDefaultSearcher creates a new Searcher with default sub-object instantiations.
 func NewDefaultSearcher() Searcher {
 	return NewSearcher(
-		NewFindQuerier(),
+		NewQuerier(),
 		NewResponseProcessor(peer.NewFromer()),
 	)
 }
 
 func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
-	if err := search.Result.unqueried.SafePushMany(seeds); err != nil {
-		search.FatalErr = err
-		return search.FatalErr
+	if err := search.Result.Unqueried.SafePushMany(seeds); err != nil {
+		search.Result.FatalErr = err
+		return search.Result.FatalErr
 	}
 
 	var wg sync.WaitGroup
@@ -54,7 +54,7 @@ func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
 	}
 	wg.Wait()
 
-	return search.FatalErr
+	return search.Result.FatalErr
 }
 
 func (s *searcher) searchWork(search *Search, wg *sync.WaitGroup) {
@@ -63,7 +63,7 @@ func (s *searcher) searchWork(search *Search, wg *sync.WaitGroup) {
 
 		// get next peer to query
 		search.mu.Lock()
-		next := heap.Pop(search.Result.unqueried).(peer.Peer)
+		next := heap.Pop(search.Result.Unqueried).(peer.Peer)
 		search.mu.Unlock()
 		if _, err := next.Connector().Connect(); err != nil {
 			// if we have issues connecting, skip to next peer
@@ -75,7 +75,7 @@ func (s *searcher) searchWork(search *Search, wg *sync.WaitGroup) {
 		if err != nil {
 			// if we had an issue querying, skip to next peer
 			search.mu.Lock()
-			search.NErrors++
+			search.Result.NErrors++
 			next.Responses().Error()
 			search.mu.Unlock()
 			continue
@@ -90,7 +90,7 @@ func (s *searcher) searchWork(search *Search, wg *sync.WaitGroup) {
 		search.mu.Unlock()
 		if err != nil {
 			search.mu.Lock()
-			search.FatalErr = err
+			search.Result.FatalErr = err
 			search.mu.Unlock()
 			return
 		}
@@ -101,15 +101,15 @@ func (s *searcher) searchWork(search *Search, wg *sync.WaitGroup) {
 		search.mu.Unlock()
 		if err != nil {
 			search.mu.Lock()
-			search.FatalErr = err
+			search.Result.FatalErr = err
 			search.mu.Unlock()
 			return
 		}
 
 		// add next peer to set of peers that responded
 		search.mu.Lock()
-		if _, in := search.Result.responded[next.ID().String()]; !in {
-			search.Result.responded[next.ID().String()] = next
+		if _, in := search.Result.Responded[next.ID().String()]; !in {
+			search.Result.Responded[next.ID().String()] = next
 		}
 		search.mu.Unlock()
 	}
@@ -132,21 +132,21 @@ func (s *searcher) query(pConn peer.Connector, search *Search) (*api.FindRespons
 }
 
 // Querier handles Find queries to a peer.
-type FindQuerier interface {
+type Querier interface {
 	// Query uses a peer connection to query for a particular key with an api.FindRequest and
 	// returns its response.
 	Query(ctx context.Context, pConn peer.Connector, rq *api.FindRequest,
 		opts ...grpc.CallOption) (*api.FindResponse, error)
 }
 
-type findQuerier struct{}
+type querier struct{}
 
 // NewQuerier creates a new FindQuerier instance for FindPeers queries.
-func NewFindQuerier() FindQuerier {
-	return &findQuerier{}
+func NewQuerier() Querier {
+	return &querier{}
 }
 
-func (q *findQuerier) Query(ctx context.Context, pConn peer.Connector, rq *api.FindRequest,
+func (q *querier) Query(ctx context.Context, pConn peer.Connector, rq *api.FindRequest,
 	opts ...grpc.CallOption) (*api.FindResponse, error) {
 	client, err := pConn.Connect() // *should* be already connected, but do here just in case
 	if err != nil {
@@ -183,10 +183,10 @@ func (frp *findResponseProcessor) Process(rp *api.FindResponse, result *Result) 
 		// response has peer addresses close to key
 		for _, pa := range rp.Addresses {
 			newID := cid.FromBytes(pa.PeerId)
-			if !result.Closest.In(newID) && !result.unqueried.In(newID) {
+			if !result.Closest.In(newID) && !result.Unqueried.In(newID) {
 				// only add discovered peers that we haven't already seen
 				newPeer := frp.peerFromer.FromAPI(pa)
-				if err := result.unqueried.SafePush(newPeer); err != nil {
+				if err := result.Unqueried.SafePush(newPeer); err != nil {
 					return err
 				}
 			}

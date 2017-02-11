@@ -12,29 +12,34 @@ import (
 	"google.golang.org/grpc"
 )
 
+// Storer executes store operations.
 type Storer interface {
+	// Store executes a store operation, starting with a given set of seed peers.
 	Store(store *Store, seeds []peer.Peer) error
 }
+
 
 type storer struct {
 	// searcher is used for the first search half of the store operation
 	searcher search.Searcher
 
 	// issues store queries to the peers
-	q StoreQuerier
+	q        Querier
 }
 
-func NewStorer(searcher search.Searcher, q StoreQuerier) Storer {
+// NewStorer creates a new Storer instance with given Searcher and StoreQuerier instances.
+func NewStorer(searcher search.Searcher, q Querier) Storer {
 	return &storer{
 		searcher: searcher,
 		q:        q,
 	}
 }
 
+// NewDefaultStorer creates a new Storer with default Searcher and StoreQuerier instances.
 func NewDefaultStorer() Storer {
 	return NewStorer(
 		search.NewDefaultSearcher(),
-		NewStoreQuerier(),
+		NewQuerier(),
 	)
 }
 
@@ -106,21 +111,21 @@ func (s *storer) query(pConn peer.Connector, store *Store) (*api.StoreResponse, 
 	return rp, nil
 }
 
-// StoreQuerier handle Store queries to a peer
-type StoreQuerier interface {
+// Querier handle Store queries to a peer
+type Querier interface {
 	// Query uses a peer connection to make a store request.
 	Query(ctx context.Context, pConn peer.Connector, rq *api.StoreRequest,
 		opts ...grpc.CallOption) (*api.StoreResponse, error)
 }
 
-type storeQuerier struct{}
+type querier struct{}
 
 // NewQuerier creates a new Querier instance for Store queries.
-func NewStoreQuerier() StoreQuerier {
-	return &storeQuerier{}
+func NewQuerier() Querier {
+	return &querier{}
 }
 
-func (q *storeQuerier) Query(ctx context.Context, pConn peer.Connector, rq *api.StoreRequest,
+func (q *querier) Query(ctx context.Context, pConn peer.Connector, rq *api.StoreRequest,
 	opts ...grpc.CallOption) (*api.StoreResponse, error) {
 	client, err := pConn.Connect() // *should* be already connected, but do here just in case
 	if err != nil {

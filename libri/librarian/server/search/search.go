@@ -58,10 +58,16 @@ type Result struct {
 	Closest FarthestPeers
 
 	// heap of peers that were not yet queried before search ended
-	unqueried ClosestPeers
+	Unqueried ClosestPeers
 
 	// map of all peers that responded during search
-	responded map[string]peer.Peer
+	Responded map[string]peer.Peer
+
+	// number of errors encounters while querying peers
+	NErrors uint
+
+	// fatal error that occurred during the search
+	FatalErr error
 }
 
 // NewInitialResult creates a new Result object for the beginning of a search.
@@ -69,8 +75,9 @@ func NewInitialResult(key cid.ID, params *Parameters) *Result {
 	return &Result{
 		Value:     nil,
 		Closest:   newFarthestPeers(key, params.NClosestResponses),
-		unqueried: newClosestPeers(key, params.NClosestResponses),
-		responded: make(map[string]peer.Peer),
+		Unqueried: newClosestPeers(key, params.NClosestResponses),
+		Responded: make(map[string]peer.Peer),
+		NErrors:   0,
 	}
 }
 
@@ -88,12 +95,6 @@ type Search struct {
 	// parameters defining the search
 	Params *Parameters
 
-	// number of errors encounters while querying peers
-	NErrors uint
-
-	// fatal error that occurred during the search
-	FatalErr error
-
 	// mutex used to synchronizes reads and writes to this instance
 	mu sync.Mutex
 }
@@ -105,7 +106,6 @@ func NewSearch(key cid.ID, params *Parameters) *Search {
 		Request: api.NewFindRequest(key, params.NClosestResponses),
 		Result:  NewInitialResult(key, params),
 		Params:  params,
-		NErrors: 0,
 	}
 }
 
@@ -113,7 +113,7 @@ func NewSearch(key cid.ID, params *Parameters) *Search {
 // occurs when it has received responses from the required number of peers, and the max distance of
 // those peers to the target is less than the min distance of the peers we haven't queried yet.
 func (s *Search) FoundClosestPeers() bool {
-	if s.Result.unqueried.Len() == 0 {
+	if s.Result.Unqueried.Len() == 0 {
 		// if we have no unqueried peers, just make sure closest peers heap is full
 		return uint(s.Result.Closest.Len()) == s.Params.NClosestResponses
 	}
@@ -121,7 +121,7 @@ func (s *Search) FoundClosestPeers() bool {
 	// closest peers heap should be full and have a max distance less than the min unqueried
 	// distance
 	return uint(s.Result.Closest.Len()) == s.Params.NClosestResponses &&
-		s.Result.Closest.PeakDistance().Cmp(s.Result.unqueried.PeakDistance()) <= 0
+		s.Result.Closest.PeakDistance().Cmp(s.Result.Unqueried.PeakDistance()) <= 0
 }
 
 // FoundValue returns whether the search has found the target value.
@@ -131,12 +131,12 @@ func (s *Search) FoundValue() bool {
 
 // Errored returns whether the search has encountered too many errors when querying the peers.
 func (s *Search) Errored() bool {
-	return s.NErrors >= s.Params.NMaxErrors || s.FatalErr != nil
+	return s.Result.NErrors >= s.Params.NMaxErrors || s.Result.FatalErr != nil
 }
 
 // Exhausted returns whether the search has exhausted all unqueried peers close to the target.
 func (s *Search) Exhausted() bool {
-	return s.Result.unqueried.Len() == 0
+	return s.Result.Unqueried.Len() == 0
 }
 
 // Finished returns whether the search has finished, either because it has found the target or

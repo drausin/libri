@@ -10,6 +10,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/storage"
+	"github.com/drausin/libri/libri/librarian/server/store"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
@@ -26,8 +27,11 @@ type Librarian struct {
 	// Config holds the configuration parameters of the server
 	Config *Config
 
-	// searcher executes searches for peers and keys
+	// executes searches for peers and keys
 	searcher search.Searcher
+
+	// executes stores for key/value
+	storer store.Storer
 
 	// db is the key-value store DB used for all external storage
 	db db.KVDB
@@ -67,10 +71,13 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 		return nil, err
 	}
 
+	searcher := search.NewDefaultSearcher()
+
 	return &Librarian{
 		PeerID:    peerID,
 		Config:    config,
-		searcher:  search.NewDefaultSearcher(),
+		searcher:  searcher,
+		storer:    store.NewStorer(searcher, store.NewQuerier()),
 		db:        rdb,
 		serverSL:  serverSL,
 		entriesSL: entriesSL,
@@ -229,26 +236,38 @@ func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetRespon
 	return nil, errors.New("unexpected search result")
 }
 
+// Put stores a given key and value. This endpoint handles the internals of finding the right
+// peers to store the value in and then sending them store requests.
 func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutResponse, error) {
 	if err := l.kc.Check(rq.Key); err != nil {
 		return nil, err
 	}
 	key := cid.FromBytes(rq.Key)
-	s := search.NewSearch(key, search.NewParameters())
-	seeds := l.rt.Peak(key, s.Params.Concurrency)
-	err := l.searcher.Search(s, seeds)
+	s := store.NewStore(
+		search.NewSearch(key, search.NewParameters()),
+		rq.Value,
+		store.NewParameters(),
+	)
+	seeds := l.rt.Peak(key, s.Search.Params.Concurrency)
+	err := l.storer.Store(s, seeds)
 	if err != nil {
 		return nil, err
 	}
-	if s.FoundValue() {
-		// value already exists, so no need to add it again
+	if s.Finished() {
+		operation := api.PutOperation_ADDED
+		if s.Exists() {
+			operation = api.PutOperation_LEFT_EXISTING
+		}
 		return &api.PutResponse{
 			RequestId: rq.RequestId,
-			Operation: api.PutOperation_LEFT_EXISTING,
+			Operation: operation,
+			NReplicas: uint32(len(s.Result.Responded)),
 		}, nil
 	}
-	if s.FoundClosestPeers() {
+	if s.Errored() {
+		// TODO (drausin) better collect and surface errors from queries
+		return nil, errors.New("received error during search or store operations")
 	}
 
-	return nil, errors.New("unexpected search result")
+	return nil, errors.New("unexpected store result")
 }

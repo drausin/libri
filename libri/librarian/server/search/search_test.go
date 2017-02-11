@@ -28,7 +28,7 @@ func TestSearch_FoundClosestPeers(t *testing.T) {
 	assert.False(t, search.FoundClosestPeers())
 
 	// add an unqueried peer farther than the farthest closest peer
-	err = search.Result.unqueried.SafePush(peer.New(cid.FromInt64(5), "", nil))
+	err = search.Result.Unqueried.SafePush(peer.New(cid.FromInt64(5), "", nil))
 	assert.Nil(t, err)
 
 	// still haven't found closest peers b/c closest heap not at capacity
@@ -82,13 +82,13 @@ func TestSearch_Exhausted(t *testing.T) {
 
 	// not exhausted b/c it has unqueried peers
 	search1 := NewSearch(target, NewParameters())
-	err := search1.Result.unqueried.SafePush(peer.New(cid.FromInt64(1), "", nil))
+	err := search1.Result.Unqueried.SafePush(peer.New(cid.FromInt64(1), "", nil))
 	assert.Nil(t, err)
 	assert.False(t, search1.Exhausted())
 
 	// exhausted b/c it doesn't have unqueried peers
 	search2 := NewSearch(target, NewParameters())
-	err = search2.Result.unqueried.SafePush(peer.New(cid.FromInt64(1), "", nil))
+	err = search2.Result.Unqueried.SafePush(peer.New(cid.FromInt64(1), "", nil))
 	assert.Nil(t, err)
 	assert.False(t, search1.Exhausted())
 }

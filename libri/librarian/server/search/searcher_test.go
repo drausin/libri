@@ -51,7 +51,7 @@ func TestSearcher_Search(t *testing.T) {
 		assert.False(t, search.Exhausted())
 		assert.Equal(t, uint(0), search.NErrors)
 		assert.Equal(t, int(nClosestResponses), search.Result.Closest.Len())
-		assert.True(t, search.Result.Closest.Len() <= len(search.Result.responded))
+		assert.True(t, search.Result.Closest.Len() <= len(search.Result.Responded))
 
 		// build set of closest peers by iteratively looking at all of them
 		expectedClosestsPeers := make(map[string]struct{})
@@ -168,10 +168,10 @@ func TestResponseProcessor_Process_Value(t *testing.T) {
 	}
 
 	// check that the result value is set
-	prevUnqueriedLength := result.unqueried.Len()
+	prevUnqueriedLength := result.Unqueried.Len()
 	err := rp.Process(response2, result)
 	assert.Nil(t, err)
-	assert.Equal(t, prevUnqueriedLength, result.unqueried.Len())
+	assert.Equal(t, prevUnqueriedLength, result.Unqueried.Len())
 	assert.Equal(t, value, result.Value)
 }
 
@@ -196,12 +196,12 @@ func TestResponseProcessor_Process_Addresses(t *testing.T) {
 	assert.Nil(t, err)
 
 	// check that all responses have gone into the unqueried heap
-	assert.Equal(t, nAddresses1, result.unqueried.Len())
+	assert.Equal(t, nAddresses1, result.Unqueried.Len())
 
 	// process same response as before and check that the length of unqueried hasn't changed
 	err = rp.Process(response1, result)
 	assert.Nil(t, err)
-	assert.Equal(t, nAddresses1, result.unqueried.Len())
+	assert.Equal(t, nAddresses1, result.Unqueried.Len())
 
 	// create new peers and add them to the closest heap (as if we'd already heard from them)
 	nAddresses2 := 3
@@ -220,7 +220,7 @@ func TestResponseProcessor_Process_Addresses(t *testing.T) {
 	}
 	err = rp.Process(response2, result)
 	assert.Nil(t, err)
-	assert.Equal(t, nAddresses1, result.unqueried.Len())
+	assert.Equal(t, nAddresses1, result.Unqueried.Len())
 	assert.Equal(t, nAddresses2, result.Closest.Len())
 }
 

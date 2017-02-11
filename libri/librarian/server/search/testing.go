@@ -12,16 +12,18 @@ import (
 )
 
 
-// testConnector mocks the peer.Connector interface. The Connect() method returns a fixed client
+// TestConnector mocks the peer.Connector interface. The Connect() method returns a fixed client
 // instead of creating one from the peer's address.
 type TestConnector struct {
 	addresses []*api.PeerAddress
 }
 
+// Connect is a no-op stub to satisfy the interface's signature.
 func (c *TestConnector) Connect() (api.LibrarianClient, error) {
 	return nil, nil
 }
 
+// Disconnect is a no-op stub to satisfy the interface's signature.
 func (c *TestConnector) Disconnect() error {
 	return nil
 }
@@ -31,6 +33,8 @@ func (c *TestConnector) Disconnect() error {
 // api.FindPeersResponse, derived from a list of addresses in the client.
 type TestFindQuerier struct {}
 
+// Query mocks a real query to a peer, returning a fixed list of addresses stored in the
+// TestConnector mock of the pConn peer.Connector.
 func (c *TestFindQuerier) Query(ctx context.Context, pConn peer.Connector, rq *api.FindRequest,
 	opts ...grpc.CallOption) (*api.FindResponse, error) {
 	return &api.FindResponse{
@@ -47,6 +51,8 @@ type TestFromer struct {
 	peers map[string]peer.Peer
 }
 
+// FromAPI mocks creating a new peer.Peer instance, instead looking up an existing peer stored
+// in the TestFromer instance.
 func (f *TestFromer) FromAPI(apiAddress *api.PeerAddress) peer.Peer {
 	return f.peers[cid.FromBytes(apiAddress.PeerId).String()]
 }
