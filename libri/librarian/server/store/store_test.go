@@ -61,9 +61,12 @@ func TestStore_Errored(t *testing.T) {
 	})
 
 	// create new store
+	searchResult := ssearch.NewInitialResult(key, &ssearch.Parameters{
+		NMaxErrors: 3,
+	})
 	s := &Store{
 		Params: &Parameters{NMaxErrors: 3},
-		Result: &Result{Responded: make([]peer.Peer, 0)},
+		Result: NewInitialResult(searchResult),
 		Search: search,
 	}
 
