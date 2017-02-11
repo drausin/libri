@@ -138,7 +138,7 @@ message PutResponse {
 
 enum PutOperation {
     // new value was added
-    ADDED = 0;
+    STORED = 0;
 
     // value already existed
     LEFT_EXISTING = 1;

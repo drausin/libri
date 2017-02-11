@@ -63,17 +63,17 @@ func TestSearch_Errored(t *testing.T) {
 
 	// no-error state
 	search1 := NewSearch(target, NewParameters())
-	search1.NErrors, search1.FatalErr = 0, nil
+	search1.Result.NErrors, search1.Result.FatalErr = 0, nil
 	assert.False(t, search1.Errored())
 
 	// errored state b/c of too many errors
 	search2 := NewSearch(target, NewParameters())
-	search2.NErrors = search2.Params.NMaxErrors
+	search2.Result.NErrors = search2.Params.NMaxErrors
 	assert.True(t, search2.Errored())
 
 	// errored state b/c of a fatal error
 	search3 := NewSearch(target, NewParameters())
-	search3.FatalErr = errors.New("test fatal error")
+	search3.Result.FatalErr = errors.New("test fatal error")
 	assert.True(t, search3.Errored())
 }
 

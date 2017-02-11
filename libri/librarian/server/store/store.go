@@ -52,6 +52,12 @@ type Result struct {
 
 	// result of search used in first part of store operation
 	Search *search.Result
+
+	// number of errors encounters while querying peers
+	NErrors uint
+
+	// fatal error that occurred during the search
+	FatalErr error
 }
 
 // NewInitialResult creates a new Result object from the final search result.
@@ -61,6 +67,7 @@ func NewInitialResult(sr *search.Result) *Result {
 		Unqueried: sr.Closest.ToSlice(),
 		Responded: make([]peer.Peer, 0, sr.Closest.Len()),
 		Search:    sr,
+		NErrors:   0,
 	}
 }
 
@@ -78,12 +85,6 @@ type Store struct {
 	// parameters defining the store part of the operation
 	Params *Parameters
 
-	// number of errors encounters while querying peers
-	NErrors uint
-
-	// fatal error that occurred during the search
-	FatalErr error
-
 	// mutex used to synchronizes reads and writes to this instance
 	mu sync.Mutex
 }
@@ -94,23 +95,22 @@ func NewStore(search *search.Search, value []byte, params *Parameters) *Store {
 		Request: api.NewStoreRequest(search.Key, value),
 		Search:  search,
 		Params:  params,
-		NErrors: 0,
 	}
 }
 
 // Stored returns whether the store has stored sufficient replicas.
 func (s *Store) Stored() bool {
-	return uint(len(s.Result.Responded))+s.NErrors == s.Search.Params.NClosestResponses
+	return uint(len(s.Result.Responded))+s.Result.NErrors == s.Search.Params.NClosestResponses
 }
 
 // Exists returns whether the value already exists (and the search has found it).
 func (s *Store) Exists() bool {
-	return s.Search.Result.Value != nil
+	return s.Result.Search.Value != nil
 }
 
 // Errored returns whether the store has encountered too many errors when querying the peers.
 func (s *Store) Errored() bool {
-	return s.NErrors >= s.Params.NMaxErrors || s.FatalErr != nil
+	return s.Result.NErrors >= s.Params.NMaxErrors || s.Result.FatalErr != nil
 }
 
 // Finished returns whether the store operation has finished.

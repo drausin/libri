@@ -22,7 +22,7 @@ type Searcher interface {
 
 type searcher struct {
 	// issues find queries to the peers
-	q  Querier
+	q Querier
 
 	// processes the find query responses from the peers
 	rp FindResponseProcessor

@@ -26,7 +26,7 @@ func NewStoreRequest(key cid.ID, value []byte) *StoreRequest {
 func NewGetRequest(key cid.ID) *GetRequest {
 	return &GetRequest{
 		RequestId: cid.NewRandom().Bytes(),
-		Key: key.Bytes(),
+		Key:       key.Bytes(),
 	}
 }
 
@@ -34,7 +34,7 @@ func NewGetRequest(key cid.ID) *GetRequest {
 func NewPutRequest(key cid.ID, value []byte) *PutRequest {
 	return &PutRequest{
 		RequestId: cid.NewRandom().Bytes(),
-		Key: key.Bytes(),
-		Value: value,
+		Key:       key.Bytes(),
+		Value:     value,
 	}
 }

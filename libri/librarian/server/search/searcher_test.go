@@ -49,7 +49,7 @@ func TestSearcher_Search(t *testing.T) {
 		assert.True(t, search.FoundClosestPeers())
 		assert.False(t, search.Errored())
 		assert.False(t, search.Exhausted())
-		assert.Equal(t, uint(0), search.NErrors)
+		assert.Equal(t, uint(0), search.Result.NErrors)
 		assert.Equal(t, int(nClosestResponses), search.Result.Closest.Len())
 		assert.True(t, search.Result.Closest.Len() <= len(search.Result.Responded))
 

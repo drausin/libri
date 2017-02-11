@@ -1,20 +1,21 @@
 package store
 
 import (
-	"testing"
-	"github.com/drausin/libri/libri/librarian/api"
-	"google.golang.org/grpc"
-	"github.com/drausin/libri/libri/librarian/server/peer"
-	"golang.org/x/net/context"
-	ssearch "github.com/drausin/libri/libri/librarian/server/search"
 	"math/rand"
+	"testing"
+
 	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/server/peer"
+	ssearch "github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/net/context"
+	"google.golang.org/grpc"
 )
 
 // TestStoreQuerier mocks the StoreQuerier interface. The Query() method returns an
 // api.StoreResponse, as if the remote peer had successfully stored the value.
-type TestStoreQuerier struct {}
+type TestStoreQuerier struct{}
 
 func (c *TestStoreQuerier) Query(ctx context.Context, pConn peer.Connector, rq *api.StoreRequest,
 	opts ...grpc.CallOption) (*api.StoreResponse, error) {
@@ -26,7 +27,7 @@ func (c *TestStoreQuerier) Query(ctx context.Context, pConn peer.Connector, rq *
 func NewTestStorer(peersMap map[string]peer.Peer) Storer {
 	return &storer{
 		searcher: ssearch.NewTestSearcher(peersMap),
-		q: &TestStoreQuerier{},
+		q:        &TestStoreQuerier{},
 	}
 }
 
@@ -37,7 +38,7 @@ func TestStorer_Store(t *testing.T) {
 
 	// create our searcher
 	key := cid.NewPseudoRandom(rng)
-	value := cid.NewPseudoRandom(rng).Bytes()  // use ID for convenience, but could be anything
+	value := cid.NewPseudoRandom(rng).Bytes() // use ID for convenience, but could be anything
 	storer := NewTestStorer(peersMap)
 
 	for concurrency := uint(1); concurrency <= 3; concurrency++ {
@@ -49,7 +50,7 @@ func TestStorer_Store(t *testing.T) {
 			Timeout:           DefaultQueryTimeout,
 		})
 		store := NewStore(search, value, &Parameters{
-			NMaxErrors: DefaultNMaxErrors,
+			NMaxErrors:  DefaultNMaxErrors,
 			Concurrency: concurrency,
 		})
 
@@ -71,9 +72,7 @@ func TestStorer_Store(t *testing.T) {
 
 		assert.Equal(t, nClosestResponses, uint(len(store.Result.Responded)))
 		assert.Equal(t, 0, len(store.Result.Unqueried))
-		assert.Equal(t, uint(0), store.NErrors)
-		assert.Nil(t, store.FatalErr)
+		assert.Equal(t, uint(0), store.Result.NErrors)
+		assert.Nil(t, store.Result.FatalErr)
 	}
 }
-
-

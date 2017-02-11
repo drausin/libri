@@ -240,6 +240,7 @@ func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetRespon
 // peers to store the value in and then sending them store requests.
 func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutResponse, error) {
 	if err := l.kc.Check(rq.Key); err != nil {
+		// TODO (drausin) put key-value checker
 		return nil, err
 	}
 	key := cid.FromBytes(rq.Key)
@@ -253,14 +254,17 @@ func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutRespon
 	if err != nil {
 		return nil, err
 	}
-	if s.Finished() {
-		operation := api.PutOperation_ADDED
-		if s.Exists() {
-			operation = api.PutOperation_LEFT_EXISTING
-		}
+	if s.Stored() {
 		return &api.PutResponse{
 			RequestId: rq.RequestId,
-			Operation: operation,
+			Operation: api.PutOperation_STORED,
+			NReplicas: uint32(len(s.Result.Responded)),
+		}, nil
+	}
+	if s.Exists() {
+		return &api.PutResponse{
+			RequestId: rq.RequestId,
+			Operation: api.PutOperation_LEFT_EXISTING,
 			NReplicas: uint32(len(s.Result.Responded)),
 		}, nil
 	}

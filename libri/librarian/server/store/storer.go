@@ -18,13 +18,12 @@ type Storer interface {
 	Store(store *Store, seeds []peer.Peer) error
 }
 
-
 type storer struct {
 	// searcher is used for the first search half of the store operation
 	searcher search.Searcher
 
 	// issues store queries to the peers
-	q        Querier
+	q Querier
 }
 
 // NewStorer creates a new Storer instance with given Searcher and StoreQuerier instances.
@@ -45,8 +44,8 @@ func NewDefaultStorer() Storer {
 
 func (s *storer) Store(store *Store, seeds []peer.Peer) error {
 	if err := s.searcher.Search(store.Search, seeds); err != nil {
-		store.FatalErr = err
-		return store.FatalErr
+		store.Result.FatalErr = err
+		return store.Result.FatalErr
 	}
 	store.Result = NewInitialResult(store.Search.Result)
 
@@ -57,7 +56,7 @@ func (s *storer) Store(store *Store, seeds []peer.Peer) error {
 	}
 	wg.Wait()
 
-	return store.FatalErr
+	return store.Result.FatalErr
 }
 
 func (s *storer) storeWork(store *Store, wg *sync.WaitGroup) {
@@ -81,7 +80,7 @@ func (s *storer) storeWork(store *Store, wg *sync.WaitGroup) {
 		if err != nil {
 			// if we had an issue querying, skip to next peer
 			store.mu.Lock()
-			store.NErrors++
+			store.Result.NErrors++
 			store.mu.Unlock()
 			next.Responses().Error()
 			continue

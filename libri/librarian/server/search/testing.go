@@ -1,16 +1,16 @@
 package search
 
 import (
-	"github.com/drausin/libri/libri/librarian/api"
-	"golang.org/x/net/context"
-	"github.com/drausin/libri/libri/librarian/server/peer"
-	"google.golang.org/grpc"
-	cid "github.com/drausin/libri/libri/common/id"
-	"net"
 	"fmt"
 	"math/rand"
-)
+	"net"
 
+	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/server/peer"
+	"golang.org/x/net/context"
+	"google.golang.org/grpc"
+)
 
 // TestConnector mocks the peer.Connector interface. The Connect() method returns a fixed client
 // instead of creating one from the peer's address.
@@ -28,10 +28,9 @@ func (c *TestConnector) Disconnect() error {
 	return nil
 }
 
-
 // TestFindQuerier mocks the FindQuerier interface. The Query() method returns a fixed
 // api.FindPeersResponse, derived from a list of addresses in the client.
-type TestFindQuerier struct {}
+type TestFindQuerier struct{}
 
 // Query mocks a real query to a peer, returning a fixed list of addresses stored in the
 // TestConnector mock of the pConn peer.Connector.
@@ -42,7 +41,6 @@ func (c *TestFindQuerier) Query(ctx context.Context, pConn peer.Connector, rq *a
 		Addresses: pConn.(*TestConnector).addresses,
 	}, nil
 }
-
 
 // TestFromer mocks the Fromer interface. The FromAPI() method returns a pre-stored peer for that
 // ID, allowing us to circumvent the creation of new peer.Peer and peer.Connector objects and use

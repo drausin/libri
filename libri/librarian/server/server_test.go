@@ -10,12 +10,13 @@ import (
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/db"
 	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/drausin/libri/libri/librarian/server/routing"
-	"github.com/drausin/libri/libri/librarian/server/storage"
-	"github.com/stretchr/testify/assert"
-	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/peer"
+	"github.com/drausin/libri/libri/librarian/server/routing"
+	"github.com/drausin/libri/libri/librarian/server/search"
+	"github.com/drausin/libri/libri/librarian/server/storage"
+	"github.com/drausin/libri/libri/librarian/server/store"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 )
 
 // TestNewLibrarian checks that we can create a new instance, close it, and create it again as
@@ -173,6 +174,7 @@ func TestLibrarian_Find_present(t *testing.T) {
 	assert.NotNil(t, rp.Value)
 	assert.Nil(t, rp.Addresses)
 	assert.True(t, bytes.Equal(value, rp.Value))
+	assert.Equal(t, rq.RequestId, rp.RequestId)
 }
 
 func TestLibrarian_Find_missing(t *testing.T) {
@@ -236,6 +238,7 @@ func TestLibrarian_Store(t *testing.T) {
 	stored, err := l.entriesSL.Load(key.Bytes())
 	assert.Nil(t, err)
 	assert.True(t, bytes.Equal(value, stored))
+	assert.Equal(t, rq.RequestId, rp.RequestId)
 }
 
 func newKeyValue(t *testing.T, rng *rand.Rand, nValueBytes int) (cid.ID, []byte) {
@@ -249,7 +252,7 @@ func newKeyValue(t *testing.T, rng *rand.Rand, nValueBytes int) (cid.ID, []byte)
 
 type fixedSearcher struct {
 	result *search.Result
-	err error
+	err    error
 }
 
 func (s *fixedSearcher) Search(search *search.Search, seeds []peer.Peer) error {
@@ -269,24 +272,15 @@ func TestLibrarian_Get_FoundValue(t *testing.T) {
 	foundValueResult := search.NewInitialResult(key, searchParams)
 	foundValueResult.Value = value
 
-	// create librarian
-	n := 8
-	rt := routing.NewTestWithPeers(rng, n)
-	l := &Librarian{
-		PeerID:    rt.SelfID(),
-		rt:        rt,
-		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		searcher: &fixedSearcher{
-			result: foundValueResult,
-		},
-	}
-
+	// create librarian and request
+	l := newGetLibrarian(rng, foundValueResult, nil)
 	rq := api.NewGetRequest(key)
 
 	// since fixedSearcher returns fixed value, should get that back in response
 	rp, err := l.Get(nil, rq)
 	assert.Nil(t, err)
 	assert.Equal(t, value, rp.Value)
+	assert.Equal(t, rq.RequestId, rp.RequestId)
 }
 
 func TestLibrarian_Get_FoundClosestPeers(t *testing.T) {
@@ -297,20 +291,11 @@ func TestLibrarian_Get_FoundClosestPeers(t *testing.T) {
 	searchParams := search.NewParameters()
 	foundClosestPeersResult := search.NewInitialResult(key, searchParams)
 	dummyClosest := peer.NewTestPeers(rng, int(searchParams.NClosestResponses))
-	foundClosestPeersResult.Closest.SafePushMany(dummyClosest)
+	err := foundClosestPeersResult.Closest.SafePushMany(dummyClosest)
+	assert.Nil(t, err)
 
-	// create librarian
-	n := 8
-	rt := routing.NewTestWithPeers(rng, n)
-	l := &Librarian{
-		PeerID:    rt.SelfID(),
-		rt:        rt,
-		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		searcher: &fixedSearcher{
-			result: foundClosestPeersResult,
-		},
-	}
-
+	// create librarian and request
+	l := newGetLibrarian(rng, foundClosestPeersResult, nil)
 	rq := api.NewGetRequest(key)
 
 	// since fixedSearcher returns a Search value where FoundClosestPeers() is true, shouldn't
@@ -318,6 +303,7 @@ func TestLibrarian_Get_FoundClosestPeers(t *testing.T) {
 	rp, err := l.Get(nil, rq)
 	assert.Nil(t, err)
 	assert.Nil(t, rp.Value)
+	assert.Equal(t, rq.RequestId, rp.RequestId)
 }
 
 func TestLibrarian_Get_Errored(t *testing.T) {
@@ -329,18 +315,8 @@ func TestLibrarian_Get_Errored(t *testing.T) {
 	fatalErrorResult := search.NewInitialResult(key, searchParams)
 	fatalErrorResult.FatalErr = errors.New("some fatal error")
 
-	// create librarian
-	n := 8
-	rt := routing.NewTestWithPeers(rng, n)
-	l := &Librarian{
-		PeerID:    rt.SelfID(),
-		rt:        rt,
-		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		searcher: &fixedSearcher{
-			result: fatalErrorResult,
-		},
-	}
-
+	// create librarian and request
+	l := newGetLibrarian(rng, fatalErrorResult, nil)
 	rq := api.NewGetRequest(key)
 
 	// since we have a fatal search error, Get() should also return an error
@@ -357,22 +333,143 @@ func TestLibrarian_Get_Exhausted(t *testing.T) {
 	searchParams := search.NewParameters()
 	exhaustedResult := search.NewInitialResult(key, searchParams)
 
-	// create librarian
-	n := 8
-	rt := routing.NewTestWithPeers(rng, n)
-	l := &Librarian{
-		PeerID:    rt.SelfID(),
-		rt:        rt,
-		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		searcher: &fixedSearcher{
-			result: exhaustedResult,
-		},
-	}
-
+	// create librarian and request
+	l := newGetLibrarian(rng, exhaustedResult, nil)
 	rq := api.NewGetRequest(key)
 
 	// since we have a fatal search error, Get() should also return an error
 	rp, err := l.Get(nil, rq)
 	assert.NotNil(t, err)
 	assert.Nil(t, rp)
+}
+
+func TestLibrarian_Get_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(int64(0)))
+	key := cid.NewPseudoRandom(rng)
+
+	// create librarian and request
+	l := newGetLibrarian(rng, nil, errors.New("some unexpected search error"))
+	rq := api.NewGetRequest(key)
+
+	// since fixedSearcher returns fixed value, should get that back in response
+	rp, err := l.Get(nil, rq)
+	assert.NotNil(t, err)
+	assert.Nil(t, rp)
+}
+
+func newGetLibrarian(rng *rand.Rand, searchResult *search.Result, searchErr error) *Librarian {
+	n := 8
+	rt := routing.NewTestWithPeers(rng, n)
+	return &Librarian{
+		PeerID: rt.SelfID(),
+		rt:     rt,
+		kc:     storage.NewExactLengthChecker(storage.EntriesKeyLength),
+		searcher: &fixedSearcher{
+			result: searchResult,
+			err:    searchErr,
+		},
+	}
+}
+
+type fixedStorer struct {
+	result *store.Result
+	err    error
+}
+
+func (s *fixedStorer) Store(store *store.Store, seeds []peer.Peer) error {
+	if s.err != nil {
+		return s.err
+	}
+	store.Result = s.result
+	return nil
+}
+
+func TestLibrarian_Put_Stored(t *testing.T) {
+	rng := rand.New(rand.NewSource(int64(0)))
+	key, value := newKeyValue(t, rng, 512)
+
+	// create mock search result where the value has been stored
+	searchParams := search.NewParameters()
+	nReplicas := searchParams.NClosestResponses
+	addedResult := store.NewInitialResult(search.NewInitialResult(key, searchParams))
+	addedResult.Responded = peer.NewTestPeers(rng, int(nReplicas))
+
+	// create librarian and request
+	l := newPutLibrarian(rng, addedResult, nil)
+	rq := api.NewPutRequest(key, value)
+
+	// since fixedSearcher returns fixed value, should get that back in response
+	rp, err := l.Put(nil, rq)
+	assert.Nil(t, err)
+	assert.Equal(t, uint32(nReplicas), rp.NReplicas)
+	assert.Equal(t, api.PutOperation_STORED, rp.Operation)
+	assert.Equal(t, rq.RequestId, rp.RequestId)
+}
+
+func TestLibrarian_Put_Exists(t *testing.T) {
+	rng := rand.New(rand.NewSource(int64(0)))
+	key, value := newKeyValue(t, rng, 512)
+
+	// create mock search result where the value has been stored
+	searchParams := search.NewParameters()
+	foundValueResult := search.NewInitialResult(key, searchParams)
+	foundValueResult.Value = value
+	existsResult := store.NewInitialResult(foundValueResult)
+
+	// create librarian and request
+	l := newPutLibrarian(rng, existsResult, nil)
+	rq := api.NewPutRequest(key, value)
+
+	// since fixedSearcher returns fixed value, should get that back in response
+	rp, err := l.Put(nil, rq)
+	assert.Nil(t, err)
+	assert.Equal(t, api.PutOperation_LEFT_EXISTING, rp.Operation)
+	assert.Equal(t, rq.RequestId, rp.RequestId)
+}
+
+func TestLibrarian_Put_Errored(t *testing.T) {
+	rng := rand.New(rand.NewSource(int64(0)))
+	key, value := newKeyValue(t, rng, 512)
+
+	// create mock search result where the value has been stored
+	searchParams := search.NewParameters()
+	erroredResult := store.NewInitialResult(search.NewInitialResult(key, searchParams))
+	erroredResult.FatalErr = errors.New("some fatal error")
+
+	// create librarian and request
+	l := newPutLibrarian(rng, erroredResult, nil)
+	rq := api.NewPutRequest(key, value)
+
+	// since fixedSearcher returns fixed value, should get that back in response
+	rp, err := l.Put(nil, rq)
+	assert.NotNil(t, err)
+	assert.Nil(t, rp)
+}
+
+func TestLibrarian_Put_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(int64(0)))
+	key, value := newKeyValue(t, rng, 512)
+
+	// create librarian and request
+	l := newPutLibrarian(rng, nil, errors.New("some store error"))
+	rq := api.NewPutRequest(key, value)
+
+	// since fixedSearcher returns fixed value, should get that back in response
+	rp, err := l.Put(nil, rq)
+	assert.NotNil(t, err)
+	assert.Nil(t, rp)
+}
+
+func newPutLibrarian(rng *rand.Rand, storeResult *store.Result, searchErr error) *Librarian {
+	n := 8
+	rt := routing.NewTestWithPeers(rng, n)
+	return &Librarian{
+		PeerID: rt.SelfID(),
+		rt:     rt,
+		kc:     storage.NewExactLengthChecker(storage.EntriesKeyLength),
+		storer: &fixedStorer{
+			result: storeResult,
+			err:    searchErr,
+		},
+	}
 }
