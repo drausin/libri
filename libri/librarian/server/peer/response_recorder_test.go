@@ -8,7 +8,7 @@ import (
 )
 
 func TestPeer_RecordResponseSuccess(t *testing.T) {
-	rs := newResponseStats().(*responseStats)
+	rs := newResponseStats().(*responseRecorder)
 
 	rs.Success()
 	assert.Equal(t, uint64(1), rs.nQueries)
@@ -27,7 +27,7 @@ func TestPeer_RecordResponseSuccess(t *testing.T) {
 }
 
 func TestPeer_RecordResponseError(t *testing.T) {
-	rs := newResponseStats().(*responseStats)
+	rs := newResponseStats().(*responseRecorder)
 
 	rs.Error()
 	assert.Equal(t, uint64(1), rs.nQueries)

@@ -63,7 +63,7 @@ func (p *peer) ID() cid.ID {
 }
 
 func (p *peer) Before(q Peer) bool {
-	pr, qr := p.resp.(*responseStats), q.(*peer).resp.(*responseStats)
+	pr, qr := p.resp.(*responseRecorder), q.(*peer).resp.(*responseRecorder)
 	return pr.latest.Before(qr.latest)
 }
 

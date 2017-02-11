@@ -53,7 +53,7 @@ func TestFromStoredResponseStats(t *testing.T) {
 
 func TestToStoredResponseStats(t *testing.T) {
 	now, nQueries, nErrors := time.Now().UTC(), uint64(2), uint64(1)
-	rs := &responseStats{earliest: now, latest: now, nQueries: nQueries, nErrors: nErrors}
+	rs := &responseRecorder{earliest: now, latest: now, nQueries: nQueries, nErrors: nErrors}
 	srs := rs.ToStored()
 	assert.Equal(t, now.Unix(), srs.Earliest)
 	assert.Equal(t, now.Unix(), srs.Latest)

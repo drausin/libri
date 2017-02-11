@@ -18,6 +18,17 @@ func TestFarthestPeers_Heap(t *testing.T) {
 	testPeerDistanceHeap(t, false)
 }
 
+func TestPeerDistanceHeap_ToAPI(t *testing.T) {
+	rng := rand.New(rand.NewSource(int64(0)))
+	target := cid.NewPseudoRandom(rng)
+	cp := newClosestPeers(target, 8)
+	addresses := cp.ToAPI()
+	assert.Equal(t, cp.Len(), len(addresses))
+	for _, a := range addresses {
+		assert.True(t, cp.In(cid.FromBytes(a.PeerId)))
+	}
+}
+
 func TestPeerDistanceHeap_Distance(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	target := cid.NewPseudoRandom(rng)
@@ -44,7 +55,8 @@ func TestPeerDistanceHeap_SafePush_exists(t *testing.T) {
 	cp := newClosestPeers(target, 8)
 	p := peer.NewTestPeer(rng, 0)
 	assert.Nil(t, cp.SafePush(p))
-	assert.NotNil(t, cp.SafePush(p)) // should break b/c p0 already in there
+	assert.Nil(t, cp.SafePush(p)) // no-op
+	assert.Equal(t, 1, cp.Len())
 }
 
 func testPeerDistanceHeap(t *testing.T, minHeap bool) {
