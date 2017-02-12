@@ -24,6 +24,23 @@ service Librarian {
     rpc Put (PutRequest) returns (PutResponse) {}
 }
 
+// RequestMetadata defines metadata associated with every request.
+message RequestMetadata {
+    // 32-byte unique request ID
+    bytes request_id = 1;
+
+    // 32-byte requesting peer ID
+    bytes peer_id = 2;
+}
+
+message ResponseMetadata {
+    // 32-byte request ID that generated this response
+    bytes request_id = 1;
+
+    // 32-byte responding peer ID
+    bytes peer_id = 2;
+}
+
 message PingRequest {}
 
 message PingResponse {
@@ -31,24 +48,18 @@ message PingResponse {
 }
 
 message IdentityRequest {
-    // 32-byte unique request ID
-    bytes request_id = 1;
+    RequestMetadata metadata = 1;
 }
 
 message IdentityResponse {
-    // ID of request that generated this response
-    bytes request_id = 1;
-
-    // 32-byte peer ID
-    bytes peer_id = 2;
+    ResponseMetadata metadata = 1;
 
     // self-reported name of the peer
     string peer_name = 3;
 }
 
 message FindRequest {
-    // 32-byte unique request ID
-    bytes request_id = 1;
+    RequestMetadata metadata = 1;
 
     // 32-byte target to find peers around
     bytes key = 2;
@@ -58,8 +69,7 @@ message FindRequest {
 }
 
 message FindResponse {
-    // ID of request that generated this response
-    bytes request_id = 1;
+    ResponseMetadata metadata = 1;
 
     // list of peers closest to target
     repeated PeerAddress addresses = 2;
@@ -83,8 +93,7 @@ message PeerAddress {
 }
 
 message StoreRequest {
-    // 32-byte unique request ID
-    bytes request_id = 1;
+    RequestMetadata metadata = 1;
 
     // key to store value under
     bytes key = 2;
@@ -94,29 +103,25 @@ message StoreRequest {
 }
 
 message StoreResponse {
-    // ID of request that generated this response
-    bytes request_id = 1;
+    ResponseMetadata metadata = 1;
 }
 
 message GetRequest {
-    // 32-byte unique request ID
-    bytes request_id = 1;
+    RequestMetadata metadata = 1;
 
     // 32-byte
     bytes key = 2;
 }
 
 message GetResponse {
-    // 32-byte unique request ID
-    bytes request_id = 1;
+    ResponseMetadata metadata = 1;
 
     // value to store for key
     bytes value = 3;
 }
 
 message PutRequest {
-    // 32-byte unique request ID
-    bytes request_id = 1;
+    RequestMetadata metadata = 1;
 
     // key to store value under
     bytes key = 2;
@@ -126,8 +131,7 @@ message PutRequest {
 }
 
 message PutResponse {
-    // 32-byte unique request ID
-    bytes request_id = 1;
+    ResponseMetadata metadata = 1;
 
     // result of the put operation
     PutOperation operation = 2;
