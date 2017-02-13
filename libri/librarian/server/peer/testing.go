@@ -2,7 +2,6 @@ package peer
 
 import (
 	"fmt"
-	"log"
 	"math/rand"
 	"net"
 	"testing"
@@ -65,7 +64,6 @@ func NewTestStoredPeer(rng *rand.Rand, idx int) *storage.Peer {
 
 // AssertPeersEqual checks that the stored and non-stored representations of a peer are equal.
 func AssertPeersEqual(t *testing.T, sp *storage.Peer, p Peer) {
-	log.Printf("sp: %v, p: %v", sp, p)
 	assert.Equal(t, sp.Id, p.ID().Bytes())
 	publicAddres := p.(*peer).conn.(*connector).publicAddress
 	assert.Equal(t, sp.PublicAddress.Ip, publicAddres.IP.String())

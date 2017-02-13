@@ -1,12 +1,12 @@
 package server
 
 import (
-	"fmt"
 	"os"
 
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/db"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/storage"
@@ -15,14 +15,10 @@ import (
 	"golang.org/x/net/context"
 )
 
-var (
-	peerIDKey = []byte("PeerID")
-)
-
 // Librarian is the main service of a single peer in the peer to peer network.
 type Librarian struct {
 	// PeerID is the random 256-bit identification number of this node in the hash table
-	PeerID cid.ID
+	PeerID ecid.ID
 
 	// Config holds the configuration parameters of the server
 	Config *Config
@@ -58,11 +54,12 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 	serverSL := storage.NewServerKVDBStorerLoader(rdb)
 	entriesSL := storage.NewEntriesKVDBStorerLoader(rdb)
 
+	// get peer ID and immediately save it so subsequent restarts have it
 	peerID, err := loadOrCreatePeerID(serverSL)
 	if err != nil {
 		return nil, err
 	}
-	if err = serverSL.Store(peerIDKey, peerID.Bytes()); err != nil {
+	if err = savePeerID(serverSL, peerID); err != nil {
 		return nil, err
 	}
 
@@ -84,38 +81,6 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		rt:        rt,
 	}, nil
-}
-
-func loadOrCreatePeerID(nl storage.NamespaceLoader) (cid.ID, error) {
-	peerIDB, err := nl.Load(peerIDKey)
-	if err != nil {
-		return nil, err
-	}
-
-	if peerIDB != nil {
-		// return saved PeerID
-		return cid.FromBytes(peerIDB), nil
-	}
-
-	// return new PeerID
-	return cid.NewRandom(), nil
-}
-
-func loadOrCreateRoutingTable(nl storage.NamespaceLoader, selfID cid.ID) (routing.Table, error) {
-	rt, err := routing.Load(nl)
-	if err != nil {
-		return nil, err
-	}
-
-	if rt != nil {
-		if selfID.Cmp(rt.SelfID()) != 0 {
-			return nil, fmt.Errorf("selfID (%v) of loaded routing table does not "+
-				"match Librarian selfID (%v)", rt.SelfID(), selfID)
-		}
-		return rt, nil
-	}
-
-	return routing.NewEmpty(selfID), nil
 }
 
 // Close handles cleanup involved in closing down the server.

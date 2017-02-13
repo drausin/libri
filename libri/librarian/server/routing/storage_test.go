@@ -19,13 +19,13 @@ func TestFromStored(t *testing.T) {
 }
 
 func TestToRoutingTable(t *testing.T) {
-	rt := NewTestWithPeers(rand.New(rand.NewSource(0)), 128)
+	rt, _ := NewTestWithPeers(rand.New(rand.NewSource(0)), 128)
 	srt := toStored(rt)
 	assertRoutingTablesEqual(t, rt, srt)
 }
 
 func TestRoutingTable_SaveLoad(t *testing.T) {
-	rt1 := NewTestWithPeers(rand.New(rand.NewSource(0)), 8)
+	rt1, _ := NewTestWithPeers(rand.New(rand.NewSource(0)), 8)
 	kvdb, err := db.NewTempDirRocksDB()
 	assert.Nil(t, err)
 	defer kvdb.Close()
@@ -38,7 +38,7 @@ func TestRoutingTable_SaveLoad(t *testing.T) {
 	assert.Nil(t, err)
 
 	// check that routing tables are the same
-	assert.Equal(t, rt1.SelfID(), rt2.SelfID())
+	assert.Equal(t, rt1.SelfID().Bytes(), rt2.SelfID().Bytes())
 	assert.Equal(t, len(rt1.Peers()), len(rt2.Peers()))
 	assert.Equal(t, rt1.NumPeers(), rt2.NumPeers())
 	assert.Equal(t, rt1.Peers(), rt2.Peers())
