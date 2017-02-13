@@ -15,19 +15,24 @@ import (
 
 // TestStoreQuerier mocks the StoreQuerier interface. The Query() method returns an
 // api.StoreResponse, as if the remote peer had successfully stored the value.
-type TestStoreQuerier struct{}
+type TestStoreQuerier struct{
+	peerID cid.ID
+}
 
 func (c *TestStoreQuerier) Query(ctx context.Context, pConn peer.Connector, rq *api.StoreRequest,
 	opts ...grpc.CallOption) (*api.StoreResponse, error) {
 	return &api.StoreResponse{
-		RequestId: rq.RequestId,
+		Metadata: &api.ResponseMetadata{
+			RequestId: rq.Metadata.RequestId,
+			PeerId: c.peerID.Bytes(),
+		},
 	}, nil
 }
 
-func NewTestStorer(peersMap map[string]peer.Peer) Storer {
+func NewTestStorer(peerID cid.ID, peersMap map[string]peer.Peer) Storer {
 	return &storer{
 		searcher: ssearch.NewTestSearcher(peersMap),
-		q:        &TestStoreQuerier{},
+		q:        &TestStoreQuerier{peerID: peerID},
 	}
 }
 
@@ -39,17 +44,17 @@ func TestStorer_Store(t *testing.T) {
 	// create our searcher
 	key := cid.NewPseudoRandom(rng)
 	value := cid.NewPseudoRandom(rng).Bytes() // use ID for convenience, but could be anything
-	storer := NewTestStorer(peersMap)
+	storer := NewTestStorer(peers[0].ID(), peersMap)
 
 	for concurrency := uint(1); concurrency <= 3; concurrency++ {
 
-		search := ssearch.NewSearch(key, &ssearch.Parameters{
+		search := ssearch.NewSearch(peers[0].ID(), key, &ssearch.Parameters{
 			NClosestResponses: nClosestResponses,
 			NMaxErrors:        DefaultNMaxErrors,
 			Concurrency:       concurrency,
 			Timeout:           DefaultQueryTimeout,
 		})
-		store := NewStore(search, value, &Parameters{
+		store := NewStore(peers[0].ID(), search, value, &Parameters{
 			NMaxErrors:  DefaultNMaxErrors,
 			Concurrency: concurrency,
 		})

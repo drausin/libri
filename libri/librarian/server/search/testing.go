@@ -37,7 +37,9 @@ type TestFindQuerier struct{}
 func (c *TestFindQuerier) Query(ctx context.Context, pConn peer.Connector, rq *api.FindRequest,
 	opts ...grpc.CallOption) (*api.FindResponse, error) {
 	return &api.FindResponse{
-		RequestId: rq.RequestId,
+		Metadata: &api.ResponseMetadata{
+			RequestId: rq.Metadata.RequestId,
+		},
 		Addresses: pConn.(*TestConnector).addresses,
 	}, nil
 }

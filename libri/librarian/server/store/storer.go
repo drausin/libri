@@ -67,6 +67,11 @@ func (s *storer) storeWork(store *Store, wg *sync.WaitGroup) {
 
 		// get next peer to query
 		store.mu.Lock()
+		if len(store.Result.Unqueried) == 0 {
+			// also check for empty unqueried peers here in case anythin has changed
+			// since loop condition
+			break
+		}
 		next := store.Result.Unqueried[0]
 		store.Result.Unqueried = store.Result.Unqueried[1:]
 		store.mu.Unlock()
@@ -102,9 +107,9 @@ func (s *storer) query(pConn peer.Connector, store *Store) (*api.StoreResponse, 
 	if err != nil {
 		return nil, err
 	}
-	if !bytes.Equal(rp.RequestId, store.Request.RequestId) {
+	if !bytes.Equal(rp.Metadata.RequestId, store.Request.Metadata.RequestId) {
 		return nil, fmt.Errorf("unexpected response request ID received: %v, "+
-			"expected %v", rp.RequestId, store.Request.RequestId)
+			"expected %v", rp.Metadata.RequestId, store.Request.Metadata.RequestId)
 	}
 
 	return rp, nil
