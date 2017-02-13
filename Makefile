@@ -1,6 +1,5 @@
 GOTOOLS= github.com/alecthomas/gometalinter \
-	 github.com/axw/gocov/gocov \
-	 gopkg.in/matm/v1/gocov-html
+	 github.com/axw/gocov/gocov
 VETARGS?=-asmdecl -atomic -bool -buildtags -copylocks -methods \
          -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
 ALL_PKGS=$(shell go list ./... | sed -r 's|github.com/drausin/libri/||g' | sort)
