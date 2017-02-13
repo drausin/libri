@@ -100,10 +100,10 @@ type Search struct {
 }
 
 // NewSearch creates a new Search instance for a given target, search type, and search parameters.
-func NewSearch(key cid.ID, params *Parameters) *Search {
+func NewSearch(selfID cid.ID, key cid.ID, params *Parameters) *Search {
 	return &Search{
 		Key:     key,
-		Request: api.NewFindRequest(key, params.NClosestResponses),
+		Request: api.NewFindRequest(selfID, key, params.NClosestResponses),
 		Result:  NewInitialResult(key, params),
 		Params:  params,
 	}

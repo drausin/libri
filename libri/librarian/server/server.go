@@ -105,6 +105,15 @@ func (l *Librarian) CloseAndRemove() error {
 	return os.RemoveAll(l.Config.DataDir)
 }
 
+// NewResponseMetadata creates a new api.ResponseMatadata object with the same RequestID as that
+// in the api.RequestMetadata.
+func (l *Librarian) NewResponseMetadata(m *api.RequestMetadata) *api.ResponseMetadata {
+	return &api.ResponseMetadata{
+		RequestId: m.RequestId,
+		PeerId: l.PeerID.Bytes(),
+	}
+}
+
 // Ping confirms simple request/response connectivity.
 func (l *Librarian) Ping(ctx context.Context, rq *api.PingRequest) (*api.PingResponse, error) {
 	return &api.PingResponse{Message: "pong"}, nil
@@ -114,9 +123,8 @@ func (l *Librarian) Ping(ctx context.Context, rq *api.PingRequest) (*api.PingRes
 func (l *Librarian) Identify(ctx context.Context, rq *api.IdentityRequest) (*api.IdentityResponse,
 	error) {
 	return &api.IdentityResponse{
-		RequestId: rq.RequestId,
+		Metadata: l.NewResponseMetadata(rq.Metadata),
 		PeerName:  l.Config.PeerName,
-		PeerId:    l.PeerID.Bytes(),
 	}, nil
 }
 
@@ -135,7 +143,7 @@ func (l *Librarian) Find(ctx context.Context, rq *api.FindRequest) (*api.FindRes
 	// we have the value, so return it
 	if value != nil {
 		return &api.FindResponse{
-			RequestId: rq.RequestId,
+			Metadata: l.NewResponseMetadata(rq.Metadata),
 			Value:     value,
 		}, nil
 	}
@@ -148,7 +156,7 @@ func (l *Librarian) Find(ctx context.Context, rq *api.FindRequest) (*api.FindRes
 		addresses[i] = peer.ToAPI()
 	}
 	return &api.FindResponse{
-		RequestId: rq.RequestId,
+		Metadata: l.NewResponseMetadata(rq.Metadata),
 		Addresses: addresses,
 	}, nil
 }
@@ -160,7 +168,7 @@ func (l *Librarian) Store(ctx context.Context, rq *api.StoreRequest) (
 		return nil, err
 	}
 	return &api.StoreResponse{
-		RequestId: rq.RequestId,
+		Metadata: l.NewResponseMetadata(rq.Metadata),
 	}, nil
 }
 
@@ -171,7 +179,7 @@ func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetRespon
 		return nil, err
 	}
 	key := cid.FromBytes(rq.Key)
-	s := search.NewSearch(key, search.NewParameters())
+	s := search.NewSearch(l.PeerID, key, search.NewParameters())
 	seeds := l.rt.Peak(key, s.Params.Concurrency)
 	err := l.searcher.Search(s, seeds)
 	if err != nil {
@@ -180,14 +188,14 @@ func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetRespon
 	if s.FoundValue() {
 		// return the value found by the search
 		return &api.GetResponse{
-			RequestId: rq.RequestId,
+			Metadata: l.NewResponseMetadata(rq.Metadata),
 			Value:     s.Result.Value,
 		}, nil
 	}
 	if s.FoundClosestPeers() {
 		// return the nil value, indicating that the value wasn't found
 		return &api.GetResponse{
-			RequestId: rq.RequestId,
+			Metadata: l.NewResponseMetadata(rq.Metadata),
 			Value:     nil,
 		}, nil
 	}
@@ -210,7 +218,8 @@ func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutRespon
 	}
 	key := cid.FromBytes(rq.Key)
 	s := store.NewStore(
-		search.NewSearch(key, search.NewParameters()),
+		l.PeerID,
+		search.NewSearch(l.PeerID, key, search.NewParameters()),
 		rq.Value,
 		store.NewParameters(),
 	)
@@ -221,14 +230,14 @@ func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutRespon
 	}
 	if s.Stored() {
 		return &api.PutResponse{
-			RequestId: rq.RequestId,
+			Metadata: l.NewResponseMetadata(rq.Metadata),
 			Operation: api.PutOperation_STORED,
 			NReplicas: uint32(len(s.Result.Responded)),
 		}, nil
 	}
 	if s.Exists() {
 		return &api.PutResponse{
-			RequestId: rq.RequestId,
+			Metadata: l.NewResponseMetadata(rq.Metadata),
 			Operation: api.PutOperation_LEFT_EXISTING,
 			NReplicas: uint32(len(s.Result.Responded)),
 		}, nil

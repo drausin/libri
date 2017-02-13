@@ -7,6 +7,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	cid "github.com/drausin/libri/libri/common/id"
 )
 
 const (
@@ -29,12 +30,14 @@ func main() {
 	}
 	log.Printf("Server: %s", r1.Message)
 
-	r2, err := c.Identify(context.Background(), &api.IdentityRequest{})
+	r2, err := c.Identify(context.Background(), &api.IdentityRequest{
+		Metadata: api.NewRequestMatadata(cid.NewRandom()),
+	})
 	if err != nil {
 		log.Fatalf("could not ping: %v", err)
 	}
 	log.Printf("Peer name: %s", r2.PeerName)
-	log.Printf("Peer ID: %v", base64.URLEncoding.EncodeToString(r2.PeerId))
+	log.Printf("Peer ID: %v", base64.URLEncoding.EncodeToString(r2.Metadata.PeerId))
 
 	err = conn.Close()
 	if err != nil {

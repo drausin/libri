@@ -102,9 +102,9 @@ func (s *storer) query(pConn peer.Connector, store *Store) (*api.StoreResponse, 
 	if err != nil {
 		return nil, err
 	}
-	if !bytes.Equal(rp.RequestId, store.Request.RequestId) {
+	if !bytes.Equal(rp.Metadata.RequestId, store.Request.Metadata.RequestId) {
 		return nil, fmt.Errorf("unexpected response request ID received: %v, "+
-			"expected %v", rp.RequestId, store.Request.RequestId)
+			"expected %v", rp.Metadata.RequestId, store.Request.Metadata.RequestId)
 	}
 
 	return rp, nil

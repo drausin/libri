@@ -13,12 +13,12 @@ import (
 
 func TestStore_Stored(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	key := cid.NewPseudoRandom(rng)
+	peerID, key := cid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
 	value := cid.NewPseudoRandom(rng).Bytes() // use ID for convenience, but could be anything
 
 	// create search with result of closest peers
 	nClosestResponse := uint(4)
-	search := ssearch.NewSearch(key, &ssearch.Parameters{
+	search := ssearch.NewSearch(peerID, key, &ssearch.Parameters{
 		NClosestResponses: nClosestResponse,
 	})
 
@@ -30,7 +30,7 @@ func TestStore_Stored(t *testing.T) {
 	assert.Nil(t, err)
 
 	// create store with search
-	store := NewStore(search, value, &Parameters{
+	store := NewStore(peerID, search, value, &Parameters{
 		NMaxErrors: 3,
 	})
 	store.Result = NewInitialResult(search.Result)
@@ -52,11 +52,11 @@ func TestStore_Stored(t *testing.T) {
 
 func TestStore_Errored(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	key := cid.NewPseudoRandom(rng)
+	peerID, key := cid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
 
 	// create search with result of closest peers
 	nClosestResponse := uint(4)
-	search := ssearch.NewSearch(key, &ssearch.Parameters{
+	search := ssearch.NewSearch(peerID, key, &ssearch.Parameters{
 		NClosestResponses: nClosestResponse,
 	})
 

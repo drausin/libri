@@ -123,9 +123,9 @@ func (s *searcher) query(pConn peer.Connector, search *Search) (*api.FindRespons
 	if err != nil {
 		return nil, err
 	}
-	if !bytes.Equal(rp.RequestId, search.Request.RequestId) {
+	if !bytes.Equal(rp.Metadata.RequestId, search.Request.Metadata.RequestId) {
 		return nil, fmt.Errorf("unexpected response request ID received: %v, "+
-			"expected %v", rp.RequestId, search.Request.RequestId)
+			"expected %v", rp.Metadata.RequestId, search.Request.Metadata.RequestId)
 	}
 
 	return rp, nil
