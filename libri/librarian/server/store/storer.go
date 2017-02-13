@@ -67,6 +67,11 @@ func (s *storer) storeWork(store *Store, wg *sync.WaitGroup) {
 
 		// get next peer to query
 		store.mu.Lock()
+		if len(store.Result.Unqueried) == 0 {
+			// also check for empty unqueried peers here in case anythin has changed
+			// since loop condition
+			break
+		}
 		next := store.Result.Unqueried[0]
 		store.Result.Unqueried = store.Result.Unqueried[1:]
 		store.mu.Unlock()

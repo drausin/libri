@@ -31,7 +31,7 @@ func main() {
 	log.Printf("Server: %s", r1.Message)
 
 	r2, err := c.Identify(context.Background(), &api.IdentityRequest{
-		Metadata: api.NewRequestMatadata(cid.NewRandom()),
+		Metadata: api.NewRequestMetadata(cid.NewRandom()),
 	})
 	if err != nil {
 		log.Fatalf("could not ping: %v", err)
