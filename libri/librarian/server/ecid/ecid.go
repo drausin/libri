@@ -13,7 +13,7 @@ import (
 
 var curve = elliptic.P256() // implies 32-byte private and public keys
 
-// ECID is an elliptic curve identifier, where the ID is the x-value of the (x, y) public key
+// ID is an elliptic curve identifier, where the ID is the x-value of the (x, y) public key
 // point on the curve. When couples with the private key, this allows something (e.g., a libri
 // peer) to sign messages that a receiver can verify.
 type ID interface {
@@ -35,10 +35,12 @@ type ecid struct {
 	id cid.ID
 }
 
+// NewRandom creates a new ID instance using a crypto.Reader source of entropy.
 func NewRandom() ID {
 	return newRandom(crand.Reader)
 }
 
+// NewPseudoRandom creates a new ID instance using a math.Rand source of entropy.
 func NewPseudoRandom(rng *mrand.Rand) ID {
 	return newRandom(rng)
 }

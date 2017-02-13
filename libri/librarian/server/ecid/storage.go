@@ -10,6 +10,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/storage"
 )
 
+// FromStored creates a new ID instance from a storage.ECID instance.
 func FromStored(stored *storage.ECID) (ID, error) {
 	key := new(ecdsa.PrivateKey)
 
@@ -36,6 +37,7 @@ func FromStored(stored *storage.ECID) (ID, error) {
 	}, nil
 }
 
+// ToStored creates a new storage.ECID instance from an ID instance.
 func ToStored(ecid ID) *storage.ECID {
 	key := ecid.Key()
 	return &storage.ECID{
