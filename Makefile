@@ -1,5 +1,6 @@
 GOTOOLS= github.com/alecthomas/gometalinter \
-	 github.com/axw/gocov/gocov
+	 github.com/axw/gocov/gocov \
+	 gopkg.in/matm/v1/gocov-html
 VETARGS?=-asmdecl -atomic -bool -buildtags -copylocks -methods \
          -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
 ALL_PKGS=$(shell go list ./... | sed -r 's|github.com/drausin/libri/||g' | sort)
@@ -46,7 +47,7 @@ proto:
 	@find . -name '*.proto' -execdir protoc '{}' --go_out=plugins=grpc:. \;
 
 tools:
-	go get -u -v $(GOTOOLS)
+	go get -u $(GOTOOLS)
 	gometalinter --install
 
 .PHONY: all build cov test fix lint tools
