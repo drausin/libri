@@ -14,7 +14,7 @@ dependencies:
     - ln -s ~/libri ~/.go_project/src/github.com/drausin/libri
 
     # install project golang dependencies
-    - go get -t -d -v ./... && sleep 10
+    - go get -t -d -v ./...
     - make tools
 
     # install RocksDB (possibly using cached directory if it exists)
