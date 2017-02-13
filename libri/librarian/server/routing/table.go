@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/storage"
 )
@@ -86,8 +87,9 @@ func NewWithPeers(selfID cid.ID, peers []peer.Peer) Table {
 }
 
 // NewTestWithPeers creates a new test routing table with pseudo-random SelfID and n peers.
-func NewTestWithPeers(rng *rand.Rand, n int) Table {
-	return NewWithPeers(cid.NewPseudoRandom(rng), peer.NewTestPeers(rng, n))
+func NewTestWithPeers(rng *rand.Rand, n int) (Table, ecid.ID) {
+	peerID := ecid.NewPseudoRandom(rng)
+	return NewWithPeers(peerID, peer.NewTestPeers(rng, n)), peerID
 }
 
 // SelfID returns the table's selfID.

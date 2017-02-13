@@ -47,7 +47,7 @@ proto:
 	@find . -name '*.proto' -execdir protoc '{}' --go_out=plugins=grpc:. \;
 
 tools:
-	go get -u -v $(GOTOOLS)
+	go get -u $(GOTOOLS)
 	gometalinter --install
 
 .PHONY: all build cov test fix lint tools

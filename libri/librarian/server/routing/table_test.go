@@ -15,7 +15,7 @@ import (
 func TestTable_NewWithPeers(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	for n := 1; n <= 256; n *= 2 {
-		rt := NewTestWithPeers(rng, n)
+		rt, _ := NewTestWithPeers(rng, n)
 		assert.Equal(t, len(rt.Peers()), int(rt.NumPeers()))
 	}
 }
@@ -24,12 +24,12 @@ func TestTable_NumPeers(t *testing.T) {
 	for s := 0; s < 16; s++ {
 		// make sure handles zero peers
 		rng := rand.New(rand.NewSource(int64(s)))
-		rt := NewTestWithPeers(rng, 0)
+		rt, _ := NewTestWithPeers(rng, 0)
 		assert.Equal(t, 0, int(rt.NumPeers()))
 
 		for n := 1; n <= 256; n *= 2 {
 			info := fmt.Sprintf("s: %v, n: %v", s, n)
-			rt = NewTestWithPeers(rng, n)
+			rt, _ = NewTestWithPeers(rng, n)
 			assert.Equal(t, len(rt.Peers()), int(rt.NumPeers()), info)
 		}
 	}
@@ -39,7 +39,7 @@ func TestTable_Push(t *testing.T) {
 	// try pseudo-random split sequence with different selfIDs
 	for s := 0; s < 16; s++ {
 		rng := rand.New(rand.NewSource(int64(s)))
-		rt := NewTestWithPeers(rng, 0) // empty
+		rt, _ := NewTestWithPeers(rng, 0) // empty
 		peers := peer.NewTestPeers(rng, 128)
 		repeatedPeers := make([]peer.Peer, 0)
 		c := 0
@@ -69,7 +69,7 @@ func TestTable_Pop(t *testing.T) {
 
 	// make sure we support poppping 0 peers
 	rng := rand.New(rand.NewSource(0))
-	rt := NewTestWithPeers(rng, 8)
+	rt, _ := NewTestWithPeers(rng, 8)
 	ps := rt.Pop(cid.NewPseudoRandom(rng), 0)
 	assert.Equal(t, 0, len(ps))
 
@@ -77,7 +77,7 @@ func TestTable_Pop(t *testing.T) {
 
 		for s := 0; s < 8; s++ { // for different selfIDs
 			rng := rand.New(rand.NewSource(int64(s)))
-			rt := NewTestWithPeers(rng, n)
+			rt, _ := NewTestWithPeers(rng, n)
 			target := cid.NewPseudoRandom(rng)
 
 			for k := uint(2); k <= 32; k *= 2 { // for different numbers of peers to get
@@ -105,7 +105,7 @@ func TestTable_Peak(t *testing.T) {
 
 	// make sure we support poppping 0 peers
 	rng := rand.New(rand.NewSource(0))
-	rt := NewTestWithPeers(rng, 8)
+	rt, _ := NewTestWithPeers(rng, 8)
 	ps := rt.Peak(cid.NewPseudoRandom(rng), 0)
 	assert.Equal(t, 0, len(ps))
 
@@ -113,7 +113,7 @@ func TestTable_Peak(t *testing.T) {
 
 		for s := 0; s < 8; s++ { // for different selfIDs
 			rng := rand.New(rand.NewSource(int64(s)))
-			rt := NewTestWithPeers(rng, n)
+			rt, _ := NewTestWithPeers(rng, n)
 			target := cid.NewPseudoRandom(rng)
 
 			for k := uint(2); k <= 32; k *= 2 { // for different numbers of peers to get
@@ -267,7 +267,8 @@ func TestTable_splitBucket(t *testing.T) {
 	// try same split sequence with different selfIDs
 	for s := 0; s < 16; s++ {
 		rng := rand.New(rand.NewSource(int64(s)))
-		rt := NewTestWithPeers(rng, int(DefaultMaxActivePeers)).(*table)
+		rtInt, _ := NewTestWithPeers(rng, int(DefaultMaxActivePeers))
+		rt := rtInt.(*table)
 
 		// lower bounds: [0 1]
 		rt.splitBucket(0)
@@ -298,13 +299,13 @@ func TestTable_splitBucket(t *testing.T) {
 	// try pseudo-random split sequence with different selfIDs
 	for s := 0; s < 16; s++ {
 		rng := rand.New(rand.NewSource(int64(s)))
-		rt := NewTestWithPeers(rng, int(DefaultMaxActivePeers)).(*table)
+		rt, _ := NewTestWithPeers(rng, int(DefaultMaxActivePeers))
 
 		// do pseudo-random splits
 		for c := 0; c < 10; c++ {
-			i := int(rng.Uint32()) % len(rt.buckets)
-			rt.splitBucket(i)
-			assert.Equal(t, c+2, len(rt.buckets))
+			i := int(rng.Uint32()) % len(rt.(*table).buckets)
+			rt.(*table).splitBucket(i)
+			assert.Equal(t, c+2, len(rt.(*table).buckets))
 			checkTableConsistent(t, rt, len(rt.Peers()))
 		}
 	}

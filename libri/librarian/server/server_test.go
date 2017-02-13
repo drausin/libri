@@ -10,6 +10,7 @@ import (
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/db"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/search"
@@ -62,7 +63,7 @@ func TestLibrarian_Ping(t *testing.T) {
 // request.
 func TestLibrarian_Identify(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	peerID := cid.NewPseudoRandom(rng)
+	peerID := ecid.NewPseudoRandom(rng)
 	peerName := "Test Node"
 	lib := &Librarian{
 		Config: &Config{
@@ -90,9 +91,9 @@ func TestLibrarian_Find(t *testing.T) {
 			// for different selfIDs
 
 			rng := rand.New(rand.NewSource(int64(s)))
-			rt := routing.NewTestWithPeers(rng, n)
+			rt, peerID := routing.NewTestWithPeers(rng, n)
 			l := &Librarian{
-				PeerID:    rt.SelfID(),
+				PeerID:    peerID,
 				entriesSL: storage.NewEntriesKVDBStorerLoader(kvdb),
 				kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
 				rt:        rt,
@@ -142,7 +143,7 @@ func TestLibrarian_Find_present(t *testing.T) {
 	assert.Nil(t, err)
 
 	l := &Librarian{
-		PeerID:    cid.NewPseudoRandom(rng),
+		PeerID:    ecid.NewPseudoRandom(rng),
 		db:        kvdb,
 		serverSL:  storage.NewServerKVDBStorerLoader(kvdb),
 		entriesSL: storage.NewEntriesKVDBStorerLoader(kvdb),
@@ -180,12 +181,12 @@ func TestLibrarian_Find_present(t *testing.T) {
 func TestLibrarian_Find_missing(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	n := 64
-	rt := routing.NewTestWithPeers(rng, n)
+	rt, peerID := routing.NewTestWithPeers(rng, n)
 	kvdb, err := db.NewTempDirRocksDB()
 	assert.Nil(t, err)
 
 	l := &Librarian{
-		PeerID:    rt.SelfID(),
+		PeerID:    peerID,
 		rt:        rt,
 		db:        kvdb,
 		serverSL:  storage.NewServerKVDBStorerLoader(kvdb),
@@ -215,7 +216,7 @@ func TestLibrarian_Store(t *testing.T) {
 	assert.Nil(t, err)
 
 	l := &Librarian{
-		PeerID:    cid.NewPseudoRandom(rng),
+		PeerID:    ecid.NewPseudoRandom(rng),
 		db:        kvdb,
 		serverSL:  storage.NewServerKVDBStorerLoader(kvdb),
 		entriesSL: storage.NewEntriesKVDBStorerLoader(kvdb),
@@ -359,9 +360,9 @@ func TestLibrarian_Get_err(t *testing.T) {
 
 func newGetLibrarian(rng *rand.Rand, searchResult *search.Result, searchErr error) *Librarian {
 	n := 8
-	rt := routing.NewTestWithPeers(rng, n)
+	rt, peerID := routing.NewTestWithPeers(rng, n)
 	return &Librarian{
-		PeerID: rt.SelfID(),
+		PeerID: peerID,
 		rt:     rt,
 		kc:     storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		searcher: &fixedSearcher{
@@ -462,9 +463,9 @@ func TestLibrarian_Put_err(t *testing.T) {
 
 func newPutLibrarian(rng *rand.Rand, storeResult *store.Result, searchErr error) *Librarian {
 	n := 8
-	rt := routing.NewTestWithPeers(rng, n)
+	rt, peerID := routing.NewTestWithPeers(rng, n)
 	return &Librarian{
-		PeerID: rt.SelfID(),
+		PeerID: peerID,
 		rt:     rt,
 		kc:     storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		storer: &fixedStorer{
