@@ -12,6 +12,8 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"github.com/drausin/libri/libri/librarian/signature"
+	"github.com/drausin/libri/libri/librarian/server/ecid"
 )
 
 // Searcher executes searches for particular keys.
@@ -21,21 +23,25 @@ type Searcher interface {
 }
 
 type searcher struct {
+	// signs queries
+	signer signature.Signer
+
 	// issues find queries to the peers
-	q Querier
+	q      Querier
 
 	// processes the find query responses from the peers
-	rp FindResponseProcessor
+	rp     FindResponseProcessor
 }
 
 // NewSearcher returns a new Searcher with the given Querier and ResponseProcessor.
-func NewSearcher(q Querier, rp FindResponseProcessor) Searcher {
-	return &searcher{q: q, rp: rp}
+func NewSearcher(s signature.Signer, q Querier, rp FindResponseProcessor) Searcher {
+	return &searcher{signer: s, q: q, rp: rp}
 }
 
 // NewDefaultSearcher creates a new Searcher with default sub-object instantiations.
-func NewDefaultSearcher() Searcher {
+func NewDefaultSearcher(peerID ecid.ID) Searcher {
 	return NewSearcher(
+		signature.NewSigner(peerID.Key()),
 		NewQuerier(),
 		NewResponseProcessor(peer.NewFromer()),
 	)
@@ -116,8 +122,11 @@ func (s *searcher) searchWork(search *Search, wg *sync.WaitGroup) {
 }
 
 func (s *searcher) query(pConn peer.Connector, search *Search) (*api.FindResponse, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), search.Params.Timeout)
+	ctx, cancel, err := s.context(search)
 	defer cancel()
+	if err != nil {
+		return nil, err
+	}
 
 	rp, err := s.q.Query(ctx, pConn, search.Request)
 	if err != nil {
@@ -129,6 +138,22 @@ func (s *searcher) query(pConn peer.Connector, search *Search) (*api.FindRespons
 	}
 
 	return rp, nil
+}
+
+func (s *searcher) context(search *Search) (context.Context,  context.CancelFunc, error) {
+	ctx := context.Background()
+
+	// sign the message
+	signedJWT, err := s.signer.Sign(search.Request)
+	if err != nil {
+		return nil, nil, err
+	}
+	ctx = context.WithValue(ctx, signature.ContextKey, signedJWT)
+
+	// add timeout
+	ctx, cancel := context.WithTimeout(ctx, search.Params.Timeout)
+
+	return ctx, cancel, nil
 }
 
 // Querier handles Find queries to a peer.

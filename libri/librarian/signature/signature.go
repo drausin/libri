@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"encoding/base64"
 	"fmt"
-	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"bytes"
 )
 
@@ -73,7 +72,7 @@ func (s *ecdsaSigner) Sign(m proto.Message) (string, error) {
 
 type Verifier interface {
 	// Verify verifies that the encoded token is well formed and has been signed by the peer.
-	Verify(encToken string, peerID ecid.ID, m proto.Message) error
+	Verify(encToken string, fromPubKey *ecdsa.PublicKey, m proto.Message) error
 }
 
 type ecsdaVerifier struct {}
@@ -82,10 +81,11 @@ func NewVerifier() Verifier {
 	return &ecsdaVerifier{}
 }
 
-func (v *ecsdaVerifier) Verify(encToken string, peerID ecid.ID, m proto.Message) error {
+func (v *ecsdaVerifier) Verify(encToken string, fromPubKey *ecdsa.PublicKey, m proto.Message) (
+	error) {
 	token, err := jwt.ParseWithClaims(encToken, &SignatureClaims{}, func(token *jwt.Token) (
 		interface{}, error) {
-		return &peerID.Key().PublicKey, nil
+		return fromPubKey, nil
 	})
 	if err != nil {
 		// received error when parsing claims or verifying signature

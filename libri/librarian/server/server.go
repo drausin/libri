@@ -13,6 +13,8 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/store"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
+	"github.com/drausin/libri/libri/librarian/signature"
+	"github.com/gogo/protobuf/proto"
 )
 
 // Librarian is the main service of a single peer in the peer to peer network.
@@ -28,6 +30,9 @@ type Librarian struct {
 
 	// executes stores for key/value
 	storer store.Storer
+
+	// verifies requests from peers
+	verifier signature.Verifier
 
 	// db is the key-value store DB used for all external storage
 	db db.KVDB
@@ -68,13 +73,14 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 		return nil, err
 	}
 
-	searcher := search.NewDefaultSearcher()
+	searcher := search.NewDefaultSearcher(peerID)
+	signer := signature.NewSigner(peerID.Key())
 
 	return &Librarian{
 		PeerID:    peerID,
 		Config:    config,
 		searcher:  searcher,
-		storer:    store.NewStorer(searcher, store.NewQuerier()),
+		storer:    store.NewStorer(signer, searcher, store.NewQuerier()),
 		db:        rdb,
 		serverSL:  serverSL,
 		entriesSL: entriesSL,
@@ -105,12 +111,18 @@ func (l *Librarian) CloseAndRemove() error {
 	return os.RemoveAll(l.Config.DataDir)
 }
 
+func (l *Librarian) verify(ctx context.Context, msg proto.Message, meta *api.RequestMetadata) (
+	error) {
+	// TODO (drausin) add logic
+	return nil
+}
+
 // NewResponseMetadata creates a new api.ResponseMatadata object with the same RequestID as that
 // in the api.RequestMetadata.
 func (l *Librarian) NewResponseMetadata(m *api.RequestMetadata) *api.ResponseMetadata {
 	return &api.ResponseMetadata{
 		RequestId: m.RequestId,
-		PeerId: l.PeerID.Bytes(),
+		PubKey: ecid.ToPublicKeyBytes(l.PeerID),
 	}
 }
 

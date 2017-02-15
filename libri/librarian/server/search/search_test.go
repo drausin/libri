@@ -7,11 +7,14 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"math/rand"
+	"github.com/drausin/libri/libri/librarian/server/ecid"
 )
 
 func TestSearch_FoundClosestPeers(t *testing.T) {
 	// target = 0 makes it easy to compute XOR distance manually
-	target, selfID := cid.FromInt64(0), cid.FromInt64(100)
+	rng := rand.New(rand.NewSource(0))
+	target, selfID := cid.FromInt64(0), ecid.NewPseudoRandom(rng)
 	nClosestResponses := uint(4)
 
 	search := NewSearch(selfID, target, &Parameters{
@@ -49,7 +52,8 @@ func TestSearch_FoundClosestPeers(t *testing.T) {
 }
 
 func TestSearch_FoundValue(t *testing.T) {
-	search := NewSearch(cid.FromInt64(100), cid.FromInt64(0), NewParameters())
+	rng := rand.New(rand.NewSource(0))
+	search := NewSearch(ecid.NewPseudoRandom(rng), cid.FromInt64(0), NewParameters())
 
 	// hasn't been found yet because result.value is still nil
 	assert.False(t, search.FoundValue())
@@ -60,7 +64,8 @@ func TestSearch_FoundValue(t *testing.T) {
 }
 
 func TestSearch_Errored(t *testing.T) {
-	target, selfID := cid.FromInt64(0), cid.FromInt64(100) // arbitrary but simple
+	rng := rand.New(rand.NewSource(0))
+	target, selfID := cid.FromInt64(0), ecid.NewPseudoRandom(rng)
 
 	// no-error state
 	search1 := NewSearch(selfID, target, NewParameters())
@@ -79,7 +84,8 @@ func TestSearch_Errored(t *testing.T) {
 }
 
 func TestSearch_Exhausted(t *testing.T) {
-	target, selfID := cid.FromInt64(0), cid.FromInt64(100) // arbitrary but simple
+	rng := rand.New(rand.NewSource(0))
+	target, selfID := cid.FromInt64(0), ecid.NewPseudoRandom(rng)
 
 	// not exhausted b/c it has unqueried peers
 	search1 := NewSearch(selfID, target, NewParameters())

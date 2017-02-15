@@ -55,7 +55,7 @@ func TestEcdsaSignerVerifer_SignVerify_ok(t *testing.T) {
 	for _, c := range cases {
 		encToken, err := signer.Sign(c)
 		assert.Nil(t, err)
-		err = verifier.Verify(encToken, peerID, c)
+		err = verifier.Verify(encToken, &peerID.Key().PublicKey, c)
 		assert.Nil(t, err)
 	}
 }
@@ -98,7 +98,7 @@ func TestEcdsaVerifer_Verify_err(t *testing.T) {
 		{encToken, ecid.NewPseudoRandom(rng), message},
 	}
 	for _, c := range errCases {
-		assert.NotNil(t, verifier.Verify(c.encToken, c.peerID, c.m))
+		assert.NotNil(t, verifier.Verify(c.encToken, &c.peerID.Key().PublicKey, c.m))
 	}
 
 	assert.Panics(t, func() {

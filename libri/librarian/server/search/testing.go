@@ -10,7 +10,15 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"github.com/gogo/protobuf/proto"
+	"github.com/drausin/libri/libri/librarian/server/ecid"
 )
+
+type NoOpSigner struct {}
+
+func (s *NoOpSigner) Sign(m proto.Message) (string, error) {
+	return "noop.token.sig", nil
+}
 
 // TestConnector mocks the peer.Connector interface. The Connect() method returns a fixed client
 // instead of creating one from the peer's address.
@@ -61,6 +69,7 @@ func (f *TestFromer) FromAPI(apiAddress *api.PeerAddress) peer.Peer {
 // each just return fixed addresses and peers, respectively.
 func NewTestSearcher(peersMap map[string]peer.Peer) Searcher {
 	return NewSearcher(
+		&NoOpSigner{},
 		&TestFindQuerier{},
 		&findResponseProcessor{
 			peerFromer: &TestFromer{peers: peersMap},
@@ -71,14 +80,20 @@ func NewTestSearcher(peersMap map[string]peer.Peer) Searcher {
 // NewTestPeers creates a collection of test peers with fixed addresses in each's routing table
 // (such that all find queries return the same addresses). It also returns the indices of the peers
 // that peer 0 has in its routing table.
-func NewTestPeers(rng *rand.Rand, n int) ([]peer.Peer, map[string]peer.Peer, []int) {
+func NewTestPeers(rng *rand.Rand, n int) ([]peer.Peer, map[string]peer.Peer, []int, ecid.ID) {
 	addresses := make([]*net.TCPAddr, n)
 	ids := make([]cid.ID, n)
 	names := make([]string, n)
 
 	// create the addresses and IDs
+	var selfID ecid.ID
 	for i := 0; i < n; i++ {
-		ids[i] = cid.NewPseudoRandom(rng)
+		if i == 0 {
+			selfID = ecid.NewPseudoRandom(rng)
+			ids[0] = selfID.ID()
+		} else {
+			ids[i] = cid.NewPseudoRandom(rng)
+		}
 		names[i] = fmt.Sprintf("peer-%03d", i)
 		address, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("localhost:%v", 11000+i))
 		if err != nil {
@@ -111,5 +126,5 @@ func NewTestPeers(rng *rand.Rand, n int) ([]peer.Peer, map[string]peer.Peer, []i
 		peersMap[ids[i].String()] = peers[i]
 	}
 
-	return peers, peersMap, selfPeerIdxs
+	return peers, peersMap, selfPeerIdxs, selfID
 }

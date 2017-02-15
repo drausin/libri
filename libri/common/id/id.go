@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	mrand "math/rand"
+	"crypto/ecdsa"
 )
 
 const (
@@ -104,4 +105,9 @@ func NewRandom() ID {
 func NewPseudoRandom(rng *mrand.Rand) ID {
 	intVal := new(big.Int).Rand(rng, UpperBound.Int())
 	return FromInt(intVal)
+}
+
+// FromPublicKey returns an ID instance from an elliptic curve public key.
+func FromPublicKey(pubKey *ecdsa.PublicKey) ID {
+	return FromInt(pubKey.X)
 }
