@@ -1,15 +1,12 @@
 {
   "Enable": [
     "aligncheck",
-    "deadcode",
     "errcheck",
-    "gas",
     "goconst",
     "gocyclo",
     "golint",
     "gosimple",
     "lll",
-    "misspell",
     "ineffassign",
     "interfacer",
     "staticcheck",
