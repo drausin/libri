@@ -36,7 +36,7 @@ lint:
 lint-diff:
 	@echo "--> Running gometalinter on packages with uncommitted changes on"
 	@echo $(CHANGED_PKGS) | tr " " "\n"
-	@echo $(CHANGED_PKGS) | xargs gometalinter --config=.gometalinter.json --deadline=5m
+	@echo $(CHANGED_PKGS) | xargs gometalinter --config=.gometalinter.json --deadline=360s
 
 lint-optional:
 	@echo "--> Running gometalinter with optional linters"
