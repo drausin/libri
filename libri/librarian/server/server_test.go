@@ -18,6 +18,8 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/store"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/gogo/protobuf/proto"
+	"golang.org/x/net/context"
 )
 
 // TestNewLibrarian checks that we can create a new instance, close it, and create it again as
@@ -51,6 +53,15 @@ func newTestLibrarian() *Librarian {
 	return l
 }
 
+// alwaysRequestVerifies implements the RequestVerifier interface but just blindly verifies every
+// request.
+type alwaysRequestVerifier struct {}
+
+func (av *alwaysRequestVerifier) Verify(ctx context.Context, msg proto.Message,
+	meta *api.RequestMetadata) error {
+	return nil
+}
+
 // TestLibrarian_Ping verifies that we receive the expected response ("pong") to a ping request.
 func TestLibrarian_Ping(t *testing.T) {
 	lib := &Librarian{}
@@ -70,10 +81,12 @@ func TestLibrarian_Identify(t *testing.T) {
 			PeerName: peerName,
 		},
 		PeerID: peerID,
+		rqv: &alwaysRequestVerifier{},
 	}
 
+	clientPeerID := ecid.NewPseudoRandom(rng)
 	rq := &api.IdentityRequest{
-		Metadata: newTestRequestMetadata(rng, lib.PeerID),
+		Metadata: newTestRequestMetadata(rng, clientPeerID),
 	}
 	rp, err := lib.Identify(nil, rq)
 	assert.Nil(t, err)
@@ -97,6 +110,7 @@ func TestLibrarian_Find(t *testing.T) {
 				entriesSL: storage.NewEntriesKVDBStorerLoader(kvdb),
 				kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
 				rt:        rt,
+				rqv: &alwaysRequestVerifier{},
 			}
 
 			numClosest := uint32(routing.DefaultMaxActivePeers)
@@ -148,6 +162,7 @@ func TestLibrarian_Find_present(t *testing.T) {
 		serverSL:  storage.NewServerKVDBStorerLoader(kvdb),
 		entriesSL: storage.NewEntriesKVDBStorerLoader(kvdb),
 		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
+		rqv: &alwaysRequestVerifier{},
 	}
 
 	// create key-value and store
@@ -192,6 +207,7 @@ func TestLibrarian_Find_missing(t *testing.T) {
 		serverSL:  storage.NewServerKVDBStorerLoader(kvdb),
 		entriesSL: storage.NewEntriesKVDBStorerLoader(kvdb),
 		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
+		rqv: &alwaysRequestVerifier{},
 	}
 
 	// make request
@@ -221,6 +237,7 @@ func TestLibrarian_Store(t *testing.T) {
 		serverSL:  storage.NewServerKVDBStorerLoader(kvdb),
 		entriesSL: storage.NewEntriesKVDBStorerLoader(kvdb),
 		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
+		rqv: &alwaysRequestVerifier{},
 	}
 
 	// create key-value
@@ -377,6 +394,7 @@ func newGetLibrarian(rng *rand.Rand, searchResult *search.Result, searchErr erro
 			result: searchResult,
 			err:    searchErr,
 		},
+		rqv: &alwaysRequestVerifier{},
 	}
 }
 
@@ -484,5 +502,6 @@ func newPutLibrarian(rng *rand.Rand, storeResult *store.Result, searchErr error)
 			result: storeResult,
 			err:    searchErr,
 		},
+		rqv: &alwaysRequestVerifier{},
 	}
 }

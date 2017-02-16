@@ -14,40 +14,39 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"github.com/drausin/libri/libri/librarian/signature"
-	"github.com/gogo/protobuf/proto"
 )
 
 // Librarian is the main service of a single peer in the peer to peer network.
 type Librarian struct {
 	// PeerID is the random 256-bit identification number of this node in the hash table
-	PeerID ecid.ID
+	PeerID    ecid.ID
 
 	// Config holds the configuration parameters of the server
-	Config *Config
+	Config    *Config
 
 	// executes searches for peers and keys
-	searcher search.Searcher
+	searcher  search.Searcher
 
 	// executes stores for key/value
-	storer store.Storer
+	storer    store.Storer
 
 	// verifies requests from peers
-	verifier signature.Verifier
+	rqv       RequestVerifier
 
 	// db is the key-value store DB used for all external storage
-	db db.KVDB
+	db        db.KVDB
 
 	// SL for server data
-	serverSL storage.NamespaceStorerLoader
+	serverSL  storage.NamespaceStorerLoader
 
 	// SL for p2p stored records
 	entriesSL storage.NamespaceStorerLoader
 
 	// kc ensures keys are valid
-	kc storage.Checker
+	kc        storage.Checker
 
 	// rt is the routing table of peers
-	rt routing.Table
+	rt        routing.Table
 }
 
 // NewLibrarian creates a new librarian instance.
@@ -81,6 +80,7 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 		Config:    config,
 		searcher:  searcher,
 		storer:    store.NewStorer(signer, searcher, store.NewQuerier()),
+		rqv: NewRequestVerifier(),
 		db:        rdb,
 		serverSL:  serverSL,
 		entriesSL: entriesSL,
@@ -111,12 +111,6 @@ func (l *Librarian) CloseAndRemove() error {
 	return os.RemoveAll(l.Config.DataDir)
 }
 
-func (l *Librarian) verify(ctx context.Context, msg proto.Message, meta *api.RequestMetadata) (
-	error) {
-	// TODO (drausin) add logic
-	return nil
-}
-
 // NewResponseMetadata creates a new api.ResponseMatadata object with the same RequestID as that
 // in the api.RequestMetadata.
 func (l *Librarian) NewResponseMetadata(m *api.RequestMetadata) *api.ResponseMetadata {
@@ -134,6 +128,9 @@ func (l *Librarian) Ping(ctx context.Context, rq *api.PingRequest) (*api.PingRes
 // Identify gives the identifying information about the peer in the network.
 func (l *Librarian) Identify(ctx context.Context, rq *api.IdentityRequest) (*api.IdentityResponse,
 	error) {
+	if err := l.rqv.Verify(ctx, rq, rq.Metadata); err != nil {
+		return nil, err
+	}
 	return &api.IdentityResponse{
 		Metadata: l.NewResponseMetadata(rq.Metadata),
 		PeerName:  l.Config.PeerName,
@@ -143,6 +140,9 @@ func (l *Librarian) Identify(ctx context.Context, rq *api.IdentityRequest) (*api
 // Find returns either the value at a given target or the peers closest to it.
 func (l *Librarian) Find(ctx context.Context, rq *api.FindRequest) (*api.FindResponse,
 	error) {
+	if err := l.rqv.Verify(ctx, rq, rq.Metadata); err != nil {
+		return nil, err
+	}
 	if err := l.kc.Check(rq.Key); err != nil {
 		return nil, err
 	}
@@ -176,6 +176,9 @@ func (l *Librarian) Find(ctx context.Context, rq *api.FindRequest) (*api.FindRes
 // Store stores the value
 func (l *Librarian) Store(ctx context.Context, rq *api.StoreRequest) (
 	*api.StoreResponse, error) {
+	if err := l.rqv.Verify(ctx, rq, rq.Metadata); err != nil {
+		return nil, err
+	}
 	if err := l.entriesSL.Store(rq.Key, rq.Value); err != nil {
 		return nil, err
 	}
@@ -187,6 +190,9 @@ func (l *Librarian) Store(ctx context.Context, rq *api.StoreRequest) (
 // Get returns the value for a given key, if it exists. This endpoint handles the internals of
 // searching for the key.
 func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetResponse, error) {
+	if err := l.rqv.Verify(ctx, rq, rq.Metadata); err != nil {
+		return nil, err
+	}
 	if err := l.kc.Check(rq.Key); err != nil {
 		return nil, err
 	}
@@ -224,6 +230,9 @@ func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetRespon
 // Put stores a given key and value. This endpoint handles the internals of finding the right
 // peers to store the value in and then sending them store requests.
 func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutResponse, error) {
+	if err := l.rqv.Verify(ctx, rq, rq.Metadata); err != nil {
+		return nil, err
+	}
 	if err := l.kc.Check(rq.Key); err != nil {
 		// TODO (drausin) put key-value checker
 		return nil, err
