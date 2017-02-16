@@ -6,12 +6,12 @@ import (
 	"sync"
 
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
+	"github.com/drausin/libri/libri/librarian/signature"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"github.com/drausin/libri/libri/librarian/signature"
-	"github.com/drausin/libri/libri/librarian/server/ecid"
 )
 
 // Storer executes store operations.
@@ -22,19 +22,19 @@ type Storer interface {
 
 type storer struct {
 	// signs queries
-	signer   signature.Signer
+	signer signature.Signer
 
 	// searcher is used for the first search half of the store operation
 	searcher search.Searcher
 
 	// issues store queries to the peers
-	q        Querier
+	q Querier
 }
 
 // NewStorer creates a new Storer instance with given Searcher and StoreQuerier instances.
 func NewStorer(signer signature.Signer, searcher search.Searcher, q Querier) Storer {
 	return &storer{
-		signer: signer,
+		signer:   signer,
 		searcher: searcher,
 		q:        q,
 	}
@@ -120,22 +120,6 @@ func (s *storer) query(pConn peer.Connector, store *Store) (*api.StoreResponse, 
 	}
 
 	return rp, nil
-}
-
-func (s *storer) context(store *Store) (context.Context,  context.CancelFunc, error) {
-	ctx := context.Background()
-
-	// sign the message
-	signedJWT, err := s.signer.Sign(store.Request)
-	if err != nil {
-		return nil, nil, err
-	}
-	ctx = context.WithValue(ctx, signature.ContextKey, signedJWT)
-
-	// add timeout
-	ctx, cancel := context.WithTimeout(ctx, store.Params.Timeout)
-
-	return ctx, cancel, nil
 }
 
 // Querier handle Store queries to a peer

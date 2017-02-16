@@ -16,9 +16,9 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/storage"
 	"github.com/drausin/libri/libri/librarian/server/store"
+	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"github.com/gogo/protobuf/proto"
 	"golang.org/x/net/context"
 )
 
@@ -55,7 +55,7 @@ func newTestLibrarian() *Librarian {
 
 // alwaysRequestVerifies implements the RequestVerifier interface but just blindly verifies every
 // request.
-type alwaysRequestVerifier struct {}
+type alwaysRequestVerifier struct{}
 
 func (av *alwaysRequestVerifier) Verify(ctx context.Context, msg proto.Message,
 	meta *api.RequestMetadata) error {
@@ -81,7 +81,7 @@ func TestLibrarian_Identify(t *testing.T) {
 			PeerName: peerName,
 		},
 		PeerID: peerID,
-		rqv: &alwaysRequestVerifier{},
+		rqv:    &alwaysRequestVerifier{},
 	}
 
 	clientPeerID := ecid.NewPseudoRandom(rng)
@@ -110,14 +110,14 @@ func TestLibrarian_Find(t *testing.T) {
 				entriesSL: storage.NewEntriesKVDBStorerLoader(kvdb),
 				kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
 				rt:        rt,
-				rqv: &alwaysRequestVerifier{},
+				rqv:       &alwaysRequestVerifier{},
 			}
 
 			numClosest := uint32(routing.DefaultMaxActivePeers)
 			rq := &api.FindRequest{
 				Metadata: newTestRequestMetadata(rng, l.PeerID),
-				Key:       cid.NewPseudoRandom(rng).Bytes(),
-				NumPeers:  numClosest,
+				Key:      cid.NewPseudoRandom(rng).Bytes(),
+				NumPeers: numClosest,
 			}
 
 			prevNumActivePeers := l.rt.NumPeers()
@@ -162,7 +162,7 @@ func TestLibrarian_Find_present(t *testing.T) {
 		serverSL:  storage.NewServerKVDBStorerLoader(kvdb),
 		entriesSL: storage.NewEntriesKVDBStorerLoader(kvdb),
 		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		rqv: &alwaysRequestVerifier{},
+		rqv:       &alwaysRequestVerifier{},
 	}
 
 	// create key-value and store
@@ -180,8 +180,8 @@ func TestLibrarian_Find_present(t *testing.T) {
 	numClosest := uint32(routing.DefaultMaxActivePeers)
 	rq := &api.FindRequest{
 		Metadata: newTestRequestMetadata(rng, l.PeerID),
-		Key:       key[:],
-		NumPeers:  numClosest,
+		Key:      key[:],
+		NumPeers: numClosest,
 	}
 	rp, err := l.Find(nil, rq)
 	assert.Nil(t, err)
@@ -207,15 +207,15 @@ func TestLibrarian_Find_missing(t *testing.T) {
 		serverSL:  storage.NewServerKVDBStorerLoader(kvdb),
 		entriesSL: storage.NewEntriesKVDBStorerLoader(kvdb),
 		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		rqv: &alwaysRequestVerifier{},
+		rqv:       &alwaysRequestVerifier{},
 	}
 
 	// make request
 	numClosest := uint32(routing.DefaultMaxActivePeers)
 	rq := &api.FindRequest{
 		Metadata: newTestRequestMetadata(rng, l.PeerID),
-		Key:       cid.NewPseudoRandom(rng).Bytes(),
-		NumPeers:  numClosest,
+		Key:      cid.NewPseudoRandom(rng).Bytes(),
+		NumPeers: numClosest,
 	}
 
 	prevNumActivePeers := l.rt.NumPeers()
@@ -237,7 +237,7 @@ func TestLibrarian_Store(t *testing.T) {
 		serverSL:  storage.NewServerKVDBStorerLoader(kvdb),
 		entriesSL: storage.NewEntriesKVDBStorerLoader(kvdb),
 		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		rqv: &alwaysRequestVerifier{},
+		rqv:       &alwaysRequestVerifier{},
 	}
 
 	// create key-value
@@ -246,8 +246,8 @@ func TestLibrarian_Store(t *testing.T) {
 	// make store request
 	rq := &api.StoreRequest{
 		Metadata: newTestRequestMetadata(rng, l.PeerID),
-		Key:       key.Bytes(),
-		Value:     value,
+		Key:      key.Bytes(),
+		Value:    value,
 	}
 	rp, err := l.Store(nil, rq)
 	assert.Nil(t, err)
@@ -271,7 +271,7 @@ func newKeyValue(t *testing.T, rng *rand.Rand, nValueBytes int) (cid.ID, []byte)
 func newTestRequestMetadata(rng *rand.Rand, peerID ecid.ID) *api.RequestMetadata {
 	return &api.RequestMetadata{
 		RequestId: cid.NewPseudoRandom(rng).Bytes(),
-		PubKey: ecid.ToPublicKeyBytes(peerID),
+		PubKey:    ecid.ToPublicKeyBytes(peerID),
 	}
 }
 

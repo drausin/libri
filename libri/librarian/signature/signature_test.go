@@ -1,18 +1,19 @@
 package signature
 
 import (
+	"math/rand"
+	"testing"
+
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
-	"math/rand"
-	"testing"
 )
 
 func TestSignatureClaims_Valid_ok(t *testing.T) {
 	// all of these should be considered valid hashes
-	cases := []*SignatureClaims{
+	cases := []*Claims{
 		{"n4bQgYhMfWWaL-qgxVrQFaO_TxsrC4Is0V1sFbDwCgg="},
 		{"9nITsSKl1ELSuTvajMRcVkpw7F0qTg6Vu1hc8ZmGnJg="},
 		{"-MAqRWZ-E5DpcCh23U3GwAZuSbXNqm7ByD59iL6S4uI="},
@@ -25,7 +26,7 @@ func TestSignatureClaims_Valid_ok(t *testing.T) {
 
 func TestSignatureClaims_Valid_err(t *testing.T) {
 	// none of these is valid
-	cases := []*SignatureClaims{
+	cases := []*Claims{
 		{"n4bQgYhMfWWaL-qgxVrQFaO_TxsrC4Is0V1sFbDwCgga"},       // missing last =
 		{"n4bQgYhMfWWaL+qgxVrQFaO_TxsrC4Is0V1sFbDwCgga"},       // + part of non-url base-64
 		{"9nITsSKl1ELSuTvajMRcVkpw7F0qTg6Vu1hc8ZmGnJg"},        // too short
@@ -102,6 +103,9 @@ func TestEcdsaVerifer_Verify_err(t *testing.T) {
 	}
 
 	assert.Panics(t, func() {
-		verifier.Verify(encToken, nil, message)
+		err := verifier.Verify(encToken, nil, message)  // can't have nil key
+		if err != nil {
+			panic(err)
+		}
 	})
 }

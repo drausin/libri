@@ -8,12 +8,13 @@ import (
 	"math/big"
 	mrand "math/rand"
 
-	cid "github.com/drausin/libri/libri/common/id"
 	"fmt"
+
+	cid "github.com/drausin/libri/libri/common/id"
 )
 
-// Elliptic curve public & private keys use. Curve P256 implies 32-byte private and 65-byte public
-// keys, though the X value of the public key point is 32 bytes.
+// Curve defines the elliptic curve public & private keys use. Curve P256 implies 32-byte private
+// and 65-byte public keys, though the X value of the public key point is 32 bytes.
 var Curve = elliptic.P256()
 
 // ID is an elliptic curve identifier, where the ID is the x-value of the (x, y) public key
@@ -89,15 +90,15 @@ func (x *ecid) ID() cid.ID {
 
 // FromPublicKeyBytes creates a new ecdsa.PublicKey from the marshaled byte representation.
 func FromPublicKeyBytes(buf []byte) (*ecdsa.PublicKey, error) {
-	x, y := elliptic.Unmarshal(Curve, buf)  // also checks (x, y) is on curve
+	x, y := elliptic.Unmarshal(Curve, buf) // also checks (x, y) is on curve
 	if x == nil {
 		return nil, fmt.Errorf("unable to unmarshal bytes to point on curve %v",
 			Curve.Params().Name)
 	}
 	return &ecdsa.PublicKey{
 		Curve: Curve,
-		X: x,
-		Y: y,
+		X:     x,
+		Y:     y,
 	}, nil
 }
 

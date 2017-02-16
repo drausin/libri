@@ -3,11 +3,11 @@ package main
 import (
 	"log"
 
+	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	cid "github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/librarian/server/ecid"
 )
 
 const (

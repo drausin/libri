@@ -1,20 +1,21 @@
 package server
 
 import (
-	"testing"
 	"crypto/ecdsa"
-	"github.com/gogo/protobuf/proto"
-	"github.com/drausin/libri/libri/librarian/signature"
+	"math/rand"
+	"testing"
+
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
-	"math/rand"
+	"github.com/drausin/libri/libri/librarian/signature"
+	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
 // alwaysSigVerifier implements the signature.Verifier interface but just blindly verifies
 // every signature.
-type alwaysSigVerifier struct {}
+type alwaysSigVerifier struct{}
 
 func (asv *alwaysSigVerifier) Verify(encToken string, fromPubKey *ecdsa.PublicKey,
 	m proto.Message) error {
@@ -42,16 +43,16 @@ func TestRequestVerifier_Verify_err(t *testing.T) {
 	ctx := context.WithValue(context.Background(), signature.ContextKey, "dummy.signed.token")
 
 	assert.NotNil(t, rv.Verify(ctx, nil, &api.RequestMetadata{
-		PubKey: []byte{255, 254, 253},  // bad pub key
+		PubKey: []byte{255, 254, 253}, // bad pub key
 	}))
 
 	assert.NotNil(t, rv.Verify(ctx, nil, &api.RequestMetadata{
-		PubKey: ecid.ToPublicKeyBytes(ecid.NewPseudoRandom(rng)),
-		RequestId: nil,  // can't be nil
+		PubKey:    ecid.ToPublicKeyBytes(ecid.NewPseudoRandom(rng)),
+		RequestId: nil, // can't be nil
 	}))
 
 	assert.NotNil(t, rv.Verify(ctx, nil, &api.RequestMetadata{
-		PubKey: ecid.ToPublicKeyBytes(ecid.NewPseudoRandom(rng)),
-		RequestId: []byte{1, 2, 3},  // not 32 bytes
+		PubKey:    ecid.ToPublicKeyBytes(ecid.NewPseudoRandom(rng)),
+		RequestId: []byte{1, 2, 3}, // not 32 bytes
 	}))
 }

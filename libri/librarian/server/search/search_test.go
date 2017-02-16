@@ -3,12 +3,13 @@ package search
 import (
 	"testing"
 
+	"math/rand"
+
 	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"math/rand"
-	"github.com/drausin/libri/libri/librarian/server/ecid"
 )
 
 func TestSearch_FoundClosestPeers(t *testing.T) {

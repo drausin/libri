@@ -7,15 +7,17 @@ import (
 
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
+	"github.com/gogo/protobuf/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"github.com/gogo/protobuf/proto"
-	"github.com/drausin/libri/libri/librarian/server/ecid"
 )
 
-type NoOpSigner struct {}
+// NoOpSigner implements the signature.Signer interface but just returns a dummy token.
+type NoOpSigner struct{}
 
+// Sign returns a dummy token.
 func (s *NoOpSigner) Sign(m proto.Message) (string, error) {
 	return "noop.token.sig", nil
 }

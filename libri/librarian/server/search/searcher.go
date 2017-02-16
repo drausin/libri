@@ -8,12 +8,12 @@ import (
 
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
+	"github.com/drausin/libri/libri/librarian/signature"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"github.com/drausin/libri/libri/librarian/signature"
-	"github.com/drausin/libri/libri/librarian/server/ecid"
 )
 
 // Searcher executes searches for particular keys.
@@ -27,10 +27,10 @@ type searcher struct {
 	signer signature.Signer
 
 	// issues find queries to the peers
-	q      Querier
+	q Querier
 
 	// processes the find query responses from the peers
-	rp     FindResponseProcessor
+	rp FindResponseProcessor
 }
 
 // NewSearcher returns a new Searcher with the given Querier and ResponseProcessor.
@@ -140,7 +140,7 @@ func (s *searcher) query(pConn peer.Connector, search *Search) (*api.FindRespons
 	return rp, nil
 }
 
-func (s *searcher) context(search *Search) (context.Context,  context.CancelFunc, error) {
+func (s *searcher) context(search *Search) (context.Context, context.CancelFunc, error) {
 	ctx := context.Background()
 
 	// sign the message

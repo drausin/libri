@@ -9,7 +9,7 @@ import (
 func NewRequestMetadata(peerID ecid.ID) *RequestMetadata {
 	return &RequestMetadata{
 		RequestId: cid.NewRandom().Bytes(),
-		PubKey: ecid.ToPublicKeyBytes(peerID),
+		PubKey:    ecid.ToPublicKeyBytes(peerID),
 	}
 }
 
@@ -17,8 +17,8 @@ func NewRequestMetadata(peerID ecid.ID) *RequestMetadata {
 func NewFindRequest(peerID ecid.ID, key cid.ID, nPeers uint) *FindRequest {
 	return &FindRequest{
 		Metadata: NewRequestMetadata(peerID),
-		Key:       key.Bytes(),
-		NumPeers:  uint32(nPeers),
+		Key:      key.Bytes(),
+		NumPeers: uint32(nPeers),
 	}
 }
 
@@ -26,8 +26,8 @@ func NewFindRequest(peerID ecid.ID, key cid.ID, nPeers uint) *FindRequest {
 func NewStoreRequest(peerID ecid.ID, key cid.ID, value []byte) *StoreRequest {
 	return &StoreRequest{
 		Metadata: NewRequestMetadata(peerID),
-		Key:       key.Bytes(),
-		Value:     value,
+		Key:      key.Bytes(),
+		Value:    value,
 	}
 }
 
@@ -35,7 +35,7 @@ func NewStoreRequest(peerID ecid.ID, key cid.ID, value []byte) *StoreRequest {
 func NewGetRequest(peerID ecid.ID, key cid.ID) *GetRequest {
 	return &GetRequest{
 		Metadata: NewRequestMetadata(peerID),
-		Key:       key.Bytes(),
+		Key:      key.Bytes(),
 	}
 }
 
@@ -43,7 +43,7 @@ func NewGetRequest(peerID ecid.ID, key cid.ID) *GetRequest {
 func NewPutRequest(peerID ecid.ID, key cid.ID, value []byte) *PutRequest {
 	return &PutRequest{
 		Metadata: NewRequestMetadata(peerID),
-		Key:       key.Bytes(),
-		Value:     value,
+		Key:      key.Bytes(),
+		Value:    value,
 	}
 }

@@ -8,12 +8,12 @@ import (
 
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"github.com/drausin/libri/libri/librarian/server/ecid"
 )
 
 func TestSearcher_Search(t *testing.T) {
@@ -76,7 +76,7 @@ func TestSearcher_Search(t *testing.T) {
 
 // fixedFinder returns a fixed set of peer addresses for all find requests
 type fixedQuerier struct {
-	peerID ecid.ID
+	peerID    ecid.ID
 	addresses []*api.PeerAddress
 }
 
@@ -85,7 +85,7 @@ func (f *fixedQuerier) Query(ctx context.Context, pConn peer.Connector, fr *api.
 	return &api.FindResponse{
 		Metadata: &api.ResponseMetadata{
 			RequestId: fr.Metadata.RequestId,
-			PubKey: ecid.ToPublicKeyBytes(f.peerID),
+			PubKey:    ecid.ToPublicKeyBytes(f.peerID),
 		},
 		Addresses: f.addresses,
 	}, nil
@@ -102,8 +102,8 @@ func TestSearcher_query_ok(t *testing.T) {
 	s := &searcher{
 		signer: &NoOpSigner{},
 		// use querier that returns fixed set of addresses
-		q:  &fixedQuerier{
-			peerID: peerID,
+		q: &fixedQuerier{
+			peerID:    peerID,
 			addresses: newPeerAddresses(rng, nAddresses),
 		},
 		rp: nil,
@@ -128,7 +128,7 @@ func (f *timeoutQuerier) Query(ctx context.Context, pConn peer.Connector, fr *ap
 
 // diffRequestIDFinder returns a response with a different request ID
 type diffRequestIDQuerier struct {
-	rng *rand.Rand
+	rng    *rand.Rand
 	peerID ecid.ID
 }
 
@@ -160,8 +160,8 @@ func TestSearcher_query_err(t *testing.T) {
 	s2 := &searcher{
 		signer: &NoOpSigner{},
 		// use querier that simulates a timeout
-		q:  &diffRequestIDQuerier{
-			rng: rng,
+		q: &diffRequestIDQuerier{
+			rng:    rng,
 			peerID: peerID,
 		},
 		rp: nil,
@@ -270,6 +270,6 @@ func newPeerAddresses(rng *rand.Rand, n int) []*api.PeerAddress {
 func newTestResponseMetadata(rng *rand.Rand, peerID ecid.ID) *api.ResponseMetadata {
 	return &api.ResponseMetadata{
 		RequestId: cid.NewPseudoRandom(rng).Bytes(),
-		PubKey: ecid.ToPublicKeyBytes(peerID),
+		PubKey:    ecid.ToPublicKeyBytes(peerID),
 	}
 }

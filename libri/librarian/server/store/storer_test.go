@@ -6,17 +6,17 @@ import (
 
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	ssearch "github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"github.com/drausin/libri/libri/librarian/server/ecid"
 )
 
 // TestStoreQuerier mocks the StoreQuerier interface. The Query() method returns an
 // api.StoreResponse, as if the remote peer had successfully stored the value.
-type TestStoreQuerier struct{
+type TestStoreQuerier struct {
 	peerID ecid.ID
 }
 
@@ -25,7 +25,7 @@ func (c *TestStoreQuerier) Query(ctx context.Context, pConn peer.Connector, rq *
 	return &api.StoreResponse{
 		Metadata: &api.ResponseMetadata{
 			RequestId: rq.Metadata.RequestId,
-			PubKey: ecid.ToPublicKeyBytes(c.peerID),
+			PubKey:    ecid.ToPublicKeyBytes(c.peerID),
 		},
 	}, nil
 }

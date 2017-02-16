@@ -11,42 +11,42 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/storage"
 	"github.com/drausin/libri/libri/librarian/server/store"
+	"github.com/drausin/libri/libri/librarian/signature"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
-	"github.com/drausin/libri/libri/librarian/signature"
 )
 
 // Librarian is the main service of a single peer in the peer to peer network.
 type Librarian struct {
 	// PeerID is the random 256-bit identification number of this node in the hash table
-	PeerID    ecid.ID
+	PeerID ecid.ID
 
 	// Config holds the configuration parameters of the server
-	Config    *Config
+	Config *Config
 
 	// executes searches for peers and keys
-	searcher  search.Searcher
+	searcher search.Searcher
 
 	// executes stores for key/value
-	storer    store.Storer
+	storer store.Storer
 
 	// verifies requests from peers
-	rqv       RequestVerifier
+	rqv RequestVerifier
 
 	// db is the key-value store DB used for all external storage
-	db        db.KVDB
+	db db.KVDB
 
 	// SL for server data
-	serverSL  storage.NamespaceStorerLoader
+	serverSL storage.NamespaceStorerLoader
 
 	// SL for p2p stored records
 	entriesSL storage.NamespaceStorerLoader
 
 	// kc ensures keys are valid
-	kc        storage.Checker
+	kc storage.Checker
 
 	// rt is the routing table of peers
-	rt        routing.Table
+	rt routing.Table
 }
 
 // NewLibrarian creates a new librarian instance.
@@ -80,7 +80,7 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 		Config:    config,
 		searcher:  searcher,
 		storer:    store.NewStorer(signer, searcher, store.NewQuerier()),
-		rqv: NewRequestVerifier(),
+		rqv:       NewRequestVerifier(),
 		db:        rdb,
 		serverSL:  serverSL,
 		entriesSL: entriesSL,
@@ -116,7 +116,7 @@ func (l *Librarian) CloseAndRemove() error {
 func (l *Librarian) NewResponseMetadata(m *api.RequestMetadata) *api.ResponseMetadata {
 	return &api.ResponseMetadata{
 		RequestId: m.RequestId,
-		PubKey: ecid.ToPublicKeyBytes(l.PeerID),
+		PubKey:    ecid.ToPublicKeyBytes(l.PeerID),
 	}
 }
 
@@ -133,7 +133,7 @@ func (l *Librarian) Identify(ctx context.Context, rq *api.IdentityRequest) (*api
 	}
 	return &api.IdentityResponse{
 		Metadata: l.NewResponseMetadata(rq.Metadata),
-		PeerName:  l.Config.PeerName,
+		PeerName: l.Config.PeerName,
 	}, nil
 }
 
@@ -156,7 +156,7 @@ func (l *Librarian) Find(ctx context.Context, rq *api.FindRequest) (*api.FindRes
 	if value != nil {
 		return &api.FindResponse{
 			Metadata: l.NewResponseMetadata(rq.Metadata),
-			Value:     value,
+			Value:    value,
 		}, nil
 	}
 
@@ -168,7 +168,7 @@ func (l *Librarian) Find(ctx context.Context, rq *api.FindRequest) (*api.FindRes
 		addresses[i] = peer.ToAPI()
 	}
 	return &api.FindResponse{
-		Metadata: l.NewResponseMetadata(rq.Metadata),
+		Metadata:  l.NewResponseMetadata(rq.Metadata),
 		Addresses: addresses,
 	}, nil
 }
@@ -207,14 +207,14 @@ func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetRespon
 		// return the value found by the search
 		return &api.GetResponse{
 			Metadata: l.NewResponseMetadata(rq.Metadata),
-			Value:     s.Result.Value,
+			Value:    s.Result.Value,
 		}, nil
 	}
 	if s.FoundClosestPeers() {
 		// return the nil value, indicating that the value wasn't found
 		return &api.GetResponse{
 			Metadata: l.NewResponseMetadata(rq.Metadata),
-			Value:     nil,
+			Value:    nil,
 		}, nil
 	}
 	if s.Errored() {
@@ -251,14 +251,14 @@ func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutRespon
 	}
 	if s.Stored() {
 		return &api.PutResponse{
-			Metadata: l.NewResponseMetadata(rq.Metadata),
+			Metadata:  l.NewResponseMetadata(rq.Metadata),
 			Operation: api.PutOperation_STORED,
 			NReplicas: uint32(len(s.Result.Responded)),
 		}, nil
 	}
 	if s.Exists() {
 		return &api.PutResponse{
-			Metadata: l.NewResponseMetadata(rq.Metadata),
+			Metadata:  l.NewResponseMetadata(rq.Metadata),
 			Operation: api.PutOperation_LEFT_EXISTING,
 			NReplicas: uint32(len(s.Result.Responded)),
 		}, nil

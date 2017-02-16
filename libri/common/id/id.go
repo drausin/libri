@@ -2,11 +2,11 @@ package id
 
 import (
 	"bytes"
+	"crypto/ecdsa"
 	crand "crypto/rand"
 	"fmt"
 	"math/big"
 	mrand "math/rand"
-	"crypto/ecdsa"
 )
 
 const (

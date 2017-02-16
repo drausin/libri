@@ -1,14 +1,15 @@
 package server
 
 import (
-	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/gogo/protobuf/proto"
-	"golang.org/x/net/context"
-	"github.com/drausin/libri/libri/librarian/signature"
-	"github.com/drausin/libri/libri/librarian/server/ecid"
-	"github.com/drausin/libri/libri/common/id"
 	"fmt"
+
+	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/server/ecid"
+	"github.com/drausin/libri/libri/librarian/signature"
+	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
+	"golang.org/x/net/context"
 )
 
 // RequestVerifier verifies requests by checking the signature in the context.
@@ -20,6 +21,7 @@ type requestVerifier struct {
 	sigVerifier signature.Verifier
 }
 
+// NewRequestVerifier creates a new RequestVerifier instance.
 func NewRequestVerifier() RequestVerifier {
 	return &requestVerifier{
 		sigVerifier: signature.NewVerifier(),
