@@ -1,13 +1,13 @@
 package main
 
 import (
-	"encoding/base64"
 	"log"
 
+	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	cid "github.com/drausin/libri/libri/common/id"
 )
 
 const (
@@ -31,13 +31,17 @@ func main() {
 	log.Printf("Server: %s", r1.Message)
 
 	r2, err := c.Identify(context.Background(), &api.IdentityRequest{
-		Metadata: api.NewRequestMetadata(cid.NewRandom()),
+		Metadata: api.NewRequestMetadata(ecid.NewRandom()),
 	})
 	if err != nil {
 		log.Fatalf("could not ping: %v", err)
 	}
 	log.Printf("Peer name: %s", r2.PeerName)
-	log.Printf("Peer ID: %v", base64.URLEncoding.EncodeToString(r2.Metadata.PeerId))
+	peerPubKey, err := ecid.FromPublicKeyBytes(r2.Metadata.PubKey)
+	if err != nil {
+		log.Fatalf("could not read public key: %v", err)
+	}
+	log.Printf("Peer ID: %v", cid.FromPublicKey(peerPubKey))
 
 	err = conn.Close()
 	if err != nil {

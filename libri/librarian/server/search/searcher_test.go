@@ -8,6 +8,7 @@ import (
 
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -18,7 +19,7 @@ import (
 func TestSearcher_Search(t *testing.T) {
 	n, nClosestResponses := 32, uint(8)
 	rng := rand.New(rand.NewSource(int64(n)))
-	peers, peersMap, selfPeerIdxs := NewTestPeers(rng, n)
+	peers, peersMap, selfPeerIdxs, selfID := NewTestPeers(rng, n)
 
 	// create our searcher
 	key := cid.NewPseudoRandom(rng)
@@ -26,7 +27,7 @@ func TestSearcher_Search(t *testing.T) {
 
 	for concurrency := uint(1); concurrency <= 3; concurrency++ {
 
-		search := NewSearch(peers[0].ID(), key, &Parameters{
+		search := NewSearch(selfID, key, &Parameters{
 			NClosestResponses: nClosestResponses,
 			NMaxErrors:        DefaultNMaxErrors,
 			Concurrency:       concurrency,
@@ -75,7 +76,7 @@ func TestSearcher_Search(t *testing.T) {
 
 // fixedFinder returns a fixed set of peer addresses for all find requests
 type fixedQuerier struct {
-	peerID cid.ID
+	peerID    ecid.ID
 	addresses []*api.PeerAddress
 }
 
@@ -84,7 +85,7 @@ func (f *fixedQuerier) Query(ctx context.Context, pConn peer.Connector, fr *api.
 	return &api.FindResponse{
 		Metadata: &api.ResponseMetadata{
 			RequestId: fr.Metadata.RequestId,
-			PeerId: f.peerID.Bytes(),
+			PubKey:    ecid.ToPublicKeyBytes(f.peerID),
 		},
 		Addresses: f.addresses,
 	}, nil
@@ -93,15 +94,16 @@ func (f *fixedQuerier) Query(ctx context.Context, pConn peer.Connector, fr *api.
 func TestSearcher_query_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	nAddresses := 8
-	peerID, key := cid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
+	peerID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
 	search := NewSearch(peerID, key, &Parameters{
 		NClosestResponses: uint(nAddresses),
 		Timeout:           DefaultQueryTimeout,
 	})
 	s := &searcher{
+		signer: &NoOpSigner{},
 		// use querier that returns fixed set of addresses
-		q:  &fixedQuerier{
-			peerID: peerID,
+		q: &fixedQuerier{
+			peerID:    peerID,
 			addresses: newPeerAddresses(rng, nAddresses),
 		},
 		rp: nil,
@@ -111,7 +113,7 @@ func TestSearcher_query_ok(t *testing.T) {
 	rp, err := s.query(client, search)
 	assert.Nil(t, err)
 	assert.NotNil(t, rp.Metadata.RequestId)
-	assert.NotNil(t, rp.Metadata.PeerId)
+	assert.NotNil(t, rp.Metadata.PubKey)
 	assert.Equal(t, nAddresses, len(rp.Addresses))
 	assert.Nil(t, rp.Value)
 }
@@ -126,29 +128,27 @@ func (f *timeoutQuerier) Query(ctx context.Context, pConn peer.Connector, fr *ap
 
 // diffRequestIDFinder returns a response with a different request ID
 type diffRequestIDQuerier struct {
-	rng *rand.Rand
-	peerID cid.ID
+	rng    *rand.Rand
+	peerID ecid.ID
 }
 
 func (f *diffRequestIDQuerier) Query(ctx context.Context, pConn peer.Connector,
 	fr *api.FindRequest, opts ...grpc.CallOption) (*api.FindResponse, error) {
 	return &api.FindResponse{
-		Metadata: &api.ResponseMetadata{
-			RequestId: cid.NewPseudoRandom(f.rng).Bytes(),
-			PeerId: f.peerID.Bytes(),
-		},
+		Metadata: newTestResponseMetadata(f.rng, f.peerID),
 	}, nil
 }
 
 func TestSearcher_query_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	client := peer.NewConnector(nil) // won't actually be used since we're mocking the finder
-	peerID, key := cid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
+	peerID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
 	search := NewSearch(peerID, key, &Parameters{
 		Timeout: DefaultQueryTimeout,
 	})
 
 	s1 := &searcher{
+		signer: &NoOpSigner{},
 		// use querier that simulates a timeout
 		q:  &timeoutQuerier{},
 		rp: nil,
@@ -158,9 +158,10 @@ func TestSearcher_query_err(t *testing.T) {
 	assert.NotNil(t, err)
 
 	s2 := &searcher{
+		signer: &NoOpSigner{},
 		// use querier that simulates a timeout
-		q:  &diffRequestIDQuerier{
-			rng: rng,
+		q: &diffRequestIDQuerier{
+			rng:    rng,
 			peerID: peerID,
 		},
 		rp: nil,
@@ -179,7 +180,6 @@ func TestResponseProcessor_Process_Value(t *testing.T) {
 	// create response with the value
 	value := cid.NewPseudoRandom(rng).Bytes() // random value
 	response2 := &api.FindResponse{
-		Metadata: newTestResponseMetadata(rng),
 		Addresses: nil,
 		Value:     value,
 	}
@@ -205,7 +205,6 @@ func TestResponseProcessor_Process_Addresses(t *testing.T) {
 
 	// create response or nAddresses and process it
 	response1 := &api.FindResponse{
-		Metadata: newTestResponseMetadata(rng),
 		Addresses: peerAddresses1,
 		Value:     nil,
 	}
@@ -231,7 +230,6 @@ func TestResponseProcessor_Process_Addresses(t *testing.T) {
 
 	// check that a response with these peers has no effect
 	response2 := &api.FindResponse{
-		Metadata: newTestResponseMetadata(rng),
 		Addresses: peerAddresses2,
 		Value:     nil,
 	}
@@ -249,7 +247,6 @@ func TestResponseProcessor_Process_err(t *testing.T) {
 
 	// create a bad response with neither a value nor peer addresses
 	response2 := &api.FindResponse{
-		Metadata: newTestResponseMetadata(rng),
 		Addresses: nil,
 		Value:     nil,
 	}
@@ -270,9 +267,9 @@ func newPeerAddresses(rng *rand.Rand, n int) []*api.PeerAddress {
 	return peerAddresses
 }
 
-func newTestResponseMetadata(rng *rand.Rand) *api.ResponseMetadata {
+func newTestResponseMetadata(rng *rand.Rand, peerID ecid.ID) *api.ResponseMetadata {
 	return &api.ResponseMetadata{
 		RequestId: cid.NewPseudoRandom(rng).Bytes(),
-		PeerId: cid.NewPseudoRandom(rng).Bytes(),
+		PubKey:    ecid.ToPublicKeyBytes(peerID),
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/storage"
 	"github.com/drausin/libri/libri/librarian/server/store"
+	"github.com/drausin/libri/libri/librarian/signature"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
@@ -28,6 +29,9 @@ type Librarian struct {
 
 	// executes stores for key/value
 	storer store.Storer
+
+	// verifies requests from peers
+	rqv RequestVerifier
 
 	// db is the key-value store DB used for all external storage
 	db db.KVDB
@@ -68,13 +72,15 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 		return nil, err
 	}
 
-	searcher := search.NewDefaultSearcher()
+	searcher := search.NewDefaultSearcher(peerID)
+	signer := signature.NewSigner(peerID.Key())
 
 	return &Librarian{
 		PeerID:    peerID,
 		Config:    config,
 		searcher:  searcher,
-		storer:    store.NewStorer(searcher, store.NewQuerier()),
+		storer:    store.NewStorer(signer, searcher, store.NewQuerier()),
+		rqv:       NewRequestVerifier(),
 		db:        rdb,
 		serverSL:  serverSL,
 		entriesSL: entriesSL,
@@ -110,7 +116,7 @@ func (l *Librarian) CloseAndRemove() error {
 func (l *Librarian) NewResponseMetadata(m *api.RequestMetadata) *api.ResponseMetadata {
 	return &api.ResponseMetadata{
 		RequestId: m.RequestId,
-		PeerId: l.PeerID.Bytes(),
+		PubKey:    ecid.ToPublicKeyBytes(l.PeerID),
 	}
 }
 
@@ -122,15 +128,21 @@ func (l *Librarian) Ping(ctx context.Context, rq *api.PingRequest) (*api.PingRes
 // Identify gives the identifying information about the peer in the network.
 func (l *Librarian) Identify(ctx context.Context, rq *api.IdentityRequest) (*api.IdentityResponse,
 	error) {
+	if err := l.rqv.Verify(ctx, rq, rq.Metadata); err != nil {
+		return nil, err
+	}
 	return &api.IdentityResponse{
 		Metadata: l.NewResponseMetadata(rq.Metadata),
-		PeerName:  l.Config.PeerName,
+		PeerName: l.Config.PeerName,
 	}, nil
 }
 
 // Find returns either the value at a given target or the peers closest to it.
 func (l *Librarian) Find(ctx context.Context, rq *api.FindRequest) (*api.FindResponse,
 	error) {
+	if err := l.rqv.Verify(ctx, rq, rq.Metadata); err != nil {
+		return nil, err
+	}
 	if err := l.kc.Check(rq.Key); err != nil {
 		return nil, err
 	}
@@ -144,7 +156,7 @@ func (l *Librarian) Find(ctx context.Context, rq *api.FindRequest) (*api.FindRes
 	if value != nil {
 		return &api.FindResponse{
 			Metadata: l.NewResponseMetadata(rq.Metadata),
-			Value:     value,
+			Value:    value,
 		}, nil
 	}
 
@@ -156,7 +168,7 @@ func (l *Librarian) Find(ctx context.Context, rq *api.FindRequest) (*api.FindRes
 		addresses[i] = peer.ToAPI()
 	}
 	return &api.FindResponse{
-		Metadata: l.NewResponseMetadata(rq.Metadata),
+		Metadata:  l.NewResponseMetadata(rq.Metadata),
 		Addresses: addresses,
 	}, nil
 }
@@ -164,6 +176,9 @@ func (l *Librarian) Find(ctx context.Context, rq *api.FindRequest) (*api.FindRes
 // Store stores the value
 func (l *Librarian) Store(ctx context.Context, rq *api.StoreRequest) (
 	*api.StoreResponse, error) {
+	if err := l.rqv.Verify(ctx, rq, rq.Metadata); err != nil {
+		return nil, err
+	}
 	if err := l.entriesSL.Store(rq.Key, rq.Value); err != nil {
 		return nil, err
 	}
@@ -175,6 +190,9 @@ func (l *Librarian) Store(ctx context.Context, rq *api.StoreRequest) (
 // Get returns the value for a given key, if it exists. This endpoint handles the internals of
 // searching for the key.
 func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetResponse, error) {
+	if err := l.rqv.Verify(ctx, rq, rq.Metadata); err != nil {
+		return nil, err
+	}
 	if err := l.kc.Check(rq.Key); err != nil {
 		return nil, err
 	}
@@ -189,14 +207,14 @@ func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetRespon
 		// return the value found by the search
 		return &api.GetResponse{
 			Metadata: l.NewResponseMetadata(rq.Metadata),
-			Value:     s.Result.Value,
+			Value:    s.Result.Value,
 		}, nil
 	}
 	if s.FoundClosestPeers() {
 		// return the nil value, indicating that the value wasn't found
 		return &api.GetResponse{
 			Metadata: l.NewResponseMetadata(rq.Metadata),
-			Value:     nil,
+			Value:    nil,
 		}, nil
 	}
 	if s.Errored() {
@@ -212,6 +230,9 @@ func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetRespon
 // Put stores a given key and value. This endpoint handles the internals of finding the right
 // peers to store the value in and then sending them store requests.
 func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutResponse, error) {
+	if err := l.rqv.Verify(ctx, rq, rq.Metadata); err != nil {
+		return nil, err
+	}
 	if err := l.kc.Check(rq.Key); err != nil {
 		// TODO (drausin) put key-value checker
 		return nil, err
@@ -230,14 +251,14 @@ func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutRespon
 	}
 	if s.Stored() {
 		return &api.PutResponse{
-			Metadata: l.NewResponseMetadata(rq.Metadata),
+			Metadata:  l.NewResponseMetadata(rq.Metadata),
 			Operation: api.PutOperation_STORED,
 			NReplicas: uint32(len(s.Result.Responded)),
 		}, nil
 	}
 	if s.Exists() {
 		return &api.PutResponse{
-			Metadata: l.NewResponseMetadata(rq.Metadata),
+			Metadata:  l.NewResponseMetadata(rq.Metadata),
 			Operation: api.PutOperation_LEFT_EXISTING,
 			NReplicas: uint32(len(s.Result.Responded)),
 		}, nil

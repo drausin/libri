@@ -29,16 +29,16 @@ message RequestMetadata {
     // 32-byte unique request ID
     bytes request_id = 1;
 
-    // 32-byte requesting peer ID
-    bytes peer_id = 2;
+    // peer's ECDSA public key
+    bytes pub_key = 2;
 }
 
 message ResponseMetadata {
     // 32-byte request ID that generated this response
     bytes request_id = 1;
 
-    // 32-byte responding peer ID
-    bytes peer_id = 2;
+    // peer's ECDSA public key
+    bytes pub_key = 2;
 }
 
 message PingRequest {}

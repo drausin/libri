@@ -6,8 +6,10 @@ import (
 	"sync"
 
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
+	"github.com/drausin/libri/libri/librarian/signature"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -19,6 +21,9 @@ type Storer interface {
 }
 
 type storer struct {
+	// signs queries
+	signer signature.Signer
+
 	// searcher is used for the first search half of the store operation
 	searcher search.Searcher
 
@@ -27,17 +32,19 @@ type storer struct {
 }
 
 // NewStorer creates a new Storer instance with given Searcher and StoreQuerier instances.
-func NewStorer(searcher search.Searcher, q Querier) Storer {
+func NewStorer(signer signature.Signer, searcher search.Searcher, q Querier) Storer {
 	return &storer{
+		signer:   signer,
 		searcher: searcher,
 		q:        q,
 	}
 }
 
 // NewDefaultStorer creates a new Storer with default Searcher and StoreQuerier instances.
-func NewDefaultStorer() Storer {
+func NewDefaultStorer(peerID ecid.ID) Storer {
 	return NewStorer(
-		search.NewDefaultSearcher(),
+		signature.NewSigner(peerID.Key()),
+		search.NewDefaultSearcher(peerID),
 		NewQuerier(),
 	)
 }

@@ -8,10 +8,14 @@ import (
 	"math/big"
 	mrand "math/rand"
 
+	"fmt"
+
 	cid "github.com/drausin/libri/libri/common/id"
 )
 
-var curve = elliptic.P256() // implies 32-byte private and public keys
+// Curve defines the elliptic curve public & private keys use. Curve P256 implies 32-byte private
+// and 65-byte public keys, though the X value of the public key point is 32 bytes.
+var Curve = elliptic.P256()
 
 // ID is an elliptic curve identifier, where the ID is the x-value of the (x, y) public key
 // point on the curve. When couples with the private key, this allows something (e.g., a libri
@@ -22,7 +26,7 @@ type ID interface {
 	// ECDSA private key (which includes public key as well)
 	Key() *ecdsa.PrivateKey
 
-	//
+	// underlying ID object
 	ID() cid.ID
 }
 
@@ -46,7 +50,7 @@ func NewPseudoRandom(rng *mrand.Rand) ID {
 }
 
 func newRandom(reader io.Reader) ID {
-	key, err := ecdsa.GenerateKey(curve, reader)
+	key, err := ecdsa.GenerateKey(Curve, reader)
 	if err != nil {
 		panic(err)
 	}
@@ -82,4 +86,23 @@ func (x *ecid) Key() *ecdsa.PrivateKey {
 
 func (x *ecid) ID() cid.ID {
 	return x.id
+}
+
+// FromPublicKeyBytes creates a new ecdsa.PublicKey from the marshaled byte representation.
+func FromPublicKeyBytes(buf []byte) (*ecdsa.PublicKey, error) {
+	x, y := elliptic.Unmarshal(Curve, buf) // also checks (x, y) is on curve
+	if x == nil {
+		return nil, fmt.Errorf("unable to unmarshal bytes to point on curve %v",
+			Curve.Params().Name)
+	}
+	return &ecdsa.PublicKey{
+		Curve: Curve,
+		X:     x,
+		Y:     y,
+	}, nil
+}
+
+// ToPublicKeyBytes marshals the public key of the ID to a byte representation.
+func ToPublicKeyBytes(x ID) []byte {
+	return elliptic.Marshal(Curve, x.Key().X, x.Key().Y)
 }

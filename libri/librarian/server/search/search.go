@@ -6,6 +6,7 @@ import (
 
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 )
@@ -100,7 +101,7 @@ type Search struct {
 }
 
 // NewSearch creates a new Search instance for a given target, search type, and search parameters.
-func NewSearch(selfID cid.ID, key cid.ID, params *Parameters) *Search {
+func NewSearch(selfID ecid.ID, key cid.ID, params *Parameters) *Search {
 	return &Search{
 		Key:     key,
 		Request: api.NewFindRequest(selfID, key, params.NClosestResponses),
