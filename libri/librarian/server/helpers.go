@@ -1,12 +1,13 @@
 package server
 
 import (
-	"github.com/drausin/libri/libri/librarian/server/peer"
-	"github.com/drausin/libri/libri/librarian/server/ecid"
-	cid "github.com/drausin/libri/libri/common/id"
-	"github.com/gogo/protobuf/proto"
-	"github.com/drausin/libri/libri/librarian/api"
 	"context"
+
+	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/server/ecid"
+	"github.com/drausin/libri/libri/librarian/server/peer"
+	"github.com/gogo/protobuf/proto"
 )
 
 // newStubPeerFromPublicKeyBytes creates a new stub peer with an ID coming from an ECDSA public key.

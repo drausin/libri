@@ -35,7 +35,7 @@ func toStoredAddress(address *net.TCPAddr) *storage.Address {
 func fromStoredQueryOutcomes(stored *storage.QueryOutcomes) *queryRecorder {
 	return &queryRecorder{
 		responses: fromStoredQueryTypeOutcomes(stored.Responses),
-		requests: fromStoredQueryTypeOutcomes(stored.Requests),
+		requests:  fromStoredQueryTypeOutcomes(stored.Requests),
 	}
 }
 

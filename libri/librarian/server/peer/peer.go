@@ -1,10 +1,11 @@
 package peer
 
 import (
+	"fmt"
+
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/storage"
-	"fmt"
 )
 
 // Peer represents a peer in the network.
@@ -89,7 +90,7 @@ func (p *peer) Merge(other Peer) error {
 	pAddr := p.conn.(*connector).publicAddress
 	if other.Connector() != nil && pAddr != other.Connector().(*connector).publicAddress {
 		otherAddr := other.Connector().(*connector).publicAddress
-		return fmt.Errorf("unable to merge public addresses for peer %v: existing (%v)" +
+		return fmt.Errorf("unable to merge public addresses for peer %v: existing (%v)"+
 			" conflicts with new (%v)", p.id, pAddr.String(), otherAddr.String())
 	}
 	p.recorder.Merge(other.Recorder())
@@ -109,7 +110,7 @@ func (p *peer) ToStored() *storage.Peer {
 		Id:            p.id.Bytes(),
 		Name:          p.name,
 		PublicAddress: toStoredAddress(p.conn.(*connector).publicAddress),
-		QueryOutcomes:       p.recorder.ToStored(),
+		QueryOutcomes: p.recorder.ToStored(),
 	}
 }
 

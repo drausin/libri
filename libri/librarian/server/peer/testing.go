@@ -60,7 +60,7 @@ func NewTestStoredPeer(rng *rand.Rand, idx int) *storage.Peer {
 				NQueries: 1,
 				NErrors:  0,
 			},
-			Requests: &storage.QueryTypeOutcomes{},  // everything will be zero
+			Requests: &storage.QueryTypeOutcomes{}, // everything will be zero
 		},
 	}
 }

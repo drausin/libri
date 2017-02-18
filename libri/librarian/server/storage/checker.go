@@ -1,10 +1,10 @@
 package storage
 
 import (
+	"bytes"
+	"crypto/sha256"
 	"errors"
 	"fmt"
-	"crypto/sha256"
-	"bytes"
 )
 
 // Checker checks that a key or value is value.
@@ -90,7 +90,7 @@ type KeyValueChecker interface {
 	Check(key []byte, value []byte) error
 }
 
-type hashChecker struct {}
+type hashChecker struct{}
 
 // NewHashKeyValueChecker returns a new KeyValueChecker that checks that the key is the SHA256
 // hash of the value.
@@ -105,5 +105,3 @@ func (hc *hashChecker) Check(key []byte, value []byte) error {
 	}
 	return nil
 }
-
-

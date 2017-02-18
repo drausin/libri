@@ -7,10 +7,11 @@ import (
 	"sort"
 	"testing"
 
+	"sync"
+
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/stretchr/testify/assert"
-	"sync"
 )
 
 func TestTable_NewWithPeers(t *testing.T) {
@@ -183,8 +184,8 @@ func TestTable_Peak_concurrent(t *testing.T) {
 			go func(wg *sync.WaitGroup) {
 				defer wg.Done()
 				info := fmt.Sprintf("k: %v, nap: %v", k, numActivePeers)
-				ps := rt.Peak(target, k / concurrency)
-				checkPoppedPeers(t, k / concurrency, numActivePeers, ps, info)
+				ps := rt.Peak(target, k/concurrency)
+				checkPoppedPeers(t, k/concurrency, numActivePeers, ps, info)
 			}(&wg)
 		}
 		wg.Wait()

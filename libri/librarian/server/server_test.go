@@ -81,7 +81,7 @@ func TestLibrarian_Identify(t *testing.T) {
 			PeerName: peerName,
 		},
 		PeerID: peerID,
-		rt: rt,
+		rt:     rt,
 		rqv:    &alwaysRequestVerifier{},
 	}
 
@@ -161,7 +161,7 @@ func TestLibrarian_Find_present(t *testing.T) {
 		db:        kvdb,
 		serverSL:  storage.NewServerKVDBStorerLoader(kvdb),
 		entriesSL: storage.NewEntriesKVDBStorerLoader(kvdb),
-		rt: rt,
+		rt:        rt,
 		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		rqv:       &alwaysRequestVerifier{},
 	}
@@ -233,12 +233,12 @@ func TestLibrarian_Store(t *testing.T) {
 
 	l := &Librarian{
 		PeerID:    peerID,
-		rt: rt,
+		rt:        rt,
 		db:        kvdb,
 		serverSL:  storage.NewServerKVDBStorerLoader(kvdb),
 		entriesSL: storage.NewEntriesKVDBStorerLoader(kvdb),
 		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		kvc: storage.NewHashKeyValueChecker(),
+		kvc:       storage.NewHashKeyValueChecker(),
 		rqv:       &alwaysRequestVerifier{},
 	}
 
@@ -500,7 +500,7 @@ func newPutLibrarian(rng *rand.Rand, storeResult *store.Result, searchErr error)
 		PeerID: peerID,
 		rt:     rt,
 		kc:     storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		kvc: storage.NewHashKeyValueChecker(),
+		kvc:    storage.NewHashKeyValueChecker(),
 		storer: &fixedStorer{
 			result: storeResult,
 			err:    searchErr,

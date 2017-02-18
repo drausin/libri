@@ -46,11 +46,11 @@ func TestFromStoredQueryOutcomes(t *testing.T) {
 	from := &storage.QueryOutcomes{
 		Responses: &storage.QueryTypeOutcomes{
 			Earliest: now,
-			Latest: now,
+			Latest:   now,
 			NQueries: nQueries,
-			NErrors: nErrors,
+			NErrors:  nErrors,
 		},
-		Requests: &storage.QueryTypeOutcomes{},  // all zeros
+		Requests: &storage.QueryTypeOutcomes{}, // all zeros
 	}
 	to := fromStoredQueryOutcomes(from)
 	assert.Equal(t, time.Unix(now, 0).UTC(), to.responses.earliest)
@@ -64,11 +64,11 @@ func TestToStoredQueryOutcomes(t *testing.T) {
 	qr := &queryRecorder{
 		responses: &queryTypeOutcomes{
 			earliest: now,
-			latest: now,
+			latest:   now,
 			nQueries: nQueries,
-			nErrors: nErrors,
+			nErrors:  nErrors,
 		},
-		requests: &queryTypeOutcomes{},  // all zeros
+		requests: &queryTypeOutcomes{}, // all zeros
 	}
 	sqr := qr.ToStored()
 	assert.Equal(t, now.Unix(), sqr.Responses.Earliest)

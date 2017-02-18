@@ -70,7 +70,7 @@ func (nsl *namespaceStorerLoader) Load(key []byte) ([]byte, error) {
 // keyHashNamespaceStorerLoader checks that the key equals the hash of the value before storing it.
 type keyHashNamespaceStorerLoader struct {
 	nsl NamespaceStorerLoader
-	c KeyValueChecker
+	c   KeyValueChecker
 }
 
 // Store checks that the key equals the SHA256 hash of the value before storing it.

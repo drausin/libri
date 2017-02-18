@@ -52,13 +52,13 @@ func TestPeer_Before(t *testing.T) {
 			pqr: &queryRecorder{
 				responses: &queryTypeOutcomes{
 					earliest: time.Unix(0, 0),
-					latest: time.Unix(15, 0),
+					latest:   time.Unix(15, 0),
 				},
 			},
 			qqr: &queryRecorder{
 				responses: &queryTypeOutcomes{
 					earliest: time.Unix(5, 0),
-					latest: time.Unix(10, 0),
+					latest:   time.Unix(10, 0),
 				},
 			},
 			before: false, // Earliest has no effect

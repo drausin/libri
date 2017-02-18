@@ -7,6 +7,7 @@ import (
 	"github.com/drausin/libri/libri/db"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
+	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/storage"
@@ -14,7 +15,6 @@ import (
 	"github.com/drausin/libri/libri/librarian/signature"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
-	"github.com/drausin/libri/libri/librarian/server/peer"
 )
 
 // Librarian is the main service of a single peer in the peer to peer network.
@@ -89,7 +89,7 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 		serverSL:  serverSL,
 		entriesSL: entriesSL,
 		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		kvc: 	storage.NewHashKeyValueChecker(),
+		kvc:       storage.NewHashKeyValueChecker(),
 		rt:        rt,
 	}, nil
 }

@@ -6,18 +6,27 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/storage"
 )
 
+// QueryType is a type of query, for now just distinguishing between requests and responses.
 type QueryType int
+
 const (
+	// Request denotes a request query from the peer.
 	Request QueryType = iota
+
+	// Response denotes a query response from the peer.
 	Response
 )
 
+// Outcome is the outcome of a query, for now just distinguishing between successes and failures.
 type Outcome int
+
 const (
+	// Success denotes a successful query.
 	Success Outcome = iota
+
+	// Error denotes a failed query.
 	Error
 )
-
 
 // Recorder tracks statistics associated with queries to/from a peer.
 type Recorder interface {
@@ -26,20 +35,20 @@ type Recorder interface {
 	Record(t QueryType, o Outcome)
 
 	// Merge combines the stats of the other and current recorder instances.
-	Merge (other Recorder)
+	Merge(other Recorder)
 
 	// ToStored creates a storage.ResponseStats.
 	ToStored() *storage.QueryOutcomes
 }
 
 type queryRecorder struct {
-	requests *queryTypeOutcomes
+	requests  *queryTypeOutcomes
 	responses *queryTypeOutcomes
 }
 
 func newQueryRecorder() *queryRecorder {
 	return &queryRecorder{
-		requests: newQueryTypeOutcomes(),
+		requests:  newQueryTypeOutcomes(),
 		responses: newQueryTypeOutcomes(),
 	}
 }
@@ -62,7 +71,7 @@ func (qr *queryRecorder) Merge(other Recorder) {
 
 func (qr *queryRecorder) ToStored() *storage.QueryOutcomes {
 	return &storage.QueryOutcomes{
-		Requests: qr.requests.ToStored(),
+		Requests:  qr.requests.ToStored(),
 		Responses: qr.responses.ToStored(),
 	}
 }

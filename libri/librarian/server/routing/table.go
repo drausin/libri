@@ -7,12 +7,13 @@ import (
 	"math/rand"
 	"sort"
 
+	"log"
+
+	"github.com/anacrolix/sync"
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/storage"
-	"github.com/anacrolix/sync"
-	"log"
 )
 
 // AddStatus indicates different outcomes when adding a peer to the routing table.
