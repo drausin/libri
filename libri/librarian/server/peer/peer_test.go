@@ -17,44 +17,56 @@ func TestNew(t *testing.T) {
 	assert.Equal(t, name, p.(*peer).name)
 	assert.Equal(t, addr, addr)
 
-	rs := p.Responses().(*responseRecorder)
-	assert.Equal(t, uint64(0), rs.nQueries)
-	assert.Equal(t, uint64(0), rs.nErrors)
-	assert.Equal(t, int64(0), rs.latest.Unix())
-	assert.Equal(t, int64(0), rs.earliest.Unix())
+	rs := p.Recorder().(*queryRecorder)
+	assert.Equal(t, uint64(0), rs.responses.nQueries)
+	assert.Equal(t, uint64(0), rs.responses.nErrors)
+	assert.Equal(t, int64(0), rs.responses.latest.Unix())
+	assert.Equal(t, int64(0), rs.responses.earliest.Unix())
 }
 
 func TestPeer_Before(t *testing.T) {
-	cases := []struct {
-		prs *responseRecorder // for now, ResponseStats are the only thing that influence
-		qrs *responseRecorder // peer ordering, so we just define those here
-		out bool
+	cases := map[string]struct {
+		pqr    *queryRecorder // for now, query records are the only thing that influence
+		qqr    *queryRecorder // peer ordering, so we just define those here
+		before bool
 	}{
-		{
-			prs: &responseRecorder{latest: time.Unix(0, 0)},
-			qrs: &responseRecorder{latest: time.Unix(0, 0)},
-			out: false, // before is strict
-		},
-		{
-			prs: &responseRecorder{latest: time.Unix(0, 0)},
-			qrs: &responseRecorder{latest: time.Unix(1, 0)},
-			out: true,
-		},
-		{
-			prs: &responseRecorder{
-				earliest: time.Unix(0, 0),
-				latest:   time.Unix(15, 0),
+		"strict": {
+			pqr: &queryRecorder{
+				responses: &queryTypeOutcomes{latest: time.Unix(0, 0)},
 			},
-			qrs: &responseRecorder{
-				earliest: time.Unix(5, 0),
-				latest:   time.Unix(10, 0),
+			qqr: &queryRecorder{
+				responses: &queryTypeOutcomes{latest: time.Unix(0, 0)},
 			},
-			out: false, // Earliest has no effect
+			before: false, // before is strict
+		},
+		"standard": {
+			pqr: &queryRecorder{
+				responses: &queryTypeOutcomes{latest: time.Unix(0, 0)},
+			},
+			qqr: &queryRecorder{
+				responses: &queryTypeOutcomes{latest: time.Unix(1, 0)},
+			},
+			before: true,
+		},
+		"earliest": {
+			pqr: &queryRecorder{
+				responses: &queryTypeOutcomes{
+					earliest: time.Unix(0, 0),
+					latest: time.Unix(15, 0),
+				},
+			},
+			qqr: &queryRecorder{
+				responses: &queryTypeOutcomes{
+					earliest: time.Unix(5, 0),
+					latest: time.Unix(10, 0),
+				},
+			},
+			before: false, // Earliest has no effect
 		},
 	}
-	for _, c := range cases {
-		p := &peer{resp: c.prs}
-		q := &peer{resp: c.qrs}
-		assert.Equal(t, c.out, p.Before(q))
+	for label, c := range cases {
+		p := &peer{recorder: c.pqr}
+		q := &peer{recorder: c.qqr}
+		assert.Equal(t, c.before, p.Before(q), label)
 	}
 }

@@ -3,6 +3,8 @@ package storage
 import (
 	"errors"
 	"fmt"
+	"crypto/sha256"
+	"bytes"
 )
 
 // Checker checks that a key or value is value.
@@ -81,3 +83,27 @@ func (lc *exactLengthChecker) Check(x []byte) error {
 	}
 	return nil
 }
+
+// KeyValueChecker checks that a key-value combination is valid.
+type KeyValueChecker interface {
+	// Check checks that a key-value combination is valid.
+	Check(key []byte, value []byte) error
+}
+
+type hashChecker struct {}
+
+// NewHashKeyValueChecker returns a new KeyValueChecker that checks that the key is the SHA256
+// hash of the value.
+func NewHashKeyValueChecker() KeyValueChecker {
+	return &hashChecker{}
+}
+
+func (hc *hashChecker) Check(key []byte, value []byte) error {
+	hash := sha256.Sum256(value)
+	if !bytes.Equal(key, hash[:]) {
+		return errors.New("key does not equal SHA256 hash of value")
+	}
+	return nil
+}
+
+

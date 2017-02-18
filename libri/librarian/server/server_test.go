@@ -74,13 +74,14 @@ func TestLibrarian_Ping(t *testing.T) {
 // request.
 func TestLibrarian_Identify(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	peerID := ecid.NewPseudoRandom(rng)
 	peerName := "Test Node"
+	rt, peerID, _ := routing.NewTestWithPeers(rng, 64)
 	lib := &Librarian{
 		Config: &Config{
 			PeerName: peerName,
 		},
 		PeerID: peerID,
+		rt: rt,
 		rqv:    &alwaysRequestVerifier{},
 	}
 
@@ -151,14 +152,16 @@ func checkPeersResponse(t *testing.T, rq *api.FindRequest, rp *api.FindResponse,
 
 func TestLibrarian_Find_present(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
+	rt, peerID, _ := routing.NewTestWithPeers(rng, 64)
 	kvdb, err := db.NewTempDirRocksDB()
 	assert.Nil(t, err)
 
 	l := &Librarian{
-		PeerID:    ecid.NewPseudoRandom(rng),
+		PeerID:    peerID,
 		db:        kvdb,
 		serverSL:  storage.NewServerKVDBStorerLoader(kvdb),
 		entriesSL: storage.NewEntriesKVDBStorerLoader(kvdb),
+		rt: rt,
 		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		rqv:       &alwaysRequestVerifier{},
 	}
@@ -193,8 +196,7 @@ func TestLibrarian_Find_present(t *testing.T) {
 
 func TestLibrarian_Find_missing(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	n := 64
-	rt, peerID, nAdded := routing.NewTestWithPeers(rng, n)
+	rt, peerID, nAdded := routing.NewTestWithPeers(rng, 64)
 	kvdb, err := db.NewTempDirRocksDB()
 	assert.Nil(t, err)
 
@@ -225,15 +227,18 @@ func TestLibrarian_Find_missing(t *testing.T) {
 
 func TestLibrarian_Store(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
+	rt, peerID, _ := routing.NewTestWithPeers(rng, 64)
 	kvdb, err := db.NewTempDirRocksDB()
 	assert.Nil(t, err)
 
 	l := &Librarian{
-		PeerID:    ecid.NewPseudoRandom(rng),
+		PeerID:    peerID,
+		rt: rt,
 		db:        kvdb,
 		serverSL:  storage.NewServerKVDBStorerLoader(kvdb),
 		entriesSL: storage.NewEntriesKVDBStorerLoader(kvdb),
 		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
+		kvc: storage.NewHashKeyValueChecker(),
 		rqv:       &alwaysRequestVerifier{},
 	}
 
@@ -495,6 +500,7 @@ func newPutLibrarian(rng *rand.Rand, storeResult *store.Result, searchErr error)
 		PeerID: peerID,
 		rt:     rt,
 		kc:     storage.NewExactLengthChecker(storage.EntriesKeyLength),
+		kvc: storage.NewHashKeyValueChecker(),
 		storer: &fixedStorer{
 			result: storeResult,
 			err:    searchErr,

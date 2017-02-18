@@ -12,6 +12,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/storage"
 	"github.com/anacrolix/sync"
+	"log"
 )
 
 // AddStatus indicates different outcomes when adding a peer to the routing table.
@@ -43,6 +44,10 @@ type Table interface {
 	// Peak returns the k peers in the bucket(s) closest to the given target by popping and then
 	// pushing them back into the table.
 	Peak(target cid.ID, k uint) []peer.Peer
+
+	// Get returns the peer with the given ID. It returns nil if the peer doesn't exist in the
+	// table.
+	Get(peerID cid.ID) peer.Peer
 
 	// Disconnect disconnects all client connections.
 	Disconnect() error
@@ -116,12 +121,22 @@ func (rt *table) Push(new peer.Peer) PushStatus {
 	bucketIdx := rt.bucketIndex(new.ID())
 	insertBucket := rt.buckets[bucketIdx]
 
-	if pHeapIdx, ok := insertBucket.positions[new.ID().String()]; ok {
+	if pHeapIdx, exists := insertBucket.positions[new.ID().String()]; exists {
 		// node is already in the bucket, so update it and re-heap
 		heap.Remove(insertBucket, pHeapIdx)
 		heap.Push(insertBucket, new)
 		rt.mu.Unlock()
 		return Existed
+	}
+	if _, exists := rt.peers[new.ID().String()]; exists {
+		// should never happen, but check just in case
+		panic(errors.New("peer should be found in its insert bucket if in peers map"))
+	}
+
+	if new.Connector() == nil {
+		// don't add if doesn't have connector/public address
+		log.Printf("peer w/ empty conn: %v", new)
+		return Dropped
 	}
 
 	if insertBucket.Vacancy() {
@@ -193,8 +208,20 @@ func (rt *table) Peak(target cid.ID, k uint) []peer.Peer {
 	return popped
 }
 
-// Disconnect disconnects all client connections.
+// Get returns the peer (if it exists) in the table with the given ID.
+func (rt *table) Get(peerID cid.ID) peer.Peer {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+	if p, exists := rt.peers[peerID.String()]; exists {
+		return p
+	}
+	return nil
+}
+
+// Disconnect disconnects all client connections. This method is thread safe.
 func (rt *table) Disconnect() error {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
 	// disconnect from all peers
 	for _, p := range rt.peers {
 		if err := p.Connector().Disconnect(); err != nil {

@@ -12,7 +12,7 @@ import (
 func FromStored(stored *storage.Peer) Peer {
 	conn := NewConnector(fromStoredAddress(stored.PublicAddress))
 	return New(id.FromBytes(stored.Id), stored.Name, conn).(*peer).
-		WithResponseRecorder(fromStoredResponseStats(stored.Responses))
+		WithQueryRecorder(fromStoredQueryOutcomes(stored.QueryOutcomes))
 }
 
 // fromStoredAddress creates a net.TCPAddr from a storage.Address.
@@ -31,11 +31,19 @@ func toStoredAddress(address *net.TCPAddr) *storage.Address {
 	}
 }
 
-// fromStoredResponseStats creates a responseStats from a storage.ResponseStats
-func fromStoredResponseStats(stored *storage.Responses) *responseRecorder {
-	return &responseRecorder{
+// fromStoredQueryOutcomes creates a peer.Recorder from a storage.QueryOutcomes.
+func fromStoredQueryOutcomes(stored *storage.QueryOutcomes) *queryRecorder {
+	return &queryRecorder{
+		responses: fromStoredQueryTypeOutcomes(stored.Responses),
+		requests: fromStoredQueryTypeOutcomes(stored.Requests),
+	}
+}
+
+// fromStoredQueryTypeOutcomes creates a queryTypeOutcomes from a storage.QueryTypeOutcomes.
+func fromStoredQueryTypeOutcomes(stored *storage.QueryTypeOutcomes) *queryTypeOutcomes {
+	return &queryTypeOutcomes{
 		earliest: time.Unix(stored.Earliest, int64(0)).UTC(),
-		latest:   time.Unix(stored.Earliest, int64(0)).UTC(),
+		latest:   time.Unix(stored.Latest, int64(0)).UTC(),
 		nQueries: stored.NQueries,
 		nErrors:  stored.NErrors,
 	}

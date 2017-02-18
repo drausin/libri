@@ -176,32 +176,22 @@ func TestTable_Peak_concurrent(t *testing.T) {
 
 	for k := concurrency; k <= 32; k *= 2 {
 		// for different numbers of peers to get
+		numActivePeers := rt.(*table).numPeers()
 		var wg sync.WaitGroup
 		for i := uint(0); i < concurrency; i++ {
 			wg.Add(1)
 			go func(wg *sync.WaitGroup) {
 				defer wg.Done()
-				rt.(*table).mu.Lock()
-				numActivePeers := rt.(*table).numPeers()
-				rt.(*table).mu.Unlock()
 				info := fmt.Sprintf("k: %v, nap: %v", k, numActivePeers)
 				ps := rt.Peak(target, k / concurrency)
 				checkPoppedPeers(t, k / concurrency, numActivePeers, ps, info)
-
-				// check that the number of active peers has not decreased
-				rt.(*table).mu.Lock()
-				assert.Equal(t, int(numActivePeers), int(rt.(*table).numPeers()), info)
-				assert.Equal(t, int(numActivePeers), len(rt.(*table).peers), info)
-
-				// check that peers exist in our peers maps
-				for _, nextPeer := range ps {
-					_, exists := rt.(*table).peers[nextPeer.ID().String()]
-					assert.True(t, exists)
-				}
-				rt.(*table).mu.Unlock()
 			}(&wg)
 		}
 		wg.Wait()
+
+		// check that the number of active peers has not decreased
+		assert.Equal(t, int(numActivePeers), int(rt.(*table).numPeers()))
+		assert.Equal(t, int(numActivePeers), len(rt.(*table).peers))
 	}
 }
 

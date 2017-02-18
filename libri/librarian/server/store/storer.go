@@ -94,10 +94,10 @@ func (s *storer) storeWork(store *Store, wg *sync.WaitGroup) {
 			store.mu.Lock()
 			store.Result.NErrors++
 			store.mu.Unlock()
-			next.Responses().Error()
+			next.Recorder().Record(peer.Response, peer.Error)
 			continue
 		}
-		next.Responses().Success()
+		next.Recorder().Record(peer.Response, peer.Success)
 
 		// add to slice of responded peers
 		store.mu.Lock()

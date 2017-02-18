@@ -4,6 +4,7 @@ import (
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/storage"
+	"fmt"
 )
 
 // Peer represents a peer in the network.
@@ -12,15 +13,19 @@ type Peer interface {
 	// ID returns the peer ID.
 	ID() cid.ID
 
-	// Before returns whether p should be ordered before q in the priority queue of peers to
-	// query. Currently, it just uses whether p's latest response time is before q's.
-	Before(Peer) bool
-
 	// Connector returns the Connector instance for connecting to the peer.
 	Connector() Connector
 
-	// Responses returns the Responses instance tracking peer responses.
-	Responses() ResponseRecorder
+	// Recorder returns the Recorder instance for recording query outcomes.
+	Recorder() Recorder
+
+	// Before returns whether p should be ordered before q in the priority queue of peers to
+	// query. Currently, it just uses whether p's latest response time is before q's.
+	Before(other Peer) bool
+
+	// Merge merges another peer into the existing peer. If there is any conflicting information
+	// between the two, the merge returns an error.
+	Merge(other Peer) error
 
 	// ToStored returns a storage.Peer version of the peer.
 	ToStored() *storage.Peer
@@ -39,22 +44,27 @@ type peer struct {
 	// Connector instance for the peer
 	conn Connector
 
-	// time of latest response from the peer
-	resp ResponseRecorder
+	// tracks query outcomes from the peer
+	recorder Recorder
 }
 
 // New creates a new Peer instance with empty response stats.
 func New(id cid.ID, name string, conn Connector) Peer {
 	return &peer{
-		id:   id,
-		name: name,
-		conn: conn,
-		resp: newResponseStats(),
+		id:       id,
+		name:     name,
+		conn:     conn,
+		recorder: newQueryRecorder(),
 	}
 }
 
-func (p *peer) WithResponseRecorder(resp ResponseRecorder) *peer {
-	p.resp = resp
+// NewStub creates a new peer without a name or connector.
+func NewStub(id cid.ID) Peer {
+	return New(id, "[missing name]", nil)
+}
+
+func (p *peer) WithQueryRecorder(rec Recorder) *peer {
+	p.recorder = rec
 	return p
 }
 
@@ -63,16 +73,35 @@ func (p *peer) ID() cid.ID {
 }
 
 func (p *peer) Before(q Peer) bool {
-	pr, qr := p.resp.(*responseRecorder), q.(*peer).resp.(*responseRecorder)
-	return pr.latest.Before(qr.latest)
+	pr, qr := p.recorder.(*queryRecorder), q.(*peer).recorder.(*queryRecorder)
+	return pr.responses.latest.Before(qr.responses.latest)
+}
+
+func (p *peer) Merge(other Peer) error {
+	if p.id.Cmp(other.ID()) != 0 {
+		return fmt.Errorf("attempting to merge two different peers with IDs %v and %v",
+			p.id, other.ID())
+	}
+
+	if other.(*peer).name != "" {
+		p.name = other.(*peer).name
+	}
+	pAddr := p.conn.(*connector).publicAddress
+	if other.Connector() != nil && pAddr != other.Connector().(*connector).publicAddress {
+		otherAddr := other.Connector().(*connector).publicAddress
+		return fmt.Errorf("unable to merge public addresses for peer %v: existing (%v)" +
+			" conflicts with new (%v)", p.id, pAddr.String(), otherAddr.String())
+	}
+	p.recorder.Merge(other.Recorder())
+	return nil
 }
 
 func (p *peer) Connector() Connector {
 	return p.conn
 }
 
-func (p *peer) Responses() ResponseRecorder {
-	return p.resp
+func (p *peer) Recorder() Recorder {
+	return p.recorder
 }
 
 func (p *peer) ToStored() *storage.Peer {
@@ -80,7 +109,7 @@ func (p *peer) ToStored() *storage.Peer {
 		Id:            p.id.Bytes(),
 		Name:          p.name,
 		PublicAddress: toStoredAddress(p.conn.(*connector).publicAddress),
-		Responses:     p.resp.ToStored(),
+		QueryOutcomes:       p.recorder.ToStored(),
 	}
 }
 
