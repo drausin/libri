@@ -5,10 +5,9 @@ set -eou pipefail
 mkdir -p .cover
 
 PKGS=$(go list ./... | grep -v vendor)
-echo ${PKGS} | xargs -I {} -n 1 -P 4 bash -c '
-    D={}
-    COVER_FILE=.cover/$(echo $D | sed -r "s|github.com/drausin/libri/||g" | sed "s|/|-|g").out &&
-    go test -race -coverprofile=${COVER_FILE} ${D}
+echo ${PKGS} | sed 's| |\n|g' | xargs -I {} -P 4 bash -c '
+    COVER_FILE=.cover/$(echo {} | sed -r "s|github.com/drausin/libri/||g" | sed "s|/|-|g").out &&
+    go test -race -coverprofile=${COVER_FILE} {}
 '
 
 # merge profiles together, removing results from auto-generated code
