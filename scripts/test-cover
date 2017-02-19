@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
 
-set +x
-
-PKGS=$(go list ./...)
+set -eou pipefail
 
 mkdir -p .cover
+touch .cover/merged.out
 
-# run test in parallel across packages
-echo ${PKGS} | xargs -I {} -n 1 -P 4 bash -c '
-    PKG={} &&
-    COVER_FILE=.cover/$(echo $PKG | md5sum | sed "s/  -/.out/g") &&
-    go test -race $PKG -coverprofile=$COVER_FILE
-'
+for D in $(go list ./... | grep -v vendor); do
+    COVER_FILE=.cover/$(echo $D | md5sum | sed "s/  -/.out/g") &&
+    go test -race -coverprofile=$COVER_FILE $D
+done
+
 # merge profiles together, removing results from auto-generated code
 gocovmerge .cover/*.out | grep -v '.pb.go:' > .cover/merged.out
