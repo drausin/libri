@@ -37,4 +37,4 @@ test:
     - cd ~/.go_project/src/github.com/drausin/libri && make test-cover
     - make lint
   post:
-    - curl -s https://codecov.io/bash | bash -f .cover/merged.out
+    - bash <(curl -s https://codecov.io/bash) -f test-coverage-merged.cov
