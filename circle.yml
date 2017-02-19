@@ -33,7 +33,8 @@ compile:
 
 test:
   override:
-    - make lint
     - make test-cover
+    - make lint
   post:
     - goveralls -coverprofile=./cover/merged.out -service=circle-ci -repotoken=$COVERALLS_TOKEN
+    - mv .cover $CIRCLE_ARTIFACTS

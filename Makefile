@@ -16,7 +16,7 @@ build:
 
 test-cover:
 	@echo "--> Running go test with coverage"
-	./scripts/test-cover
+	@./scripts/test-cover
 
 test:
 	@echo "--> Running go test"
