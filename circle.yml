@@ -37,6 +37,5 @@ test:
     - cd ~/.go_project/src/github.com/drausin/libri && make test-cover
     - make lint
   post:
-    - goveralls -coverprofile=.cover/merged.out -service=circle-ci -repotoken=$COVERALLS_TOKEN
-    - bash <(curl -s https://codecov.io/bash)
+    - curl -s https://codecov.io/bash | bash -f .cover/merged.out
     - mv .cover $CIRCLE_ARTIFACTS
