@@ -124,8 +124,15 @@ func (rt *table) Push(new peer.Peer) PushStatus {
 
 	if pHeapIdx, exists := insertBucket.positions[new.ID().String()]; exists {
 		// node is already in the bucket, so update it and re-heap
-		heap.Remove(insertBucket, pHeapIdx)
-		heap.Push(insertBucket, new)
+		existing := heap.Remove(insertBucket, pHeapIdx).(peer.Peer)
+		if new != existing {
+			// if the two peers aren't the same instance, merge new into existing
+			if err := existing.Merge(new); err != nil {
+				// should never happen
+				panic(err)
+			}
+		}
+		heap.Push(insertBucket, existing)
 		rt.mu.Unlock()
 		return Existed
 	}

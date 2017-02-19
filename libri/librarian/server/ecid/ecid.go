@@ -7,9 +7,7 @@ import (
 	"io"
 	"math/big"
 	mrand "math/rand"
-
 	"fmt"
-
 	cid "github.com/drausin/libri/libri/common/id"
 )
 

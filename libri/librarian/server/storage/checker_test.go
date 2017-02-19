@@ -3,8 +3,8 @@ package storage
 import (
 	"bytes"
 	"testing"
-
 	"github.com/stretchr/testify/assert"
+	"crypto/sha256"
 )
 
 func TestEmptyChecker_Check_ok(t *testing.T) {
@@ -93,4 +93,16 @@ func TestExactLengthChecker_Check_err(t *testing.T) {
 	for _, c := range cases {
 		assert.NotNil(t, kc.Check(c))
 	}
+}
+
+func TestHashChecker_Check_ok(t *testing.T) {
+	c := NewHashKeyValueChecker()
+	v := []byte("some test value")
+	k := sha256.Sum256(v)
+	assert.Nil(t, c.Check(k[:], v))
+}
+
+func TestHashChecker_Check_err(t *testing.T) {
+	c := NewHashKeyValueChecker()
+	assert.NotNil(t, c.Check([]byte{0, 1, 2}, []byte{0, 1, 2}))
 }

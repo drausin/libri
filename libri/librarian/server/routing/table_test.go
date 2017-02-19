@@ -6,7 +6,6 @@ import (
 	"math/rand"
 	"sort"
 	"testing"
-
 	"sync"
 
 	cid "github.com/drausin/libri/libri/common/id"
@@ -87,6 +86,41 @@ func TestTable_Push(t *testing.T) {
 			assert.Equal(t, Existed, status)
 			checkTableConsistent(t, rt, c)
 		}
+	}
+}
+
+func TestTable_Push_existing(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	for c := 0; c < 10; c++ {
+		rt, _, _ := NewTestWithPeers(rng, 128)
+
+		// pop off a random peer
+		ps := rt.Pop(cid.NewPseudoRandom(rng), 1)
+		p1 := ps[0]
+		qOutcomes1 := p1.Recorder().ToStored()
+
+		// add it back
+		assert.Equal(t, Added, rt.Push(p1))
+
+		// check that recorder states are the same
+		qOutcomes2 := rt.Get(p1.ID()).Recorder().ToStored()
+		assert.Equal(t, qOutcomes1, qOutcomes2)
+
+		// add it again, confirming that the recorder has the same state (i.e., no merge)
+		assert.Equal(t, Existed, rt.Push(p1))
+		qOutcomes3 := rt.Get(p1.ID()).Recorder().ToStored()
+		assert.Equal(t, qOutcomes1, qOutcomes3)
+
+		// create stub peer with new request success
+		p2 := peer.NewStub(p1.ID())
+		p2.Recorder().Record(peer.Request, peer.Success)
+
+		// add the stub, which should merge with the existing peer
+		assert.Equal(t, Existed, rt.Push(p2))
+		qOutcomes4 := rt.Get(p1.ID()).Recorder().ToStored()
+		assert.NotEqual(t, qOutcomes1, qOutcomes4)
+		assert.Equal(t, uint64(0), qOutcomes1.Requests.NQueries)
+		assert.Equal(t, uint64(1), qOutcomes4.Requests.NQueries)
 	}
 }
 
