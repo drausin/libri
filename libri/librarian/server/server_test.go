@@ -74,13 +74,14 @@ func TestLibrarian_Ping(t *testing.T) {
 // request.
 func TestLibrarian_Identify(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	peerID := ecid.NewPseudoRandom(rng)
 	peerName := "Test Node"
+	rt, peerID, _ := routing.NewTestWithPeers(rng, 64)
 	lib := &Librarian{
 		Config: &Config{
 			PeerName: peerName,
 		},
 		PeerID: peerID,
+		rt:     rt,
 		rqv:    &alwaysRequestVerifier{},
 	}
 
@@ -104,7 +105,7 @@ func TestLibrarian_Find(t *testing.T) {
 			// for different selfIDs
 
 			rng := rand.New(rand.NewSource(int64(s)))
-			rt, peerID := routing.NewTestWithPeers(rng, n)
+			rt, peerID, nAdded := routing.NewTestWithPeers(rng, n)
 			l := &Librarian{
 				PeerID:    peerID,
 				entriesSL: storage.NewEntriesKVDBStorerLoader(kvdb),
@@ -120,26 +121,24 @@ func TestLibrarian_Find(t *testing.T) {
 				NumPeers: numClosest,
 			}
 
-			prevNumActivePeers := l.rt.NumPeers()
 			rp, err := l.Find(nil, rq)
 			assert.Nil(t, err)
 
 			// check
-			checkPeersResponse(t, rq, rp, rt, prevNumActivePeers, numClosest)
+			checkPeersResponse(t, rq, rp, nAdded, numClosest)
 		}
 	}
 }
 
-func checkPeersResponse(t *testing.T, rq *api.FindRequest, rp *api.FindResponse, rt routing.Table,
-	prevNumActivePeers uint, numClosest uint32) {
+func checkPeersResponse(t *testing.T, rq *api.FindRequest, rp *api.FindResponse, nAdded int,
+	numClosest uint32) {
 
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
-	assert.Equal(t, prevNumActivePeers, rt.NumPeers())
 
 	assert.Nil(t, rp.Value)
 	assert.NotNil(t, rp.Addresses)
-	if uint(numClosest) > prevNumActivePeers {
-		assert.Equal(t, int(prevNumActivePeers), len(rp.Addresses))
+	if int(numClosest) > nAdded {
+		assert.Equal(t, nAdded, len(rp.Addresses))
 	} else {
 		assert.Equal(t, numClosest, uint32(len(rp.Addresses)))
 	}
@@ -153,14 +152,16 @@ func checkPeersResponse(t *testing.T, rq *api.FindRequest, rp *api.FindResponse,
 
 func TestLibrarian_Find_present(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
+	rt, peerID, _ := routing.NewTestWithPeers(rng, 64)
 	kvdb, err := db.NewTempDirRocksDB()
 	assert.Nil(t, err)
 
 	l := &Librarian{
-		PeerID:    ecid.NewPseudoRandom(rng),
+		PeerID:    peerID,
 		db:        kvdb,
 		serverSL:  storage.NewServerKVDBStorerLoader(kvdb),
 		entriesSL: storage.NewEntriesKVDBStorerLoader(kvdb),
+		rt:        rt,
 		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		rqv:       &alwaysRequestVerifier{},
 	}
@@ -195,8 +196,7 @@ func TestLibrarian_Find_present(t *testing.T) {
 
 func TestLibrarian_Find_missing(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	n := 64
-	rt, peerID := routing.NewTestWithPeers(rng, n)
+	rt, peerID, nAdded := routing.NewTestWithPeers(rng, 64)
 	kvdb, err := db.NewTempDirRocksDB()
 	assert.Nil(t, err)
 
@@ -218,25 +218,27 @@ func TestLibrarian_Find_missing(t *testing.T) {
 		NumPeers: numClosest,
 	}
 
-	prevNumActivePeers := l.rt.NumPeers()
 	rp, err := l.Find(nil, rq)
 	assert.Nil(t, err)
 
 	// should get peers since the value is missing
-	checkPeersResponse(t, rq, rp, rt, prevNumActivePeers, numClosest)
+	checkPeersResponse(t, rq, rp, nAdded, numClosest)
 }
 
 func TestLibrarian_Store(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
+	rt, peerID, _ := routing.NewTestWithPeers(rng, 64)
 	kvdb, err := db.NewTempDirRocksDB()
 	assert.Nil(t, err)
 
 	l := &Librarian{
-		PeerID:    ecid.NewPseudoRandom(rng),
+		PeerID:    peerID,
+		rt:        rt,
 		db:        kvdb,
 		serverSL:  storage.NewServerKVDBStorerLoader(kvdb),
 		entriesSL: storage.NewEntriesKVDBStorerLoader(kvdb),
 		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
+		kvc:       storage.NewHashKeyValueChecker(),
 		rqv:       &alwaysRequestVerifier{},
 	}
 
@@ -385,7 +387,7 @@ func TestLibrarian_Get_err(t *testing.T) {
 
 func newGetLibrarian(rng *rand.Rand, searchResult *search.Result, searchErr error) *Librarian {
 	n := 8
-	rt, peerID := routing.NewTestWithPeers(rng, n)
+	rt, peerID, _ := routing.NewTestWithPeers(rng, n)
 	return &Librarian{
 		PeerID: peerID,
 		rt:     rt,
@@ -493,11 +495,12 @@ func TestLibrarian_Put_err(t *testing.T) {
 
 func newPutLibrarian(rng *rand.Rand, storeResult *store.Result, searchErr error) *Librarian {
 	n := 8
-	rt, peerID := routing.NewTestWithPeers(rng, n)
+	rt, peerID, _ := routing.NewTestWithPeers(rng, n)
 	return &Librarian{
 		PeerID: peerID,
 		rt:     rt,
 		kc:     storage.NewExactLengthChecker(storage.EntriesKeyLength),
+		kvc:    storage.NewHashKeyValueChecker(),
 		storer: &fixedStorer{
 			result: storeResult,
 			err:    searchErr,

@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"math/rand"
 	"sort"
+	"sync"
 	"testing"
 
 	cid "github.com/drausin/libri/libri/common/id"
@@ -15,8 +16,31 @@ import (
 func TestTable_NewWithPeers(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	for n := 1; n <= 256; n *= 2 {
-		rt, _ := NewTestWithPeers(rng, n)
-		assert.Equal(t, len(rt.Peers()), int(rt.NumPeers()))
+		rt, _, nAdded := NewTestWithPeers(rng, n)
+		assert.Equal(t, len(rt.(*table).peers), nAdded)
+		assert.Equal(t, len(rt.(*table).peers), int(rt.(*table).numPeers()))
+	}
+}
+
+func TestTable_NewWithPeers_concurrent(t *testing.T) {
+	rng := rand.New(rand.NewSource(int64(0)))
+	concurrency := 4
+	for n := concurrency; n <= 256; n *= 2 {
+		rt := NewEmpty(cid.NewPseudoRandom(rng))
+		var wg sync.WaitGroup
+		for i := 0; i < concurrency; i++ {
+			wg.Add(1)
+			go func(i int, wg *sync.WaitGroup) {
+				defer wg.Done()
+				rng := rand.New(rand.NewSource(int64(i + 1)))
+				for _, p := range peer.NewTestPeers(rng, n/concurrency) {
+					rt.Push(p)
+				}
+			}(i, &wg)
+		}
+
+		wg.Wait()
+		assert.Equal(t, len(rt.(*table).peers), int(rt.(*table).numPeers()))
 	}
 }
 
@@ -24,13 +48,13 @@ func TestTable_NumPeers(t *testing.T) {
 	for s := 0; s < 16; s++ {
 		// make sure handles zero peers
 		rng := rand.New(rand.NewSource(int64(s)))
-		rt, _ := NewTestWithPeers(rng, 0)
-		assert.Equal(t, 0, int(rt.NumPeers()))
+		rt, _, _ := NewTestWithPeers(rng, 0)
+		assert.Equal(t, 0, int(rt.(*table).numPeers()))
 
 		for n := 1; n <= 256; n *= 2 {
 			info := fmt.Sprintf("s: %v, n: %v", s, n)
-			rt, _ = NewTestWithPeers(rng, n)
-			assert.Equal(t, len(rt.Peers()), int(rt.NumPeers()), info)
+			rt, _, _ = NewTestWithPeers(rng, n)
+			assert.Equal(t, len(rt.(*table).peers), int(rt.(*table).numPeers()), info)
 		}
 	}
 }
@@ -39,7 +63,7 @@ func TestTable_Push(t *testing.T) {
 	// try pseudo-random split sequence with different selfIDs
 	for s := 0; s < 16; s++ {
 		rng := rand.New(rand.NewSource(int64(s)))
-		rt, _ := NewTestWithPeers(rng, 0) // empty
+		rt, _, _ := NewTestWithPeers(rng, 0) // empty
 		peers := peer.NewTestPeers(rng, 128)
 		repeatedPeers := make([]peer.Peer, 0)
 		c := 0
@@ -65,34 +89,72 @@ func TestTable_Push(t *testing.T) {
 	}
 }
 
+func TestTable_Push_existing(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	for c := 0; c < 10; c++ {
+		rt, _, _ := NewTestWithPeers(rng, 128)
+
+		// pop off a random peer
+		ps := rt.Pop(cid.NewPseudoRandom(rng), 1)
+		p1 := ps[0]
+		qOutcomes1 := p1.Recorder().ToStored()
+
+		// add it back
+		assert.Equal(t, Added, rt.Push(p1))
+
+		// check that recorder states are the same
+		qOutcomes2 := rt.Get(p1.ID()).Recorder().ToStored()
+		assert.Equal(t, qOutcomes1, qOutcomes2)
+
+		// add it again, confirming that the recorder has the same state (i.e., no merge)
+		assert.Equal(t, Existed, rt.Push(p1))
+		qOutcomes3 := rt.Get(p1.ID()).Recorder().ToStored()
+		assert.Equal(t, qOutcomes1, qOutcomes3)
+
+		// create stub peer with new request success
+		p2 := peer.NewStub(p1.ID())
+		p2.Recorder().Record(peer.Request, peer.Success)
+
+		// add the stub, which should merge with the existing peer
+		assert.Equal(t, Existed, rt.Push(p2))
+		qOutcomes4 := rt.Get(p1.ID()).Recorder().ToStored()
+		assert.NotEqual(t, qOutcomes1, qOutcomes4)
+		assert.Equal(t, uint64(0), qOutcomes1.Requests.NQueries)
+		assert.Equal(t, uint64(1), qOutcomes4.Requests.NQueries)
+	}
+}
+
 func TestTable_Pop(t *testing.T) {
 
 	// make sure we support poppping 0 peers
 	rng := rand.New(rand.NewSource(0))
-	rt, _ := NewTestWithPeers(rng, 8)
+	rt, _, _ := NewTestWithPeers(rng, 8)
 	ps := rt.Pop(cid.NewPseudoRandom(rng), 0)
 	assert.Equal(t, 0, len(ps))
 
-	for n := 8; n <= 128; n *= 2 { // for different numbers of total active peers
+	for n := 8; n <= 128; n *= 2 {
+		// for different numbers of total active peers
 
-		for s := 0; s < 8; s++ { // for different selfIDs
+		for s := 0; s < 8; s++ {
+			// for different selfIDs
 			rng := rand.New(rand.NewSource(int64(s)))
-			rt, _ := NewTestWithPeers(rng, n)
+			rt, _, _ := NewTestWithPeers(rng, n)
 			target := cid.NewPseudoRandom(rng)
 
-			for k := uint(2); k <= 32; k *= 2 { // for different numbers of peers to get
-				numActivePeers := rt.NumPeers()
+			for k := uint(2); k <= 32; k *= 2 {
+				// for different numbers of peers to get
+				numActivePeers := rt.(*table).numPeers()
 				info := fmt.Sprintf("nPeers: %v, s: %v, k: %v, nap: %v", n, s,
 					k, numActivePeers)
 				ps = rt.Pop(target, k)
 				checkPoppedPeers(t, k, numActivePeers, ps, info)
 
 				// check that the number of active peers has decreased by len(ps)
-				assert.Equal(t, numActivePeers-uint(len(ps)), rt.NumPeers())
+				assert.Equal(t, numActivePeers-uint(len(ps)), rt.(*table).numPeers())
 
 				// check that no peer exists in our peers maps
 				for _, nextPeer := range ps {
-					_, exists := rt.Peers()[nextPeer.ID().String()]
+					_, exists := rt.(*table).peers[nextPeer.ID().String()]
 					assert.False(t, exists)
 				}
 			}
@@ -105,36 +167,66 @@ func TestTable_Peak(t *testing.T) {
 
 	// make sure we support poppping 0 peers
 	rng := rand.New(rand.NewSource(0))
-	rt, _ := NewTestWithPeers(rng, 8)
+	rt, _, _ := NewTestWithPeers(rng, 8)
 	ps := rt.Peak(cid.NewPseudoRandom(rng), 0)
 	assert.Equal(t, 0, len(ps))
 
-	for n := 8; n <= 16; n *= 2 { // for different numbers of total active peers
+	for n := 8; n <= 16; n *= 2 {
+		// for different numbers of total active peers
 
-		for s := 0; s < 8; s++ { // for different selfIDs
+		for s := 0; s < 8; s++ {
+			// for different selfIDs
 			rng := rand.New(rand.NewSource(int64(s)))
-			rt, _ := NewTestWithPeers(rng, n)
+			rt, _, _ := NewTestWithPeers(rng, n)
 			target := cid.NewPseudoRandom(rng)
 
-			for k := uint(2); k <= 32; k *= 2 { // for different numbers of peers to get
-				numActivePeers := rt.NumPeers()
+			for k := uint(2); k <= 32; k *= 2 {
+				// for different numbers of peers to get
+				numActivePeers := rt.(*table).numPeers()
 				info := fmt.Sprintf("nPeers: %v, s: %v, k: %v, nap: %v", n, s,
 					k, numActivePeers)
 				ps = rt.Peak(target, k)
 				checkPoppedPeers(t, k, numActivePeers, ps, info)
 
 				// check that the number of active peers has not decreased
-				assert.Equal(t, int(numActivePeers), int(rt.NumPeers()), info)
-				assert.Equal(t, int(numActivePeers), len(rt.Peers()), info)
+				assert.Equal(t, int(numActivePeers), int(rt.(*table).numPeers()), info)
+				assert.Equal(t, int(numActivePeers), len(rt.(*table).peers), info)
 
 				// check that peers exist in our peers maps
 				for _, nextPeer := range ps {
-					_, exists := rt.Peers()[nextPeer.ID().String()]
+					_, exists := rt.(*table).peers[nextPeer.ID().String()]
 					assert.True(t, exists)
 				}
 			}
 
 		}
+	}
+}
+
+func TestTable_Peak_concurrent(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	rt, _, _ := NewTestWithPeers(rng, 256)
+	target := cid.NewPseudoRandom(rng)
+	concurrency := uint(4)
+
+	for k := concurrency; k <= 32; k *= 2 {
+		// for different numbers of peers to get
+		numActivePeers := rt.(*table).numPeers()
+		var wg sync.WaitGroup
+		for i := uint(0); i < concurrency; i++ {
+			wg.Add(1)
+			go func(wg *sync.WaitGroup) {
+				defer wg.Done()
+				info := fmt.Sprintf("k: %v, nap: %v", k, numActivePeers)
+				ps := rt.Peak(target, k/concurrency)
+				checkPoppedPeers(t, k/concurrency, numActivePeers, ps, info)
+			}(&wg)
+		}
+		wg.Wait()
+
+		// check that the number of active peers has not decreased
+		assert.Equal(t, int(numActivePeers), int(rt.(*table).numPeers()))
+		assert.Equal(t, int(numActivePeers), len(rt.(*table).peers))
 	}
 }
 
@@ -267,46 +359,46 @@ func TestTable_splitBucket(t *testing.T) {
 	// try same split sequence with different selfIDs
 	for s := 0; s < 16; s++ {
 		rng := rand.New(rand.NewSource(int64(s)))
-		rtInt, _ := NewTestWithPeers(rng, int(DefaultMaxActivePeers))
+		rtInt, _, _ := NewTestWithPeers(rng, int(DefaultMaxActivePeers))
 		rt := rtInt.(*table)
 
 		// lower bounds: [0 1]
 		rt.splitBucket(0)
 		assert.Equal(t, 2, len(rt.buckets))
-		checkTableConsistent(t, rt, len(rt.Peers()))
+		checkTableConsistent(t, rt, len(rt.peers))
 
 		// lower bounds: [0 10 11]
 		rt.splitBucket(1)
 		assert.Equal(t, 3, len(rt.buckets))
-		checkTableConsistent(t, rt, len(rt.Peers()))
+		checkTableConsistent(t, rt, len(rt.peers))
 
 		// lower bounds: [0 10 110 111]
 		rt.splitBucket(2)
 		assert.Equal(t, 4, len(rt.buckets))
-		checkTableConsistent(t, rt, len(rt.Peers()))
+		checkTableConsistent(t, rt, len(rt.peers))
 
 		// lower bounds: [0 100 101 110 111]
 		rt.splitBucket(1)
 		assert.Equal(t, 5, len(rt.buckets))
-		checkTableConsistent(t, rt, len(rt.Peers()))
+		checkTableConsistent(t, rt, len(rt.peers))
 
 		// lower bounds: [00 01 100 101 110 111]
 		rt.splitBucket(0)
 		assert.Equal(t, 6, len(rt.buckets))
-		checkTableConsistent(t, rt, len(rt.Peers()))
+		checkTableConsistent(t, rt, len(rt.peers))
 	}
 
 	// try pseudo-random split sequence with different selfIDs
 	for s := 0; s < 16; s++ {
 		rng := rand.New(rand.NewSource(int64(s)))
-		rt, _ := NewTestWithPeers(rng, int(DefaultMaxActivePeers))
+		rt, _, _ := NewTestWithPeers(rng, int(DefaultMaxActivePeers))
 
 		// do pseudo-random splits
 		for c := 0; c < 10; c++ {
 			i := int(rng.Uint32()) % len(rt.(*table).buckets)
 			rt.(*table).splitBucket(i)
 			assert.Equal(t, c+2, len(rt.(*table).buckets))
-			checkTableConsistent(t, rt, len(rt.Peers()))
+			checkTableConsistent(t, rt, len(rt.(*table).peers))
 		}
 	}
 }
@@ -347,8 +439,8 @@ func newSimpleTable() *table {
 func checkTableConsistent(t *testing.T, rt Table, nExpectedPeers int) {
 	nContainSelf, nPeers := 0, 0
 	assert.True(t, sort.IsSorted(rt.(*table))) // buckets should be in sorted order
-	assert.Equal(t, nExpectedPeers, len(rt.Peers()))
-	assert.Equal(t, uint(len(rt.Peers())), rt.NumPeers())
+	assert.Equal(t, nExpectedPeers, len(rt.(*table).peers))
+	assert.Equal(t, uint(len(rt.(*table).peers)), rt.(*table).numPeers())
 	for i := 0; i < len(rt.(*table).buckets); i++ {
 		cur := rt.(*table).buckets[i]
 		if i > 0 {

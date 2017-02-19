@@ -1,10 +1,6 @@
 package storage
 
 import (
-	"bytes"
-	"crypto/sha256"
-	"errors"
-
 	"github.com/drausin/libri/libri/db"
 )
 
@@ -74,13 +70,13 @@ func (nsl *namespaceStorerLoader) Load(key []byte) ([]byte, error) {
 // keyHashNamespaceStorerLoader checks that the key equals the hash of the value before storing it.
 type keyHashNamespaceStorerLoader struct {
 	nsl NamespaceStorerLoader
+	c   KeyValueChecker
 }
 
 // Store checks that the key equals the SHA256 hash of the value before storing it.
 func (khnsl *keyHashNamespaceStorerLoader) Store(key []byte, value []byte) error {
-	hash := sha256.Sum256(value)
-	if !bytes.Equal(key, hash[:]) {
-		return errors.New("key does not equal SHA256 hash of value")
+	if err := khnsl.c.Check(key, value); err != nil {
+		return err
 	}
 	return khnsl.nsl.Store(key, value)
 }
@@ -93,10 +89,9 @@ func (khnsl *keyHashNamespaceStorerLoader) Load(key []byte) ([]byte, error) {
 	if value == nil {
 		return nil, nil
 	}
-	hash := sha256.Sum256(value)
-	if !bytes.Equal(key, hash[:]) {
+	if err := khnsl.c.Check(key, value); err != nil {
 		// should never happen b/c we check on Store, but being defensive just in case
-		return nil, errors.New("key does not equal SHA256 hash of stored value")
+		return nil, err
 	}
 	return value, nil
 }
@@ -128,6 +123,7 @@ func NewEntriesStorerLoader(sl StorerLoader) NamespaceStorerLoader {
 			ns: Entries,
 			sl: sl,
 		},
+		c: NewHashKeyValueChecker(),
 	}
 }
 

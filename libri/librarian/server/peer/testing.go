@@ -20,16 +20,16 @@ func NewTestPeer(rng *rand.Rand, idx int) Peer {
 	if err != nil {
 		panic(err)
 	}
+
+	// create new recorder with a distinct response time
 	now := time.Unix(int64(idx), 0).UTC()
-	return New(id, fmt.Sprintf("peer-%d", idx+1), NewConnector(address)).(*peer).
-		WithResponseRecorder(
-			&responseRecorder{
-				earliest: now,
-				latest:   now,
-				nQueries: 1,
-				nErrors:  0,
-			},
-		)
+	recorder := newQueryRecorder()
+	recorder.Record(Response, Success)
+	recorder.responses.latest = now
+	recorder.responses.earliest = now
+
+	conn := NewConnector(address)
+	return New(id, fmt.Sprintf("peer-%d", idx+1), conn).(*peer).WithQueryRecorder(recorder)
 }
 
 // NewTestPeers generates n new peers suitable for testing use with random IDs and incrementing
@@ -53,11 +53,14 @@ func NewTestStoredPeer(rng *rand.Rand, idx int) *storage.Peer {
 			Ip:   "192.168.1.1",
 			Port: uint32(11000 + idx),
 		},
-		Responses: &storage.Responses{
-			Earliest: now.Unix(),
-			Latest:   now.Unix(),
-			NQueries: 1,
-			NErrors:  0,
+		QueryOutcomes: &storage.QueryOutcomes{
+			Responses: &storage.QueryTypeOutcomes{
+				Earliest: now.Unix(),
+				Latest:   now.Unix(),
+				NQueries: 1,
+				NErrors:  0,
+			},
+			Requests: &storage.QueryTypeOutcomes{}, // everything will be zero
 		},
 	}
 }
@@ -69,9 +72,9 @@ func AssertPeersEqual(t *testing.T, sp *storage.Peer, p Peer) {
 	assert.Equal(t, sp.PublicAddress.Ip, publicAddres.IP.String())
 	assert.Equal(t, sp.PublicAddress.Port, uint32(publicAddres.Port))
 
-	prs := p.Responses().(*responseRecorder)
-	assert.Equal(t, sp.Responses.Earliest, prs.earliest.Unix())
-	assert.Equal(t, sp.Responses.Latest, prs.latest.Unix())
-	assert.Equal(t, sp.Responses.NQueries, prs.nQueries)
-	assert.Equal(t, sp.Responses.NErrors, prs.nErrors)
+	prs := p.Recorder().(*queryRecorder).responses
+	assert.Equal(t, sp.QueryOutcomes.Responses.Earliest, prs.earliest.Unix())
+	assert.Equal(t, sp.QueryOutcomes.Responses.Latest, prs.latest.Unix())
+	assert.Equal(t, sp.QueryOutcomes.Responses.NQueries, prs.nQueries)
+	assert.Equal(t, sp.QueryOutcomes.Responses.NErrors, prs.nErrors)
 }

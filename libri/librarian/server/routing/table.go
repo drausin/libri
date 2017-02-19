@@ -7,6 +7,9 @@ import (
 	"math/rand"
 	"sort"
 
+	"log"
+
+	"github.com/anacrolix/sync"
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
@@ -33,12 +36,6 @@ type Table interface {
 	// SelfID returns the table's selfID.
 	SelfID() cid.ID
 
-	// Peers returns all known peers, keyed by string encoding of the ID.
-	Peers() map[string]peer.Peer
-
-	// NumPeers returns the total number of active peers across all buckets.
-	NumPeers() uint
-
 	// Push adds the peer into the appropriate bucket and returns an AddStatus result.
 	Push(new peer.Peer) PushStatus
 
@@ -48,6 +45,10 @@ type Table interface {
 	// Peak returns the k peers in the bucket(s) closest to the given target by popping and then
 	// pushing them back into the table.
 	Peak(target cid.ID, k uint) []peer.Peer
+
+	// Get returns the peer with the given ID. It returns nil if the peer doesn't exist in the
+	// table.
+	Get(peerID cid.ID) peer.Peer
 
 	// Disconnect disconnects all client connections.
 	Disconnect() error
@@ -65,6 +66,9 @@ type table struct {
 
 	// Routing buckets ordered by the max ID possible in each bucket.
 	buckets []*bucket
+
+	// manages pushes and pops
+	mu sync.Mutex
 }
 
 // NewEmpty creates a new routing table without peers.
@@ -77,19 +81,23 @@ func NewEmpty(selfID cid.ID) Table {
 	}
 }
 
-// NewWithPeers creates a new routing table with peers.
-func NewWithPeers(selfID cid.ID, peers []peer.Peer) Table {
+// NewWithPeers creates a new routing table with peers, returning it and the number of peers added.
+func NewWithPeers(selfID cid.ID, peers []peer.Peer) (Table, int) {
 	rt := NewEmpty(selfID)
+	nAdded := 0
 	for _, p := range peers {
-		rt.Push(p)
+		if rt.Push(p) == Added {
+			nAdded++
+		}
 	}
-	return rt
+	return rt, nAdded
 }
 
 // NewTestWithPeers creates a new test routing table with pseudo-random SelfID and n peers.
-func NewTestWithPeers(rng *rand.Rand, n int) (Table, ecid.ID) {
+func NewTestWithPeers(rng *rand.Rand, n int) (Table, ecid.ID, int) {
 	peerID := ecid.NewPseudoRandom(rng)
-	return NewWithPeers(peerID, peer.NewTestPeers(rng, n)), peerID
+	rt, nAdded := NewWithPeers(peerID, peer.NewTestPeers(rng, n))
+	return rt, peerID, nAdded
 }
 
 // SelfID returns the table's selfID.
@@ -97,13 +105,8 @@ func (rt *table) SelfID() cid.ID {
 	return rt.selfID
 }
 
-// Peers returns all known peers, keyed by string encoding of the ID.
-func (rt *table) Peers() map[string]peer.Peer {
-	return rt.peers
-}
-
-// NumPeers returns the total number of active peers across all buckets.
-func (rt *table) NumPeers() uint {
+// numPeers returns the total number of active peers across all buckets.
+func (rt *table) numPeers() uint {
 	n := 0
 	for _, rb := range rt.buckets {
 		n += rb.Len()
@@ -111,23 +114,44 @@ func (rt *table) NumPeers() uint {
 	return uint(n)
 }
 
-// Push adds the peer into the appropriate bucket and returns an AddStatus result.
+// Push adds the peer into the appropriate bucket and returns the status of the push. This method
+// is concurrency-safe.
 func (rt *table) Push(new peer.Peer) PushStatus {
+	rt.mu.Lock()
 	// get the bucket to insert into
 	bucketIdx := rt.bucketIndex(new.ID())
 	insertBucket := rt.buckets[bucketIdx]
 
-	if pHeapIdx, ok := insertBucket.positions[new.ID().String()]; ok {
+	if pHeapIdx, exists := insertBucket.positions[new.ID().String()]; exists {
 		// node is already in the bucket, so update it and re-heap
-		heap.Remove(insertBucket, pHeapIdx)
-		heap.Push(insertBucket, new)
+		existing := heap.Remove(insertBucket, pHeapIdx).(peer.Peer)
+		if new != existing {
+			// if the two peers aren't the same instance, merge new into existing
+			if err := existing.Merge(new); err != nil {
+				// should never happen
+				panic(err)
+			}
+		}
+		heap.Push(insertBucket, existing)
+		rt.mu.Unlock()
 		return Existed
+	}
+	if _, exists := rt.peers[new.ID().String()]; exists {
+		// should never happen, but check just in case
+		panic(errors.New("peer should be found in its insert bucket if in peers map"))
+	}
+
+	if new.Connector() == nil {
+		// don't add if doesn't have connector/public address
+		log.Printf("peer w/ empty conn: %v", new)
+		return Dropped
 	}
 
 	if insertBucket.Vacancy() {
 		// node isn't already in the bucket and there's vacancy, so add it
 		heap.Push(insertBucket, new)
 		rt.peers[new.ID().String()] = new
+		rt.mu.Unlock()
 		return Added
 	}
 
@@ -135,17 +159,22 @@ func (rt *table) Push(new peer.Peer) PushStatus {
 		// no vacancy in the bucket and it contains the self ID, so split the bucket and
 		// insert via (single) recursive call
 		rt.splitBucket(bucketIdx)
+		rt.mu.Unlock()
 		return rt.Push(new)
 	}
 
 	// no vacancy in the bucket and it doesn't contain the self ID, so just drop new peer on
 	// the floor
+	rt.mu.Unlock()
 	return Dropped
 }
 
-// Pop removes and returns the k peers in the bucket(s) closest to the given target.
+// Pop removes and returns the k peers in the bucket(s) closest to the given target. This method
+// is concurrency safe.
 func (rt *table) Pop(target cid.ID, k uint) []peer.Peer {
-	if np := rt.NumPeers(); k > np {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+	if np := rt.numPeers(); k > np {
 		// if we're requesting more peers than we have, just return number we have
 		k = np
 	}
@@ -176,7 +205,7 @@ func (rt *table) Pop(target cid.ID, k uint) []peer.Peer {
 }
 
 // Peak returns the k peers in the bucket(s) closest to the given target by popping and then
-// pushing them back into the table.
+// pushing them back into the table. This method is concurrency safe.
 func (rt *table) Peak(target cid.ID, k uint) []peer.Peer {
 	popped := rt.Pop(target, k)
 
@@ -187,8 +216,20 @@ func (rt *table) Peak(target cid.ID, k uint) []peer.Peer {
 	return popped
 }
 
-// Disconnect disconnects all client connections.
+// Get returns the peer (if it exists) in the table with the given ID.
+func (rt *table) Get(peerID cid.ID) peer.Peer {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+	if p, exists := rt.peers[peerID.String()]; exists {
+		return p
+	}
+	return nil
+}
+
+// Disconnect disconnects all client connections. This method is thread safe.
 func (rt *table) Disconnect() error {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
 	// disconnect from all peers
 	for _, p := range rt.peers {
 		if err := p.Connector().Disconnect(); err != nil {

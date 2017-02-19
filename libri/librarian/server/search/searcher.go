@@ -82,12 +82,12 @@ func (s *searcher) searchWork(search *Search, wg *sync.WaitGroup) {
 			// if we had an issue querying, skip to next peer
 			search.mu.Lock()
 			search.Result.NErrors++
-			next.Responses().Error()
+			next.Recorder().Record(peer.Response, peer.Error)
 			search.mu.Unlock()
 			continue
 		}
 		search.mu.Lock()
-		next.Responses().Success()
+		next.Recorder().Record(peer.Response, peer.Success)
 		search.mu.Unlock()
 
 		// process the heap's response

@@ -94,8 +94,8 @@ func NewVerifier() Verifier {
 	return &ecsdaVerifier{}
 }
 
-func (v *ecsdaVerifier) Verify(encToken string, fromPubKey *ecdsa.PublicKey, m proto.Message) (
-	error) {
+func (v *ecsdaVerifier) Verify(encToken string, fromPubKey *ecdsa.PublicKey,
+	m proto.Message) error {
 	token, err := jwt.ParseWithClaims(encToken, &Claims{}, func(token *jwt.Token) (
 		interface{}, error) {
 		return fromPubKey, nil

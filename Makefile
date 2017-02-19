@@ -34,9 +34,9 @@ lint:
 	@gometalinter ./... --config=.gometalinter.json --deadline=6m
 
 lint-diff:
-	@echo "--> Running gometalinter on packages with uncommitted changes on"
+	@echo "--> Running gometalinter on packages with uncommitted changes"
 	@echo $(CHANGED_PKGS) | tr " " "\n"
-	@echo $(CHANGED_PKGS) | xargs gometalinter --config=.gometalinter.json --deadline=5m
+	@echo $(CHANGED_PKGS) | xargs gometalinter --config=.gometalinter.json --deadline=6m
 
 lint-optional:
 	@echo "--> Running gometalinter with optional linters"
@@ -51,4 +51,3 @@ tools:
 	gometalinter --install
 
 .PHONY: all build cov test fix lint tools
-

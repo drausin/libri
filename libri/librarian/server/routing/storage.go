@@ -38,14 +38,15 @@ func fromStored(stored *storage.RoutingTable) Table {
 	for i, sp := range stored.Peers {
 		peers[i] = peer.FromStored(sp)
 	}
-	return NewWithPeers(id.FromBytes(stored.SelfId), peers)
+	rt, _ := NewWithPeers(id.FromBytes(stored.SelfId), peers)
+	return rt
 }
 
 // toStored creates a new StoredRoutingTable instance from the Table instance.
 func toStored(rt Table) *storage.RoutingTable {
-	storedPeers := make([]*storage.Peer, len(rt.Peers()))
+	storedPeers := make([]*storage.Peer, len(rt.(*table).peers))
 	i := 0
-	for _, p := range rt.Peers() {
+	for _, p := range rt.(*table).peers {
 		storedPeers[i] = p.ToStored()
 		i++
 	}

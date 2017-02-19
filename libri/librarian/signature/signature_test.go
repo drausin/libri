@@ -103,7 +103,7 @@ func TestEcdsaVerifer_Verify_err(t *testing.T) {
 	}
 
 	assert.Panics(t, func() {
-		err := verifier.Verify(encToken, nil, message)  // can't have nil key
+		err := verifier.Verify(encToken, nil, message) // can't have nil key
 		if err != nil {
 			panic(err)
 		}
