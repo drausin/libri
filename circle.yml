@@ -33,5 +33,8 @@ compile:
 
 test:
   override:
+    # cd enables go list ./... to get the package names right
+    - cd ~/.go_project/src/github.com/drausin/libri && make test-cover
     - make lint
-    - make test
+  post:
+    - bash <(curl -s https://codecov.io/bash) -f test-coverage-merged.cov
