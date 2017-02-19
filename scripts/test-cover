@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+PKGS=$(go list ./...)
+
+COVER_PROFILES_DIR=./.cover
+mkdir -p ${COVER_PROFILES_DIR}
+
+pushd ${COVER_PROFILES_DIR}
+
+# run test in parallel across packages
+echo ${PKGS} | xargs -I {} -n 1 -P 4 bash -c '
+    PKG={} &&
+    COVER_FILE=$(echo $PKG | md5sum | sed "s/  -/.out/g") &&
+    go test -race $PKG -coverprofile=$COVER_FILE
+'
+# merge profiles together, removing results from auto-generated code
+gocovmerge *.out | grep -v '.pb.go:' > merged.out
+
+popd

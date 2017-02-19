@@ -1,6 +1,6 @@
 GOTOOLS= github.com/alecthomas/gometalinter \
-	 github.com/axw/gocov/gocov \
-	 gopkg.in/matm/v1/gocov-html
+	 github.com/wadey/gocovmerge \
+	 github.com/mattn/goveralls
 VETARGS?=-asmdecl -atomic -bool -buildtags -copylocks -methods \
          -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
 ALL_PKGS=$(shell go list ./... | sed -r 's|github.com/drausin/libri/||g' | sort)
@@ -14,10 +14,9 @@ build:
 	@echo "--> Running go build"
 	@go build ./...
 
-cov:
-	@echo "--> Running gocov test"
-	@gocov test ./... | gocov-html > /tmp/coverage.html
-	@open /tmp/coverage.html
+test-cover:
+	@echo "--> Running go test with coverage"
+	./scripts/test-cover
 
 test:
 	@echo "--> Running go test"
