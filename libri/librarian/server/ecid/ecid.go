@@ -4,10 +4,11 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	crand "crypto/rand"
+	"fmt"
 	"io"
 	"math/big"
 	mrand "math/rand"
-	"fmt"
+
 	cid "github.com/drausin/libri/libri/common/id"
 )
 

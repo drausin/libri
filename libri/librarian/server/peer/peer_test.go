@@ -5,9 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"math/rand"
+
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/stretchr/testify/assert"
-	"math/rand"
 )
 
 func TestNew(t *testing.T) {
@@ -79,7 +80,7 @@ func TestPeer_Merge_ok(t *testing.T) {
 	// p2's name should replace p1's, and response counts should sum
 	p1ID := cid.NewPseudoRandom(rng)
 	p1 = New(p1ID, "p1", NewConnector(&net.TCPAddr{
-		IP: net.ParseIP("192.168.1.1"),
+		IP:   net.ParseIP("192.168.1.1"),
 		Port: 11000,
 	}))
 	p1.Recorder().Record(Request, Success)
@@ -120,11 +121,11 @@ func TestPeer_Merge_err(t *testing.T) {
 	// can't merge p2 into p1 b/c p2's connector has different address
 	p1ID := cid.NewPseudoRandom(rng)
 	p1 = New(p1ID, "p1", NewConnector(&net.TCPAddr{
-		IP: net.ParseIP("192.168.1.1"),
+		IP:   net.ParseIP("192.168.1.1"),
 		Port: 11000,
 	}))
 	p2 = New(p1ID, "", NewConnector(&net.TCPAddr{
-		IP: net.ParseIP("192.168.1.1"),
+		IP:   net.ParseIP("192.168.1.1"),
 		Port: 11001,
 	}))
 	err = p1.Merge(p2)

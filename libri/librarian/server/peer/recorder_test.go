@@ -72,7 +72,7 @@ func TestQueryRecorder_Record_error(t *testing.T) {
 }
 
 func TestQueryRecorder_Merge(t *testing.T) {
-	r1:= newQueryRecorder()
+	r1 := newQueryRecorder()
 	r1.Record(Response, Success)
 	r1.Record(Response, Success)
 	r1.Record(Response, Error)

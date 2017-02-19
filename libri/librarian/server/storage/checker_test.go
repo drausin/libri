@@ -2,9 +2,10 @@ package storage
 
 import (
 	"bytes"
-	"testing"
-	"github.com/stretchr/testify/assert"
 	"crypto/sha256"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestEmptyChecker_Check_ok(t *testing.T) {
