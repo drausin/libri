@@ -38,4 +38,3 @@ test:
     - make lint
   post:
     - curl -s https://codecov.io/bash | bash -f .cover/merged.out
-    - mv .cover $CIRCLE_ARTIFACTS
