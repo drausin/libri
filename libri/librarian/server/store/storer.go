@@ -22,13 +22,13 @@ type Storer interface {
 
 type storer struct {
 	// signs queries
-	signer signature.Signer
+	signer   signature.Signer
 
 	// searcher is used for the first search half of the store operation
 	searcher search.Searcher
 
 	// issues store queries to the peers
-	q Querier
+	querier  Querier
 }
 
 // NewStorer creates a new Storer instance with given Searcher and StoreQuerier instances.
@@ -36,7 +36,7 @@ func NewStorer(signer signature.Signer, searcher search.Searcher, q Querier) Sto
 	return &storer{
 		signer:   signer,
 		searcher: searcher,
-		q:        q,
+		querier:        q,
 	}
 }
 
@@ -107,10 +107,10 @@ func (s *storer) storeWork(store *Store, wg *sync.WaitGroup) {
 }
 
 func (s *storer) query(pConn peer.Connector, store *Store) (*api.StoreResponse, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), store.Params.Timeout)
+	ctx, cancel, err := s.context(store)
 	defer cancel()
 
-	rp, err := s.q.Query(ctx, pConn, store.Request)
+	rp, err := s.querier.Query(ctx, pConn, store.Request)
 	if err != nil {
 		return nil, err
 	}
@@ -121,6 +121,23 @@ func (s *storer) query(pConn peer.Connector, store *Store) (*api.StoreResponse, 
 
 	return rp, nil
 }
+
+func (s *storer) context(store *Store) (context.Context, context.CancelFunc, error) {
+	ctx := context.Background()
+
+	// sign the message
+	signedJWT, err := s.signer.Sign(store.Request)
+	if err != nil {
+		return nil, nil, err
+	}
+	ctx = context.WithValue(ctx, signature.ContextKey, signedJWT)
+
+	// add timeout
+	ctx, cancel := context.WithTimeout(ctx, store.Params.Timeout)
+
+	return ctx, cancel, nil
+}
+
 
 // Querier handle Store queries to a peer
 type Querier interface {
