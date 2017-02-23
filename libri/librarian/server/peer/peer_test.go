@@ -4,7 +4,6 @@ import (
 	"net"
 	"testing"
 	"time"
-
 	"math/rand"
 
 	cid "github.com/drausin/libri/libri/common/id"
@@ -12,7 +11,7 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	id, name := cid.FromInt64(0), "test name"
+	id, name := cid.FromInt64(1), "test name"
 	addr := &net.TCPAddr{IP: net.ParseIP("192.168.1.1"), Port: 1000}
 	p := New(id, name, NewConnector(addr))
 	assert.Equal(t, 0, id.Cmp(p.ID()))
@@ -24,6 +23,13 @@ func TestNew(t *testing.T) {
 	assert.Equal(t, uint64(0), rs.responses.nErrors)
 	assert.Equal(t, int64(0), rs.responses.latest.Unix())
 	assert.Equal(t, int64(0), rs.responses.earliest.Unix())
+}
+
+func TestNewStub(t *testing.T) {
+	peerID := cid.FromInt64(1)
+	p := NewStub(peerID)
+	assert.Equal(t, peerID, p.ID())
+	assert.Nil(t, p.Connector())
 }
 
 func TestPeer_Before(t *testing.T) {
@@ -131,4 +137,26 @@ func TestPeer_Merge_err(t *testing.T) {
 	err = p1.Merge(p2)
 	assert.NotNil(t, err)
 
+}
+
+func TestPeer_ToAPI(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	p := NewTestPeer(rng, 0)
+	apiP := p.ToAPI()
+
+	assert.Equal(t, p.ID().Bytes(), apiP.PeerId)
+	assert.Equal(t, p.Connector().(*connector).publicAddress.IP.String(), apiP.Ip)
+	assert.Equal(t, uint32(p.Connector().(*connector).publicAddress.Port), apiP.Port)
+}
+
+func TestFromer_FromAPI(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	p1 := NewTestPeer(rng, 0)
+	f := NewFromer()
+	apiP := p1.ToAPI()
+	p2 := f.FromAPI(apiP)
+
+	assert.Equal(t, p1.ID(), p2.ID())
+	assert.Equal(t, p1.Connector().(*connector).publicAddress,
+		p2.Connector().(*connector).publicAddress)
 }
