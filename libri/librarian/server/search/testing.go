@@ -12,16 +12,24 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"errors"
 )
 
-// NoOpSigner implements the signature.Signer interface but just returns a dummy token.
-type NoOpSigner struct{}
+// TestNoOpSigner implements the signature.Signer interface but just returns a dummy token.
+type TestNoOpSigner struct{}
 
 // Sign returns a dummy token.
-func (s *NoOpSigner) Sign(m proto.Message) (string, error) {
+func (s *TestNoOpSigner) Sign(m proto.Message) (string, error) {
 	return "noop.token.sig", nil
 }
 
+// TestErrSigner implements the signature.Signer interface but always returns an error.
+type TestErrSigner struct{}
+
+// Sign returns an error.
+func (s *TestErrSigner) Sign(m proto.Message) (string, error) {
+	return "", errors.New("some sign error")
+}
 // TestConnector mocks the peer.Connector interface. The Connect() method returns a fixed client
 // instead of creating one from the peer's address.
 type TestConnector struct {
@@ -37,6 +45,21 @@ func (c *TestConnector) Connect() (api.LibrarianClient, error) {
 func (c *TestConnector) Disconnect() error {
 	return nil
 }
+
+// TestErrConnector mocks the peer.Connector interface. The Connect() methods always returns an
+// error.
+type TestErrConnector struct{}
+
+// Connect is stub that always returns an error.
+func (ec *TestErrConnector) Connect() (api.LibrarianClient, error) {
+	return nil, errors.New("some connect error")
+}
+
+// Disconnect is a no-op stub to satisfy the interface's signature.
+func (ec *TestErrConnector) Disconnect() error {
+	return nil
+}
+
 
 // TestFindQuerier mocks the FindQuerier interface. The Query() method returns a fixed
 // api.FindPeersResponse, derived from a list of addresses in the client.
@@ -71,7 +94,7 @@ func (f *TestFromer) FromAPI(apiAddress *api.PeerAddress) peer.Peer {
 // each just return fixed addresses and peers, respectively.
 func NewTestSearcher(peersMap map[string]peer.Peer) Searcher {
 	return NewSearcher(
-		&NoOpSigner{},
+		&TestNoOpSigner{},
 		&TestFindQuerier{},
 		&findResponseProcessor{
 			peerFromer: &TestFromer{peers: peersMap},
@@ -129,4 +152,15 @@ func NewTestPeers(rng *rand.Rand, n int) ([]peer.Peer, map[string]peer.Peer, []i
 	}
 
 	return peers, peersMap, selfPeerIdxs, selfID
+}
+
+// NewTestSeeds creates a list of peers to use as seeds for a search.
+func NewTestSeeds(peers []peer.Peer, selfPeerIdxs []int) []peer.Peer {
+	// init the seeds of our search: usually this comes from the routing.Table.Peak()
+	// method, but we'll just allocate directly
+	seeds := make([]peer.Peer, len(selfPeerIdxs))
+	for i := 0; i < len(selfPeerIdxs); i++ {
+		seeds[i] = peers[selfPeerIdxs[i]]
+	}
+	return seeds
 }

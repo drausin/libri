@@ -107,8 +107,12 @@ func (s *storer) storeWork(store *Store, wg *sync.WaitGroup) {
 }
 
 func (s *storer) query(pConn peer.Connector, store *Store) (*api.StoreResponse, error) {
-	ctx, cancel, err := s.context(store)
+	ctx, cancel, err := search.NewSignedTimeoutContext(s.signer, store.Request,
+		store.Params.Timeout)
 	defer cancel()
+	if err != nil {
+		return nil, err
+	}
 
 	rp, err := s.querier.Query(ctx, pConn, store.Request)
 	if err != nil {
@@ -121,23 +125,6 @@ func (s *storer) query(pConn peer.Connector, store *Store) (*api.StoreResponse, 
 
 	return rp, nil
 }
-
-func (s *storer) context(store *Store) (context.Context, context.CancelFunc, error) {
-	ctx := context.Background()
-
-	// sign the message
-	signedJWT, err := s.signer.Sign(store.Request)
-	if err != nil {
-		return nil, nil, err
-	}
-	ctx = context.WithValue(ctx, signature.ContextKey, signedJWT)
-
-	// add timeout
-	ctx, cancel := context.WithTimeout(ctx, store.Params.Timeout)
-
-	return ctx, cancel, nil
-}
-
 
 // Querier handle Store queries to a peer
 type Querier interface {

@@ -9,11 +9,10 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	ssearch "github.com/drausin/libri/libri/librarian/server/search"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"github.com/gogo/protobuf/proto"
+	"github.com/pkg/errors"
 )
 
 func TestNewDefaultStorer(t *testing.T) {
@@ -40,19 +39,11 @@ func (c *TestStoreQuerier) Query(ctx context.Context, pConn peer.Connector, rq *
 	}, nil
 }
 
-// NoOpSigner implements the signature.Signer interface but just returns a dummy token.
-type NoOpSigner struct{}
-
-// Sign returns a dummy token.
-func (s *NoOpSigner) Sign(m proto.Message) (string, error) {
-	return "noop.token.sig", nil
-}
-
 func NewTestStorer(peerID ecid.ID, peersMap map[string]peer.Peer) Storer {
 	return &storer{
 		searcher: ssearch.NewTestSearcher(peersMap),
 		querier:  &TestStoreQuerier{peerID: peerID},
-		signer: &NoOpSigner{},
+		signer: &ssearch.TestNoOpSigner{},
 	}
 }
 
@@ -102,23 +93,13 @@ func TestStorer_Store_ok(t *testing.T) {
 	}
 }
 
-type errConnector struct{}
-
-func (ec *errConnector) Connect() (api.LibrarianClient, error) {
-	return nil, errors.New("some connect error")
-}
-
-func (ec *errConnector) Disconnect() error {
-	return nil
-}
-
-func TestStorer_Store_err_connector(t *testing.T) {
+func TestStorer_Store_connectorErr(t *testing.T) {
 	n, nClosestResponses := 32, uint(8)
 	rng := rand.New(rand.NewSource(int64(n)))
 	peers, peersMap, selfPeerIdxs, selfID := ssearch.NewTestPeers(rng, n)
 	for i, p := range peers {
 		// replace peer with connector that errors
-		peers[i] = peer.New(p.ID(), "", &errConnector{})
+		peers[i] = peer.New(p.ID(), "", &ssearch.TestErrConnector{})
 	}
 
 	// create our searcher
@@ -160,7 +141,7 @@ func TestStorer_Store_err_connector(t *testing.T) {
 	assert.Nil(t, store.Result.FatalErr)
 }
 
-type errSearcher struct{}
+type errSearcher struct {}
 
 func (es *errSearcher) Search(search *ssearch.Search, seeds []peer.Peer) error {
 	return errors.New("some search error")
@@ -178,8 +159,65 @@ func TestStorer_Store_err(t *testing.T) {
 	assert.NotNil(t, s.Store(store, nil))
 }
 
+// timeoutQuerier returns an error simulating a request timeout
+type timeoutQuerier struct{}
+
+func (f *timeoutQuerier) Query(ctx context.Context, pConn peer.Connector, fr *api.StoreRequest,
+	opts ...grpc.CallOption) (*api.StoreResponse, error) {
+	return nil, errors.New("simulated timeout error")
+}
+
+// diffRequestIDFinder returns a response with a different request ID
+type diffRequestIDQuerier struct {
+	rng    *rand.Rand
+	peerID ecid.ID
+}
+
+func (f *diffRequestIDQuerier) Query(ctx context.Context, pConn peer.Connector,
+	fr *api.StoreRequest, opts ...grpc.CallOption) (*api.StoreResponse, error) {
+	return &api.StoreResponse{
+		Metadata: &api.ResponseMetadata{
+			RequestId: cid.NewPseudoRandom(f.rng).Bytes(),
+			PubKey:    ecid.ToPublicKeyBytes(f.peerID),
+		},
+	}, nil
+}
+
+func TestStorer_query_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(int64(0)))
+	client := peer.NewConnector(nil) // won't actually be used since we're mocking the finder
+	selfID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
+	value := cid.NewPseudoRandom(rng).Bytes() // use ID for convenience, but could be anything
+	search := ssearch.NewSearch(selfID, key, &ssearch.Parameters{
+		Timeout:           DefaultQueryTimeout,
+	})
+	store := NewStore(selfID, search, value, &Parameters{})
+
+	s1 := &storer{
+		signer: &ssearch.TestNoOpSigner{},
+		// use querier that simulates a timeout
+		querier: &timeoutQuerier{},
+	}
+	rp1, err := s1.query(client, store)
+	assert.Nil(t, rp1)
+	assert.NotNil(t, err)
+
+	s2 := &storer{
+		signer: &ssearch.TestNoOpSigner{},
+		// use querier that simulates a timeout
+		querier: &diffRequestIDQuerier{
+			rng:    rng,
+			peerID: selfID,
+		},
+	}
+	rp2, err := s2.query(client, store)
+	assert.Nil(t, rp2)
+	assert.NotNil(t, err)
+}
+
+
 func TestQuerier_Query_err(t *testing.T) {
-	c := &errConnector{}
+	c := &ssearch.TestErrConnector{}
 	q := NewQuerier()
 
 	// check that error from c.Connect() surfaces to q.Query(...)
