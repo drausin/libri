@@ -93,19 +93,77 @@ func TestStorer_Store_ok(t *testing.T) {
 	}
 }
 
+type fixedSearcher struct {
+	fixed *ssearch.Result
+}
+
+func (s *fixedSearcher) Search(search *ssearch.Search, seeds []peer.Peer) error {
+	search.Result = s.fixed
+	return nil
+}
+
 func TestStorer_Store_connectorErr(t *testing.T) {
+	storerImpl, store, selfPeerIdxs, peers, key := newTestStore()
+	seeds := ssearch.NewTestSeeds(peers, selfPeerIdxs)
+
+	// define fixed closest peers in search result, used by mocked searcher
+	fixed := ssearch.NewInitialResult(key, store.Search.Params)
+	for c := uint(0); c < store.Search.Params.NClosestResponses; c++ {
+		badPeer := peer.New(peers[c].ID(), "", &ssearch.TestErrConnector{})
+		err := fixed.Closest.SafePush(badPeer)
+		assert.Nil(t, err)
+	}
+	storerImpl.(*storer).searcher = &fixedSearcher{
+		fixed: fixed,
+	}
+
+	// do the search!
+	err := storerImpl.Store(store, seeds)
+
+	// checks
+	assert.Nil(t, err)
+	assert.True(t, store.Exhausted())  // since we can't connect to any of the peers
+	assert.False(t, store.Stored())
+	assert.False(t, store.Errored())
+
+	assert.Equal(t, 0, len(store.Result.Responded))
+	assert.Equal(t, 0, len(store.Result.Unqueried))
+	assert.Equal(t, uint(0), store.Result.NErrors)
+	assert.Nil(t, store.Result.FatalErr)
+}
+
+func TestStorer_Store_queryErr(t *testing.T) {
+	storerImpl, store, selfPeerIdxs, peers, _ := newTestStore()
+	seeds := ssearch.NewTestSeeds(peers, selfPeerIdxs)
+
+	// mock querier to always timeout
+	storerImpl.(*storer).querier = &timeoutQuerier{}
+
+	// do the search!
+	err := storerImpl.Store(store, seeds)
+
+	// checks
+	assert.Nil(t, err)
+	assert.True(t, store.Errored())  // since all of the queries return errors
+	assert.False(t, store.Exhausted())  // since NMaxErrors < len(Unqueried)
+	assert.False(t, store.Stored())
+	assert.True(t, store.Finished())
+
+	assert.Equal(t, 0, len(store.Result.Responded))
+	assert.True(t, 0 < len(store.Result.Unqueried))
+	assert.Equal(t, store.Params.NMaxErrors, store.Result.NErrors)
+	assert.Nil(t, store.Result.FatalErr)
+}
+
+func newTestStore() (Storer, *Store, []int, []peer.Peer, cid.ID) {
 	n, nClosestResponses := 32, uint(8)
 	rng := rand.New(rand.NewSource(int64(n)))
 	peers, peersMap, selfPeerIdxs, selfID := ssearch.NewTestPeers(rng, n)
-	for i, p := range peers {
-		// replace peer with connector that errors
-		peers[i] = peer.New(p.ID(), "", &ssearch.TestErrConnector{})
-	}
 
 	// create our searcher
 	key := cid.NewPseudoRandom(rng)
 	value := cid.NewPseudoRandom(rng).Bytes() // use ID for convenience, but could be anything
-	storer := NewTestStorer(selfID, peersMap)
+	storerImpl := NewTestStorer(selfID, peersMap)
 
 	concurrency := uint(1)
 	search := ssearch.NewSearch(selfID, key, &ssearch.Parameters{
@@ -119,26 +177,7 @@ func TestStorer_Store_connectorErr(t *testing.T) {
 		Concurrency: concurrency,
 	})
 
-	// init the seeds of our search: usually this comes from the routing.Table.Peak()
-	// method, but we'll just allocate directly
-	seeds := make([]peer.Peer, len(selfPeerIdxs))
-	for i := 0; i < len(selfPeerIdxs); i++ {
-		seeds[i] = peers[selfPeerIdxs[i]]
-	}
-
-	// do the search!
-	err := storer.Store(store, seeds)
-
-	// checks
-	assert.Nil(t, err)
-	assert.True(t, store.Exhausted())  // since we can't connect to any of the peers
-	assert.False(t, store.Stored())
-	assert.False(t, store.Errored())
-
-	assert.Equal(t, 0, len(store.Result.Responded))
-	assert.Equal(t, 0, len(store.Result.Unqueried))
-	assert.Equal(t, uint(0), store.Result.NErrors)
-	assert.Nil(t, store.Result.FatalErr)
+	return storerImpl, store, selfPeerIdxs, peers, key
 }
 
 type errSearcher struct {}
@@ -204,7 +243,7 @@ func TestStorer_query_err(t *testing.T) {
 
 	s2 := &storer{
 		signer: &ssearch.TestNoOpSigner{},
-		// use querier that simulates a timeout
+		// use querier that simulates a different request ID
 		querier: &diffRequestIDQuerier{
 			rng:    rng,
 			peerID: selfID,
@@ -212,6 +251,14 @@ func TestStorer_query_err(t *testing.T) {
 	}
 	rp2, err := s2.query(client, store)
 	assert.Nil(t, rp2)
+	assert.NotNil(t, err)
+
+	s3 := &storer{
+		// use signer that returns an error
+		signer: &ssearch.TestErrSigner{},
+	}
+	rp3, err := s3.query(client, store)
+	assert.Nil(t, rp3)
 	assert.NotNil(t, err)
 }
 

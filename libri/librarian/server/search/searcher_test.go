@@ -89,6 +89,7 @@ func TestSearcher_Search_connectorErr(t *testing.T) {
 	seeds := NewTestSeeds(peers, selfPeerIdxs)
 
 	// do the search!
+	assert.False(t, search.Finished())
 	err := searcher.Search(search, seeds)
 
 	// checks
@@ -110,12 +111,13 @@ func TestSearcher_Search_queryErr(t *testing.T) {
 	searcherImpl.(*searcher).querier = &timeoutQuerier{}
 
 	// do the search!
+	assert.False(t, search.Finished())
 	err := searcherImpl.Search(search, seeds)
 
 	// checks
 	assert.Nil(t, err)
 	assert.True(t, search.Errored())    // since all of the queries return errors
-	assert.False(t, search.Exhausted()) // since NMaxErrors < len(Upqueried)
+	assert.False(t, search.Exhausted()) // since NMaxErrors < len(Unqueried)
 	assert.True(t, search.Finished())
 	assert.False(t, search.FoundClosestPeers())
 	assert.Equal(t, search.Params.NMaxErrors, search.Result.NErrors)
@@ -138,6 +140,7 @@ func TestSearcher_Search_rpErr(t *testing.T) {
 	searcherImpl.(*searcher).rp = &errResponseProcessor{}
 
 	// do the search!
+	assert.False(t, search.Finished())
 	err := searcherImpl.Search(search, seeds)
 
 	// checks
@@ -259,7 +262,7 @@ func TestSearcher_query_err(t *testing.T) {
 
 	s2 := &searcher{
 		signer: &TestNoOpSigner{},
-		// use querier that simulates a timeout
+		// use querier that simulates a different request ID
 		querier: &diffRequestIDQuerier{
 			rng:    rng,
 			peerID: peerID,
