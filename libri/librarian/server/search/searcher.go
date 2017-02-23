@@ -6,16 +6,17 @@ import (
 	"fmt"
 	"sync"
 
+	"time"
+
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/signature"
+	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"github.com/gogo/protobuf/proto"
-	"time"
 )
 
 // Searcher executes searches for particular keys.
@@ -26,13 +27,13 @@ type Searcher interface {
 
 type searcher struct {
 	// signs queries
-	signer  signature.Signer
+	signer signature.Signer
 
 	// issues find queries to the peers
 	querier Querier
 
 	// processes the find query responses from the peers
-	rp      FindResponseProcessor
+	rp FindResponseProcessor
 }
 
 // NewSearcher returns a new Searcher with the given Querier and ResponseProcessor.
@@ -150,7 +151,7 @@ func NewSignedTimeoutContext(signer signature.Signer, request proto.Message,
 	// sign the message
 	signedJWT, err := signer.Sign(request)
 	if err != nil {
-		return nil, nil, err
+		return nil, func() {}, err
 	}
 	ctx = context.WithValue(ctx, signature.ContextKey, signedJWT)
 

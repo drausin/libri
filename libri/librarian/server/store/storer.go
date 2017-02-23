@@ -22,13 +22,13 @@ type Storer interface {
 
 type storer struct {
 	// signs queries
-	signer   signature.Signer
+	signer signature.Signer
 
 	// searcher is used for the first search half of the store operation
 	searcher search.Searcher
 
 	// issues store queries to the peers
-	querier  Querier
+	querier Querier
 }
 
 // NewStorer creates a new Storer instance with given Searcher and StoreQuerier instances.
@@ -36,7 +36,7 @@ func NewStorer(signer signature.Signer, searcher search.Searcher, q Querier) Sto
 	return &storer{
 		signer:   signer,
 		searcher: searcher,
-		querier:        q,
+		querier:  q,
 	}
 }
 

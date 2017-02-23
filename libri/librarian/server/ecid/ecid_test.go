@@ -6,10 +6,11 @@ import (
 	"math/rand"
 	"testing"
 
-	cid "github.com/drausin/libri/libri/common/id"
-	"github.com/stretchr/testify/assert"
-	"github.com/pkg/errors"
 	"crypto/elliptic"
+
+	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestEcid_NewRandom_ok(t *testing.T) {
@@ -18,7 +19,7 @@ func TestEcid_NewRandom_ok(t *testing.T) {
 	assert.NotNil(t, NewRandom())
 }
 
-type truncReader struct {}
+type truncReader struct{}
 
 func (tr *truncReader) Read(p []byte) (n int, err error) {
 	return 0, errors.New("unable to read anything")

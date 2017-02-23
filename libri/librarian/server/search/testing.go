@@ -5,6 +5,8 @@ import (
 	"math/rand"
 	"net"
 
+	"errors"
+
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
@@ -12,7 +14,6 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"errors"
 )
 
 // TestNoOpSigner implements the signature.Signer interface but just returns a dummy token.
@@ -30,6 +31,7 @@ type TestErrSigner struct{}
 func (s *TestErrSigner) Sign(m proto.Message) (string, error) {
 	return "", errors.New("some sign error")
 }
+
 // TestConnector mocks the peer.Connector interface. The Connect() method returns a fixed client
 // instead of creating one from the peer's address.
 type TestConnector struct {
@@ -59,7 +61,6 @@ func (ec *TestErrConnector) Connect() (api.LibrarianClient, error) {
 func (ec *TestErrConnector) Disconnect() error {
 	return nil
 }
-
 
 // TestFindQuerier mocks the FindQuerier interface. The Query() method returns a fixed
 // api.FindPeersResponse, derived from a list of addresses in the client.

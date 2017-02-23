@@ -1,10 +1,10 @@
 package peer
 
 import (
+	"math/rand"
 	"net"
 	"testing"
 	"time"
-	"math/rand"
 
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/stretchr/testify/assert"

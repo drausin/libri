@@ -70,9 +70,6 @@ func (db *RocksDB) Get(key []byte) ([]byte, error) {
 	// Return copy of bytes instead of a slice to make it simpler for the user. If this proves
 	// slow for large reads we might want to add a separate method for getting the slice
 	// (or an abstraction of it) directly.
-	if db == nil {
-		return nil, errors.New("RocksDB struct is nil!")
-	}
 	if db.rdb == nil {
 		return nil, errors.New("rdb is nil!")
 	}

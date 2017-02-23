@@ -30,6 +30,13 @@ func TestRocksDB_PutGet(t *testing.T) {
 	assert.Equal(t, value1, getValue1)
 }
 
+func TestRocksDB_Get_err(t *testing.T) {
+	db := &RocksDB{}
+	value, err := db.Get([]byte("key"))
+	assert.Nil(t, value)
+	assert.NotNil(t, err)
+}
+
 // Test a second put overwrites the value of the first.
 func TestRocksDB_PutGetPutGet(t *testing.T) {
 	db, err := NewTempDirRocksDB()

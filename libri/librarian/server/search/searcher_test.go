@@ -6,6 +6,8 @@ import (
 	"math/rand"
 	"testing"
 
+	"time"
+
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
@@ -15,7 +17,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"time"
 )
 
 func TestNewDefaultSearcher(t *testing.T) {
@@ -89,7 +90,6 @@ func TestSearcher_Search_connectorErr(t *testing.T) {
 	seeds := NewTestSeeds(peers, selfPeerIdxs)
 
 	// do the search!
-	assert.False(t, search.Finished())
 	err := searcher.Search(search, seeds)
 
 	// checks
@@ -111,7 +111,6 @@ func TestSearcher_Search_queryErr(t *testing.T) {
 	searcherImpl.(*searcher).querier = &timeoutQuerier{}
 
 	// do the search!
-	assert.False(t, search.Finished())
 	err := searcherImpl.Search(search, seeds)
 
 	// checks
@@ -140,7 +139,6 @@ func TestSearcher_Search_rpErr(t *testing.T) {
 	searcherImpl.(*searcher).rp = &errResponseProcessor{}
 
 	// do the search!
-	assert.False(t, search.Finished())
 	err := searcherImpl.Search(search, seeds)
 
 	// checks
@@ -254,7 +252,6 @@ func TestSearcher_query_err(t *testing.T) {
 		signer: &TestNoOpSigner{},
 		// use querier that simulates a timeout
 		querier: &timeoutQuerier{},
-		rp:      nil,
 	}
 	rp1, err := s1.query(client, search)
 	assert.Nil(t, rp1)
@@ -267,10 +264,16 @@ func TestSearcher_query_err(t *testing.T) {
 			rng:    rng,
 			peerID: peerID,
 		},
-		rp: nil,
 	}
 	rp2, err := s2.query(client, search)
 	assert.Nil(t, rp2)
+	assert.NotNil(t, err)
+
+	s3 := &searcher{
+		signer: &TestErrSigner{},
+	}
+	rp3, err := s3.query(client, search)
+	assert.Nil(t, rp3)
 	assert.NotNil(t, err)
 }
 
@@ -378,7 +381,7 @@ func TestNewSignedTimeoutContext_err(t *testing.T) {
 		5*time.Second,
 	)
 	assert.Nil(t, ctx)
-	assert.Nil(t, cancel)
+	assert.NotNil(t, cancel)
 	assert.NotNil(t, err)
 }
 

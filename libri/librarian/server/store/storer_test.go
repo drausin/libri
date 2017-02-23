@@ -9,10 +9,10 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	ssearch "github.com/drausin/libri/libri/librarian/server/search"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"github.com/pkg/errors"
 )
 
 func TestNewDefaultStorer(t *testing.T) {
@@ -43,7 +43,7 @@ func NewTestStorer(peerID ecid.ID, peersMap map[string]peer.Peer) Storer {
 	return &storer{
 		searcher: ssearch.NewTestSearcher(peersMap),
 		querier:  &TestStoreQuerier{peerID: peerID},
-		signer: &ssearch.TestNoOpSigner{},
+		signer:   &ssearch.TestNoOpSigner{},
 	}
 }
 
@@ -122,7 +122,7 @@ func TestStorer_Store_connectorErr(t *testing.T) {
 
 	// checks
 	assert.Nil(t, err)
-	assert.True(t, store.Exhausted())  // since we can't connect to any of the peers
+	assert.True(t, store.Exhausted()) // since we can't connect to any of the peers
 	assert.False(t, store.Stored())
 	assert.False(t, store.Errored())
 
@@ -144,8 +144,8 @@ func TestStorer_Store_queryErr(t *testing.T) {
 
 	// checks
 	assert.Nil(t, err)
-	assert.True(t, store.Errored())  // since all of the queries return errors
-	assert.False(t, store.Exhausted())  // since NMaxErrors < len(Unqueried)
+	assert.True(t, store.Errored())    // since all of the queries return errors
+	assert.False(t, store.Exhausted()) // since NMaxErrors < len(Unqueried)
 	assert.False(t, store.Stored())
 	assert.True(t, store.Finished())
 
@@ -180,7 +180,7 @@ func newTestStore() (Storer, *Store, []int, []peer.Peer, cid.ID) {
 	return storerImpl, store, selfPeerIdxs, peers, key
 }
 
-type errSearcher struct {}
+type errSearcher struct{}
 
 func (es *errSearcher) Search(search *ssearch.Search, seeds []peer.Peer) error {
 	return errors.New("some search error")
@@ -228,7 +228,7 @@ func TestStorer_query_err(t *testing.T) {
 	selfID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
 	value := cid.NewPseudoRandom(rng).Bytes() // use ID for convenience, but could be anything
 	search := ssearch.NewSearch(selfID, key, &ssearch.Parameters{
-		Timeout:           DefaultQueryTimeout,
+		Timeout: DefaultQueryTimeout,
 	})
 	store := NewStore(selfID, search, value, &Parameters{})
 
@@ -261,7 +261,6 @@ func TestStorer_query_err(t *testing.T) {
 	assert.Nil(t, rp3)
 	assert.NotNil(t, err)
 }
-
 
 func TestQuerier_Query_err(t *testing.T) {
 	c := &ssearch.TestErrConnector{}
