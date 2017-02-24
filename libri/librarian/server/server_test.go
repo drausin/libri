@@ -28,13 +28,13 @@ func TestNewLibrarian(t *testing.T) {
 	lib1 := newTestLibrarian()
 
 	nodeID1 := lib1.PeerID // should have been generated
-	err := lib1.Close()
+	err := lib1.CloseAndRemove()
 	assert.Nil(t, err)
 
 	lib2, err := NewLibrarian(lib1.Config)
 	assert.Nil(t, err)
 	assert.Equal(t, nodeID1, lib2.PeerID)
-	err = lib2.Close()
+	err = lib2.CloseAndRemove()
 	assert.Nil(t, err)
 }
 
@@ -72,7 +72,7 @@ func TestLibrarian_Ping(t *testing.T) {
 
 // TestLibrarian_Identify verifies that we get the expected response from a an identification
 // request.
-func TestLibrarian_Identify(t *testing.T) {
+func TestLibrarian_Identify_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	peerName := "Test Node"
 	rt, peerID, _ := routing.NewTestWithPeers(rng, 64)
@@ -93,6 +93,19 @@ func TestLibrarian_Identify(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
 	assert.Equal(t, peerName, rp.PeerName)
+}
+
+func TestLibrarian_Identify_checkRequestErr(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	l := &Librarian{}
+	rq := &api.IdentityRequest{
+		Metadata: api.NewRequestMetadata(ecid.NewPseudoRandom(rng)),
+	}
+	rq.Metadata.PubKey = []byte("corrupted pub key")
+
+	rp, err := l.Identify(nil, rq)
+	assert.Nil(t, rp)
+	assert.NotNil(t, err)
 }
 
 func TestLibrarian_Find(t *testing.T) {
@@ -225,6 +238,17 @@ func TestLibrarian_Find_missing(t *testing.T) {
 	checkPeersResponse(t, rq, rp, nAdded, numClosest)
 }
 
+func TestLibrarian_Find_checkRequestError(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	l := &Librarian{}
+	rq := api.NewFindRequest(ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng), uint(8))
+	rq.Metadata.PubKey = []byte("corrupted pub key")
+
+	rp, err := l.Find(nil, rq)
+	assert.Nil(t, rp)
+	assert.NotNil(t, err)
+}
+
 func TestLibrarian_Store(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	rt, peerID, _ := routing.NewTestWithPeers(rng, 64)
@@ -275,6 +299,18 @@ func newTestRequestMetadata(rng *rand.Rand, peerID ecid.ID) *api.RequestMetadata
 		RequestId: cid.NewPseudoRandom(rng).Bytes(),
 		PubKey:    ecid.ToPublicKeyBytes(peerID),
 	}
+}
+
+func TestLibrarian_Store_checkRequestError(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	l := &Librarian{}
+	rq := api.NewStoreRequest(ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng),
+		[]byte("some value"))
+	rq.Metadata.PubKey = []byte("corrupted pub key")
+
+	rp, err := l.Store(nil, rq)
+	assert.Nil(t, rp)
+	assert.NotNil(t, err)
 }
 
 type fixedSearcher struct {
@@ -385,6 +421,17 @@ func TestLibrarian_Get_err(t *testing.T) {
 	assert.Nil(t, rp)
 }
 
+func TestLibrarian_Get_checkRequestError(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	l := &Librarian{}
+	rq := api.NewGetRequest(ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng))
+	rq.Metadata.PubKey = []byte("corrupted pub key")
+
+	rp, err := l.Get(nil, rq)
+	assert.Nil(t, rp)
+	assert.NotNil(t, err)
+}
+
 func newGetLibrarian(rng *rand.Rand, searchResult *search.Result, searchErr error) *Librarian {
 	n := 8
 	rt, peerID, _ := routing.NewTestWithPeers(rng, n)
@@ -491,6 +538,18 @@ func TestLibrarian_Put_err(t *testing.T) {
 	rp, err := l.Put(nil, rq)
 	assert.NotNil(t, err)
 	assert.Nil(t, rp)
+}
+
+func TestLibrarian_Put_checkRequestError(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	l := &Librarian{}
+	rq := api.NewPutRequest(ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng),
+		[]byte("some value"))
+	rq.Metadata.PubKey = []byte("corrupted pub key")
+
+	rp, err := l.Put(nil, rq)
+	assert.Nil(t, rp)
+	assert.NotNil(t, err)
 }
 
 func newPutLibrarian(rng *rand.Rand, storeResult *store.Result, searchErr error) *Librarian {

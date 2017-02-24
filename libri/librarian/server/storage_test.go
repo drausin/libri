@@ -1,19 +1,20 @@
 package server
 
 import (
-	"testing"
-	"github.com/stretchr/testify/assert"
-	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"math/rand"
-	"github.com/pkg/errors"
-	"github.com/gogo/protobuf/proto"
+	"testing"
+
 	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/storage"
+	"github.com/gogo/protobuf/proto"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 )
 
 type fixedLoader struct {
 	bytes []byte
-	err error
+	err   error
 }
 
 func (l *fixedLoader) Load(key []byte) ([]byte, error) {
@@ -54,7 +55,7 @@ func TestLoadOrCreatePeerID_err(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-type noOpStorer struct {}
+type noOpStorer struct{}
 
 func (s noOpStorer) Store(key []byte, value []byte) error {
 	return nil

@@ -9,8 +9,8 @@ import (
 	"github.com/drausin/libri/libri/db"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/storage"
-	"github.com/stretchr/testify/assert"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestFromStored(t *testing.T) {
@@ -87,7 +87,7 @@ func assertRoutingTablesEqual(t *testing.T, rt Table, srt *storage.RoutingTable)
 
 type fixedLoader struct {
 	bytes []byte
-	err error
+	err   error
 }
 
 func (l *fixedLoader) Load(key []byte) ([]byte, error) {
@@ -99,7 +99,7 @@ func TestLoad_err(t *testing.T) {
 	// simulates missing/not stored table
 	rt1, err := Load(&fixedLoader{
 		bytes: nil,
-		err: nil,
+		err:   nil,
 	})
 	assert.Nil(t, rt1)
 	assert.Nil(t, err)
@@ -107,7 +107,7 @@ func TestLoad_err(t *testing.T) {
 	// simulates loading error
 	rt2, err := Load(&fixedLoader{
 		bytes: []byte("some random bytes"),
-		err: errors.New("some random error"),
+		err:   errors.New("some random error"),
 	})
 	assert.Nil(t, rt2)
 	assert.NotNil(t, err)
@@ -115,7 +115,7 @@ func TestLoad_err(t *testing.T) {
 	// simulates bad stored table
 	rt3, err := Load(&fixedLoader{
 		bytes: []byte("the wrong bytes"),
-		err: nil,
+		err:   nil,
 	})
 	assert.Nil(t, rt3)
 	assert.NotNil(t, err)
