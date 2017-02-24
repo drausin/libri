@@ -28,7 +28,7 @@ func TestNewLibrarian(t *testing.T) {
 	lib1 := newTestLibrarian()
 
 	nodeID1 := lib1.PeerID // should have been generated
-	err := lib1.CloseAndRemove()
+	err := lib1.Close()
 	assert.Nil(t, err)
 
 	lib2, err := NewLibrarian(lib1.Config)
