@@ -9,6 +9,7 @@ import (
 	"github.com/drausin/libri/libri/db"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/storage"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -82,4 +83,40 @@ func assertRoutingTablesEqual(t *testing.T, rt Table, srt *storage.RoutingTable)
 			peer.AssertPeersEqual(t, sp, toPeer)
 		}
 	}
+}
+
+type fixedLoader struct {
+	bytes []byte
+	err   error
+}
+
+func (l *fixedLoader) Load(key []byte) ([]byte, error) {
+	return l.bytes, l.err
+}
+
+func TestLoad_err(t *testing.T) {
+
+	// simulates missing/not stored table
+	rt1, err := Load(&fixedLoader{
+		bytes: nil,
+		err:   nil,
+	})
+	assert.Nil(t, rt1)
+	assert.Nil(t, err)
+
+	// simulates loading error
+	rt2, err := Load(&fixedLoader{
+		bytes: []byte("some random bytes"),
+		err:   errors.New("some random error"),
+	})
+	assert.Nil(t, rt2)
+	assert.NotNil(t, err)
+
+	// simulates bad stored table
+	rt3, err := Load(&fixedLoader{
+		bytes: []byte("the wrong bytes"),
+		err:   nil,
+	})
+	assert.Nil(t, rt3)
+	assert.NotNil(t, err)
 }

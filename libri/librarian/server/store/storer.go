@@ -28,7 +28,7 @@ type storer struct {
 	searcher search.Searcher
 
 	// issues store queries to the peers
-	q Querier
+	querier Querier
 }
 
 // NewStorer creates a new Storer instance with given Searcher and StoreQuerier instances.
@@ -36,7 +36,7 @@ func NewStorer(signer signature.Signer, searcher search.Searcher, q Querier) Sto
 	return &storer{
 		signer:   signer,
 		searcher: searcher,
-		q:        q,
+		querier:  q,
 	}
 }
 
@@ -75,7 +75,7 @@ func (s *storer) storeWork(store *Store, wg *sync.WaitGroup) {
 		// get next peer to query
 		store.mu.Lock()
 		if len(store.Result.Unqueried) == 0 {
-			// also check for empty unqueried peers here in case anythin has changed
+			// also check for empty unqueried peers here in case anything has changed
 			// since loop condition
 			break
 		}
@@ -107,10 +107,14 @@ func (s *storer) storeWork(store *Store, wg *sync.WaitGroup) {
 }
 
 func (s *storer) query(pConn peer.Connector, store *Store) (*api.StoreResponse, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), store.Params.Timeout)
+	ctx, cancel, err := search.NewSignedTimeoutContext(s.signer, store.Request,
+		store.Params.Timeout)
 	defer cancel()
+	if err != nil {
+		return nil, err
+	}
 
-	rp, err := s.q.Query(ctx, pConn, store.Request)
+	rp, err := s.querier.Query(ctx, pConn, store.Request)
 	if err != nil {
 		return nil, err
 	}

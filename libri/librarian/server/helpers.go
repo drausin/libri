@@ -60,6 +60,7 @@ func (l *Librarian) checkRequestAndKeyValue(ctx context.Context, rq proto.Messag
 		return nil, err
 	}
 	if err := l.kvc.Check(key, value); err != nil {
+		l.record(requester, peer.Request, peer.Error)
 		return nil, err
 	}
 	return requester, nil

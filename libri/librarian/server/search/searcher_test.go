@@ -6,15 +6,26 @@ import (
 	"math/rand"
 	"testing"
 
+	"time"
+
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
+	"github.com/drausin/libri/libri/librarian/signature"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
+
+func TestNewDefaultSearcher(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	s := NewDefaultSearcher(ecid.NewPseudoRandom(rng))
+	assert.NotNil(t, s.(*searcher).signer)
+	assert.NotNil(t, s.(*searcher).querier)
+	assert.NotNil(t, s.(*searcher).rp)
+}
 
 func TestSearcher_Search(t *testing.T) {
 	n, nClosestResponses := 32, uint(8)
@@ -34,12 +45,7 @@ func TestSearcher_Search(t *testing.T) {
 			Timeout:           DefaultQueryTimeout,
 		})
 
-		// init the seeds of our search: usually this comes from the routing.Table.Peak()
-		// method, but we'll just allocate directly
-		seeds := make([]peer.Peer, len(selfPeerIdxs))
-		for i := 0; i < len(selfPeerIdxs); i++ {
-			seeds[i] = peers[selfPeerIdxs[i]]
-		}
+		seeds := NewTestSeeds(peers, selfPeerIdxs)
 
 		// do the search!
 		err := searcher.Search(search, seeds)
@@ -74,6 +80,98 @@ func TestSearcher_Search(t *testing.T) {
 	}
 }
 
+func TestSearcher_Search_connectorErr(t *testing.T) {
+	searcher, search, selfPeerIdxs, peers := newTestSearch()
+	for i, p := range peers {
+		// replace peer with connector that errors
+		peers[i] = peer.New(p.ID(), "", &TestErrConnector{})
+	}
+
+	seeds := NewTestSeeds(peers, selfPeerIdxs)
+
+	// do the search!
+	err := searcher.Search(search, seeds)
+
+	// checks
+	assert.Nil(t, err)
+	assert.True(t, search.Exhausted()) // since we can't connect to any of the peers
+	assert.True(t, search.Finished())
+	assert.False(t, search.FoundClosestPeers())
+	assert.False(t, search.Errored())
+	assert.Equal(t, uint(0), search.Result.NErrors)
+	assert.Equal(t, 0, search.Result.Closest.Len())
+	assert.Equal(t, 0, len(search.Result.Responded))
+}
+
+func TestSearcher_Search_queryErr(t *testing.T) {
+	searcherImpl, search, selfPeerIdxs, peers := newTestSearch()
+	seeds := NewTestSeeds(peers, selfPeerIdxs)
+
+	// all queries return errors as if they'd timed out
+	searcherImpl.(*searcher).querier = &timeoutQuerier{}
+
+	// do the search!
+	err := searcherImpl.Search(search, seeds)
+
+	// checks
+	assert.Nil(t, err)
+	assert.True(t, search.Errored())    // since all of the queries return errors
+	assert.False(t, search.Exhausted()) // since NMaxErrors < len(Unqueried)
+	assert.True(t, search.Finished())
+	assert.False(t, search.FoundClosestPeers())
+	assert.Equal(t, search.Params.NMaxErrors, search.Result.NErrors)
+	assert.Equal(t, 0, search.Result.Closest.Len())
+	assert.True(t, 0 < search.Result.Unqueried.Len())
+	assert.Equal(t, 0, len(search.Result.Responded))
+}
+
+type errResponseProcessor struct{}
+
+func (erp *errResponseProcessor) Process(rp *api.FindResponse, result *Result) error {
+	return errors.New("some fatal processing error")
+}
+
+func TestSearcher_Search_rpErr(t *testing.T) {
+	searcherImpl, search, selfPeerIdxs, peers := newTestSearch()
+	seeds := NewTestSeeds(peers, selfPeerIdxs)
+
+	// mock some internal issue when processing responses
+	searcherImpl.(*searcher).rp = &errResponseProcessor{}
+
+	// do the search!
+	err := searcherImpl.Search(search, seeds)
+
+	// checks
+	assert.NotNil(t, err)
+	assert.NotNil(t, search.Result.FatalErr)
+	assert.True(t, search.Errored()) // since we got a fatal error while processing responses
+	assert.False(t, search.Exhausted())
+	assert.True(t, search.Finished())
+	assert.False(t, search.FoundClosestPeers())
+	assert.Equal(t, uint(0), search.Result.NErrors)
+	assert.Equal(t, 0, search.Result.Closest.Len())
+	assert.True(t, 0 < search.Result.Unqueried.Len())
+	assert.Equal(t, 0, len(search.Result.Responded))
+}
+
+func newTestSearch() (Searcher, *Search, []int, []peer.Peer) {
+	n, nClosestResponses := 32, uint(8)
+	rng := rand.New(rand.NewSource(int64(n)))
+	peers, peersMap, selfPeerIdxs, selfID := NewTestPeers(rng, n)
+
+	// create our searcher
+	key := cid.NewPseudoRandom(rng)
+	searcher := NewTestSearcher(peersMap)
+
+	search := NewSearch(selfID, key, &Parameters{
+		NClosestResponses: nClosestResponses,
+		NMaxErrors:        DefaultNMaxErrors,
+		Concurrency:       uint(1),
+		Timeout:           DefaultQueryTimeout,
+	})
+	return searcher, search, selfPeerIdxs, peers
+}
+
 // fixedFinder returns a fixed set of peer addresses for all find requests
 type fixedQuerier struct {
 	peerID    ecid.ID
@@ -100,9 +198,9 @@ func TestSearcher_query_ok(t *testing.T) {
 		Timeout:           DefaultQueryTimeout,
 	})
 	s := &searcher{
-		signer: &NoOpSigner{},
+		signer: &TestNoOpSigner{},
 		// use querier that returns fixed set of addresses
-		q: &fixedQuerier{
+		querier: &fixedQuerier{
 			peerID:    peerID,
 			addresses: newPeerAddresses(rng, nAddresses),
 		},
@@ -135,7 +233,10 @@ type diffRequestIDQuerier struct {
 func (f *diffRequestIDQuerier) Query(ctx context.Context, pConn peer.Connector,
 	fr *api.FindRequest, opts ...grpc.CallOption) (*api.FindResponse, error) {
 	return &api.FindResponse{
-		Metadata: newTestResponseMetadata(f.rng, f.peerID),
+		Metadata: &api.ResponseMetadata{
+			RequestId: cid.NewPseudoRandom(f.rng).Bytes(),
+			PubKey:    ecid.ToPublicKeyBytes(f.peerID),
+		},
 	}, nil
 }
 
@@ -148,26 +249,31 @@ func TestSearcher_query_err(t *testing.T) {
 	})
 
 	s1 := &searcher{
-		signer: &NoOpSigner{},
+		signer: &TestNoOpSigner{},
 		// use querier that simulates a timeout
-		q:  &timeoutQuerier{},
-		rp: nil,
+		querier: &timeoutQuerier{},
 	}
 	rp1, err := s1.query(client, search)
 	assert.Nil(t, rp1)
 	assert.NotNil(t, err)
 
 	s2 := &searcher{
-		signer: &NoOpSigner{},
-		// use querier that simulates a timeout
-		q: &diffRequestIDQuerier{
+		signer: &TestNoOpSigner{},
+		// use querier that simulates a different request ID
+		querier: &diffRequestIDQuerier{
 			rng:    rng,
 			peerID: peerID,
 		},
-		rp: nil,
 	}
 	rp2, err := s2.query(client, search)
 	assert.Nil(t, rp2)
+	assert.NotNil(t, err)
+
+	s3 := &searcher{
+		signer: &TestErrSigner{},
+	}
+	rp3, err := s3.query(client, search)
+	assert.Nil(t, rp3)
 	assert.NotNil(t, err)
 }
 
@@ -254,6 +360,46 @@ func TestResponseProcessor_Process_err(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func TestNewSignedTimeoutContext_ok(t *testing.T) {
+	rng := rand.New(rand.NewSource(int64(0)))
+	ctx, cancel, err := NewSignedTimeoutContext(
+		&TestNoOpSigner{},
+		api.NewFindRequest(ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng), 20),
+		5*time.Second,
+	)
+	assert.NotNil(t, ctx)
+	assert.NotNil(t, ctx.Value(signature.ContextKey))
+	assert.NotNil(t, cancel)
+	assert.Nil(t, err)
+}
+
+func TestNewSignedTimeoutContext_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(int64(0)))
+	ctx, cancel, err := NewSignedTimeoutContext(
+		&TestErrSigner{},
+		api.NewFindRequest(ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng), 20),
+		5*time.Second,
+	)
+	assert.Nil(t, ctx)
+	assert.NotNil(t, cancel)
+	assert.NotNil(t, err)
+}
+
+func TestQuerier_Query_err(t *testing.T) {
+	c := &TestErrConnector{}
+	q := NewQuerier()
+
+	// check that error from c.Connect() surfaces to q.Query(...)
+	_, err := q.Query(nil, c, nil, nil)
+	assert.NotNil(t, err)
+}
+
+// Explanation: ideally would have unit test like this, but mocking an api.LibrarianClient is
+// annoying b/c there are so many service methods. Will have to rely on integration tests to cover
+// this branch.
+//
+// func TestQuerier_Query_ok(t *testing.T) {}
+
 func newPeerAddresses(rng *rand.Rand, n int) []*api.PeerAddress {
 	peerAddresses := make([]*api.PeerAddress, n)
 	for i := 0; i < n; i++ {
@@ -265,11 +411,4 @@ func newPeerAddresses(rng *rand.Rand, n int) []*api.PeerAddress {
 		}
 	}
 	return peerAddresses
-}
-
-func newTestResponseMetadata(rng *rand.Rand, peerID ecid.ID) *api.ResponseMetadata {
-	return &api.ResponseMetadata{
-		RequestId: cid.NewPseudoRandom(rng).Bytes(),
-		PubKey:    ecid.ToPublicKeyBytes(peerID),
-	}
 }

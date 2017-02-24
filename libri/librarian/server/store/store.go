@@ -114,6 +114,11 @@ func (s *Store) Errored() bool {
 	return s.Result.NErrors >= s.Params.NMaxErrors || s.Result.FatalErr != nil
 }
 
+// Exhausted returns whether the store has exhausted all peers to store the value in.
+func (s *Store) Exhausted() bool {
+	return len(s.Result.Unqueried) == 0
+}
+
 // Finished returns whether the store operation has finished.
 func (s *Store) Finished() bool {
 	s.mu.Lock()
