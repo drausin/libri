@@ -9,7 +9,7 @@ service Librarian {
     rpc Ping (PingRequest) returns (PingResponse) {}
 
     // Identify identifies the node by name and ID.
-    rpc Identify (IdentityRequest) returns (IdentityResponse) {}
+    rpc Introduce (IntroduceRequest) returns (IntroduceResponse) {}
 
     // Find returns the value for a key or the closest peers to it.
     rpc Find (FindRequest) returns (FindResponse) {}
@@ -47,15 +47,18 @@ message PingResponse {
     string message = 1;
 }
 
-message IdentityRequest {
+message IntroduceRequest {
     RequestMetadata metadata = 1;
+
+    // self-reported name of the peer
+    string peer_name = 2;
 }
 
-message IdentityResponse {
+message IntroduceResponse {
     ResponseMetadata metadata = 1;
 
     // self-reported name of the peer
-    string peer_name = 3;
+    string peer_name = 2;
 }
 
 message FindRequest {

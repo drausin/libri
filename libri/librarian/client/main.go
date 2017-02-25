@@ -30,7 +30,7 @@ func main() {
 	}
 	log.Printf("Server: %s", r1.Message)
 
-	r2, err := c.Identify(context.Background(), &api.IdentityRequest{
+	r2, err := c.Introduce(context.Background(), &api.IntroduceRequest{
 		Metadata: api.NewRequestMetadata(ecid.NewRandom()),
 	})
 	if err != nil {

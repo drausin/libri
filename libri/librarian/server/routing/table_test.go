@@ -112,7 +112,7 @@ func TestTable_Push_existing(t *testing.T) {
 		assert.Equal(t, qOutcomes1, qOutcomes3)
 
 		// create stub peer with new request success
-		p2 := peer.NewStub(p1.ID())
+		p2 := peer.NewStub(p1.ID(), peer.MissingName)
 		p2.Recorder().Record(peer.Request, peer.Success)
 
 		// add the stub, which should merge with the existing peer

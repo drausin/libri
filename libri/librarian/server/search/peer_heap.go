@@ -115,9 +115,7 @@ func (pdh *peerDistanceHeap) ToAPI() []*api.PeerAddress {
 
 func (pdh *peerDistanceHeap) ToSlice() []peer.Peer {
 	peers := make([]peer.Peer, pdh.Len())
-	for i, p := range pdh.peers {
-		peers[i] = p
-	}
+	copy(pdh.peers, peers)
 	return peers
 }
 

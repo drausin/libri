@@ -7,11 +7,16 @@ import (
 
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
-	"github.com/drausin/libri/libri/librarian/signature"
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
+
+// Key is the type of a context key.
+type key string
+
+// ContextKey is the client context key used for the signature.
+var signatureKey = key("signature")
 
 // alwaysSigVerifier implements the signature.Verifier interface but just blindly verifies
 // every signature.
@@ -28,7 +33,7 @@ func TestRequestVerifier_Verify_ok(t *testing.T) {
 	}
 
 	rng := rand.New(rand.NewSource(0))
-	ctx := context.WithValue(context.Background(), signature.ContextKey, "dummy.signed.token")
+	ctx := context.WithValue(context.Background(), signatureKey, "dummy.signed.token")
 	meta := api.NewRequestMetadata(ecid.NewPseudoRandom(rng))
 
 	assert.Nil(t, rv.Verify(ctx, nil, meta))
@@ -40,7 +45,7 @@ func TestRequestVerifier_Verify_err(t *testing.T) {
 	}
 
 	rng := rand.New(rand.NewSource(0))
-	ctx := context.WithValue(context.Background(), signature.ContextKey, "dummy.signed.token")
+	ctx := context.WithValue(context.Background(), signatureKey, "dummy.signed.token")
 
 	assert.NotNil(t, rv.Verify(ctx, nil, &api.RequestMetadata{
 		PubKey: []byte{255, 254, 253}, // bad pub key

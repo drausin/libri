@@ -72,7 +72,7 @@ func TestLibrarian_Ping(t *testing.T) {
 
 // TestLibrarian_Identify verifies that we get the expected response from a an identification
 // request.
-func TestLibrarian_Identify_ok(t *testing.T) {
+func TestLibrarian_Introduce_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	peerName := "Test Node"
 	rt, peerID, _ := routing.NewTestWithPeers(rng, 64)
@@ -86,24 +86,24 @@ func TestLibrarian_Identify_ok(t *testing.T) {
 	}
 
 	clientPeerID := ecid.NewPseudoRandom(rng)
-	rq := &api.IdentityRequest{
+	rq := &api.IntroduceRequest{
 		Metadata: newTestRequestMetadata(rng, clientPeerID),
 	}
-	rp, err := lib.Identify(nil, rq)
+	rp, err := lib.Introduce(nil, rq)
 	assert.Nil(t, err)
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
 	assert.Equal(t, peerName, rp.PeerName)
 }
 
-func TestLibrarian_Identify_checkRequestErr(t *testing.T) {
+func TestLibrarian_Introduce_checkRequestErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	l := &Librarian{}
-	rq := &api.IdentityRequest{
+	rq := &api.IntroduceRequest{
 		Metadata: api.NewRequestMetadata(ecid.NewPseudoRandom(rng)),
 	}
 	rq.Metadata.PubKey = []byte("corrupted pub key")
 
-	rp, err := l.Identify(nil, rq)
+	rp, err := l.Introduce(nil, rq)
 	assert.Nil(t, rp)
 	assert.NotNil(t, err)
 }

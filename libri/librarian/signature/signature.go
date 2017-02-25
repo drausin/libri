@@ -12,9 +12,15 @@ import (
 	"github.com/gogo/protobuf/proto"
 )
 
-const (
+// CtxKey is the type of a context key.
+type CtxKey string
+
+// Key is the underlying string of a context key.
+const Key = "signature"
+
+var (
 	// ContextKey is the client context key used for the signature.
-	ContextKey = "signature"
+	ContextKey = CtxKey(Key)
 )
 
 // regex pattern for a base-64 url-encoded string for a 256-bit number

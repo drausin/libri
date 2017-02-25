@@ -8,6 +8,11 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/storage"
 )
 
+const (
+	// MissingName is the placeholder for a missing peer name.
+	MissingName = "MISING_NAME"
+)
+
 // Peer represents a peer in the network.
 type Peer interface {
 
@@ -60,8 +65,8 @@ func New(id cid.ID, name string, conn Connector) Peer {
 }
 
 // NewStub creates a new peer without a name or connector.
-func NewStub(id cid.ID) Peer {
-	return New(id, "[missing name]", nil)
+func NewStub(id cid.ID, name string) Peer {
+	return New(id, name, nil)
 }
 
 func (p *peer) WithQueryRecorder(rec Recorder) *peer {
