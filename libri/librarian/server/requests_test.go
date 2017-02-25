@@ -28,7 +28,8 @@ func TestRequestVerifier_Verify_ok(t *testing.T) {
 	}
 
 	rng := rand.New(rand.NewSource(0))
-	ctx := context.WithValue(context.Background(), signature.ContextKey, "dummy.signed.token")
+	ctx := context.WithValue(context.Background(), signature.NewContextKey(),
+		"dummy.signed.token")
 	meta := api.NewRequestMetadata(ecid.NewPseudoRandom(rng))
 
 	assert.Nil(t, rv.Verify(ctx, nil, meta))
@@ -40,7 +41,7 @@ func TestRequestVerifier_Verify_err(t *testing.T) {
 	}
 
 	rng := rand.New(rand.NewSource(0))
-	ctx := context.WithValue(context.Background(), signature.ContextKey, "dummy.signed.token")
+	ctx := context.WithValue(context.Background(), signature.NewContextKey(), "dummy.signed.token")
 
 	assert.NotNil(t, rv.Verify(ctx, nil, &api.RequestMetadata{
 		PubKey: []byte{255, 254, 253}, // bad pub key

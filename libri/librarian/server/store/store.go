@@ -65,7 +65,7 @@ type Result struct {
 func NewInitialResult(sr *search.Result) *Result {
 	return &Result{
 		// send store queries to the closest peers from the search
-		Unqueried: sr.Closest.ToSlice(),
+		Unqueried: sr.Closest.Peers(),
 		Responded: make([]peer.Peer, 0, sr.Closest.Len()),
 		Search:    sr,
 		NErrors:   0,

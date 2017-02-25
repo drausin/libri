@@ -30,7 +30,7 @@ func NewRequestVerifier() RequestVerifier {
 
 func (rv *requestVerifier) Verify(ctx context.Context, msg proto.Message,
 	meta *api.RequestMetadata) error {
-	encToken := ctx.Value(signature.ContextKey).(string)
+	encToken := ctx.Value(signature.NewContextKey()).(string)
 	pubKey, err := ecid.FromPublicKeyBytes(meta.PubKey)
 	if err != nil {
 		return err

@@ -130,9 +130,9 @@ func (l *Librarian) Ping(ctx context.Context, rq *api.PingRequest) (*api.PingRes
 	return &api.PingResponse{Message: "pong"}, nil
 }
 
-// Identify gives the identifying information about the peer in the network.
-func (l *Librarian) Identify(ctx context.Context, rq *api.IdentityRequest) (*api.IdentityResponse,
-	error) {
+// Introduce recieves and gives identifying information about the peer in the network.
+func (l *Librarian) Introduce(ctx context.Context, rq *api.IntroduceRequest) (
+	*api.IntroduceResponse, error) {
 
 	// check request
 	requesterID, err := l.checkRequest(ctx, rq, rq.Metadata)
@@ -141,7 +141,10 @@ func (l *Librarian) Identify(ctx context.Context, rq *api.IdentityRequest) (*api
 	}
 	l.record(requesterID, peer.Request, peer.Success)
 
-	return &api.IdentityResponse{
+	// add peer to routing table
+	l.rt.Push(peer.NewStub(requesterID, rq.PeerName))
+
+	return &api.IntroduceResponse{
 		Metadata: l.NewResponseMetadata(rq.Metadata),
 		PeerName: l.Config.PeerName,
 	}, nil
@@ -218,7 +221,7 @@ func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetRespon
 	}
 
 	// add found peers to routing table
-	for _, p := range s.Result.Closest.ToSlice() {
+	for _, p := range s.Result.Closest.Peers() {
 		l.rt.Push(p)
 	}
 

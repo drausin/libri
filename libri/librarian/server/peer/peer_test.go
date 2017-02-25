@@ -27,8 +27,10 @@ func TestNew(t *testing.T) {
 
 func TestNewStub(t *testing.T) {
 	peerID := cid.FromInt64(1)
-	p := NewStub(peerID)
+	name := "some name"
+	p := NewStub(peerID, name)
 	assert.Equal(t, peerID, p.ID())
+	assert.Equal(t, name, p.(*peer).name)
 	assert.Nil(t, p.Connector())
 }
 
