@@ -368,7 +368,7 @@ func TestNewSignedTimeoutContext_ok(t *testing.T) {
 		5*time.Second,
 	)
 	assert.NotNil(t, ctx)
-	assert.NotNil(t, ctx.Value(signature.ContextKey))
+	assert.NotNil(t, ctx.Value(signature.NewContextKey()))
 	assert.NotNil(t, cancel)
 	assert.Nil(t, err)
 }

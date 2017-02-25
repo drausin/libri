@@ -12,16 +12,17 @@ import (
 	"github.com/gogo/protobuf/proto"
 )
 
-// CtxKey is the type of a context key.
-type CtxKey string
+// ContextKey defines the signature key to a net Context.
+type ContextKey string
 
-// Key is the underlying string of a context key.
-const Key = "signature"
-
-var (
-	// ContextKey is the client context key used for the signature.
-	ContextKey = CtxKey(Key)
-)
+// NewContextKey returns a fixed signature key for a Context. This is a fixed function instead of a
+// const aor var to get around golint error:
+//
+// 	should not use basic type string as key in context.WithValue
+//
+func NewContextKey() ContextKey {
+	return ContextKey("signature")
+}
 
 // regex pattern for a base-64 url-encoded string for a 256-bit number
 var b64url256bit *regexp.Regexp

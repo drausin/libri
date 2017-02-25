@@ -153,7 +153,7 @@ func NewSignedTimeoutContext(signer signature.Signer, request proto.Message,
 	if err != nil {
 		return nil, func() {}, err
 	}
-	ctx = context.WithValue(ctx, signature.CtxKey(signature.Key), signedJWT)
+	ctx = context.WithValue(ctx, signature.NewContextKey(), signedJWT)
 
 	// add timeout
 	ctx, cancel := context.WithTimeout(ctx, timeout)

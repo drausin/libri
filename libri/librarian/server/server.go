@@ -221,7 +221,7 @@ func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetRespon
 	}
 
 	// add found peers to routing table
-	for _, p := range s.Result.Closest.ToSlice() {
+	for _, p := range s.Result.Closest.Peers() {
 		l.rt.Push(p)
 	}
 

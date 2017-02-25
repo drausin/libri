@@ -30,8 +30,8 @@ type PeerDistanceHeap interface {
 	// ToAPI creates an array of api.PeerAddresses from the peers in the heap.
 	ToAPI() []*api.PeerAddress
 
-	// ToSlice creates a slice (shallow) copy of the peers in the heap.
-	ToSlice() []peer.Peer
+	// Peers returns a slide of the peers in the heap.
+	Peers() []peer.Peer
 
 	// In returns whether a peer ID is in the heap
 	In(cid.ID) bool
@@ -113,10 +113,8 @@ func (pdh *peerDistanceHeap) ToAPI() []*api.PeerAddress {
 	return addresses
 }
 
-func (pdh *peerDistanceHeap) ToSlice() []peer.Peer {
-	peers := make([]peer.Peer, pdh.Len())
-	copy(pdh.peers, peers)
-	return peers
+func (pdh *peerDistanceHeap) Peers() []peer.Peer {
+	return pdh.peers
 }
 
 func (pdh *peerDistanceHeap) In(id cid.ID) bool {
