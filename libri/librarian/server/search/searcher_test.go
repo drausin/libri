@@ -6,22 +6,21 @@ import (
 	"math/rand"
 	"testing"
 
-	"time"
-
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
-	"github.com/drausin/libri/libri/librarian/signature"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"github.com/drausin/libri/libri/librarian/signature"
 )
 
 func TestNewDefaultSearcher(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	s := NewDefaultSearcher(ecid.NewPseudoRandom(rng))
+
+	s := NewDefaultSearcher(signature.NewSigner(ecid.NewPseudoRandom(rng).Key()))
 	assert.NotNil(t, s.(*searcher).signer)
 	assert.NotNil(t, s.(*searcher).querier)
 	assert.NotNil(t, s.(*searcher).rp)
@@ -84,7 +83,7 @@ func TestSearcher_Search_connectorErr(t *testing.T) {
 	searcher, search, selfPeerIdxs, peers := newTestSearch()
 	for i, p := range peers {
 		// replace peer with connector that errors
-		peers[i] = peer.New(p.ID(), "", &TestErrConnector{})
+		peers[i] = peer.New(p.ID(), "", &peer.TestErrConnector{})
 	}
 
 	seeds := NewTestSeeds(peers, selfPeerIdxs)
@@ -198,7 +197,7 @@ func TestSearcher_query_ok(t *testing.T) {
 		Timeout:           DefaultQueryTimeout,
 	})
 	s := &searcher{
-		signer: &TestNoOpSigner{},
+		signer: &signature.TestNoOpSigner{},
 		// use querier that returns fixed set of addresses
 		querier: &fixedQuerier{
 			peerID:    peerID,
@@ -249,7 +248,7 @@ func TestSearcher_query_err(t *testing.T) {
 	})
 
 	s1 := &searcher{
-		signer: &TestNoOpSigner{},
+		signer: &signature.TestNoOpSigner{},
 		// use querier that simulates a timeout
 		querier: &timeoutQuerier{},
 	}
@@ -258,7 +257,7 @@ func TestSearcher_query_err(t *testing.T) {
 	assert.NotNil(t, err)
 
 	s2 := &searcher{
-		signer: &TestNoOpSigner{},
+		signer: &signature.TestNoOpSigner{},
 		// use querier that simulates a different request ID
 		querier: &diffRequestIDQuerier{
 			rng:    rng,
@@ -270,7 +269,7 @@ func TestSearcher_query_err(t *testing.T) {
 	assert.NotNil(t, err)
 
 	s3 := &searcher{
-		signer: &TestErrSigner{},
+		signer: &signature.TestErrSigner{},
 	}
 	rp3, err := s3.query(client, search)
 	assert.Nil(t, rp3)
@@ -359,46 +358,6 @@ func TestResponseProcessor_Process_err(t *testing.T) {
 	err := rp.Process(response2, result)
 	assert.NotNil(t, err)
 }
-
-func TestNewSignedTimeoutContext_ok(t *testing.T) {
-	rng := rand.New(rand.NewSource(int64(0)))
-	ctx, cancel, err := NewSignedTimeoutContext(
-		&TestNoOpSigner{},
-		api.NewFindRequest(ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng), 20),
-		5*time.Second,
-	)
-	assert.NotNil(t, ctx)
-	assert.NotNil(t, ctx.Value(signature.NewContextKey()))
-	assert.NotNil(t, cancel)
-	assert.Nil(t, err)
-}
-
-func TestNewSignedTimeoutContext_err(t *testing.T) {
-	rng := rand.New(rand.NewSource(int64(0)))
-	ctx, cancel, err := NewSignedTimeoutContext(
-		&TestErrSigner{},
-		api.NewFindRequest(ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng), 20),
-		5*time.Second,
-	)
-	assert.Nil(t, ctx)
-	assert.NotNil(t, cancel)
-	assert.NotNil(t, err)
-}
-
-func TestQuerier_Query_err(t *testing.T) {
-	c := &TestErrConnector{}
-	q := NewQuerier()
-
-	// check that error from c.Connect() surfaces to q.Query(...)
-	_, err := q.Query(nil, c, nil, nil)
-	assert.NotNil(t, err)
-}
-
-// Explanation: ideally would have unit test like this, but mocking an api.LibrarianClient is
-// annoying b/c there are so many service methods. Will have to rely on integration tests to cover
-// this branch.
-//
-// func TestQuerier_Query_ok(t *testing.T) {}
 
 func newPeerAddresses(rng *rand.Rand, n int) []*api.PeerAddress {
 	peerAddresses := make([]*api.PeerAddress, n)

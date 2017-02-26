@@ -39,7 +39,7 @@ func TestNewLibrarian(t *testing.T) {
 }
 
 func newTestLibrarian() *Librarian {
-	config := DefaultConfig()
+	config := DefaultConfig(0)
 	dir, err := ioutil.TempDir("", "test-data-dir")
 	if err != nil {
 		panic(err)

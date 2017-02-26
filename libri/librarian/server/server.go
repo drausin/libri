@@ -16,6 +16,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/signature"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
+	"github.com/drausin/libri/libri/librarian/client"
 )
 
 // Librarian is the main service of a single peer in the peer to peer network.
@@ -56,6 +57,10 @@ type Librarian struct {
 	// creates new peers
 	fromer peer.Fromer
 
+	// signs requests
+	// signs requests
+	signer signature.Signer
+
 	// routing table of peers
 	rt routing.Table
 }
@@ -83,15 +88,15 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 		return nil, err
 	}
 
-	searcher := search.NewDefaultSearcher(peerID)
 	signer := signature.NewSigner(peerID.Key())
+	searcher := search.NewDefaultSearcher(signer)
 
 	return &Librarian{
 		PeerID:    peerID,
 		Config:    config,
 		apiSelf:   api.FromAddress(peerID.ID(), config.PeerName, config.RPCPublicAddr),
 		searcher:  searcher,
-		storer:    store.NewStorer(signer, searcher, store.NewQuerier()),
+		storer:    store.NewStorer(signer, searcher, client.NewStoreQuerier()),
 		rqv:       NewRequestVerifier(),
 		db:        rdb,
 		serverSL:  serverSL,
@@ -99,6 +104,7 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		kvc:       storage.NewHashKeyValueChecker(),
 		fromer:    peer.NewFromer(),
+		signer: signer,
 		rt:        rt,
 	}, nil
 }
