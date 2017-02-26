@@ -2,24 +2,6 @@ package server
 
 import "os"
 
-
-func Start() error {
-
-	// load config
-
-	// create librarian
-
-	// start server listener
-
-	// bootstrap peers
-
-	return nil
-}
-
-func (l *Librarian) listenAndServe() {
-
-}
-
 // Close handles cleanup involved in closing down the server.
 func (l *Librarian) Close() error {
 	if err := l.rt.Disconnect(); err != nil {
