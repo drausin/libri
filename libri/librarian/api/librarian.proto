@@ -50,15 +50,21 @@ message PingResponse {
 message IntroduceRequest {
     RequestMetadata metadata = 1;
 
-    // self-reported name of the peer
-    string peer_name = 2;
+    // info about the peer making the introduction
+    PeerAddress self = 2;
+
+    // number of peer librarians to request info for
+    uint32 num_peers = 3;
 }
 
 message IntroduceResponse {
     ResponseMetadata metadata = 1;
 
-    // self-reported name of the peer
-    string peer_name = 2;
+    // info about the peer receiving the introduction
+    PeerAddress self = 2;
+
+    // info about other peers
+    repeated PeerAddress peers = 3;
 }
 
 message FindRequest {
@@ -75,7 +81,7 @@ message FindResponse {
     ResponseMetadata metadata = 1;
 
     // list of peers closest to target
-    repeated PeerAddress addresses = 2;
+    repeated PeerAddress peers = 2;
 
     // value, if found
     bytes value = 3;

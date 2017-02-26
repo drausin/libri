@@ -74,7 +74,7 @@ func (c *TestFindQuerier) Query(ctx context.Context, pConn peer.Connector, rq *a
 		Metadata: &api.ResponseMetadata{
 			RequestId: rq.Metadata.RequestId,
 		},
-		Addresses: pConn.(*TestConnector).addresses,
+		Peers: pConn.(*TestConnector).addresses,
 	}, nil
 }
 

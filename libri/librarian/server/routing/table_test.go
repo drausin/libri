@@ -230,6 +230,22 @@ func TestTable_Peak_concurrent(t *testing.T) {
 	}
 }
 
+func TestTable_Sample(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	for n := 2; n <= 256; n *= 2 {
+		rt, _, _ := NewTestWithPeers(rng, n)
+		for k := uint(2); k <= 32; k *= 2 {
+			info := fmt.Sprintf("n: %v, k: %v", n, k)
+			sample := rt.Sample(k, rng)
+			if k <= uint(n) {
+				assert.Equal(t, int(k), len(sample), info)
+			} else {
+				assert.Equal(t, n, len(sample), info)
+			}
+		}
+	}
+}
+
 func TestTable_Less(t *testing.T) {
 	rt := newSimpleTable()
 	for i := 1; i < len(rt.buckets); i++ {
@@ -355,6 +371,26 @@ func TestTable_chooseBucketIndex(t *testing.T) {
 	})
 }
 
+func TestTable_densityBucketIndex(t *testing.T) {
+	rt := newSimpleTable() // with equal idMass in each of 4 buckets
+	cases := []struct {
+		density           float64
+		expectedBucketIdx int
+	}{
+		{0.0, 0},
+		{0.1, 0},
+		{0.25, 1},
+		{0.26, 1},
+		{0.51, 2},
+		{0.76, 3},
+		{0.77, 3},
+	}
+	for _, c := range cases {
+		info := fmt.Sprintf("density: %v", c.density)
+		assert.Equal(t, c.expectedBucketIdx, rt.densityBucketIndex(c.density), info)
+	}
+}
+
 func TestTable_splitBucket(t *testing.T) {
 	// try same split sequence with different selfIDs
 	for s := 0; s < 16; s++ {
@@ -428,10 +464,30 @@ func TestSplitLowerBound_Ok(t *testing.T) {
 func newSimpleTable() *table {
 	return &table{
 		buckets: []*bucket{
-			{lowerBound: cid.FromInt64(0), upperBound: cid.FromInt64(64)},
-			{lowerBound: cid.FromInt64(64), upperBound: cid.FromInt64(128)},
-			{lowerBound: cid.FromInt64(128), upperBound: cid.FromInt64(192)},
-			{lowerBound: cid.FromInt64(192), upperBound: cid.FromInt64(255)},
+			{
+				lowerBound: cid.FromInt64(0),
+				upperBound: cid.FromInt64(64),
+				idMass:     0.25,
+				idCumMass:  0.25,
+			},
+			{
+				lowerBound: cid.FromInt64(64),
+				upperBound: cid.FromInt64(128),
+				idMass:     0.25,
+				idCumMass:  0.50,
+			},
+			{
+				lowerBound: cid.FromInt64(128),
+				upperBound: cid.FromInt64(192),
+				idMass:     0.25,
+				idCumMass:  0.75,
+			},
+			{
+				lowerBound: cid.FromInt64(192),
+				upperBound: cid.FromInt64(255),
+				idMass:     0.25,
+				idCumMass:  1.0,
+			},
 		},
 	}
 }
@@ -441,12 +497,17 @@ func checkTableConsistent(t *testing.T, rt Table, nExpectedPeers int) {
 	assert.True(t, sort.IsSorted(rt.(*table))) // buckets should be in sorted order
 	assert.Equal(t, nExpectedPeers, len(rt.(*table).peers))
 	assert.Equal(t, uint(len(rt.(*table).peers)), rt.(*table).numPeers())
+
+	idCumMass := 0.0
 	for i := 0; i < len(rt.(*table).buckets); i++ {
 		cur := rt.(*table).buckets[i]
+		idCumMass += cur.idMass
 		if i > 0 {
 			// bucket boundaries should be adjacent
 			prev := rt.(*table).buckets[i-1]
 			assert.Equal(t, cur.lowerBound, prev.upperBound)
+			assert.Equal(t, idCumMass, cur.idCumMass)
+			assert.True(t, cur.idCumMass > prev.idCumMass)
 		}
 		if cur.containsSelf {
 			nContainSelf++
@@ -455,6 +516,7 @@ func checkTableConsistent(t *testing.T, rt Table, nExpectedPeers int) {
 		nPeers += cur.Len()
 
 	}
+	assert.Equal(t, 1.0, idCumMass)
 	assert.Equal(t, nExpectedPeers, nPeers)
 	assert.Equal(t, 1, nContainSelf)
 }

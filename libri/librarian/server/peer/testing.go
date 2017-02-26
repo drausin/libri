@@ -15,12 +15,6 @@ import (
 // NewTestPeer generates a new peer suitable for testing using a random number generator for the
 // ID and an index.
 func NewTestPeer(rng *rand.Rand, idx int) Peer {
-	id := cid.NewPseudoRandom(rng)
-	address, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("192.168.1.1:%v", 11000+idx))
-	if err != nil {
-		panic(err)
-	}
-
 	// create new recorder with a distinct response time
 	now := time.Unix(int64(idx), 0).UTC()
 	recorder := newQueryRecorder()
@@ -28,8 +22,25 @@ func NewTestPeer(rng *rand.Rand, idx int) Peer {
 	recorder.responses.latest = now
 	recorder.responses.earliest = now
 
-	conn := NewConnector(address)
-	return New(id, fmt.Sprintf("peer-%d", idx+1), conn).(*peer).WithQueryRecorder(recorder)
+	return New(
+		cid.NewPseudoRandom(rng),
+		fmt.Sprintf("test-peer-%d", idx+1),
+		NewTestConnector(idx),
+	).(*peer).WithQueryRecorder(recorder)
+}
+
+// NewTestPublicAddr creates a new net.TCPAddr given a particular peer index.
+func NewTestPublicAddr(idx int) *net.TCPAddr {
+	address, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("0.0.0.0:%v", 11000+idx))
+	if err != nil {
+		panic(err)
+	}
+	return address
+}
+
+// NewTestConnector creates a new Connector instance for a particular peer index.
+func NewTestConnector(idx int) Connector {
+	return NewConnector(NewTestPublicAddr(idx))
 }
 
 // NewTestPeers generates n new peers suitable for testing use with random IDs and incrementing

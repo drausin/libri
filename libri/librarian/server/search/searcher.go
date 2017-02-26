@@ -209,9 +209,9 @@ func (frp *findResponseProcessor) Process(rp *api.FindResponse, result *Result) 
 		return nil
 	}
 
-	if rp.Addresses != nil {
+	if rp.Peers != nil {
 		// response has peer addresses close to key
-		for _, pa := range rp.Addresses {
+		for _, pa := range rp.Peers {
 			newID := cid.FromBytes(pa.PeerId)
 			if !result.Closest.In(newID) && !result.Unqueried.In(newID) {
 				// only add discovered peers that we haven't already seen

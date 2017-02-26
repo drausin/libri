@@ -74,25 +74,47 @@ func TestLibrarian_Ping(t *testing.T) {
 // request.
 func TestLibrarian_Introduce_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	peerName := "Test Node"
-	rt, peerID, _ := routing.NewTestWithPeers(rng, 64)
+	peerName, serverPeerIdx := "server", 0
+	publicAddr := peer.NewTestPublicAddr(serverPeerIdx)
+	rt, serverID, _ := routing.NewTestWithPeers(rng, 128)
+
 	lib := &Librarian{
 		Config: &Config{
-			PeerName: peerName,
+			PeerName:     peerName,
+			RPCLocalAddr: publicAddr,
 		},
-		PeerID: peerID,
-		rt:     rt,
-		rqv:    &alwaysRequestVerifier{},
+		apiSelf: api.FromAddress(serverID.ID(), peerName, publicAddr),
+		fromer:  peer.NewFromer(),
+		PeerID:  serverID,
+		rt:      rt,
+		rqv:     &alwaysRequestVerifier{},
 	}
 
-	clientPeerID := ecid.NewPseudoRandom(rng)
+	clientID, clientPeerIdx := ecid.NewPseudoRandom(rng), 1
+	client := peer.New(
+		clientID.ID(),
+		"client",
+		peer.NewTestConnector(clientPeerIdx),
+	)
+	assert.Nil(t, lib.rt.Get(client.ID()))
+
+	numPeers := uint32(8)
 	rq := &api.IntroduceRequest{
-		Metadata: newTestRequestMetadata(rng, clientPeerID),
+		Metadata: newTestRequestMetadata(rng, clientID),
+		Self:     client.ToAPI(),
+		NumPeers: numPeers,
 	}
 	rp, err := lib.Introduce(nil, rq)
+
+	// check response
 	assert.Nil(t, err)
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
-	assert.Equal(t, peerName, rp.PeerName)
+	assert.Equal(t, serverID.ID().Bytes(), rp.Self.PeerId)
+	assert.Equal(t, peerName, rp.Self.PeerName)
+	assert.Equal(t, int(numPeers), len(rp.Peers))
+
+	// check client peer in lib's routing table
+	assert.NotNil(t, lib.rt.Get(client.ID()))
 }
 
 func TestLibrarian_Introduce_checkRequestErr(t *testing.T) {
@@ -104,6 +126,35 @@ func TestLibrarian_Introduce_checkRequestErr(t *testing.T) {
 	rq.Metadata.PubKey = []byte("corrupted pub key")
 
 	rp, err := l.Introduce(nil, rq)
+	assert.Nil(t, rp)
+	assert.NotNil(t, err)
+}
+
+func TestLibrarian_Introduce_peerIDErr(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	rt, _, _ := routing.NewTestWithPeers(rng, 0)
+
+	lib := &Librarian{
+		fromer: peer.NewFromer(),
+		rt:     rt,
+		rqv:    &alwaysRequestVerifier{},
+	}
+
+	clientID, clientPeerIdx := ecid.NewPseudoRandom(rng), 1
+	client := peer.New(
+		clientID.ID(),
+		"client",
+		peer.NewTestConnector(clientPeerIdx),
+	)
+	assert.Nil(t, lib.rt.Get(client.ID()))
+
+	// request improperly signed with different public key
+	rq := &api.IntroduceRequest{
+		Metadata: newTestRequestMetadata(rng, ecid.NewPseudoRandom(rng)),
+		Self:     client.ToAPI(),
+	}
+	rp, err := lib.Introduce(nil, rq)
+
 	assert.Nil(t, rp)
 	assert.NotNil(t, err)
 }
@@ -149,13 +200,13 @@ func checkPeersResponse(t *testing.T, rq *api.FindRequest, rp *api.FindResponse,
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
 
 	assert.Nil(t, rp.Value)
-	assert.NotNil(t, rp.Addresses)
+	assert.NotNil(t, rp.Peers)
 	if int(numClosest) > nAdded {
-		assert.Equal(t, nAdded, len(rp.Addresses))
+		assert.Equal(t, nAdded, len(rp.Peers))
 	} else {
-		assert.Equal(t, numClosest, uint32(len(rp.Addresses)))
+		assert.Equal(t, numClosest, uint32(len(rp.Peers)))
 	}
-	for _, a := range rp.Addresses {
+	for _, a := range rp.Peers {
 		assert.NotNil(t, a.PeerId)
 		assert.NotNil(t, a.PeerName)
 		assert.NotNil(t, a.Ip)
@@ -202,7 +253,7 @@ func TestLibrarian_Find_present(t *testing.T) {
 
 	// we should get back the value we stored
 	assert.NotNil(t, rp.Value)
-	assert.Nil(t, rp.Addresses)
+	assert.Nil(t, rp.Peers)
 	assert.True(t, bytes.Equal(value, rp.Value))
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
 }
