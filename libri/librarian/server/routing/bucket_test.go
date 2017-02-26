@@ -9,8 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TODO: add unit tests for all bucket methods
-
 func TestBucket_PushPop(t *testing.T) {
 	for n := 1; n <= 128; n *= 2 {
 		b := newFirstBucket()
@@ -25,4 +23,21 @@ func TestBucket_PushPop(t *testing.T) {
 			prev = cur
 		}
 	}
+}
+
+func TestBucket_Peak(t *testing.T) {
+	b := newFirstBucket()
+
+	// nothing to peak b/c bucket is empty
+	assert.Equal(t, 0, len(b.Peak(2)))
+
+	// add some peers
+	rng := rand.New(rand.NewSource(0))
+	for _, p := range peer.NewTestPeers(rng, 4) {
+		heap.Push(b, p)
+	}
+
+	assert.Equal(t, 2, len(b.Peak(2)))
+	assert.Equal(t, 4, len(b.Peak(4)))
+	assert.Equal(t, 4, len(b.Peak(8)))
 }

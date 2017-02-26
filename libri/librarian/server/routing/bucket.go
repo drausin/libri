@@ -16,6 +16,12 @@ type bucket struct {
 	// (exclusive) upper bound of IDs in this bucket
 	upperBound cid.ID
 
+	// proportion of the 256-bit ID space that this bucket spans
+	idMass float64
+
+	// cumulative proportion of ID space spanned by this and all lower buckets
+	idCumMass float64
+
 	// whether the bucket contains the current node's ID.
 	containsSelf bool
 
@@ -35,6 +41,8 @@ func newFirstBucket() *bucket {
 		depth:          0,
 		lowerBound:     cid.LowerBound,
 		upperBound:     cid.UpperBound,
+		idMass:         1.0,
+		idCumMass:      1.0,
 		maxActivePeers: DefaultMaxActivePeers,
 		activePeers:    make([]peer.Peer, 0),
 		positions:      make(map[string]int),
@@ -68,6 +76,13 @@ func (b *bucket) Pop() interface{} {
 	b.activePeers = b.activePeers[0 : len(b.activePeers)-1]
 	delete(b.positions, root.ID().String())
 	return root
+}
+
+func (b *bucket) Peak(k uint) []peer.Peer {
+	if k >= uint(b.Len()) {
+		return b.activePeers
+	}
+	return b.activePeers[:k]
 }
 
 func (b *bucket) Before(c *bucket) bool {

@@ -185,7 +185,7 @@ func (f *fixedQuerier) Query(ctx context.Context, pConn peer.Connector, fr *api.
 			RequestId: fr.Metadata.RequestId,
 			PubKey:    ecid.ToPublicKeyBytes(f.peerID),
 		},
-		Addresses: f.addresses,
+		Peers: f.addresses,
 	}, nil
 }
 
@@ -212,7 +212,7 @@ func TestSearcher_query_ok(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, rp.Metadata.RequestId)
 	assert.NotNil(t, rp.Metadata.PubKey)
-	assert.Equal(t, nAddresses, len(rp.Addresses))
+	assert.Equal(t, nAddresses, len(rp.Peers))
 	assert.Nil(t, rp.Value)
 }
 
@@ -286,8 +286,8 @@ func TestResponseProcessor_Process_Value(t *testing.T) {
 	// create response with the value
 	value := cid.NewPseudoRandom(rng).Bytes() // random value
 	response2 := &api.FindResponse{
-		Addresses: nil,
-		Value:     value,
+		Peers: nil,
+		Value: value,
 	}
 
 	// check that the result value is set
@@ -311,8 +311,8 @@ func TestResponseProcessor_Process_Addresses(t *testing.T) {
 
 	// create response or nAddresses and process it
 	response1 := &api.FindResponse{
-		Addresses: peerAddresses1,
-		Value:     nil,
+		Peers: peerAddresses1,
+		Value: nil,
 	}
 	err := rp.Process(response1, result)
 	assert.Nil(t, err)
@@ -336,8 +336,8 @@ func TestResponseProcessor_Process_Addresses(t *testing.T) {
 
 	// check that a response with these peers has no effect
 	response2 := &api.FindResponse{
-		Addresses: peerAddresses2,
-		Value:     nil,
+		Peers: peerAddresses2,
+		Value: nil,
 	}
 	err = rp.Process(response2, result)
 	assert.Nil(t, err)
@@ -353,8 +353,8 @@ func TestResponseProcessor_Process_err(t *testing.T) {
 
 	// create a bad response with neither a value nor peer addresses
 	response2 := &api.FindResponse{
-		Addresses: nil,
-		Value:     nil,
+		Peers: nil,
+		Value: nil,
 	}
 	err := rp.Process(response2, result)
 	assert.NotNil(t, err)

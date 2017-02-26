@@ -1,6 +1,9 @@
 package server
 
 import (
+	"encoding/binary"
+	"math/rand"
+
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/db"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -22,6 +25,9 @@ type Librarian struct {
 
 	// Config holds the configuration parameters of the server
 	Config *Config
+
+	// fixed API address
+	apiSelf *api.PeerAddress
 
 	// executes searches for peers and keys
 	searcher search.Searcher
@@ -46,6 +52,9 @@ type Librarian struct {
 
 	// ensures keys and values are valid
 	kvc storage.KeyValueChecker
+
+	// creates new peers
+	fromer peer.Fromer
 
 	// routing table of peers
 	rt routing.Table
@@ -80,6 +89,7 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 	return &Librarian{
 		PeerID:    peerID,
 		Config:    config,
+		apiSelf:   api.FromAddress(peerID.ID(), config.PeerName, config.RPCPublicAddr),
 		searcher:  searcher,
 		storer:    store.NewStorer(signer, searcher, store.NewQuerier()),
 		rqv:       NewRequestVerifier(),
@@ -88,6 +98,7 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 		entriesSL: entriesSL,
 		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		kvc:       storage.NewHashKeyValueChecker(),
+		fromer:    peer.NewFromer(),
 		rt:        rt,
 	}, nil
 }
@@ -106,7 +117,7 @@ func (l *Librarian) Ping(ctx context.Context, rq *api.PingRequest) (*api.PingRes
 	return &api.PingResponse{Message: "pong"}, nil
 }
 
-// Introduce recieves and gives identifying information about the peer in the network.
+// Introduce receives and gives identifying information about the peer in the network.
 func (l *Librarian) Introduce(ctx context.Context, rq *api.IntroduceRequest) (
 	*api.IntroduceResponse, error) {
 
@@ -115,14 +126,23 @@ func (l *Librarian) Introduce(ctx context.Context, rq *api.IntroduceRequest) (
 	if err != nil {
 		return nil, err
 	}
+	requester := l.fromer.FromAPI(rq.Self)
+	if requester.ID().Cmp(requesterID) != 0 {
+		return nil, errors.New("stated client peer ID does not match signature")
+	}
 	l.record(requesterID, peer.Request, peer.Success)
 
-	// add peer to routing table
-	l.rt.Push(peer.NewStub(requesterID, rq.PeerName))
+	// add peer to routing table (if space)
+	l.rt.Push(requester)
+
+	// get random peers for client, using request ID as unique source of entropy for sample
+	seed := int64(binary.BigEndian.Uint64(rq.Metadata.RequestId[:8]))
+	peers := l.rt.Sample(uint(rq.NumPeers), rand.New(rand.NewSource(seed)))
 
 	return &api.IntroduceResponse{
 		Metadata: l.NewResponseMetadata(rq.Metadata),
-		PeerName: l.Config.PeerName,
+		Self:     l.apiSelf,
+		Peers:    peer.ToAPIs(peers),
 	}, nil
 }
 
@@ -152,13 +172,9 @@ func (l *Librarian) Find(ctx context.Context, rq *api.FindRequest) (*api.FindRes
 	// otherwise, return the peers closest to the key
 	key := cid.FromBytes(rq.Key)
 	closest := l.rt.Peak(key, uint(rq.NumPeers))
-	addresses := make([]*api.PeerAddress, len(closest))
-	for i, p := range closest {
-		addresses[i] = p.ToAPI()
-	}
 	return &api.FindResponse{
-		Metadata:  l.NewResponseMetadata(rq.Metadata),
-		Addresses: addresses,
+		Metadata: l.NewResponseMetadata(rq.Metadata),
+		Peers:    peer.ToAPIs(closest),
 	}, nil
 }
 

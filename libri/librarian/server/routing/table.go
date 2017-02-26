@@ -6,10 +6,8 @@ import (
 	"math/big"
 	"math/rand"
 	"sort"
+	"sync"
 
-	"log"
-
-	"github.com/anacrolix/sync"
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
@@ -49,6 +47,11 @@ type Table interface {
 	// Get returns the peer with the given ID. It returns nil if the peer doesn't exist in the
 	// table.
 	Get(peerID cid.ID) peer.Peer
+
+	// Sample returns k peers in the table sampled (approximately) uniformly from the ID space.
+	// Peers are sampled from buckets with probability proportional to the amount of ID
+	// space the bucket covers.
+	Sample(k uint, rng *rand.Rand) []peer.Peer
 
 	// Disconnect disconnects all client connections.
 	Disconnect() error
@@ -143,7 +146,7 @@ func (rt *table) Push(new peer.Peer) PushStatus {
 
 	if new.Connector() == nil {
 		// don't add if doesn't have connector/public address
-		log.Printf("peer w/ empty conn: %v", new)
+		rt.mu.Unlock()
 		return Dropped
 	}
 
@@ -226,6 +229,32 @@ func (rt *table) Get(peerID cid.ID) peer.Peer {
 	return nil
 }
 
+func (rt *table) Sample(k uint, rng *rand.Rand) []peer.Peer {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+
+	// get number of peers to peak from each bucket
+	bucketCounts := make([]uint, len(rt.buckets))
+	for c := 0; c < int(k) && c < len(rt.peers); {
+		density := rng.Float64()
+		idx := rt.densityBucketIndex(density)
+		if int(bucketCounts[idx]) < rt.buckets[idx].Len() {
+			// if we have more peers in the bucket available for sampling; when this is
+			// not the case, sample again, making the distribution of buckets only
+			// approximately uniform over the ID space
+			bucketCounts[idx]++
+			c++
+		}
+	}
+
+	// peak peers from each bucket
+	sample := make([]peer.Peer, 0, k)
+	for i := 0; i < len(bucketCounts); i++ {
+		sample = append(sample, rt.buckets[i].Peak(bucketCounts[i])...)
+	}
+	return sample
+}
+
 // Disconnect disconnects all client connections. This method is thread safe.
 func (rt *table) Disconnect() error {
 	rt.mu.Lock()
@@ -293,10 +322,18 @@ func (rt *table) chooseBucketIndex(target cid.ID, fwdIdx int, bkwdIdx int) int {
 	panic(errors.New("should always have either a valid forward or backward index"))
 }
 
-// bucketIndex searches for bucket containing the given target
+// bucketIndex searches for the bucket containing the given target
 func (rt *table) bucketIndex(target cid.ID) int {
 	return sort.Search(len(rt.buckets), func(i int) bool {
 		return target.Cmp(rt.buckets[i].upperBound) < 0
+	})
+}
+
+// densityBucketIndex searches for the bucket containing the given ID mass density, i.e., the
+// bucket spanning the ID space covering the given [0, 1) point
+func (rt *table) densityBucketIndex(idDensity float64) int {
+	return sort.Search(len(rt.buckets), func(i int) bool {
+		return idDensity < rt.buckets[i].idCumMass
 	})
 }
 
@@ -306,12 +343,15 @@ func (rt *table) splitBucket(bucketIdx int) {
 
 	// define the bounds of the two new buckets from those of the current bucket
 	middle := splitLowerBound(current.lowerBound, current.depth)
+	newIdMass := current.idMass / 2.0
 
 	// create the new buckets
 	left := &bucket{
 		depth:          current.depth + 1,
 		lowerBound:     current.lowerBound,
 		upperBound:     middle,
+		idMass:         newIdMass,
+		idCumMass:      current.idCumMass - newIdMass,
 		maxActivePeers: current.maxActivePeers,
 		activePeers:    make([]peer.Peer, 0),
 		positions:      make(map[string]int),
@@ -322,6 +362,8 @@ func (rt *table) splitBucket(bucketIdx int) {
 		depth:          current.depth + 1,
 		lowerBound:     middle,
 		upperBound:     current.upperBound,
+		idMass:         newIdMass,
+		idCumMass:      current.idCumMass,
 		maxActivePeers: current.maxActivePeers,
 		activePeers:    make([]peer.Peer, 0),
 		positions:      make(map[string]int),

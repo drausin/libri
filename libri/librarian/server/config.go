@@ -53,11 +53,11 @@ func DefaultConfig() *Config {
 	dbdir := dbDir(ddir, lnn)
 
 	return &Config{
-		NodeIndex:    ni,
-		PeerName:     nn,
-		DataDir:      ddir,
-		DbDir:        dbdir,
-		RPCLocalAddr: defaultRPCAddr,
+		NodeIndex:     ni,
+		PeerName:      nn,
+		DataDir:       ddir,
+		DbDir:         dbdir,
+		RPCPublicAddr: defaultRPCAddr,
 	}
 }
 

@@ -36,7 +36,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("could not ping: %v", err)
 	}
-	log.Printf("Peer name: %s", r2.PeerName)
+	log.Printf("Peer name: %s", r2.Self.PeerName)
 	peerPubKey, err := ecid.FromPublicKeyBytes(r2.Metadata.PubKey)
 	if err != nil {
 		log.Fatalf("could not read public key: %v", err)

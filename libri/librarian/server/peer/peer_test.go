@@ -162,3 +162,11 @@ func TestFromer_FromAPI(t *testing.T) {
 	assert.Equal(t, p1.Connector().(*connector).publicAddress,
 		p2.Connector().(*connector).publicAddress)
 }
+
+func TestToAPIs(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	ns := []int{0, 1, 2, 4}
+	for i := 0; i < len(ns); i++ {
+		assert.Equal(t, ns[i], len(ToAPIs(NewTestPeers(rng, ns[i]))))
+	}
+}

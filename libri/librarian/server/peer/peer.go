@@ -128,6 +128,15 @@ func (p *peer) ToAPI() *api.PeerAddress {
 	}
 }
 
+// ToAPIs converts a list of peers into a list of api.PeerAddress objects.
+func ToAPIs(peers []Peer) []*api.PeerAddress {
+	addresses := make([]*api.PeerAddress, len(peers))
+	for i, p := range peers {
+		addresses[i] = p.ToAPI()
+	}
+	return addresses
+}
+
 // Fromer creates new Peer instances from api.PeerAddresses.
 type Fromer interface {
 	// New creates a new Peer instance.
