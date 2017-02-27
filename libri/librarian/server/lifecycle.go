@@ -8,20 +8,10 @@ import (
 	"google.golang.org/grpc/reflection"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/peer"
-	"time"
+	"fmt"
+	"github.com/drausin/libri/libri/librarian/server/introduce"
 )
 
-var (
-	// number of peers to request per Introduce call
-	numPeersPerIntroduction = uint(16)
-
-	// number of recursive Introduce iterations
-	numIntroduceIterations = uint(2)
-
-	// timeout for each bootstrap Introduce query
-	bootstrapQueryTimeout = 5 * time.Second
-
-)
 
 func Start(config *Config) error {
 
@@ -30,23 +20,34 @@ func Start(config *Config) error {
 	if err != nil {
 		log.Fatalf("failed to initialize: %v", err)
 	}
-	// start server listener
-	l.listenAndServe()
 
-	// bootstrap peers
+	// populate routing table
+	l.bootstrapPeers(config.BootstrapAddrs)
+
+	// start main listening thread
+	l.listenAndServe()
 
 	return nil
 }
 
 func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) {
-	for _, a := range bootstrapAddrs {
-		conn := peer.NewConnector(a)
-		_, err := conn.Connect()
-		if err != nil {
-			log.Printf("unable to connect to bootstrap peer %v", a.String())
-			continue
-		}
+	intro := introduce.NewIntroduction(l.SelfID, l.apiSelf, introduce.NewDefaultParameters())
+	l.introducer.Introduce(intro, makeBootstrapPeers(bootstrapAddrs))
+	if intro.Errored() {
+		log.Fatalf("encountered fatal error while bootsrapping: %v", intro.Result.FatalErr)
 	}
+	if len(intro.Result.Responded) == 0 {
+		log.Fatal("failed to bootstrap any other peers -> exiting.")
+	}
+}
+
+func makeBootstrapPeers(bootstrapAddrs []*net.TCPAddr) []peer.Peer {
+	peers := make([]peer.Peer, len(bootstrapAddrs))
+	for i, bootstrap := range bootstrapAddrs {
+		dummyIdStr := fmt.Sprintf("bootstrap-seed%02d", i)
+		peers[i] = peer.New(nil, dummyIdStr, peer.NewConnector(bootstrap))
+	}
+	return peers
 }
 
 func (l *Librarian) listenAndServe() {

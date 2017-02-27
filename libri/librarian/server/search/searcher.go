@@ -28,11 +28,11 @@ type searcher struct {
 	querier client.FindQuerier
 
 	// processes the find query responses from the peers
-	rp      FindResponseProcessor
+	rp      ResponseProcessor
 }
 
 // NewSearcher returns a new Searcher with the given Querier and ResponseProcessor.
-func NewSearcher(s signature.Signer, q client.FindQuerier, rp FindResponseProcessor) Searcher {
+func NewSearcher(s signature.Signer, q client.FindQuerier, rp ResponseProcessor) Searcher {
 	return &searcher{signer: s, querier: q, rp: rp}
 }
 
@@ -139,24 +139,24 @@ func (s *searcher) query(pConn peer.Connector, search *Search) (*api.FindRespons
 	return rp, nil
 }
 
-// FindResponseProcessor handles an api.FindResponse
-type FindResponseProcessor interface {
+// ResponseProcessor handles an api.FindResponse
+type ResponseProcessor interface {
 	// Process handles an api.FindResponse, adding newly discovered peers to the unqueried
 	// ClosestPeers heap.
 	Process(*api.FindResponse, *Result) error
 }
 
-type findResponseProcessor struct {
-	peerFromer peer.Fromer
+type responseProcessor struct {
+	fromer peer.Fromer
 }
 
 // NewResponseProcessor creates a new ResponseProcessor instance.
-func NewResponseProcessor(peerFromer peer.Fromer) FindResponseProcessor {
-	return &findResponseProcessor{peerFromer: peerFromer}
+func NewResponseProcessor(f peer.Fromer) ResponseProcessor {
+	return &responseProcessor{fromer: f}
 }
 
 // Process processes an api.FindResponse, updating the result with the newly found peers.
-func (frp *findResponseProcessor) Process(rp *api.FindResponse, result *Result) error {
+func (frp *responseProcessor) Process(rp *api.FindResponse, result *Result) error {
 	if rp.Value != nil {
 		// response has value we're searching for
 		result.Value = rp.Value
@@ -169,7 +169,7 @@ func (frp *findResponseProcessor) Process(rp *api.FindResponse, result *Result) 
 			newID := cid.FromBytes(pa.PeerId)
 			if !result.Closest.In(newID) && !result.Unqueried.In(newID) {
 				// only add discovered peers that we haven't already seen
-				newPeer := frp.peerFromer.FromAPI(pa)
+				newPeer := frp.fromer.FromAPI(pa)
 				if err := result.Unqueried.SafePush(newPeer); err != nil {
 					return err
 				}

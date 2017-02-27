@@ -7,7 +7,9 @@ import (
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/db"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
+	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/search"
@@ -16,19 +18,21 @@ import (
 	"github.com/drausin/libri/libri/librarian/signature"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
-	"github.com/drausin/libri/libri/librarian/client"
 )
 
 // Librarian is the main service of a single peer in the peer to peer network.
 type Librarian struct {
-	// PeerID is the random 256-bit identification number of this node in the hash table
-	PeerID ecid.ID
+	// SelfID is the random 256-bit identification number of this node in the hash table
+	SelfID ecid.ID
 
 	// Config holds the configuration parameters of the server
 	Config *Config
 
 	// fixed API address
 	apiSelf *api.PeerAddress
+
+	// executes introductions to peers
+	introducer introduce.Introducer
 
 	// executes searches for peers and keys
 	searcher search.Searcher
@@ -92,20 +96,21 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 	searcher := search.NewDefaultSearcher(signer)
 
 	return &Librarian{
-		PeerID:    peerID,
-		Config:    config,
-		apiSelf:   api.FromAddress(peerID.ID(), config.PeerName, config.RPCPublicAddr),
-		searcher:  searcher,
-		storer:    store.NewStorer(signer, searcher, client.NewStoreQuerier()),
-		rqv:       NewRequestVerifier(),
-		db:        rdb,
-		serverSL:  serverSL,
-		entriesSL: entriesSL,
-		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		kvc:       storage.NewHashKeyValueChecker(),
-		fromer:    peer.NewFromer(),
-		signer: signer,
-		rt:        rt,
+		SelfID:     peerID,
+		Config:     config,
+		apiSelf:    api.FromAddress(peerID.ID(), config.PeerName, config.RPCPublicAddr),
+		introducer: introduce.NewDefaultIntroducer(signer),
+		searcher:   searcher,
+		storer:     store.NewStorer(signer, searcher, client.NewStoreQuerier()),
+		rqv:        NewRequestVerifier(),
+		db:         rdb,
+		serverSL:   serverSL,
+		entriesSL:  entriesSL,
+		kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
+		kvc:        storage.NewHashKeyValueChecker(),
+		fromer:     peer.NewFromer(),
+		signer:     signer,
+		rt:         rt,
 	}, nil
 }
 
@@ -114,7 +119,7 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 func (l *Librarian) NewResponseMetadata(m *api.RequestMetadata) *api.ResponseMetadata {
 	return &api.ResponseMetadata{
 		RequestId: m.RequestId,
-		PubKey:    ecid.ToPublicKeyBytes(l.PeerID),
+		PubKey:    ecid.ToPublicKeyBytes(l.SelfID),
 	}
 }
 
@@ -211,7 +216,7 @@ func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetRespon
 	l.record(requesterID, peer.Request, peer.Success)
 
 	key := cid.FromBytes(rq.Key)
-	s := search.NewSearch(l.PeerID, key, search.NewParameters())
+	s := search.NewSearch(l.SelfID, key, search.NewParameters())
 	seeds := l.rt.Peak(key, s.Params.Concurrency)
 	err = l.searcher.Search(s, seeds)
 	if err != nil {
@@ -258,8 +263,8 @@ func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutRespon
 
 	key := cid.FromBytes(rq.Key)
 	s := store.NewStore(
-		l.PeerID,
-		search.NewSearch(l.PeerID, key, search.NewParameters()),
+		l.SelfID,
+		search.NewSearch(l.SelfID, key, search.NewParameters()),
 		rq.Value,
 		store.NewParameters(),
 	)

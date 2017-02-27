@@ -39,7 +39,7 @@ type Config struct {
 	RPCPublicAddr *net.TCPAddr
 
 	// BootstrapAddrs is a list of peer addresses to initially introduce oneself to.
-	BootstrapAddrs *[]net.TCPAddr
+	BootstrapAddrs []*net.TCPAddr
 }
 
 // DefaultConfig returns a reasonable default server configuration.

@@ -93,11 +93,13 @@ func (s *storer) storeWork(store *Store, wg *sync.WaitGroup) {
 			// if we had an issue querying, skip to next peer
 			store.mu.Lock()
 			store.Result.NErrors++
-			store.mu.Unlock()
 			next.Recorder().Record(peer.Response, peer.Error)
+			store.mu.Unlock()
 			continue
 		}
+		store.mu.Lock()
 		next.Recorder().Record(peer.Response, peer.Success)
+		store.mu.Unlock()
 
 		// add to slice of responded peers
 		store.mu.Lock()

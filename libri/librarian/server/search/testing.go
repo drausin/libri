@@ -49,8 +49,8 @@ func NewTestSearcher(peersMap map[string]peer.Peer) Searcher {
 	return NewSearcher(
 		&signature.TestNoOpSigner{},
 		&TestFindQuerier{},
-		&findResponseProcessor{
-			peerFromer: &TestFromer{peers: peersMap},
+		&responseProcessor{
+			fromer: &TestFromer{peers: peersMap},
 		},
 	)
 }
