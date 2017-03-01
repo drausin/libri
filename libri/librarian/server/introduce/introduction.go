@@ -1,11 +1,12 @@
 package introduce
 
 import (
-	"time"
-	"github.com/drausin/libri/libri/librarian/server/peer"
 	"sync"
+	"time"
+
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
+	"github.com/drausin/libri/libri/librarian/server/peer"
 )
 
 var (
@@ -49,10 +50,10 @@ type Parameters struct {
 func NewDefaultParameters() *Parameters {
 	return &Parameters{
 		TargetNumIntroductions: DefaultTargetNumIntroductions,
-		NumPeersPerRequest: DefaultNumPeersPerRequest,
-		NMaxErrors: DefaultNMaxErrors,
-		Concurrency: DefaultConcurrency,
-		Timeout: DefaultQueryTimeout,
+		NumPeersPerRequest:     DefaultNumPeersPerRequest,
+		NMaxErrors:             DefaultNMaxErrors,
+		Concurrency:            DefaultConcurrency,
+		Timeout:                DefaultQueryTimeout,
 	}
 }
 
@@ -86,13 +87,13 @@ type Introduction struct {
 	NewRequest func() *api.IntroduceRequest
 
 	// result of the introduction
-	Result     *Result
+	Result *Result
 
 	// parameters defining the search
-	Params     *Parameters
+	Params *Parameters
 
 	// mutex used to synchronizes reads and writes to this instance
-	mu         sync.Mutex
+	mu sync.Mutex
 }
 
 // NewIntroduction creates a new Introduction instance.

@@ -1,9 +1,9 @@
 package client
 
 import (
-	"golang.org/x/net/context"
-	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/server/peer"
+	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 
@@ -16,12 +16,13 @@ type IntroduceQuerier interface {
 
 type introQuerier struct{}
 
+// NewIntroduceQuerier creates a new IntroduceQuerier.
 func NewIntroduceQuerier() IntroduceQuerier {
 	return &introQuerier{}
 }
 
 func (q *introQuerier) Query(ctx context.Context, pConn peer.Connector, rq *api.IntroduceRequest,
-		opts ...grpc.CallOption) (*api.IntroduceResponse, error) {
+	opts ...grpc.CallOption) (*api.IntroduceResponse, error) {
 	client, err := pConn.Connect() // *should* be already connected, but do here just in case
 	if err != nil {
 		return nil, err
@@ -29,8 +30,7 @@ func (q *introQuerier) Query(ctx context.Context, pConn peer.Connector, rq *api.
 	return client.Introduce(ctx, rq, opts...)
 }
 
-
-// Querier handles Find queries to a peer.
+// FindQuerier handles Find queries to a peer.
 type FindQuerier interface {
 	// Query uses a peer connection to query for a particular key with an api.FindRequest and
 	// returns its response.
@@ -40,7 +40,7 @@ type FindQuerier interface {
 
 type findQuerier struct{}
 
-// NewQuerier creates a new FindQuerier instance for FindPeers queries.
+// NewFindQuerier creates a new FindQuerier instance for FindPeers queries.
 func NewFindQuerier() FindQuerier {
 	return &findQuerier{}
 }
@@ -63,7 +63,7 @@ type StoreQuerier interface {
 
 type storeQuerier struct{}
 
-// NewQuerier creates a new Querier instance for Store queries.
+// NewStoreQuerier creates a new Querier instance for Store queries.
 func NewStoreQuerier() StoreQuerier {
 	return &storeQuerier{}
 }

@@ -1,12 +1,13 @@
 package introduce
 
 import (
-	"testing"
-	"github.com/stretchr/testify/assert"
 	"math/rand"
+	"testing"
+
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewDefaultParameters(t *testing.T) {
@@ -21,7 +22,7 @@ func TestNewDefaultParameters(t *testing.T) {
 func TestIntroduction_ReachedTarget(t *testing.T) {
 	intro := newTestIntroduction(3, &Parameters{
 		TargetNumIntroductions: 3,
-		NMaxErrors: 3,
+		NMaxErrors:             3,
 	})
 
 	// hasn't received any responses yet
@@ -52,7 +53,7 @@ func TestIntroduction_ReachedTarget(t *testing.T) {
 func TestIntroduction_Exhausted(t *testing.T) {
 	intro := newTestIntroduction(4, &Parameters{
 		TargetNumIntroductions: 3,
-		NMaxErrors: 3,
+		NMaxErrors:             3,
 	})
 
 	// make some peers responded, but still below target
@@ -84,7 +85,7 @@ func TestIntroduction_Exhausted(t *testing.T) {
 func TestIntroduction_Errored(t *testing.T) {
 	intro1 := newTestIntroduction(4, &Parameters{
 		TargetNumIntroductions: 3,
-		NMaxErrors: 3,
+		NMaxErrors:             3,
 	})
 
 	// add some errors, but still below NMaxErrors
@@ -116,7 +117,7 @@ func TestIntroduction_Errored(t *testing.T) {
 func newTestIntroduction(nPeers int, params *Parameters) *Introduction {
 	rng := rand.New(rand.NewSource(0))
 	selfID := ecid.NewPseudoRandom(rng)
-	self := peer.New(selfID.ID(), "test peer", peer.NewTestConnector(nPeers + 1))
+	self := peer.New(selfID.ID(), "test peer", peer.NewTestConnector(nPeers+1))
 	intro := NewIntroduction(selfID, self.ToAPI(), params)
 
 	// add some peers to unqueried map

@@ -1,6 +1,12 @@
 package introduce
 
 import (
+	"errors"
+	"fmt"
+	"math/rand"
+	"testing"
+
+	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
@@ -9,11 +15,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"math/rand"
-	"testing"
-	"errors"
-	cid "github.com/drausin/libri/libri/common/id"
-	"fmt"
 )
 
 func TestNewDefaultIntroducer(t *testing.T) {
@@ -80,7 +81,7 @@ func TestIntroducer_Introduce_connectorErr(t *testing.T) {
 	// checks
 	assert.Nil(t, err)
 	assert.True(t, intro.Finished())
-	assert.True(t, intro.Exhausted())  // b/c can't connect to any of the peers
+	assert.True(t, intro.Exhausted()) // b/c can't connect to any of the peers
 	assert.False(t, intro.ReachedTarget())
 	assert.False(t, intro.Errored())
 	assert.Equal(t, uint(0), intro.Result.NErrors)
@@ -100,7 +101,7 @@ func TestIntroducer_Introduce_queryErr(t *testing.T) {
 	// checks
 	assert.Nil(t, err)
 	assert.True(t, intro.Finished())
-	assert.True(t, intro.Errored())  // since all queries returned errors
+	assert.True(t, intro.Errored()) // since all queries returned errors
 	assert.False(t, intro.Exhausted())
 	assert.False(t, intro.ReachedTarget())
 	assert.Equal(t, intro.Params.NMaxErrors, intro.Result.NErrors)
@@ -121,7 +122,7 @@ func TestIntroducer_Introduce_rpErr(t *testing.T) {
 	// checks
 	assert.NotNil(t, err)
 	assert.True(t, intro.Finished())
-	assert.True(t, intro.Errored())  // since we got a fatal error while processing responses
+	assert.True(t, intro.Errored()) // since we got a fatal error while processing responses
 	assert.False(t, intro.Exhausted())
 	assert.False(t, intro.ReachedTarget())
 	assert.NotNil(t, intro.Result.FatalErr)
@@ -132,7 +133,7 @@ func TestIntroducer_Introduce_rpErr(t *testing.T) {
 func TestIntroducer_query_ok(t *testing.T) {
 	intro := newQueryTestIntroduction()
 	introducerImpl := &introducer{
-		signer: &signature.TestNoOpSigner{},
+		signer:  &signature.TestNoOpSigner{},
 		querier: &noOpQuerier{},
 	}
 
@@ -146,7 +147,7 @@ func TestIntroducer_query_ok(t *testing.T) {
 func TestIntroducer_query_timeoutErr(t *testing.T) {
 	intro := newQueryTestIntroduction()
 	introducerImpl := &introducer{
-		signer: &signature.TestNoOpSigner{},
+		signer:  &signature.TestNoOpSigner{},
 		querier: &timeoutQuerier{},
 	}
 
@@ -182,7 +183,7 @@ func TestResponseProcessor_Process(t *testing.T) {
 	result := NewInitialResult()
 
 	response1 := &api.IntroduceResponse{
-		Self: responder.ToAPI(),
+		Self:  responder.ToAPI(),
 		Peers: peer.ToAPIs(peers),
 	}
 	err := rp.Process(response1, result)
@@ -202,7 +203,7 @@ func TestResponseProcessor_Process(t *testing.T) {
 
 	// make in identical response
 	response2 := &api.IntroduceResponse{
-		Self: responder.ToAPI(),
+		Self:  responder.ToAPI(),
 		Peers: peer.ToAPIs(peers),
 	}
 	err = rp.Process(response2, result)
@@ -228,7 +229,7 @@ func newQueryTestIntroduction() *Introduction {
 	return intro
 }
 
-type noOpQuerier struct {}
+type noOpQuerier struct{}
 
 func (f *noOpQuerier) Query(ctx context.Context, pConn peer.Connector, fr *api.IntroduceRequest,
 	opts ...grpc.CallOption) (*api.IntroduceResponse, error) {
@@ -248,7 +249,7 @@ func (f *timeoutQuerier) Query(ctx context.Context, pConn peer.Connector, fr *ap
 }
 
 type diffRequestIDQuerier struct {
-	rng    *rand.Rand
+	rng *rand.Rand
 }
 
 func (f *diffRequestIDQuerier) Query(ctx context.Context, pConn peer.Connector,
@@ -265,7 +266,6 @@ type errResponseProcessor struct{}
 func (erp *errResponseProcessor) Process(rp *api.IntroduceResponse, result *Result) error {
 	return errors.New("some fatal processing error")
 }
-
 
 func newTestIntroducer(peersMap map[string]peer.Peer) Introducer {
 	return NewIntroducer(
@@ -298,4 +298,3 @@ func newTestIntros(concurrency uint) (Introducer, *Introduction, []int, []peer.P
 
 	return introducer, intro, selfPeerIdxs, peers
 }
-

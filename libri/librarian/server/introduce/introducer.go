@@ -1,16 +1,16 @@
 package introduce
 
 import (
-	"github.com/drausin/libri/libri/librarian/server/peer"
-	"github.com/drausin/libri/libri/librarian/signature"
-	"github.com/drausin/libri/libri/librarian/client"
-	"github.com/drausin/libri/libri/librarian/api"
-	cid "github.com/drausin/libri/libri/common/id"
-	"sync"
 	"bytes"
 	"fmt"
-)
+	"sync"
 
+	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/client"
+	"github.com/drausin/libri/libri/librarian/server/peer"
+	"github.com/drausin/libri/libri/librarian/signature"
+)
 
 // Introducer executes recursive introductions.
 type Introducer interface {
@@ -28,11 +28,10 @@ type introducer struct {
 
 // NewIntroducer creates a new Introducer instance with the given signer, querier, and response
 // processor.
-func NewIntroducer(s signature.Signer, q client.IntroduceQuerier, rp ResponseProcessor) (
-	Introducer) {
+func NewIntroducer(s signature.Signer, q client.IntroduceQuerier, rp ResponseProcessor) Introducer {
 	return &introducer{
-		signer: s,
-		querier: q,
+		signer:       s,
+		querier:      q,
 		repProcessor: rp,
 	}
 }
@@ -109,7 +108,6 @@ func (i *introducer) introduceWork(intro *Introduction, wg *sync.WaitGroup) {
 	}
 }
 
-
 func (i *introducer) query(pConn peer.Connector, intro *Introduction) (*api.IntroduceResponse,
 	error) {
 	rq := intro.NewRequest()
@@ -130,7 +128,6 @@ func (i *introducer) query(pConn peer.Connector, intro *Introduction) (*api.Intr
 
 	return rp, nil
 }
-
 
 func removeAny(m map[string]peer.Peer) (string, peer.Peer) {
 	for k, v := range m {

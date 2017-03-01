@@ -1,18 +1,18 @@
 package server
 
 import (
-	"os"
-	"net"
+	"errors"
+	"fmt"
 	"log"
+	"net"
+	"os"
+
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/server/introduce"
+	"github.com/drausin/libri/libri/librarian/server/peer"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
-	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/drausin/libri/libri/librarian/server/peer"
-	"fmt"
-	"github.com/drausin/libri/libri/librarian/server/introduce"
-	"errors"
 )
-
 
 // Start is the main entry point for a Librarian server. It bootstraps peers for the Librarians's
 // routing table and then begins listening for and handling requests.

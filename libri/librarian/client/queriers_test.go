@@ -1,9 +1,10 @@
 package client
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
 	"github.com/drausin/libri/libri/librarian/server/peer"
+	"github.com/stretchr/testify/assert"
 )
 
 // Explanation: ideally would have unit test like this, but mocking an api.LibrarianClient is

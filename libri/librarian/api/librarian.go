@@ -13,11 +13,11 @@ func NewRequestMetadata(peerID ecid.ID) *RequestMetadata {
 	}
 }
 
-func NewIntroduceRequest(peerID ecid.ID, apiSelf *PeerAddress, nPeers uint) (
-	*IntroduceRequest) {
+// NewIntroduceRequest creates an IntroduceRequest object.
+func NewIntroduceRequest(peerID ecid.ID, apiSelf *PeerAddress, nPeers uint) *IntroduceRequest {
 	return &IntroduceRequest{
 		Metadata: NewRequestMetadata(peerID),
-		Self: apiSelf,
+		Self:     apiSelf,
 		NumPeers: uint32(nPeers),
 	}
 }

@@ -2,9 +2,9 @@ package signature
 
 import (
 	"errors"
+
 	"github.com/gogo/protobuf/proto"
 )
-
 
 // TestNoOpSigner implements the signature.Signer interface but just returns a dummy token.
 type TestNoOpSigner struct{}
@@ -21,4 +21,3 @@ type TestErrSigner struct{}
 func (s *TestErrSigner) Sign(m proto.Message) (string, error) {
 	return "", errors.New("some sign error")
 }
-

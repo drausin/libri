@@ -1,14 +1,15 @@
 package client
 
 import (
-	"github.com/drausin/libri/libri/librarian/server/ecid"
-	"time"
-	"github.com/stretchr/testify/assert"
-	"github.com/drausin/libri/libri/librarian/signature"
-	"testing"
 	"math/rand"
-	"github.com/drausin/libri/libri/librarian/api"
+	"testing"
+	"time"
+
 	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/server/ecid"
+	"github.com/drausin/libri/libri/librarian/signature"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewSignedTimeoutContext_ok(t *testing.T) {
@@ -35,4 +36,3 @@ func TestNewSignedTimeoutContext_err(t *testing.T) {
 	assert.NotNil(t, cancel)
 	assert.NotNil(t, err)
 }
-

@@ -1,17 +1,17 @@
 package server
 
 import (
-	"testing"
-	"github.com/drausin/libri/libri/librarian/server/introduce"
-	"github.com/drausin/libri/libri/librarian/server/peer"
 	"math/rand"
 	"net"
-	"github.com/drausin/libri/libri/librarian/server/routing"
-	cid "github.com/drausin/libri/libri/common/id"
-	"github.com/stretchr/testify/assert"
-	"github.com/pkg/errors"
-)
+	"testing"
 
+	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/server/introduce"
+	"github.com/drausin/libri/libri/librarian/server/peer"
+	"github.com/drausin/libri/libri/librarian/server/routing"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
+)
 
 func TestLibrarian_bootstrapPeers_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
@@ -96,11 +96,10 @@ func TestLibrarian_bootstrapPeers_noResponsesErr(t *testing.T) {
 
 type fixedIntroducer struct {
 	result *introduce.Result
-	err error
+	err    error
 }
 
 func (fi *fixedIntroducer) Introduce(intro *introduce.Introduction, seeds []peer.Peer) error {
 	intro.Result = fi.result
 	return fi.err
 }
-

@@ -8,10 +8,10 @@ import (
 
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/signature"
 	"github.com/pkg/errors"
-	"github.com/drausin/libri/libri/librarian/client"
 )
 
 // Searcher executes searches for particular keys.
@@ -22,13 +22,13 @@ type Searcher interface {
 
 type searcher struct {
 	// signs queries
-	signer  signature.Signer
+	signer signature.Signer
 
 	// issues find queries to the peers
 	querier client.FindQuerier
 
 	// processes the find query responses from the peers
-	rp      ResponseProcessor
+	rp ResponseProcessor
 }
 
 // NewSearcher returns a new Searcher with the given Querier and ResponseProcessor.

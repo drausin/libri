@@ -8,8 +8,8 @@ import (
 )
 
 var (
-	defaultRPCIP = net.ParseIP("0.0.0.0")  // localhost
-	defaultRPCPort = 11000
+	defaultRPCIP      = net.ParseIP("0.0.0.0") // localhost
+	defaultRPCPort    = 11000
 	defaultDataSubdir = "data"
 	defaultDbSubDir   = "db"
 )
@@ -56,7 +56,7 @@ func DefaultConfig(nodeIndex uint8) *Config {
 	dbdir := dbDir(ddir, lnn)
 
 	rpcAddr := &net.TCPAddr{
-		IP: defaultRPCIP,
+		IP:   defaultRPCIP,
 		Port: defaultRPCPort + int(nodeIndex),
 	}
 	return &Config{
@@ -65,7 +65,7 @@ func DefaultConfig(nodeIndex uint8) *Config {
 		DataDir:       ddir,
 		DbDir:         dbdir,
 		RPCPublicAddr: rpcAddr,
-		RPCLocalAddr: rpcAddr,
+		RPCLocalAddr:  rpcAddr,
 	}
 }
 

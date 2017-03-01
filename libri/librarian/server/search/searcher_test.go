@@ -10,11 +10,11 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
+	"github.com/drausin/libri/libri/librarian/signature"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"github.com/drausin/libri/libri/librarian/signature"
 )
 
 func TestNewDefaultSearcher(t *testing.T) {
@@ -170,7 +170,7 @@ func newTestSearch() (Searcher, *Search, []int, []peer.Peer) {
 	return searcher, search, selfPeerIdxs, peers
 }
 
-type noOpQuerier struct {}
+type noOpQuerier struct{}
 
 func (f *noOpQuerier) Query(ctx context.Context, pConn peer.Connector, fr *api.FindRequest,
 	opts ...grpc.CallOption) (*api.FindResponse, error) {
@@ -186,9 +186,9 @@ func TestSearcher_query_ok(t *testing.T) {
 	peerID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
 	search := NewSearch(peerID, key, &Parameters{})
 	s := &searcher{
-		signer: &signature.TestNoOpSigner{},
+		signer:  &signature.TestNoOpSigner{},
 		querier: &noOpQuerier{},
-		rp: nil,
+		rp:      nil,
 	}
 	client := peer.NewConnector(nil) // won't actually be uses since we're mocking the finder
 
@@ -208,7 +208,7 @@ func (f *timeoutQuerier) Query(ctx context.Context, pConn peer.Connector, fr *ap
 
 // diffRequestIDFinder returns a response with a different request ID
 type diffRequestIDQuerier struct {
-	rng    *rand.Rand
+	rng *rand.Rand
 }
 
 func (f *diffRequestIDQuerier) Query(ctx context.Context, pConn peer.Connector,
@@ -239,7 +239,7 @@ func TestSearcher_query_err(t *testing.T) {
 		signer: &signature.TestNoOpSigner{},
 		// use querier that simulates a different request ID
 		querier: &diffRequestIDQuerier{
-			rng:    rng,
+			rng: rng,
 		},
 	}
 	rp2, err := s2.query(client, search)

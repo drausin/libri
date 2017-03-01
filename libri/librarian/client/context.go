@@ -1,12 +1,12 @@
 package client
 
 import (
-	"github.com/drausin/libri/libri/librarian/signature"
 	"time"
+
+	"github.com/drausin/libri/libri/librarian/signature"
 	"github.com/gogo/protobuf/proto"
 	"golang.org/x/net/context"
 )
-
 
 // NewSignedTimeoutContext creates a new context with a timeout and request signature.
 func NewSignedTimeoutContext(signer signature.Signer, request proto.Message,
@@ -25,4 +25,3 @@ func NewSignedTimeoutContext(signer signature.Signer, request proto.Message,
 
 	return ctx, cancel, nil
 }
-

@@ -7,11 +7,12 @@ import (
 	"testing"
 	"time"
 
+	"errors"
+
 	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/storage"
 	"github.com/stretchr/testify/assert"
-	"github.com/drausin/libri/libri/librarian/api"
-	"errors"
 )
 
 // NewTestPeer generates a new peer suitable for testing using a random number generator for the
@@ -122,4 +123,3 @@ func (ec *TestErrConnector) Connect() (api.LibrarianClient, error) {
 func (ec *TestErrConnector) Disconnect() error {
 	return nil
 }
-

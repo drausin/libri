@@ -6,11 +6,11 @@ import (
 	"sync"
 
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/signature"
-	"github.com/drausin/libri/libri/librarian/client"
 )
 
 // Storer executes store operations.

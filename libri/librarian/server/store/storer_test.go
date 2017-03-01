@@ -9,11 +9,11 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	ssearch "github.com/drausin/libri/libri/librarian/server/search"
+	"github.com/drausin/libri/libri/librarian/signature"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"github.com/drausin/libri/libri/librarian/signature"
 )
 
 func TestNewDefaultStorer(t *testing.T) {

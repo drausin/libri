@@ -9,9 +9,9 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
+	"github.com/drausin/libri/libri/librarian/signature"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"github.com/drausin/libri/libri/librarian/signature"
 )
 
 // TestFindQuerier mocks the FindQuerier interface. The Query() method returns a fixed
@@ -98,7 +98,7 @@ func NewTestPeers(rng *rand.Rand, n int) ([]peer.Peer, map[string]peer.Peer, []i
 		// create test connector with a test client that returns pre-determined set of
 		// addresses
 		conn := peer.TestConnector{
-			APISelf: api.FromAddress(ids[i], names[i], addresses[i]),
+			APISelf:   api.FromAddress(ids[i], names[i], addresses[i]),
 			Addresses: connectedAddresses,
 		}
 		peers[i] = peer.New(ids[i], names[i], &conn)
