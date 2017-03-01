@@ -14,19 +14,19 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
-// Start is the main entry point for a Librarian server. It bootstraps peers for the Librarians's
+// Start is the entry point for a Librarian server. It bootstraps peers for the Librarians's
 // routing table and then begins listening for and handling requests.
 func Start(config *Config) error {
 
 	// create librarian
 	l, err := NewLibrarian(config)
 	if err != nil {
-		log.Fatalf("failed to initialize: %v", err)
+		return err
 	}
 
 	// populate routing table
 	if err := l.bootstrapPeers(config.BootstrapAddrs); err != nil {
-		log.Fatalf("%v", err)
+		return err
 	}
 
 	// start main listening thread

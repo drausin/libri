@@ -114,15 +114,6 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 	}, nil
 }
 
-// NewResponseMetadata creates a new api.ResponseMatadata object with the same RequestID as that
-// in the api.RequestMetadata.
-func (l *Librarian) NewResponseMetadata(m *api.RequestMetadata) *api.ResponseMetadata {
-	return &api.ResponseMetadata{
-		RequestId: m.RequestId,
-		PubKey:    ecid.ToPublicKeyBytes(l.SelfID),
-	}
-}
-
 // Ping confirms simple request/response connectivity.
 func (l *Librarian) Ping(ctx context.Context, rq *api.PingRequest) (*api.PingResponse, error) {
 	return &api.PingResponse{Message: "pong"}, nil

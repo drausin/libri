@@ -66,6 +66,7 @@ func DefaultConfig(nodeIndex uint8) *Config {
 		DbDir:         dbdir,
 		RPCPublicAddr: rpcAddr,
 		RPCLocalAddr:  rpcAddr,
+		BootstrapAddrs: make([]*net.TCPAddr, 0),
 	}
 }
 

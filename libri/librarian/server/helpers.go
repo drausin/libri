@@ -19,6 +19,15 @@ func newIDFromPublicKeyBytes(pubKeyBytes []byte) (cid.ID, error) {
 	return cid.FromPublicKey(pubKey), nil
 }
 
+// NewResponseMetadata creates a new api.ResponseMatadata object with the same RequestID as that
+// in the api.RequestMetadata.
+func (l *Librarian) NewResponseMetadata(m *api.RequestMetadata) *api.ResponseMetadata {
+	return &api.ResponseMetadata{
+		RequestId: m.RequestId,
+		PubKey:    ecid.ToPublicKeyBytes(l.SelfID),
+	}
+}
+
 // checkRequest verifies the request signature and records an error with the peer if necessary. It
 // returns the ID of the requester or an error.
 func (l *Librarian) checkRequest(ctx context.Context, rq proto.Message, meta *api.RequestMetadata) (

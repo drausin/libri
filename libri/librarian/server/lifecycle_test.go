@@ -11,7 +11,36 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"io/ioutil"
 )
+
+// TODO (drausin) add multi-peer integration test to test Start()'s OK path.
+
+func TestStart_newLibrarianErr(t *testing.T) {
+	config := &Config{
+		DataDir: "some/nonexistant/path",
+	}
+
+	// check that NewLibrarian error bubbles up
+	assert.NotNil(t, Start(config))
+}
+
+func TestStart_bootstrapPeersErr(t *testing.T) {
+	dataDir, err := ioutil.TempDir("", "test-start")
+	assert.Nil(t, err)
+	config := DefaultConfig(0)
+	config.SetDataDir(dataDir)
+
+	// erroneously configure bootstrap peer to be self, which will lead to
+	// connection problems
+	config.BootstrapAddrs = append(config.BootstrapAddrs, &net.TCPAddr{
+		IP:   defaultRPCIP,
+		Port: defaultRPCPort,
+	})
+
+	// check that bootstrap error bubbles up
+	assert.NotNil(t, Start(config))
+}
 
 func TestLibrarian_bootstrapPeers_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))

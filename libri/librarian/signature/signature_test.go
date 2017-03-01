@@ -113,3 +113,17 @@ func TestEcdsaVerifer_Verify_err(t *testing.T) {
 		}
 	})
 }
+
+func TestTestNoOpSigner_Sign(t *testing.T) {
+	s := &TestNoOpSigner{}
+	token, err := s.Sign(nil)
+	assert.NotNil(t, token)
+	assert.Nil(t, err)
+}
+
+func TestTestErrSigner_Sign(t *testing.T) {
+	s := &TestErrSigner{}
+	token, err := s.Sign(nil)
+	assert.Equal(t, "", token)
+	assert.NotNil(t, err)
+}
