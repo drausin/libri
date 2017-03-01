@@ -19,14 +19,13 @@ import (
 
 func TestNewDefaultSearcher(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-
 	s := NewDefaultSearcher(signature.NewSigner(ecid.NewPseudoRandom(rng).Key()))
 	assert.NotNil(t, s.(*searcher).signer)
 	assert.NotNil(t, s.(*searcher).querier)
 	assert.NotNil(t, s.(*searcher).rp)
 }
 
-func TestSearcher_Search(t *testing.T) {
+func TestSearcher_Search_ok(t *testing.T) {
 	n, nClosestResponses := 32, uint(8)
 	rng := rand.New(rand.NewSource(int64(n)))
 	peers, peersMap, selfPeerIdxs, selfID := NewTestPeers(rng, n)
@@ -171,38 +170,24 @@ func newTestSearch() (Searcher, *Search, []int, []peer.Peer) {
 	return searcher, search, selfPeerIdxs, peers
 }
 
-// fixedFinder returns a fixed set of peer addresses for all find requests
-type fixedQuerier struct {
-	peerID    ecid.ID
-	addresses []*api.PeerAddress
-}
+type noOpQuerier struct {}
 
-func (f *fixedQuerier) Query(ctx context.Context, pConn peer.Connector, fr *api.FindRequest,
+func (f *noOpQuerier) Query(ctx context.Context, pConn peer.Connector, fr *api.FindRequest,
 	opts ...grpc.CallOption) (*api.FindResponse, error) {
 	return &api.FindResponse{
 		Metadata: &api.ResponseMetadata{
 			RequestId: fr.Metadata.RequestId,
-			PubKey:    ecid.ToPublicKeyBytes(f.peerID),
 		},
-		Peers: f.addresses,
 	}, nil
 }
 
 func TestSearcher_query_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	nAddresses := 8
 	peerID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
-	search := NewSearch(peerID, key, &Parameters{
-		NClosestResponses: uint(nAddresses),
-		Timeout:           DefaultQueryTimeout,
-	})
+	search := NewSearch(peerID, key, &Parameters{})
 	s := &searcher{
 		signer: &signature.TestNoOpSigner{},
-		// use querier that returns fixed set of addresses
-		querier: &fixedQuerier{
-			peerID:    peerID,
-			addresses: newPeerAddresses(rng, nAddresses),
-		},
+		querier: &noOpQuerier{},
 		rp: nil,
 	}
 	client := peer.NewConnector(nil) // won't actually be uses since we're mocking the finder
@@ -210,8 +195,6 @@ func TestSearcher_query_ok(t *testing.T) {
 	rp, err := s.query(client, search)
 	assert.Nil(t, err)
 	assert.NotNil(t, rp.Metadata.RequestId)
-	assert.NotNil(t, rp.Metadata.PubKey)
-	assert.Equal(t, nAddresses, len(rp.Peers))
 	assert.Nil(t, rp.Value)
 }
 
@@ -226,7 +209,6 @@ func (f *timeoutQuerier) Query(ctx context.Context, pConn peer.Connector, fr *ap
 // diffRequestIDFinder returns a response with a different request ID
 type diffRequestIDQuerier struct {
 	rng    *rand.Rand
-	peerID ecid.ID
 }
 
 func (f *diffRequestIDQuerier) Query(ctx context.Context, pConn peer.Connector,
@@ -234,7 +216,6 @@ func (f *diffRequestIDQuerier) Query(ctx context.Context, pConn peer.Connector,
 	return &api.FindResponse{
 		Metadata: &api.ResponseMetadata{
 			RequestId: cid.NewPseudoRandom(f.rng).Bytes(),
-			PubKey:    ecid.ToPublicKeyBytes(f.peerID),
 		},
 	}, nil
 }
@@ -243,9 +224,7 @@ func TestSearcher_query_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	client := peer.NewConnector(nil) // won't actually be used since we're mocking the finder
 	peerID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
-	search := NewSearch(peerID, key, &Parameters{
-		Timeout: DefaultQueryTimeout,
-	})
+	search := NewSearch(peerID, key, &Parameters{})
 
 	s1 := &searcher{
 		signer: &signature.TestNoOpSigner{},
@@ -261,7 +240,6 @@ func TestSearcher_query_err(t *testing.T) {
 		// use querier that simulates a different request ID
 		querier: &diffRequestIDQuerier{
 			rng:    rng,
-			peerID: peerID,
 		},
 	}
 	rp2, err := s2.query(client, search)

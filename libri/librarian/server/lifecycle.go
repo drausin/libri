@@ -10,9 +10,12 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"fmt"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
+	"errors"
 )
 
 
+// Start is the main entry point for a Librarian server. It bootstraps peers for the Librarians's
+// routing table and then begins listening for and handling requests.
 func Start(config *Config) error {
 
 	// create librarian
@@ -22,7 +25,9 @@ func Start(config *Config) error {
 	}
 
 	// populate routing table
-	l.bootstrapPeers(config.BootstrapAddrs)
+	if err := l.bootstrapPeers(config.BootstrapAddrs); err != nil {
+		log.Fatalf("%v", err)
+	}
 
 	// start main listening thread
 	l.listenAndServe()
@@ -30,22 +35,28 @@ func Start(config *Config) error {
 	return nil
 }
 
-func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) {
+func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
 	intro := introduce.NewIntroduction(l.SelfID, l.apiSelf, introduce.NewDefaultParameters())
-	l.introducer.Introduce(intro, makeBootstrapPeers(bootstrapAddrs))
-	if intro.Errored() {
-		log.Fatalf("encountered fatal error while bootsrapping: %v", intro.Result.FatalErr)
+	err := l.introducer.Introduce(intro, makeBootstrapPeers(bootstrapAddrs))
+	if err != nil {
+		return fmt.Errorf("encountered fatal error while bootsrapping: %v", err)
 	}
 	if len(intro.Result.Responded) == 0 {
-		log.Fatal("failed to bootstrap any other peers -> exiting.")
+		return errors.New("failed to bootstrap any other peers -> exiting")
 	}
+
+	// add bootstrapped peers to routing table
+	for _, p := range intro.Result.Responded {
+		l.rt.Push(p)
+	}
+	return nil
 }
 
 func makeBootstrapPeers(bootstrapAddrs []*net.TCPAddr) []peer.Peer {
 	peers := make([]peer.Peer, len(bootstrapAddrs))
 	for i, bootstrap := range bootstrapAddrs {
-		dummyIdStr := fmt.Sprintf("bootstrap-seed%02d", i)
-		peers[i] = peer.New(nil, dummyIdStr, peer.NewConnector(bootstrap))
+		dummyIDStr := fmt.Sprintf("bootstrap-seed%02d", i)
+		peers[i] = peer.New(nil, dummyIDStr, peer.NewConnector(bootstrap))
 	}
 	return peers
 }

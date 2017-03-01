@@ -95,6 +95,7 @@ func AssertPeersEqual(t *testing.T, sp *storage.Peer, p Peer) {
 // TestConnector mocks the peer.Connector interface. The Connect() method returns a fixed client
 // instead of creating one from the peer's address.
 type TestConnector struct {
+	APISelf   *api.PeerAddress
 	Addresses []*api.PeerAddress
 }
 

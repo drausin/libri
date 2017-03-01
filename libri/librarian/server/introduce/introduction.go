@@ -27,6 +27,7 @@ var (
 	DefaultQueryTimeout = 5 * time.Second
 )
 
+// Parameters define the parameters of the introduction.
 type Parameters struct {
 	// target number of peers to become introduced to
 	TargetNumIntroductions uint
@@ -105,10 +106,20 @@ func NewIntroduction(selfID ecid.ID, apiSelf *api.PeerAddress, params *Parameter
 	}
 }
 
-func (i *Introduction) WrapLock(operation func()) {
+func (i *Introduction) wrapLock(operation func()) {
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	operation()
+}
+
+// ReachedTarget returns whether introductions have occurred with the target number of peers.
+func (i *Introduction) ReachedTarget() bool {
+	return uint(len(i.Result.Responded)) >= i.Params.TargetNumIntroductions
+}
+
+// Exhausted returns whether all of the possible peers have been queried.
+func (i *Introduction) Exhausted() bool {
+	return len(i.Result.Unqueried) == 0 && !i.ReachedTarget()
 }
 
 // Errored returns whether the introduction has encountered too many errors when querying the peers.
@@ -116,21 +127,11 @@ func (i *Introduction) Errored() bool {
 	return i.Result.NErrors >= i.Params.NMaxErrors || i.Result.FatalErr != nil
 }
 
-// Completed returns whether introductions have occurred with the target number of peers.
-func (i *Introduction) ReachedTarget() bool {
-	return uint(len(i.Result.Responded)) >= i.Params.TargetNumIntroductions
-}
-
-// Exhausted returns whether all of the possible peers have been queried.
-func (s *Introduction) Exhausted() bool {
-	return len(s.Result.Unqueried) == 0
-}
-
 // Finished returns whether the introduction has finished, either because it has reached the target
 // number of peers, or has exhausted all the possible peers to query, or has encountered too many
 // errors.
-func (s *Introduction) Finished() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.ReachedTarget() || s.Errored() || s.Exhausted()
+func (i *Introduction) Finished() bool {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	return i.ReachedTarget() || i.Errored() || i.Exhausted()
 }

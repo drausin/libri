@@ -14,6 +14,7 @@ import (
 
 // Introducer executes recursive introductions.
 type Introducer interface {
+	// Introduce executes an introduction from a list of seeds.
 	Introduce(intro *Introduction, seeds []peer.Peer) error
 }
 
@@ -25,6 +26,8 @@ type introducer struct {
 	repProcessor ResponseProcessor
 }
 
+// NewIntroducer creates a new Introducer instance with the given signer, querier, and response
+// processor.
 func NewIntroducer(s signature.Signer, q client.IntroduceQuerier, rp ResponseProcessor) (
 	Introducer) {
 	return &introducer{
@@ -34,6 +37,8 @@ func NewIntroducer(s signature.Signer, q client.IntroduceQuerier, rp ResponsePro
 	}
 }
 
+// NewDefaultIntroducer creates a new Introducer with the given signer and default querier and
+// response processor.
 func NewDefaultIntroducer(s signature.Signer) Introducer {
 	return NewIntroducer(
 		s,
@@ -42,30 +47,34 @@ func NewDefaultIntroducer(s signature.Signer) Introducer {
 	)
 }
 
+// In
 func (i *introducer) Introduce(intro *Introduction, seeds []peer.Peer) error {
-	for _, seed := range seeds {
-		intro.Result.Unqueried[seed.ID().String()] = seed
+	for i, seed := range seeds {
+		// since we may be bootstrapping, these peers may not have IDs, so create our own
+		// (temporary) ID strings
+		seedIDStr := fmt.Sprintf("seed%02d", i)
+		intro.Result.Unqueried[seedIDStr] = seed
 	}
 
 	var wg sync.WaitGroup
 	for c := uint(0); c < intro.Params.Concurrency; c++ {
 		wg.Add(1)
-		go i.introductionWork(intro, &wg)
+		go i.introduceWork(intro, &wg)
 	}
 	wg.Wait()
 
 	return intro.Result.FatalErr
 }
 
-func (i *introducer) introductionWork(intro *Introduction, wg *sync.WaitGroup) {
+func (i *introducer) introduceWork(intro *Introduction, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for !intro.Finished() {
 
 		// get next peer to query
-		var nextIdStr string
+		var nextIDStr string
 		var next peer.Peer
-		intro.WrapLock(func() {
-			nextIdStr, next = getAny(intro.Result.Unqueried)
+		intro.wrapLock(func() {
+			nextIDStr, next = removeAny(intro.Result.Unqueried)
 		})
 		if _, err := next.Connector().Connect(); err != nil {
 			// if we have issues connecting, skip to next peer
@@ -76,21 +85,23 @@ func (i *introducer) introductionWork(intro *Introduction, wg *sync.WaitGroup) {
 		response, err := i.query(next.Connector(), intro)
 		if err != nil {
 			// if we had an issue querying, skip to next peer
-			intro.WrapLock(func() {
+			intro.wrapLock(func() {
 				intro.Result.NErrors++
+				next.Recorder().Record(peer.Response, peer.Error)
 			})
-			next.Recorder().Record(peer.Response, peer.Error)
 			continue
 		}
-		next.Recorder().Record(peer.Response, peer.Success)
+		intro.wrapLock(func() {
+			next.Recorder().Record(peer.Response, peer.Success)
+		})
 
 		// process the heap's response
-		intro.WrapLock(func() {
-			delete(intro.Result.Unqueried, nextIdStr)
+		intro.wrapLock(func() {
+			delete(intro.Result.Unqueried, nextIDStr)
 			err = i.repProcessor.Process(response, intro.Result)
 		})
 		if err != nil {
-			intro.WrapLock(func() {
+			intro.wrapLock(func() {
 				intro.Result.FatalErr = err
 			})
 			return
@@ -121,15 +132,18 @@ func (i *introducer) query(pConn peer.Connector, intro *Introduction) (*api.Intr
 }
 
 
-func getAny(m map[string]peer.Peer) (string, peer.Peer) {
+func removeAny(m map[string]peer.Peer) (string, peer.Peer) {
 	for k, v := range m {
+		delete(m, k)
 		return k, v
 	}
 	return "empty", nil
 }
 
-
+// ResponseProcessor handles an api.IntroduceResponse.
 type ResponseProcessor interface {
+	// Process handles an api.IntroduceResponse, adding the responder to the map of responded
+	// peers and newly discovered peers to the unqueried map.
 	Process(*api.IntroduceResponse, *Result) error
 }
 
@@ -137,6 +151,7 @@ type responseProcessor struct {
 	fromer peer.Fromer
 }
 
+// NewResponseProcessor creates a new ResponseProcessor with a given peer.Fromer.
 func NewResponseProcessor(f peer.Fromer) ResponseProcessor {
 	return &responseProcessor{fromer: f}
 }
@@ -150,12 +165,12 @@ func (irp *responseProcessor) Process(rp *api.IntroduceResponse, result *Result)
 
 	// add newly discovered peers to list of peers to query if they're not already there
 	for _, pa := range rp.Peers {
-		newIdStr := cid.FromBytes(pa.PeerId).String()
-		_, inResponded := result.Responded[newIdStr]
-		_, inUnqueried := result.Unqueried[newIdStr]
+		newIDStr := cid.FromBytes(pa.PeerId).String()
+		_, inResponded := result.Responded[newIDStr]
+		_, inUnqueried := result.Unqueried[newIDStr]
 		if !inResponded && !inUnqueried {
-			newPeer := irp.fromer.FromAPI(rp.Self)
-			result.Unqueried[newIdStr] = newPeer
+			newPeer := irp.fromer.FromAPI(pa)
+			result.Unqueried[newIDStr] = newPeer
 		}
 	}
 

@@ -34,13 +34,13 @@ func (c *TestFindQuerier) Query(ctx context.Context, pConn peer.Connector, rq *a
 // ID, allowing us to circumvent the creation of new peer.Peer and peer.Connector objects and use
 // existing test peers with their testConnector (mocking peer.Connector) values instead.
 type TestFromer struct {
-	peers map[string]peer.Peer
+	Peers map[string]peer.Peer
 }
 
 // FromAPI mocks creating a new peer.Peer instance, instead looking up an existing peer stored
 // in the TestFromer instance.
 func (f *TestFromer) FromAPI(apiAddress *api.PeerAddress) peer.Peer {
-	return f.peers[cid.FromBytes(apiAddress.PeerId).String()]
+	return f.Peers[cid.FromBytes(apiAddress.PeerId).String()]
 }
 
 // NewTestSearcher creates a new Searcher instance with a FindQuerier and FindResponseProcessor that
@@ -50,7 +50,7 @@ func NewTestSearcher(peersMap map[string]peer.Peer) Searcher {
 		&signature.TestNoOpSigner{},
 		&TestFindQuerier{},
 		&responseProcessor{
-			fromer: &TestFromer{peers: peersMap},
+			fromer: &TestFromer{Peers: peersMap},
 		},
 	)
 }
@@ -98,6 +98,7 @@ func NewTestPeers(rng *rand.Rand, n int) ([]peer.Peer, map[string]peer.Peer, []i
 		// create test connector with a test client that returns pre-determined set of
 		// addresses
 		conn := peer.TestConnector{
+			APISelf: api.FromAddress(ids[i], names[i], addresses[i]),
 			Addresses: connectedAddresses,
 		}
 		peers[i] = peer.New(ids[i], names[i], &conn)
