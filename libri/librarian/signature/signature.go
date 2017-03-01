@@ -12,6 +12,8 @@ import (
 	"github.com/gogo/protobuf/proto"
 )
 
+// TODO (drausin) move context stuff to librarian/client
+
 // ContextKey defines the signature key to a net Context.
 type ContextKey string
 
@@ -34,7 +36,6 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-
 }
 
 // Claims holds the claims associated with a message signature.

@@ -6,8 +6,6 @@ import (
 	"math/rand"
 	"testing"
 
-	"time"
-
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
@@ -21,13 +19,13 @@ import (
 
 func TestNewDefaultSearcher(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	s := NewDefaultSearcher(ecid.NewPseudoRandom(rng))
+	s := NewDefaultSearcher(signature.NewSigner(ecid.NewPseudoRandom(rng).Key()))
 	assert.NotNil(t, s.(*searcher).signer)
 	assert.NotNil(t, s.(*searcher).querier)
 	assert.NotNil(t, s.(*searcher).rp)
 }
 
-func TestSearcher_Search(t *testing.T) {
+func TestSearcher_Search_ok(t *testing.T) {
 	n, nClosestResponses := 32, uint(8)
 	rng := rand.New(rand.NewSource(int64(n)))
 	peers, peersMap, selfPeerIdxs, selfID := NewTestPeers(rng, n)
@@ -84,7 +82,7 @@ func TestSearcher_Search_connectorErr(t *testing.T) {
 	searcher, search, selfPeerIdxs, peers := newTestSearch()
 	for i, p := range peers {
 		// replace peer with connector that errors
-		peers[i] = peer.New(p.ID(), "", &TestErrConnector{})
+		peers[i] = peer.New(p.ID(), "", &peer.TestErrConnector{})
 	}
 
 	seeds := NewTestSeeds(peers, selfPeerIdxs)
@@ -172,47 +170,31 @@ func newTestSearch() (Searcher, *Search, []int, []peer.Peer) {
 	return searcher, search, selfPeerIdxs, peers
 }
 
-// fixedFinder returns a fixed set of peer addresses for all find requests
-type fixedQuerier struct {
-	peerID    ecid.ID
-	addresses []*api.PeerAddress
-}
+type noOpQuerier struct{}
 
-func (f *fixedQuerier) Query(ctx context.Context, pConn peer.Connector, fr *api.FindRequest,
+func (f *noOpQuerier) Query(ctx context.Context, pConn peer.Connector, fr *api.FindRequest,
 	opts ...grpc.CallOption) (*api.FindResponse, error) {
 	return &api.FindResponse{
 		Metadata: &api.ResponseMetadata{
 			RequestId: fr.Metadata.RequestId,
-			PubKey:    ecid.ToPublicKeyBytes(f.peerID),
 		},
-		Peers: f.addresses,
 	}, nil
 }
 
 func TestSearcher_query_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	nAddresses := 8
 	peerID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
-	search := NewSearch(peerID, key, &Parameters{
-		NClosestResponses: uint(nAddresses),
-		Timeout:           DefaultQueryTimeout,
-	})
+	search := NewSearch(peerID, key, &Parameters{})
 	s := &searcher{
-		signer: &TestNoOpSigner{},
-		// use querier that returns fixed set of addresses
-		querier: &fixedQuerier{
-			peerID:    peerID,
-			addresses: newPeerAddresses(rng, nAddresses),
-		},
-		rp: nil,
+		signer:  &signature.TestNoOpSigner{},
+		querier: &noOpQuerier{},
+		rp:      nil,
 	}
 	client := peer.NewConnector(nil) // won't actually be uses since we're mocking the finder
 
 	rp, err := s.query(client, search)
 	assert.Nil(t, err)
 	assert.NotNil(t, rp.Metadata.RequestId)
-	assert.NotNil(t, rp.Metadata.PubKey)
-	assert.Equal(t, nAddresses, len(rp.Peers))
 	assert.Nil(t, rp.Value)
 }
 
@@ -226,8 +208,7 @@ func (f *timeoutQuerier) Query(ctx context.Context, pConn peer.Connector, fr *ap
 
 // diffRequestIDFinder returns a response with a different request ID
 type diffRequestIDQuerier struct {
-	rng    *rand.Rand
-	peerID ecid.ID
+	rng *rand.Rand
 }
 
 func (f *diffRequestIDQuerier) Query(ctx context.Context, pConn peer.Connector,
@@ -235,7 +216,6 @@ func (f *diffRequestIDQuerier) Query(ctx context.Context, pConn peer.Connector,
 	return &api.FindResponse{
 		Metadata: &api.ResponseMetadata{
 			RequestId: cid.NewPseudoRandom(f.rng).Bytes(),
-			PubKey:    ecid.ToPublicKeyBytes(f.peerID),
 		},
 	}, nil
 }
@@ -244,12 +224,10 @@ func TestSearcher_query_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	client := peer.NewConnector(nil) // won't actually be used since we're mocking the finder
 	peerID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
-	search := NewSearch(peerID, key, &Parameters{
-		Timeout: DefaultQueryTimeout,
-	})
+	search := NewSearch(peerID, key, &Parameters{})
 
 	s1 := &searcher{
-		signer: &TestNoOpSigner{},
+		signer: &signature.TestNoOpSigner{},
 		// use querier that simulates a timeout
 		querier: &timeoutQuerier{},
 	}
@@ -258,11 +236,10 @@ func TestSearcher_query_err(t *testing.T) {
 	assert.NotNil(t, err)
 
 	s2 := &searcher{
-		signer: &TestNoOpSigner{},
+		signer: &signature.TestNoOpSigner{},
 		// use querier that simulates a different request ID
 		querier: &diffRequestIDQuerier{
-			rng:    rng,
-			peerID: peerID,
+			rng: rng,
 		},
 	}
 	rp2, err := s2.query(client, search)
@@ -270,7 +247,7 @@ func TestSearcher_query_err(t *testing.T) {
 	assert.NotNil(t, err)
 
 	s3 := &searcher{
-		signer: &TestErrSigner{},
+		signer: &signature.TestErrSigner{},
 	}
 	rp3, err := s3.query(client, search)
 	assert.Nil(t, rp3)
@@ -359,46 +336,6 @@ func TestResponseProcessor_Process_err(t *testing.T) {
 	err := rp.Process(response2, result)
 	assert.NotNil(t, err)
 }
-
-func TestNewSignedTimeoutContext_ok(t *testing.T) {
-	rng := rand.New(rand.NewSource(int64(0)))
-	ctx, cancel, err := NewSignedTimeoutContext(
-		&TestNoOpSigner{},
-		api.NewFindRequest(ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng), 20),
-		5*time.Second,
-	)
-	assert.NotNil(t, ctx)
-	assert.NotNil(t, ctx.Value(signature.NewContextKey()))
-	assert.NotNil(t, cancel)
-	assert.Nil(t, err)
-}
-
-func TestNewSignedTimeoutContext_err(t *testing.T) {
-	rng := rand.New(rand.NewSource(int64(0)))
-	ctx, cancel, err := NewSignedTimeoutContext(
-		&TestErrSigner{},
-		api.NewFindRequest(ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng), 20),
-		5*time.Second,
-	)
-	assert.Nil(t, ctx)
-	assert.NotNil(t, cancel)
-	assert.NotNil(t, err)
-}
-
-func TestQuerier_Query_err(t *testing.T) {
-	c := &TestErrConnector{}
-	q := NewQuerier()
-
-	// check that error from c.Connect() surfaces to q.Query(...)
-	_, err := q.Query(nil, c, nil, nil)
-	assert.NotNil(t, err)
-}
-
-// Explanation: ideally would have unit test like this, but mocking an api.LibrarianClient is
-// annoying b/c there are so many service methods. Will have to rely on integration tests to cover
-// this branch.
-//
-// func TestQuerier_Query_ok(t *testing.T) {}
 
 func newPeerAddresses(rng *rand.Rand, n int) []*api.PeerAddress {
 	peerAddresses := make([]*api.PeerAddress, n)

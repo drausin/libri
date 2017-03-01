@@ -9,6 +9,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	ssearch "github.com/drausin/libri/libri/librarian/server/search"
+	"github.com/drausin/libri/libri/librarian/signature"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
@@ -43,7 +44,7 @@ func NewTestStorer(peerID ecid.ID, peersMap map[string]peer.Peer) Storer {
 	return &storer{
 		searcher: ssearch.NewTestSearcher(peersMap),
 		querier:  &TestStoreQuerier{peerID: peerID},
-		signer:   &ssearch.TestNoOpSigner{},
+		signer:   &signature.TestNoOpSigner{},
 	}
 }
 
@@ -109,7 +110,7 @@ func TestStorer_Store_connectorErr(t *testing.T) {
 	// define fixed closest peers in search result, used by mocked searcher
 	fixed := ssearch.NewInitialResult(key, store.Search.Params)
 	for c := uint(0); c < store.Search.Params.NClosestResponses; c++ {
-		badPeer := peer.New(peers[c].ID(), "", &ssearch.TestErrConnector{})
+		badPeer := peer.New(peers[c].ID(), "", &peer.TestErrConnector{})
 		err := fixed.Closest.SafePush(badPeer)
 		assert.Nil(t, err)
 	}
@@ -233,7 +234,7 @@ func TestStorer_query_err(t *testing.T) {
 	store := NewStore(selfID, search, value, &Parameters{})
 
 	s1 := &storer{
-		signer: &ssearch.TestNoOpSigner{},
+		signer: &signature.TestNoOpSigner{},
 		// use querier that simulates a timeout
 		querier: &timeoutQuerier{},
 	}
@@ -242,7 +243,7 @@ func TestStorer_query_err(t *testing.T) {
 	assert.NotNil(t, err)
 
 	s2 := &storer{
-		signer: &ssearch.TestNoOpSigner{},
+		signer: &signature.TestNoOpSigner{},
 		// use querier that simulates a different request ID
 		querier: &diffRequestIDQuerier{
 			rng:    rng,
@@ -255,24 +256,9 @@ func TestStorer_query_err(t *testing.T) {
 
 	s3 := &storer{
 		// use signer that returns an error
-		signer: &ssearch.TestErrSigner{},
+		signer: &signature.TestErrSigner{},
 	}
 	rp3, err := s3.query(client, store)
 	assert.Nil(t, rp3)
 	assert.NotNil(t, err)
 }
-
-func TestQuerier_Query_err(t *testing.T) {
-	c := &ssearch.TestErrConnector{}
-	q := NewQuerier()
-
-	// check that error from c.Connect() surfaces to q.Query(...)
-	_, err := q.Query(nil, c, nil, nil)
-	assert.NotNil(t, err)
-}
-
-// Explanation: ideally would have unit test like this, but mocking an api.LibrarianClient is
-// annoying b/c there are so many service methods. Will have to rely on integration tests to cover
-// this branch.
-//
-// func TestQuerier_Query_ok(t *testing.T) {}

@@ -8,7 +8,8 @@ import (
 )
 
 var (
-	defaultRPCAddr    = &net.TCPAddr{IP: net.ParseIP("0.0.0.0"), Port: 11000}
+	defaultRPCIP      = net.ParseIP("0.0.0.0") // localhost
+	defaultRPCPort    = 11000
 	defaultDataSubdir = "data"
 	defaultDbSubDir   = "db"
 )
@@ -36,12 +37,14 @@ type Config struct {
 	// the RPCAddr is unspecified "0.0.0.0:8300", but this address must be
 	// reachable
 	RPCPublicAddr *net.TCPAddr
+
+	// BootstrapAddrs is a list of peer addresses to initially introduce oneself to.
+	BootstrapAddrs []*net.TCPAddr
 }
 
 // DefaultConfig returns a reasonable default server configuration.
-func DefaultConfig() *Config {
-	ni := uint8(0)
-	lnn := localNodeName(ni)
+func DefaultConfig(nodeIndex uint8) *Config {
+	lnn := localNodeName(nodeIndex)
 	nn, err := nodeName(lnn)
 	if err != nil {
 		panic(err)
@@ -52,12 +55,18 @@ func DefaultConfig() *Config {
 	}
 	dbdir := dbDir(ddir, lnn)
 
+	rpcAddr := &net.TCPAddr{
+		IP:   defaultRPCIP,
+		Port: defaultRPCPort + int(nodeIndex),
+	}
 	return &Config{
-		NodeIndex:     ni,
+		NodeIndex:     nodeIndex,
 		PeerName:      nn,
 		DataDir:       ddir,
 		DbDir:         dbdir,
-		RPCPublicAddr: defaultRPCAddr,
+		RPCPublicAddr: rpcAddr,
+		RPCLocalAddr:  rpcAddr,
+		BootstrapAddrs: make([]*net.TCPAddr, 0),
 	}
 }
 

@@ -13,6 +13,15 @@ func NewRequestMetadata(peerID ecid.ID) *RequestMetadata {
 	}
 }
 
+// NewIntroduceRequest creates an IntroduceRequest object.
+func NewIntroduceRequest(peerID ecid.ID, apiSelf *PeerAddress, nPeers uint) *IntroduceRequest {
+	return &IntroduceRequest{
+		Metadata: NewRequestMetadata(peerID),
+		Self:     apiSelf,
+		NumPeers: uint32(nPeers),
+	}
+}
+
 // NewFindRequest creates a FindRequest object.
 func NewFindRequest(peerID ecid.ID, key cid.ID, nPeers uint) *FindRequest {
 	return &FindRequest{

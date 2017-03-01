@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	lib, err := server.NewLibrarian(server.DefaultConfig())
+	lib, err := server.NewLibrarian(server.DefaultConfig(0))
 	if err != nil {
 		log.Fatalf("failed to initialize: %v", err)
 	}

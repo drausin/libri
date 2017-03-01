@@ -11,9 +11,6 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/routing"
 )
 
-// Type indicates a type of search.
-type Type int
-
 var (
 	// DefaultNMaxErrors is the maximum number of errors tolerated during a search.
 	DefaultNMaxErrors = uint(3)
@@ -52,7 +49,7 @@ func NewParameters() *Parameters {
 
 // Result holds search's (intermediate) result: collections of peers and possibly the value.
 type Result struct {
-	// found value when searchType = Value, otherwise nil
+	// found value when looking for one, otherwise nil
 	Value []byte
 
 	// heap of the responding peers found closest to the target
@@ -64,7 +61,7 @@ type Result struct {
 	// map of all peers that responded during search
 	Responded map[string]peer.Peer
 
-	// number of errors encounters while querying peers
+	// number of errors encountered while querying peers
 	NErrors uint
 
 	// fatal error that occurred during the search

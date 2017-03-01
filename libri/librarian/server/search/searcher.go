@@ -6,17 +6,12 @@ import (
 	"fmt"
 	"sync"
 
-	"time"
-
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/drausin/libri/libri/librarian/server/ecid"
+	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/signature"
-	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 )
 
 // Searcher executes searches for particular keys.
@@ -30,22 +25,22 @@ type searcher struct {
 	signer signature.Signer
 
 	// issues find queries to the peers
-	querier Querier
+	querier client.FindQuerier
 
 	// processes the find query responses from the peers
-	rp FindResponseProcessor
+	rp ResponseProcessor
 }
 
 // NewSearcher returns a new Searcher with the given Querier and ResponseProcessor.
-func NewSearcher(s signature.Signer, q Querier, rp FindResponseProcessor) Searcher {
+func NewSearcher(s signature.Signer, q client.FindQuerier, rp ResponseProcessor) Searcher {
 	return &searcher{signer: s, querier: q, rp: rp}
 }
 
 // NewDefaultSearcher creates a new Searcher with default sub-object instantiations.
-func NewDefaultSearcher(peerID ecid.ID) Searcher {
+func NewDefaultSearcher(signer signature.Signer) Searcher {
 	return NewSearcher(
-		signature.NewSigner(peerID.Key()),
-		NewQuerier(),
+		signer,
+		client.NewFindQuerier(),
 		NewResponseProcessor(peer.NewFromer()),
 	)
 }
@@ -125,7 +120,8 @@ func (s *searcher) searchWork(search *Search, wg *sync.WaitGroup) {
 }
 
 func (s *searcher) query(pConn peer.Connector, search *Search) (*api.FindResponse, error) {
-	ctx, cancel, err := NewSignedTimeoutContext(s.signer, search.Request, search.Params.Timeout)
+	ctx, cancel, err := client.NewSignedTimeoutContext(s.signer, search.Request,
+		search.Params.Timeout)
 	defer cancel()
 	if err != nil {
 		return nil, err
@@ -143,66 +139,24 @@ func (s *searcher) query(pConn peer.Connector, search *Search) (*api.FindRespons
 	return rp, nil
 }
 
-// NewSignedTimeoutContext creates a new context with a timeout and request signature.
-func NewSignedTimeoutContext(signer signature.Signer, request proto.Message,
-	timeout time.Duration) (context.Context, context.CancelFunc, error) {
-	ctx := context.Background()
-
-	// sign the message
-	signedJWT, err := signer.Sign(request)
-	if err != nil {
-		return nil, func() {}, err
-	}
-	ctx = context.WithValue(ctx, signature.NewContextKey(), signedJWT)
-
-	// add timeout
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-
-	return ctx, cancel, nil
-}
-
-// Querier handles Find queries to a peer.
-type Querier interface {
-	// Query uses a peer connection to query for a particular key with an api.FindRequest and
-	// returns its response.
-	Query(ctx context.Context, pConn peer.Connector, rq *api.FindRequest,
-		opts ...grpc.CallOption) (*api.FindResponse, error)
-}
-
-type querier struct{}
-
-// NewQuerier creates a new FindQuerier instance for FindPeers queries.
-func NewQuerier() Querier {
-	return &querier{}
-}
-
-func (q *querier) Query(ctx context.Context, pConn peer.Connector, rq *api.FindRequest,
-	opts ...grpc.CallOption) (*api.FindResponse, error) {
-	client, err := pConn.Connect() // *should* be already connected, but do here just in case
-	if err != nil {
-		return nil, err
-	}
-	return client.Find(ctx, rq, opts...)
-}
-
-// FindResponseProcessor handles an api.FindResponse
-type FindResponseProcessor interface {
+// ResponseProcessor handles an api.FindResponse
+type ResponseProcessor interface {
 	// Process handles an api.FindResponse, adding newly discovered peers to the unqueried
 	// ClosestPeers heap.
 	Process(*api.FindResponse, *Result) error
 }
 
-type findResponseProcessor struct {
-	peerFromer peer.Fromer
+type responseProcessor struct {
+	fromer peer.Fromer
 }
 
 // NewResponseProcessor creates a new ResponseProcessor instance.
-func NewResponseProcessor(peerFromer peer.Fromer) FindResponseProcessor {
-	return &findResponseProcessor{peerFromer: peerFromer}
+func NewResponseProcessor(f peer.Fromer) ResponseProcessor {
+	return &responseProcessor{fromer: f}
 }
 
 // Process processes an api.FindResponse, updating the result with the newly found peers.
-func (frp *findResponseProcessor) Process(rp *api.FindResponse, result *Result) error {
+func (frp *responseProcessor) Process(rp *api.FindResponse, result *Result) error {
 	if rp.Value != nil {
 		// response has value we're searching for
 		result.Value = rp.Value
@@ -215,7 +169,7 @@ func (frp *findResponseProcessor) Process(rp *api.FindResponse, result *Result) 
 			newID := cid.FromBytes(pa.PeerId)
 			if !result.Closest.In(newID) && !result.Unqueried.In(newID) {
 				// only add discovered peers that we haven't already seen
-				newPeer := frp.peerFromer.FromAPI(pa)
+				newPeer := frp.fromer.FromAPI(pa)
 				if err := result.Unqueried.SafePush(newPeer); err != nil {
 					return err
 				}

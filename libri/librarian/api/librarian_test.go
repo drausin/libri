@@ -21,6 +21,16 @@ func TestNewRequestMetadata(t *testing.T) {
 	assert.Equal(t, &peerID.Key().PublicKey, pub)
 }
 
+func TestNewIntroduceRequest(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	selfID, nPeers := ecid.NewPseudoRandom(rng), uint(8)
+
+	rq := NewIntroduceRequest(selfID, &PeerAddress{}, nPeers)
+	assert.NotNil(t, rq.Metadata)
+	assert.NotNil(t, rq.Self)
+	assert.Equal(t, uint32(nPeers), rq.NumPeers)
+}
+
 func TestNewFindRequest(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	peerID, key, nPeers := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng), uint(8)

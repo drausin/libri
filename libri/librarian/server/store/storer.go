@@ -6,12 +6,11 @@ import (
 	"sync"
 
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/signature"
-	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 )
 
 // Storer executes store operations.
@@ -28,11 +27,11 @@ type storer struct {
 	searcher search.Searcher
 
 	// issues store queries to the peers
-	querier Querier
+	querier client.StoreQuerier
 }
 
 // NewStorer creates a new Storer instance with given Searcher and StoreQuerier instances.
-func NewStorer(signer signature.Signer, searcher search.Searcher, q Querier) Storer {
+func NewStorer(signer signature.Signer, searcher search.Searcher, q client.StoreQuerier) Storer {
 	return &storer{
 		signer:   signer,
 		searcher: searcher,
@@ -42,10 +41,11 @@ func NewStorer(signer signature.Signer, searcher search.Searcher, q Querier) Sto
 
 // NewDefaultStorer creates a new Storer with default Searcher and StoreQuerier instances.
 func NewDefaultStorer(peerID ecid.ID) Storer {
+	signer := signature.NewSigner(peerID.Key())
 	return NewStorer(
-		signature.NewSigner(peerID.Key()),
-		search.NewDefaultSearcher(peerID),
-		NewQuerier(),
+		signer,
+		search.NewDefaultSearcher(signer),
+		client.NewStoreQuerier(),
 	)
 }
 
@@ -93,11 +93,13 @@ func (s *storer) storeWork(store *Store, wg *sync.WaitGroup) {
 			// if we had an issue querying, skip to next peer
 			store.mu.Lock()
 			store.Result.NErrors++
-			store.mu.Unlock()
 			next.Recorder().Record(peer.Response, peer.Error)
+			store.mu.Unlock()
 			continue
 		}
+		store.mu.Lock()
 		next.Recorder().Record(peer.Response, peer.Success)
+		store.mu.Unlock()
 
 		// add to slice of responded peers
 		store.mu.Lock()
@@ -107,7 +109,7 @@ func (s *storer) storeWork(store *Store, wg *sync.WaitGroup) {
 }
 
 func (s *storer) query(pConn peer.Connector, store *Store) (*api.StoreResponse, error) {
-	ctx, cancel, err := search.NewSignedTimeoutContext(s.signer, store.Request,
+	ctx, cancel, err := client.NewSignedTimeoutContext(s.signer, store.Request,
 		store.Params.Timeout)
 	defer cancel()
 	if err != nil {
@@ -124,27 +126,4 @@ func (s *storer) query(pConn peer.Connector, store *Store) (*api.StoreResponse, 
 	}
 
 	return rp, nil
-}
-
-// Querier handle Store queries to a peer
-type Querier interface {
-	// Query uses a peer connection to make a store request.
-	Query(ctx context.Context, pConn peer.Connector, rq *api.StoreRequest,
-		opts ...grpc.CallOption) (*api.StoreResponse, error)
-}
-
-type querier struct{}
-
-// NewQuerier creates a new Querier instance for Store queries.
-func NewQuerier() Querier {
-	return &querier{}
-}
-
-func (q *querier) Query(ctx context.Context, pConn peer.Connector, rq *api.StoreRequest,
-	opts ...grpc.CallOption) (*api.StoreResponse, error) {
-	client, err := pConn.Connect() // *should* be already connected, but do here just in case
-	if err != nil {
-		return nil, err
-	}
-	return client.Store(ctx, rq, opts...)
 }

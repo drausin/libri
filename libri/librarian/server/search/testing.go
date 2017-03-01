@@ -5,62 +5,14 @@ import (
 	"math/rand"
 	"net"
 
-	"errors"
-
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
-	"github.com/gogo/protobuf/proto"
+	"github.com/drausin/libri/libri/librarian/signature"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
-
-// TestNoOpSigner implements the signature.Signer interface but just returns a dummy token.
-type TestNoOpSigner struct{}
-
-// Sign returns a dummy token.
-func (s *TestNoOpSigner) Sign(m proto.Message) (string, error) {
-	return "noop.token.sig", nil
-}
-
-// TestErrSigner implements the signature.Signer interface but always returns an error.
-type TestErrSigner struct{}
-
-// Sign returns an error.
-func (s *TestErrSigner) Sign(m proto.Message) (string, error) {
-	return "", errors.New("some sign error")
-}
-
-// TestConnector mocks the peer.Connector interface. The Connect() method returns a fixed client
-// instead of creating one from the peer's address.
-type TestConnector struct {
-	addresses []*api.PeerAddress
-}
-
-// Connect is a no-op stub to satisfy the interface's signature.
-func (c *TestConnector) Connect() (api.LibrarianClient, error) {
-	return nil, nil
-}
-
-// Disconnect is a no-op stub to satisfy the interface's signature.
-func (c *TestConnector) Disconnect() error {
-	return nil
-}
-
-// TestErrConnector mocks the peer.Connector interface. The Connect() methods always returns an
-// error.
-type TestErrConnector struct{}
-
-// Connect is stub that always returns an error.
-func (ec *TestErrConnector) Connect() (api.LibrarianClient, error) {
-	return nil, errors.New("some connect error")
-}
-
-// Disconnect is a no-op stub to satisfy the interface's signature.
-func (ec *TestErrConnector) Disconnect() error {
-	return nil
-}
 
 // TestFindQuerier mocks the FindQuerier interface. The Query() method returns a fixed
 // api.FindPeersResponse, derived from a list of addresses in the client.
@@ -74,7 +26,7 @@ func (c *TestFindQuerier) Query(ctx context.Context, pConn peer.Connector, rq *a
 		Metadata: &api.ResponseMetadata{
 			RequestId: rq.Metadata.RequestId,
 		},
-		Peers: pConn.(*TestConnector).addresses,
+		Peers: pConn.(*peer.TestConnector).Addresses,
 	}, nil
 }
 
@@ -82,23 +34,23 @@ func (c *TestFindQuerier) Query(ctx context.Context, pConn peer.Connector, rq *a
 // ID, allowing us to circumvent the creation of new peer.Peer and peer.Connector objects and use
 // existing test peers with their testConnector (mocking peer.Connector) values instead.
 type TestFromer struct {
-	peers map[string]peer.Peer
+	Peers map[string]peer.Peer
 }
 
 // FromAPI mocks creating a new peer.Peer instance, instead looking up an existing peer stored
 // in the TestFromer instance.
 func (f *TestFromer) FromAPI(apiAddress *api.PeerAddress) peer.Peer {
-	return f.peers[cid.FromBytes(apiAddress.PeerId).String()]
+	return f.Peers[cid.FromBytes(apiAddress.PeerId).String()]
 }
 
 // NewTestSearcher creates a new Searcher instance with a FindQuerier and FindResponseProcessor that
 // each just return fixed addresses and peers, respectively.
 func NewTestSearcher(peersMap map[string]peer.Peer) Searcher {
 	return NewSearcher(
-		&TestNoOpSigner{},
+		&signature.TestNoOpSigner{},
 		&TestFindQuerier{},
-		&findResponseProcessor{
-			peerFromer: &TestFromer{peers: peersMap},
+		&responseProcessor{
+			fromer: &TestFromer{Peers: peersMap},
 		},
 	)
 }
@@ -145,8 +97,9 @@ func NewTestPeers(rng *rand.Rand, n int) ([]peer.Peer, map[string]peer.Peer, []i
 
 		// create test connector with a test client that returns pre-determined set of
 		// addresses
-		conn := TestConnector{
-			addresses: connectedAddresses,
+		conn := peer.TestConnector{
+			APISelf:   api.FromAddress(ids[i], names[i], addresses[i]),
+			Addresses: connectedAddresses,
 		}
 		peers[i] = peer.New(ids[i], names[i], &conn)
 		peersMap[ids[i].String()] = peers[i]
