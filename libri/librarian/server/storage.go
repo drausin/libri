@@ -8,15 +8,20 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/storage"
 	"github.com/gogo/protobuf/proto"
+	"go.uber.org/zap"
 )
 
 var (
+	// logger keys
+	LoggerPeerID = "peerId"
+
 	peerIDKey = []byte("PeerID")
 )
 
-func loadOrCreatePeerID(nl storage.NamespaceLoader) (ecid.ID, error) {
+func loadOrCreatePeerID(nl storage.NamespaceLoader, logger *zap.Logger) (ecid.ID, error) {
 	bytes, err := nl.Load(peerIDKey)
 	if err != nil {
+		logger.Error("error loading peer ID", zap.Error(err))
 		return nil, err
 	}
 
@@ -26,11 +31,20 @@ func loadOrCreatePeerID(nl storage.NamespaceLoader) (ecid.ID, error) {
 		if err := proto.Unmarshal(bytes, stored); err != nil {
 			return nil, err
 		}
-		return ecid.FromStored(stored)
+		peerID, err := ecid.FromStored(stored)
+		if err != nil {
+			logger.Error("error deserializing peer ID keys", zap.Error(err))
+			return nil, err
+		}
+		logger.Info("loaded exsting peer ID", zap.String(LoggerPeerID, peerID.String()))
+		return peerID, nil
 	}
 
 	// return new PeerID
-	return ecid.NewRandom(), nil
+	peerID := ecid.NewRandom()
+	logger.Info("created new peer ID", zap.String(LoggerPeerID, peerID.String()))
+	return peerID, nil
+
 }
 
 func savePeerID(ns storage.NamespaceStorer, peerID ecid.ID) error {

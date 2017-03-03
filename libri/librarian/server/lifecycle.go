@@ -1,9 +1,7 @@
 package server
 
 import (
-	"errors"
 	"fmt"
-	"log"
 	"net"
 	"os"
 
@@ -12,14 +10,21 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	"go.uber.org/zap"
+	"github.com/pkg/errors"
 )
+
+var (
+	LoggerPortKey = "port"
+)
+
+
 
 // Start is the entry point for a Librarian server. It bootstraps peers for the Librarians's
 // routing table and then begins listening for and handling requests.
-func Start(config *Config) error {
-
+func Start(config *Config, logger *zap.Logger) error {
 	// create librarian
-	l, err := NewLibrarian(config)
+	l, err := NewLibrarian(config, logger)
 	if err != nil {
 		return err
 	}
@@ -30,7 +35,9 @@ func Start(config *Config) error {
 	}
 
 	// start main listening thread
-	l.listenAndServe()
+	if err := l.listenAndServe(); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -39,10 +46,13 @@ func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
 	intro := introduce.NewIntroduction(l.SelfID, l.apiSelf, introduce.NewDefaultParameters())
 	err := l.introducer.Introduce(intro, makeBootstrapPeers(bootstrapAddrs))
 	if err != nil {
-		return fmt.Errorf("encountered fatal error while bootsrapping: %v", err)
+		l.logger.Error("encountered fatal error while bootsrapping", zap.Error(err))
+		return err
 	}
 	if len(intro.Result.Responded) == 0 {
-		return errors.New("failed to bootstrap any other peers -> exiting")
+		err := errors.New("failed to bootstrap any other peers")
+		l.logger.Error("failed to bootstrap any other peers")
+		return err
 	}
 
 	// add bootstrapped peers to routing table
@@ -61,18 +71,23 @@ func makeBootstrapPeers(bootstrapAddrs []*net.TCPAddr) []peer.Peer {
 	return peers
 }
 
-func (l *Librarian) listenAndServe() {
+func (l *Librarian) listenAndServe() error {
 	lis, err := net.Listen("tcp", l.Config.LocalAddr.String())
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		l.logger.Error("failed to listen", zap.Error(err))
+		return err
 	}
 
 	s := grpc.NewServer()
 	api.RegisterLibrarianServer(s, l)
 	reflection.Register(s)
+
+	l.logger.Info("listening for requests", zap.Int(LoggerPortKey, l.Config.LocalAddr.Port))
 	if err := s.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+		l.logger.Error("failed to serve", zap.Error(err))
+		return nil
 	}
+	return nil
 }
 
 // Close handles cleanup involved in closing down the server.

@@ -18,6 +18,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/signature"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
+	"go.uber.org/zap"
 )
 
 // Librarian is the main service of a single peer in the peer to peer network.
@@ -67,19 +68,23 @@ type Librarian struct {
 
 	// routing table of peers
 	rt routing.Table
+
+	// logger for this instance
+	logger *zap.Logger
 }
 
 // NewLibrarian creates a new librarian instance.
-func NewLibrarian(config *Config) (*Librarian, error) {
+func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 	rdb, err := db.NewRocksDB(config.DbDir)
 	if err != nil {
+		logger.Error("unable to init RocksDB", zap.Error(err))
 		return nil, err
 	}
 	serverSL := storage.NewServerKVDBStorerLoader(rdb)
 	entriesSL := storage.NewEntriesKVDBStorerLoader(rdb)
 
 	// get peer ID and immediately save it so subsequent restarts have it
-	peerID, err := loadOrCreatePeerID(serverSL)
+	peerID, err := loadOrCreatePeerID(serverSL, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +103,7 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 	return &Librarian{
 		SelfID:     peerID,
 		Config:     config,
-		apiSelf:    api.FromAddress(peerID.ID(), config.PeerName, config.PublicAddr),
+		apiSelf:    api.FromAddress(peerID.ID(), config.PublicName, config.PublicAddr),
 		introducer: introduce.NewDefaultIntroducer(signer),
 		searcher:   searcher,
 		storer:     store.NewStorer(signer, searcher, client.NewStoreQuerier()),
@@ -111,6 +116,7 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 		fromer:     peer.NewFromer(),
 		signer:     signer,
 		rt:         rt,
+		logger: logger,
 	}, nil
 }
 

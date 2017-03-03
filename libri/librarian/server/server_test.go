@@ -80,7 +80,7 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 
 	lib := &Librarian{
 		Config: &Config{
-			PeerName:     peerName,
+			PublicName:     peerName,
 			LocalAddr: publicAddr,
 		},
 		apiSelf: api.FromAddress(serverID.ID(), peerName, publicAddr),

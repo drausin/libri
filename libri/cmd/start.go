@@ -1,21 +1,25 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
 	"github.com/drausin/libri/libri/librarian/server"
-	"net"
+	"github.com/spf13/cobra"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"os"
 )
 
 // flags set below
 var (
-	peerName   string
-	localName  string
-	dataDir    string
-	dbDir      string
-	localIP    string
-	localPort  int
-	publicIP   string
-	publicPort int
+	localIP        string
+	localPort      int
+	publicIP       string
+	publicPort     int
+	localName      string
+	publicName     string
+	dataDir        string
+	dbDir          string
+	bootstrapAddrs []string
+	logLevel       string
 )
 
 // startLibrarianCmd represents the librarian start command
@@ -24,39 +28,67 @@ var startLibrarianCmd = &cobra.Command{
 	Short: "start a librarian server",
 	Long:  `TODO (drausin) add longer description and examples here`,
 	Run: func(cmd *cobra.Command, args []string) {
-		server.Start(getConfig())
+		config, logger, err := getConfig()
+		if err != nil {
+			os.Exit(1)
+		}
+		if err = server.Start(config, logger); err != nil {
+			os.Exit(1)
+		}
 	},
 }
 
 func init() {
 	librarianCmd.AddCommand(startLibrarianCmd)
 
-	startLibrarianCmd.Flags().StringVarP(&peerName, "peer-name", "n", "",
-		"public peer name")
+	startLibrarianCmd.Flags().StringVarP(&localIP, "local-ip", "i", server.DefaultIP,
+		"local IPv4 address")
+	startLibrarianCmd.Flags().IntVarP(&localPort, "local-port", "p", server.DefaultPort,
+		"local port")
+	startLibrarianCmd.Flags().StringVarP(&publicIP, "public-ip", "j", server.DefaultIP,
+		"public IPv4 address")
+	startLibrarianCmd.Flags().IntVarP(&publicPort, "public-port", "q", server.DefaultPort,
+		"public port")
 	startLibrarianCmd.Flags().StringVarP(&localName, "local-name", "l", "",
 		"local peer name")
+	startLibrarianCmd.Flags().StringVarP(&publicName, "public-name", "n", "",
+		"public peer name")
 	startLibrarianCmd.Flags().StringVarP(&dataDir, "data-dir", "d", "",
 		"local data directory")
 	startLibrarianCmd.Flags().StringVarP(&dbDir, "db-dir", "b", "",
 		"local DB directory")
+	startLibrarianCmd.Flags().StringArrayVarP(&bootstrapAddrs, "boostrap-addrs", "a", nil,
+		"comma-separated addresses (IPv4:Port) of bootstrap peers")
+	startLibrarianCmd.Flags().StringVarP(&logLevel, "log-level", "v", zap.InfoLevel.String(),
+		"log level")
 
-	startLibrarianCmd.Flags().StringVarP(&localIP, "local-ip", "i", server.DefaultIP,
-		"local IP address")
-	startLibrarianCmd.Flags().IntVarP(&localPort, "local-port", "p", server.DefaultPort,
-		"local port")
-	startLibrarianCmd.Flags().StringVarP(&publicIP, "public-ip", "j", server.DefaultIP,
-		"public IP address")
-	startLibrarianCmd.Flags().IntVarP(&publicPort, "public-port", "q", server.DefaultPort,
-		"public port")
 }
 
-func getConfig() *server.Config {
-	return &server.Config{
-		PeerName: peerName,
-		LocalName: localName,
-		DataDir: dataDir,
-		DbDir: dbDir,
-		LocalAddr: &net.TCPAddr{IP: server.ParseIP(localIP), Port: localPort},
-		PublicAddr: &net.TCPAddr{IP: server.ParseIP(publicIP), Port: publicPort},
+func getConfig() (*server.Config, *zap.Logger, error) {
+	config := server.DefaultConfig()
+
+	config.WithLocalAddr(server.ParseAddr(localIP, localPort))
+	config.WithPublicAddr(server.ParseAddr(publicIP, publicPort))
+	config.WithLocalName(localName)
+	config.WithPublicName(publicName)
+	config.WithDataDir(dataDir)
+	config.WithDBDir(dbDir)
+	config.WithLogLevel(getLogLevel())
+	logger := server.NewDevelopmentLogger(config.LogLevel)
+
+	bootstrapNetAddrs, err := server.ParseAddrs(bootstrapAddrs)
+	if err != nil {
+		logger.Error("unable to parse bootstrap peer address", zap.Error(err))
+		return nil, logger, err
+
 	}
+	config.WithBootstrapAddrs(bootstrapNetAddrs)
+
+	return config, logger, nil
+}
+
+func getLogLevel() zapcore.Level {
+	var ll zapcore.Level
+	ll.Set(logLevel)
+	return ll
 }
