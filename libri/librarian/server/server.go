@@ -98,7 +98,7 @@ func NewLibrarian(config *Config) (*Librarian, error) {
 	return &Librarian{
 		SelfID:     peerID,
 		Config:     config,
-		apiSelf:    api.FromAddress(peerID.ID(), config.PeerName, config.RPCPublicAddr),
+		apiSelf:    api.FromAddress(peerID.ID(), config.PeerName, config.PublicAddr),
 		introducer: introduce.NewDefaultIntroducer(signer),
 		searcher:   searcher,
 		storer:     store.NewStorer(signer, searcher, client.NewStoreQuerier()),

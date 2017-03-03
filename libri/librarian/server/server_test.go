@@ -39,12 +39,12 @@ func TestNewLibrarian(t *testing.T) {
 }
 
 func newTestLibrarian() *Librarian {
-	config := DefaultConfig(0)
+	config := DefaultConfig()
 	dir, err := ioutil.TempDir("", "test-data-dir")
 	if err != nil {
 		panic(err)
 	}
-	config.SetDataDir(dir)
+	config.WithDataDir(dir)
 
 	l, err := NewLibrarian(config)
 	if err != nil {
@@ -81,7 +81,7 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 	lib := &Librarian{
 		Config: &Config{
 			PeerName:     peerName,
-			RPCLocalAddr: publicAddr,
+			LocalAddr: publicAddr,
 		},
 		apiSelf: api.FromAddress(serverID.ID(), peerName, publicAddr),
 		fromer:  peer.NewFromer(),

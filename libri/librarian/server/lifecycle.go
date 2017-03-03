@@ -62,7 +62,7 @@ func makeBootstrapPeers(bootstrapAddrs []*net.TCPAddr) []peer.Peer {
 }
 
 func (l *Librarian) listenAndServe() {
-	lis, err := net.Listen("tcp", l.Config.RPCLocalAddr.String())
+	lis, err := net.Listen("tcp", l.Config.LocalAddr.String())
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}

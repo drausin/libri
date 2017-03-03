@@ -1,52 +1,62 @@
-// Copyright © 2017 NAME HERE <EMAIL ADDRESS>
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
+	"github.com/drausin/libri/libri/librarian/server"
+	"net"
 )
 
-// startCmd represents the start command
-var startCmd = &cobra.Command{
-	Use:   "start",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+// flags set below
+var (
+	peerName   string
+	localName  string
+	dataDir    string
+	dbDir      string
+	localIP    string
+	localPort  int
+	publicIP   string
+	publicPort int
+)
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+// startLibrarianCmd represents the librarian start command
+var startLibrarianCmd = &cobra.Command{
+	Use:   "start",
+	Short: "start a librarian server",
+	Long:  `TODO (drausin) add longer description and examples here`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// TODO: Work your own magic here
-		fmt.Println("start called")
+		server.Start(getConfig())
 	},
 }
 
 func init() {
-	librarianCmd.AddCommand(startCmd)
+	librarianCmd.AddCommand(startLibrarianCmd)
 
-	// Here you will define your flags and configuration settings.
+	startLibrarianCmd.Flags().StringVarP(&peerName, "peer-name", "n", "",
+		"public peer name")
+	startLibrarianCmd.Flags().StringVarP(&localName, "local-name", "l", "",
+		"local peer name")
+	startLibrarianCmd.Flags().StringVarP(&dataDir, "data-dir", "d", "",
+		"local data directory")
+	startLibrarianCmd.Flags().StringVarP(&dbDir, "db-dir", "b", "",
+		"local DB directory")
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// startCmd.PersistentFlags().String("foo", "", "A help for foo")
+	startLibrarianCmd.Flags().StringVarP(&localIP, "local-ip", "i", server.DefaultIP,
+		"local IP address")
+	startLibrarianCmd.Flags().IntVarP(&localPort, "local-port", "p", server.DefaultPort,
+		"local port")
+	startLibrarianCmd.Flags().StringVarP(&publicIP, "public-ip", "j", server.DefaultIP,
+		"public IP address")
+	startLibrarianCmd.Flags().IntVarP(&publicPort, "public-port", "q", server.DefaultPort,
+		"public port")
+}
 
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// startCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-
+func getConfig() *server.Config {
+	return &server.Config{
+		PeerName: peerName,
+		LocalName: localName,
+		DataDir: dataDir,
+		DbDir: dbDir,
+		LocalAddr: &net.TCPAddr{IP: server.ParseIP(localIP), Port: localPort},
+		PublicAddr: &net.TCPAddr{IP: server.ParseIP(publicIP), Port: publicPort},
+	}
 }

@@ -1,26 +1,27 @@
 package server
 
 import (
+	"crypto/md5"
 	"fmt"
 	"net"
 	"os"
 	"path/filepath"
 )
 
-var (
-	defaultRPCIP      = net.ParseIP("0.0.0.0") // localhost
-	defaultRPCPort    = 11000
-	defaultDataSubdir = "data"
-	defaultDbSubDir   = "db"
+const (
+	DefaultPort       = 11000
+	DefaultIP         = "localhost"
+	DefaultDataSubdir = "data"
+	DefaultDbSubDir   = "db"
 )
 
 // Config is used to configure a Librarian server
 type Config struct {
-	// NodeNumber is the index (starting at 0) of the node on the host
-	NodeIndex uint8
-
-	// PeerName is the public facing name of the node.
+	// PeerName is the public facing name of the peer.
 	PeerName string
+
+	// LocalName is the peer name on the particular box.
+	LocalName string
 
 	// DataDir is the local directory to store the node states
 	DataDir string
@@ -28,24 +29,20 @@ type Config struct {
 	// DbDir is the local directory where this node's DB state is stored.
 	DbDir string
 
-	// RPCLocalAddr is the RPC address used by the server. This should be reachable
-	// by the WAN and LAN
-	RPCLocalAddr *net.TCPAddr
+	// LocalAddr is the local address the server listens to.
+	LocalAddr *net.TCPAddr
 
-	// RPCPublicAddr is the address that is advertised to other nodes for
-	// the RPC endpoint. This can differ from the RPC address, if for example
-	// the RPCAddr is unspecified "0.0.0.0:8300", but this address must be
-	// reachable
-	RPCPublicAddr *net.TCPAddr
+	// PublicAddr is the public address clients make requests to.
+	PublicAddr *net.TCPAddr
 
-	// BootstrapAddrs is a list of peer addresses to initially introduce oneself to.
+	// BootstrapAddrs
 	BootstrapAddrs []*net.TCPAddr
 }
 
 // DefaultConfig returns a reasonable default server configuration.
-func DefaultConfig(nodeIndex uint8) *Config {
-	lnn := localNodeName(nodeIndex)
-	nn, err := nodeName(lnn)
+func DefaultConfig() *Config {
+	ln := localPeerName(DefaultIP, DefaultPort)
+	nn, err := nodeName(ln)
 	if err != nil {
 		panic(err)
 	}
@@ -53,27 +50,31 @@ func DefaultConfig(nodeIndex uint8) *Config {
 	if err != nil {
 		panic(err)
 	}
-	dbdir := dbDir(ddir, lnn)
+	dbdir := dbDir(ddir, ln)
 
-	rpcAddr := &net.TCPAddr{
-		IP:   defaultRPCIP,
-		Port: defaultRPCPort + int(nodeIndex),
-	}
 	return &Config{
-		NodeIndex:     nodeIndex,
-		PeerName:      nn,
-		DataDir:       ddir,
-		DbDir:         dbdir,
-		RPCPublicAddr: rpcAddr,
-		RPCLocalAddr:  rpcAddr,
+		LocalName:  ln,
+		PeerName:   nn,
+		DataDir:    ddir,
+		DbDir:      dbdir,
+		LocalAddr:    &net.TCPAddr{IP: ParseIP(DefaultIP), Port: DefaultPort},
+		PublicAddr:    &net.TCPAddr{IP: ParseIP(DefaultIP), Port: DefaultPort},
 		BootstrapAddrs: make([]*net.TCPAddr, 0),
 	}
 }
 
 // SetDataDir sets the config's data directory, which also sets the database directory.
-func (c *Config) SetDataDir(dataDir string) {
+func (c *Config) WithDataDir(dataDir string) {
 	c.DataDir = dataDir
-	c.DbDir = dbDir(dataDir, localNodeName(c.NodeIndex))
+	c.DbDir = dbDir(dataDir, c.LocalName)
+}
+
+// ParseIP parses a string IP address and handles localhost on its own.
+func ParseIP(ip string) net.IP {
+	if ip == "localhost" {
+		return net.ParseIP("127.0.0.1")
+	}
+	return net.ParseIP(ip)
 }
 
 func dataDir() (string, error) {
@@ -81,24 +82,26 @@ func dataDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(cwd, defaultDataSubdir), nil
+	return filepath.Join(cwd, DefaultDataSubdir), nil
 }
 
 // dbDir gets the database directory from the main data directory.
 func dbDir(dataDir, localNodeName string) string {
-	return filepath.Join(dataDir, localNodeName, defaultDbSubDir)
+	return filepath.Join(dataDir, localNodeName, DefaultDbSubDir)
 }
 
 // nodeName gives the node name from the hostname and local node name.
-func nodeName(localNodeName string) (string, error) {
+func nodeName(localName string) (string, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s.%s", hostname, localNodeName), nil
+	return fmt.Sprintf("%s.%s", hostname, localName), nil
 }
 
-// localNodeName gives the local name (on the host) of the node using the NodeIndex
-func localNodeName(nodeIndex uint8) string {
-	return fmt.Sprintf("node%03d", nodeIndex)
+// localPeerName gives the local name (on the host) of the node using the NodeIndex
+func localPeerName(ip string, port int) string {
+	addrHash := md5.Sum([]byte(fmt.Sprintf("%s:%d", ip, port)))
+	return fmt.Sprintf("peer-%x", addrHash[:4])
 }
+
