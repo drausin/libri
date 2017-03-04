@@ -44,8 +44,7 @@ func newTestLibrarian() *Librarian {
 	if err != nil {
 		panic(err)
 	}
-	config.WithDataDir(dir)
-	config.WithDBDir("") // resets default DB dir given new data dir
+	config.WithDataDir(dir).WithDefaultDBDir() // resets default DB dir given new data dir
 
 	l, err := NewLibrarian(config, NewDevInfoLogger())
 	if err != nil {

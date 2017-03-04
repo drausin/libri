@@ -31,7 +31,7 @@ func TestStart_bootstrapPeersErr(t *testing.T) {
 	dataDir, err := ioutil.TempDir("", "test-start")
 	assert.Nil(t, err)
 	config := DefaultConfig()
-	config.WithDataDir(dataDir)
+	config.WithDataDir(dataDir).WithDefaultDBDir()
 
 	// erroneously configure bootstrap peer to be self, which will lead to
 	// connection problems

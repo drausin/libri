@@ -22,8 +22,8 @@ const (
 	// DefaultIP is the default IP of both local and public addresses.
 	DefaultIP = "localhost"
 
-	// DefaultDBSubdir is the default DB subdirectory within the data dir.
-	DefaultDbSubDir = "db"
+	// DefaultDBSubDir is the default DB subdirectory within the data dir.
+	DefaultDBSubDir = "db"
 
 	// DefaultLogLevel is the default log level to use.
 	DefaultLogLevel = zap.InfoLevel
@@ -46,7 +46,17 @@ type Config struct {
 	// PublicName is the public facing name of the peer.
 	PublicName string
 
-	// DataDir is the local directory to store the node states.
+	// DataDir is the directory on the local machine where the state and output of all the
+	// peers running on that machine are stored. For example,
+	//
+	//	data
+	//	└── peer-fc593d11
+	//	    └── db
+	//	└── peer-f829ef46
+	//	    └── db
+	//	└── peer-765079fb
+	//	    └── db
+	//
 	DataDir string
 
 	// DbDir is the local directory where this node's DB state is stored.
@@ -66,13 +76,13 @@ func DefaultConfig() *Config {
 	// set defaults via zero values; in cases where the config B depends on config A, config A
 	// should be set before config B
 	config.WithDefaultLocalAddr()
-	config.WithPublicAddr(nil)
-	config.WithLocalName("")
-	config.WithPublicName("")
-	config.WithDataDir("")
-	config.WithDBDir("")
-	config.WithBootstrapAddrs(nil)
-	config.WithLogLevel(DefaultLogLevel)
+	config.WithDefaultPublicAddr()
+	config.WithDefaultLocalName()
+	config.WithDefaultPublicName()
+	config.WithDefaultDataDir()
+	config.WithDefaultDBDir()
+	config.WithDefaultBootstrapAddrs()
+	config.WithDefaultLogLevel()
 
 	return config
 }
@@ -160,7 +170,7 @@ func (c *Config) WithDefaultDataDir() *Config {
 // WithDBDir sets the DB dir to the given value or the default if the given value is empty.
 func (c *Config) WithDBDir(dbDir string) *Config {
 	if dbDir == "" {
-		dbDir = defaultDBDir(c.DataDir, c.LocalName, DefaultDbSubDir)
+		dbDir = defaultDBDir(c.DataDir, c.LocalName, DefaultDBSubDir)
 	}
 	c.DbDir = dbDir
 	return c
