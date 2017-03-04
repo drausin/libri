@@ -31,7 +31,7 @@ func TestNewLibrarian(t *testing.T) {
 	err := lib1.Close()
 	assert.Nil(t, err)
 
-	lib2, err := NewLibrarian(lib1.Config)
+	lib2, err := NewLibrarian(lib1.Config, NewDevInfoLogger())
 	assert.Nil(t, err)
 	assert.Equal(t, nodeID1, lib2.SelfID)
 	err = lib2.CloseAndRemove()
@@ -39,14 +39,14 @@ func TestNewLibrarian(t *testing.T) {
 }
 
 func newTestLibrarian() *Librarian {
-	config := DefaultConfig(0)
+	config := DefaultConfig()
 	dir, err := ioutil.TempDir("", "test-data-dir")
 	if err != nil {
 		panic(err)
 	}
-	config.SetDataDir(dir)
+	config.WithDataDir(dir).WithDefaultDBDir() // resets default DB dir given new data dir
 
-	l, err := NewLibrarian(config)
+	l, err := NewLibrarian(config, NewDevInfoLogger())
 	if err != nil {
 		panic(err)
 	}
@@ -80,8 +80,8 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 
 	lib := &Librarian{
 		Config: &Config{
-			PeerName:     peerName,
-			RPCLocalAddr: publicAddr,
+			PublicName: peerName,
+			LocalAddr:  publicAddr,
 		},
 		apiSelf: api.FromAddress(serverID.ID(), peerName, publicAddr),
 		fromer:  peer.NewFromer(),

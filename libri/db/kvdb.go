@@ -1,10 +1,10 @@
 package db
 
 import (
-	"errors"
 	"io/ioutil"
 	"os"
 
+	"github.com/pkg/errors"
 	"github.com/tecbot/gorocksdb"
 )
 

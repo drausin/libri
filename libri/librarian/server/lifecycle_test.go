@@ -5,13 +5,15 @@ import (
 	"net"
 	"testing"
 
+	"io/ioutil"
+
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
+	"go.uber.org/zap"
 )
 
 // TODO (drausin) add multi-peer integration test to test Start()'s OK path.
@@ -22,24 +24,21 @@ func TestStart_newLibrarianErr(t *testing.T) {
 	}
 
 	// check that NewLibrarian error bubbles up
-	assert.NotNil(t, Start(config))
+	assert.NotNil(t, Start(config, zap.NewNop()))
 }
 
 func TestStart_bootstrapPeersErr(t *testing.T) {
 	dataDir, err := ioutil.TempDir("", "test-start")
 	assert.Nil(t, err)
-	config := DefaultConfig(0)
-	config.SetDataDir(dataDir)
+	config := DefaultConfig()
+	config.WithDataDir(dataDir).WithDefaultDBDir()
 
 	// erroneously configure bootstrap peer to be self, which will lead to
 	// connection problems
-	config.BootstrapAddrs = append(config.BootstrapAddrs, &net.TCPAddr{
-		IP:   defaultRPCIP,
-		Port: defaultRPCPort,
-	})
+	config.BootstrapAddrs = append(config.BootstrapAddrs, ParseAddr(DefaultIP, DefaultPort))
 
 	// check that bootstrap error bubbles up
-	assert.NotNil(t, Start(config))
+	assert.NotNil(t, Start(config, zap.NewNop()))
 }
 
 func TestLibrarian_bootstrapPeers_ok(t *testing.T) {
@@ -62,7 +61,8 @@ func TestLibrarian_bootstrapPeers_ok(t *testing.T) {
 		introducer: &fixedIntroducer{
 			result: fixedResult,
 		},
-		rt: routing.NewEmpty(cid.NewPseudoRandom(rng)),
+		rt:     routing.NewEmpty(cid.NewPseudoRandom(rng)),
+		logger: NewDevInfoLogger(),
 	}
 
 	err := l.bootstrapPeers(seeds)
@@ -90,7 +90,8 @@ func TestLibrarian_bootstrapPeers_introduceErr(t *testing.T) {
 		introducer: &fixedIntroducer{
 			err: errors.New("some fatal introduce error"),
 		},
-		rt: routing.NewEmpty(cid.NewPseudoRandom(rng)),
+		rt:     routing.NewEmpty(cid.NewPseudoRandom(rng)),
+		logger: NewDevInfoLogger(),
 	}
 
 	err := l.bootstrapPeers(seeds)
@@ -116,7 +117,8 @@ func TestLibrarian_bootstrapPeers_noResponsesErr(t *testing.T) {
 		introducer: &fixedIntroducer{
 			result: fixedResult,
 		},
-		rt: routing.NewEmpty(cid.NewPseudoRandom(rng)),
+		rt:     routing.NewEmpty(cid.NewPseudoRandom(rng)),
+		logger: NewDevInfoLogger(),
 	}
 
 	err := l.bootstrapPeers(seeds)

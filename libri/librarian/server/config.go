@@ -1,104 +1,264 @@
 package server
 
 import (
+	"crypto/md5"
 	"fmt"
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
+
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
-var (
-	defaultRPCIP      = net.ParseIP("0.0.0.0") // localhost
-	defaultRPCPort    = 11000
-	defaultDataSubdir = "data"
-	defaultDbSubDir   = "db"
+const (
+
+	// DefaultPort is the default port of both local and public addresses.
+	DefaultPort = 11000
+
+	// DefaultIP is the default IP of both local and public addresses.
+	DefaultIP = "localhost"
+
+	// DefaultDBSubDir is the default DB subdirectory within the data dir.
+	DefaultDBSubDir = "db"
+
+	// DefaultLogLevel is the default log level to use.
+	DefaultLogLevel = zap.InfoLevel
+
+	// DataSubdir is the name of the data directory.
+	DataSubdir = "data"
 )
 
 // Config is used to configure a Librarian server
 type Config struct {
-	// NodeNumber is the index (starting at 0) of the node on the host
-	NodeIndex uint8
+	// LocalAddr is the local address the server listens to.
+	LocalAddr *net.TCPAddr
 
-	// PeerName is the public facing name of the node.
-	PeerName string
+	// PublicAddr is the public address clients make requests to.
+	PublicAddr *net.TCPAddr
 
-	// DataDir is the local directory to store the node states
+	// LocalName is the peer name on the particular box.
+	LocalName string
+
+	// PublicName is the public facing name of the peer.
+	PublicName string
+
+	// DataDir is the directory on the local machine where the state and output of all the
+	// peers running on that machine are stored. For example,
+	//
+	//	data
+	//	└── peer-fc593d11
+	//	    └── db
+	//	└── peer-f829ef46
+	//	    └── db
+	//	└── peer-765079fb
+	//	    └── db
+	//
 	DataDir string
 
 	// DbDir is the local directory where this node's DB state is stored.
 	DbDir string
 
-	// RPCLocalAddr is the RPC address used by the server. This should be reachable
-	// by the WAN and LAN
-	RPCLocalAddr *net.TCPAddr
-
-	// RPCPublicAddr is the address that is advertised to other nodes for
-	// the RPC endpoint. This can differ from the RPC address, if for example
-	// the RPCAddr is unspecified "0.0.0.0:8300", but this address must be
-	// reachable
-	RPCPublicAddr *net.TCPAddr
-
-	// BootstrapAddrs is a list of peer addresses to initially introduce oneself to.
+	// BootstrapAddrs
 	BootstrapAddrs []*net.TCPAddr
+
+	// LogLevel is the log level
+	LogLevel zapcore.Level
 }
 
 // DefaultConfig returns a reasonable default server configuration.
-func DefaultConfig(nodeIndex uint8) *Config {
-	lnn := localNodeName(nodeIndex)
-	nn, err := nodeName(lnn)
-	if err != nil {
-		panic(err)
-	}
-	ddir, err := dataDir()
-	if err != nil {
-		panic(err)
-	}
-	dbdir := dbDir(ddir, lnn)
+func DefaultConfig() *Config {
+	config := &Config{}
 
-	rpcAddr := &net.TCPAddr{
-		IP:   defaultRPCIP,
-		Port: defaultRPCPort + int(nodeIndex),
-	}
-	return &Config{
-		NodeIndex:     nodeIndex,
-		PeerName:      nn,
-		DataDir:       ddir,
-		DbDir:         dbdir,
-		RPCPublicAddr: rpcAddr,
-		RPCLocalAddr:  rpcAddr,
-		BootstrapAddrs: make([]*net.TCPAddr, 0),
-	}
+	// set defaults via zero values; in cases where the config B depends on config A, config A
+	// should be set before config B
+	config.WithDefaultLocalAddr()
+	config.WithDefaultPublicAddr()
+	config.WithDefaultLocalName()
+	config.WithDefaultPublicName()
+	config.WithDefaultDataDir()
+	config.WithDefaultDBDir()
+	config.WithDefaultBootstrapAddrs()
+	config.WithDefaultLogLevel()
+
+	return config
 }
 
-// SetDataDir sets the config's data directory, which also sets the database directory.
-func (c *Config) SetDataDir(dataDir string) {
+// WithLocalAddr sets config's local address to the given value or to the default if the given
+// value is nil.
+func (c *Config) WithLocalAddr(localAddr *net.TCPAddr) *Config {
+	if localAddr == nil {
+		localAddr = ParseAddr(DefaultIP, DefaultPort)
+	}
+	c.LocalAddr = localAddr
+	return c
+}
+
+// WithDefaultLocalAddr sets the local address to the default value.
+func (c *Config) WithDefaultLocalAddr() *Config {
+	c.WithLocalAddr(nil)
+	return c
+}
+
+// WithPublicAddr sets the public address to the given value or to the default if the given value
+// is nil.
+func (c *Config) WithPublicAddr(publicAddr *net.TCPAddr) *Config {
+	if publicAddr == nil {
+		publicAddr = c.LocalAddr
+	}
+	c.PublicAddr = publicAddr
+	return c
+}
+
+// WithDefaultPublicAddr sets the public address to the default value.
+func (c *Config) WithDefaultPublicAddr() *Config {
+	c.WithPublicAddr(nil)
+	return c
+}
+
+// WithLocalName sets the local name to the given value or the default if the given value is empty.
+func (c *Config) WithLocalName(localName string) *Config {
+	if localName == "" {
+		localName = nameFromAddr(c.LocalAddr)
+	}
+	c.LocalName = localName
+	return c
+}
+
+// WithDefaultLocalName sets the local name to the default value, comprised of a hash of the
+// local address.
+func (c *Config) WithDefaultLocalName() *Config {
+	c.WithLocalName("")
+	return c
+}
+
+// WithPublicName sets the public name to the given value or the default if the given value is
+// empty.
+func (c *Config) WithPublicName(publicName string) *Config {
+	if publicName == "" {
+		publicName = nameFromAddr(c.PublicAddr)
+	}
+	c.PublicName = publicName
+	return c
+}
+
+// WithDefaultPublicName sets the public name to the default value, comprised of a hash of the
+// public address.
+func (c *Config) WithDefaultPublicName() *Config {
+	c.WithPublicName("")
+	return c
+}
+
+// WithDataDir sets the data dir to the given value or the default if the given value is empty.
+func (c *Config) WithDataDir(dataDir string) *Config {
+	if dataDir == "" {
+		dataDir = defaultDataDir()
+	}
 	c.DataDir = dataDir
-	c.DbDir = dbDir(dataDir, localNodeName(c.NodeIndex))
+	return c
 }
 
-func dataDir() (string, error) {
+// WithDefaultDataDir sets the data dir to the default value.
+func (c *Config) WithDefaultDataDir() *Config {
+	c.WithDataDir("")
+	return c
+}
+
+// WithDBDir sets the DB dir to the given value or the default if the given value is empty.
+func (c *Config) WithDBDir(dbDir string) *Config {
+	if dbDir == "" {
+		dbDir = defaultDBDir(c.DataDir, c.LocalName, DefaultDBSubDir)
+	}
+	c.DbDir = dbDir
+	return c
+}
+
+// WithDefaultDBDir sets the DB dir to the default value, comprised of a hash of the local address.
+func (c *Config) WithDefaultDBDir() *Config {
+	c.WithDBDir("")
+	return c
+}
+
+// WithBootstrapAddrs sets the bootstrap addresses to the given value or the default if the given
+// value is empty.
+func (c *Config) WithBootstrapAddrs(bootstrapAddrs []*net.TCPAddr) *Config {
+	if bootstrapAddrs == nil {
+		// default is itself
+		bootstrapAddrs = []*net.TCPAddr{ParseAddr(DefaultIP, DefaultPort)}
+	}
+	c.BootstrapAddrs = bootstrapAddrs
+	return c
+}
+
+// WithDefaultBootstrapAddrs sets the bootstrap addresses to the default value.
+func (c *Config) WithDefaultBootstrapAddrs() *Config {
+	c.WithBootstrapAddrs(nil)
+	return c
+}
+
+// WithLogLevel sets the log level to the given value, though this doesn't have any direct effect
+// on the creation of the logger instance.
+func (c *Config) WithLogLevel(logLevel zapcore.Level) *Config {
+	if logLevel == 0 {
+		logLevel = DefaultLogLevel
+	}
+	c.LogLevel = logLevel
+	return c
+}
+
+// WithDefaultLogLevel sets the default log level.
+func (c *Config) WithDefaultLogLevel() *Config {
+	c.WithLogLevel(DefaultLogLevel)
+	return c
+}
+
+// ParseAddr parses a net.TCPAddr from an IP address and port.
+func ParseAddr(ip string, port int) *net.TCPAddr {
+	return &net.TCPAddr{IP: parseIP(ip), Port: port}
+}
+
+// ParseAddrs parses an array of net.TCPAddrs from an array of IPv4:Port address strings.
+func ParseAddrs(addrs []string) ([]*net.TCPAddr, error) {
+	netAddrs := make([]*net.TCPAddr, len(addrs))
+	for i, a := range addrs {
+		parts := strings.SplitN(a, ":", 2)
+		if len(parts) != 2 {
+			return nil, errors.New("address not delimited by ':'")
+		}
+		port, err := strconv.Atoi(parts[1])
+		if err != nil {
+			return nil, err
+		}
+		netAddrs[i] = ParseAddr(parts[0], port)
+	}
+	return netAddrs, nil
+}
+
+// parseIP parses a string IP address and handles localhost on its own.
+func parseIP(ip string) net.IP {
+	if ip == "localhost" {
+		return net.ParseIP("127.0.0.1")
+	}
+	return net.ParseIP(ip)
+}
+
+func defaultDataDir() string {
 	cwd, err := os.Getwd()
 	if err != nil {
-		return "", err
+		panic(err)
 	}
-	return filepath.Join(cwd, defaultDataSubdir), nil
+	return filepath.Join(cwd, DataSubdir)
 }
 
-// dbDir gets the database directory from the main data directory.
-func dbDir(dataDir, localNodeName string) string {
-	return filepath.Join(dataDir, localNodeName, defaultDbSubDir)
+func defaultDBDir(dataDir string, localName string, dbSubDir string) string {
+	return filepath.Join(dataDir, localName, dbSubDir)
 }
 
-// nodeName gives the node name from the hostname and local node name.
-func nodeName(localNodeName string) (string, error) {
-	hostname, err := os.Hostname()
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%s.%s", hostname, localNodeName), nil
-}
-
-// localNodeName gives the local name (on the host) of the node using the NodeIndex
-func localNodeName(nodeIndex uint8) string {
-	return fmt.Sprintf("node%03d", nodeIndex)
+// localPeerName gives the local name (on the host) of the node using the NodeIndex
+func nameFromAddr(localAddr fmt.Stringer) string {
+	addrHash := md5.Sum([]byte(localAddr.String()))
+	return fmt.Sprintf("peer-%x", addrHash[:4])
 }

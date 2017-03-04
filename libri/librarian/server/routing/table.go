@@ -53,6 +53,12 @@ type Table interface {
 	// space the bucket covers.
 	Sample(k uint, rng *rand.Rand) []peer.Peer
 
+	// NumPeers returns the number of total peers in the routing table.
+	NumPeers() int
+
+	// NumBuckets returns the number of buckets in the routing table.
+	NumBuckets() int
+
 	// Disconnect disconnects all client connections.
 	Disconnect() error
 
@@ -108,13 +114,12 @@ func (rt *table) SelfID() cid.ID {
 	return rt.selfID
 }
 
-// numPeers returns the total number of active peers across all buckets.
-func (rt *table) numPeers() uint {
-	n := 0
-	for _, rb := range rt.buckets {
-		n += rb.Len()
-	}
-	return uint(n)
+func (rt *table) NumPeers() int {
+	return len(rt.peers)
+}
+
+func (rt *table) NumBuckets() int {
+	return rt.Len()
 }
 
 // Push adds the peer into the appropriate bucket and returns the status of the push. This method
@@ -177,9 +182,9 @@ func (rt *table) Push(new peer.Peer) PushStatus {
 func (rt *table) Pop(target cid.ID, k uint) []peer.Peer {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
-	if np := rt.numPeers(); k > np {
+	if np := rt.NumPeers(); k > uint(np) {
 		// if we're requesting more peers than we have, just return number we have
-		k = np
+		k = uint(np)
 	}
 
 	fwdIdx := rt.bucketIndex(target)
