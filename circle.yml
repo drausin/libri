@@ -34,6 +34,6 @@ compile:
 test:
   override:
     - case $CIRCLE_NODE_INDEX in 0) make test-cover ;; 1) make lint ;; esac:
-      parallel: true
+        parallel: true
   post:
     - bash <(curl -s https://codecov.io/bash) -f test-coverage-merged.cov
