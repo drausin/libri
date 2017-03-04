@@ -1,9 +1,10 @@
 package server
 
 import (
-	"testing"
-	"github.com/stretchr/testify/assert"
 	"net"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDefaultConfig(t *testing.T) {
@@ -19,11 +20,11 @@ func TestDefaultConfig(t *testing.T) {
 }
 
 func TestParseAddr(t *testing.T) {
-	cases := []struct{
-		ip string
-		port int
+	cases := []struct {
+		ip      string
+		port    int
 		netAddr *net.TCPAddr
-	} {
+	}{
 		{"192.168.1.1", 11000, &net.TCPAddr{IP: net.ParseIP("192.168.1.1"), Port: 11000}},
 		{"192.168.1.1", 11001, &net.TCPAddr{IP: net.ParseIP("192.168.1.1"), Port: 11001}},
 		{"localhost", 11000, &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 11000}},
@@ -34,7 +35,7 @@ func TestParseAddr(t *testing.T) {
 }
 
 func TestParseAddrs_ok(t *testing.T) {
-	addrs := []string {
+	addrs := []string{
 		"192.168.1.1:11000",
 		"192.168.1.1:11001",
 		"localhost:11000",
@@ -53,11 +54,11 @@ func TestParseAddrs_ok(t *testing.T) {
 }
 
 func TestParseAddrs_err(t *testing.T) {
-	addrs := []string {
-		"192.168.1.1", // no port
-		"192.168.1.1:A", // bad port
+	addrs := []string{
+		"192.168.1.1",         // no port
+		"192.168.1.1:A",       // bad port
 		"192::168::1:1:11001", // IPv6 instead of IPv4
-		"192.168.1.1.11001", // bad port delimiter
+		"192.168.1.1.11001",   // bad port delimiter
 	}
 
 	// test individually

@@ -45,7 +45,7 @@ func newTestLibrarian() *Librarian {
 		panic(err)
 	}
 	config.WithDataDir(dir)
-	config.WithDBDir("")  // resets default DB dir given new data dir
+	config.WithDBDir("") // resets default DB dir given new data dir
 
 	l, err := NewLibrarian(config, NewDevInfoLogger())
 	if err != nil {
@@ -81,8 +81,8 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 
 	lib := &Librarian{
 		Config: &Config{
-			PublicName:     peerName,
-			LocalAddr: publicAddr,
+			PublicName: peerName,
+			LocalAddr:  publicAddr,
 		},
 		apiSelf: api.FromAddress(serverID.ID(), peerName, publicAddr),
 		fromer:  peer.NewFromer(),

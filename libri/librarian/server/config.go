@@ -3,33 +3,33 @@ package server
 import (
 	"crypto/md5"
 	"fmt"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	"net"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
 
 	// DefaultPort is the default port of both local and public addresses.
-	DefaultPort       = 11000
+	DefaultPort = 11000
 
 	// DefaultIP is the default IP of both local and public addresses.
-	DefaultIP         = "localhost"
+	DefaultIP = "localhost"
 
 	// DefaultDBSubdir is the default DB subdirectory within the data dir.
-	DefaultDbSubDir   = "db"
+	DefaultDbSubDir = "db"
 
 	// DefaultLogLevel is the default log level to use.
-	DefaultLogLevel   = zap.InfoLevel
+	DefaultLogLevel = zap.InfoLevel
 
 	// DataSubdir is the name of the data directory.
 	DataSubdir = "data"
-
 )
 
 // Config is used to configure a Librarian server
@@ -81,7 +81,7 @@ func DefaultConfig() *Config {
 // value is nil.
 func (c *Config) WithLocalAddr(localAddr *net.TCPAddr) *Config {
 	if localAddr == nil {
-		localAddr = ParseAddr(DefaultIP,  DefaultPort)
+		localAddr = ParseAddr(DefaultIP, DefaultPort)
 	}
 	c.LocalAddr = localAddr
 	return c
@@ -177,7 +177,7 @@ func (c *Config) WithDefaultDBDir() *Config {
 func (c *Config) WithBootstrapAddrs(bootstrapAddrs []*net.TCPAddr) *Config {
 	if bootstrapAddrs == nil {
 		// default is itself
-		bootstrapAddrs = []*net.TCPAddr{ParseAddr(DefaultIP,  DefaultPort)}
+		bootstrapAddrs = []*net.TCPAddr{ParseAddr(DefaultIP, DefaultPort)}
 	}
 	c.BootstrapAddrs = bootstrapAddrs
 	return c

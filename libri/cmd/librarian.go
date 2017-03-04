@@ -8,7 +8,7 @@ import (
 var librarianCmd = &cobra.Command{
 	Use:   "librarian",
 	Short: "operate a librarian server, a peer in the libri network",
-	Long: `TODO (drausin) add longer description and examples here`,
+	Long:  `TODO (drausin) add longer description and examples here`,
 }
 
 func init() {

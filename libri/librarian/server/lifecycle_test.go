@@ -5,13 +5,14 @@ import (
 	"net"
 	"testing"
 
+	"io/ioutil"
+
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
 	"go.uber.org/zap"
 )
 
@@ -60,7 +61,7 @@ func TestLibrarian_bootstrapPeers_ok(t *testing.T) {
 		introducer: &fixedIntroducer{
 			result: fixedResult,
 		},
-		rt: routing.NewEmpty(cid.NewPseudoRandom(rng)),
+		rt:     routing.NewEmpty(cid.NewPseudoRandom(rng)),
 		logger: NewDevInfoLogger(),
 	}
 
@@ -89,7 +90,7 @@ func TestLibrarian_bootstrapPeers_introduceErr(t *testing.T) {
 		introducer: &fixedIntroducer{
 			err: errors.New("some fatal introduce error"),
 		},
-		rt: routing.NewEmpty(cid.NewPseudoRandom(rng)),
+		rt:     routing.NewEmpty(cid.NewPseudoRandom(rng)),
 		logger: NewDevInfoLogger(),
 	}
 
@@ -116,7 +117,7 @@ func TestLibrarian_bootstrapPeers_noResponsesErr(t *testing.T) {
 		introducer: &fixedIntroducer{
 			result: fixedResult,
 		},
-		rt: routing.NewEmpty(cid.NewPseudoRandom(rng)),
+		rt:     routing.NewEmpty(cid.NewPseudoRandom(rng)),
 		logger: NewDevInfoLogger(),
 	}
 

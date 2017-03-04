@@ -8,18 +8,16 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
-	"go.uber.org/zap"
-	"github.com/pkg/errors"
 )
 
 var (
 	// LoggerPortKey is the key used by the logger for address ports.
 	LoggerPortKey = "port"
 )
-
-
 
 // Start is the entry point for a Librarian server. It bootstraps peers for the Librarians's
 // routing table and then begins listening for and handling requests.

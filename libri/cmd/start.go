@@ -1,11 +1,12 @@
 package cmd
 
 import (
+	"os"
+
 	"github.com/drausin/libri/libri/librarian/server"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"os"
 )
 
 // flags set below

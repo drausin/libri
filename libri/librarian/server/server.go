@@ -17,8 +17,8 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/store"
 	"github.com/drausin/libri/libri/librarian/signature"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 	"go.uber.org/zap"
+	"golang.org/x/net/context"
 )
 
 // Librarian is the main service of a single peer in the peer to peer network.
@@ -116,7 +116,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		fromer:     peer.NewFromer(),
 		signer:     signer,
 		rt:         rt,
-		logger: logger,
+		logger:     logger,
 	}, nil
 }
 
