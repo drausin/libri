@@ -15,6 +15,7 @@ import (
 )
 
 var (
+	// LoggerPortKey is the key used by the logger for address ports.
 	LoggerPortKey = "port"
 )
 

@@ -84,7 +84,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 	entriesSL := storage.NewEntriesKVDBStorerLoader(rdb)
 
 	// get peer ID and immediately save it so subsequent restarts have it
-	peerID, err := loadOrCreatePeerID(serverSL, logger)
+	peerID, err := loadOrCreatePeerID(logger, serverSL)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		return nil, err
 	}
 
-	rt, err := loadOrCreateRoutingTable(serverSL, peerID)
+	rt, err := loadOrCreateRoutingTable(logger, serverSL, peerID)
 	if err != nil {
 		return nil, err
 	}

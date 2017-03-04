@@ -9,16 +9,26 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/storage"
 	"github.com/gogo/protobuf/proto"
 	"go.uber.org/zap"
+	"github.com/pkg/errors"
+)
+
+// logger keys
+const (
+	// LoggerPeerID is a peer ID.
+	LoggerPeerID = "peerId"
+
+	// NumPeers is a number of peers.
+	NumPeers = "numPeers"
+
+	// NumBuckets is a number of routing table buckets.
+	NumBuckets  = "numBuckets"
 )
 
 var (
-	// logger keys
-	LoggerPeerID = "peerId"
-
 	peerIDKey = []byte("PeerID")
 )
 
-func loadOrCreatePeerID(nl storage.NamespaceLoader, logger *zap.Logger) (ecid.ID, error) {
+func loadOrCreatePeerID(logger *zap.Logger, nl storage.NamespaceLoader) (ecid.ID, error) {
 	bytes, err := nl.Load(peerIDKey)
 	if err != nil {
 		logger.Error("error loading peer ID", zap.Error(err))
@@ -55,19 +65,29 @@ func savePeerID(ns storage.NamespaceStorer, peerID ecid.ID) error {
 	return ns.Store(peerIDKey, bytes)
 }
 
-func loadOrCreateRoutingTable(nl storage.NamespaceLoader, selfID cid.ID) (routing.Table, error) {
+func loadOrCreateRoutingTable(logger *zap.Logger, nl storage.NamespaceLoader, selfID cid.ID) (
+	routing.Table, error) {
 	rt, err := routing.Load(nl)
 	if err != nil {
+		logger.Error("error loading routing table", zap.Error(err))
 		return nil, err
 	}
 
 	if rt != nil {
 		if selfID.Cmp(rt.SelfID()) != 0 {
-			return nil, fmt.Errorf("selfID (%v) of loaded routing table does not "+
-				"match Librarian selfID (%v)", rt.SelfID(), selfID)
+			msg := fmt.Sprintf("selfID (%v) of loaded routing table does not match " +
+				"Librarian selfID (%v)", rt.SelfID(), selfID)
+			err := errors.New(msg)
+			logger.Error(msg, zap.Error(err))
+			return nil, err
 		}
+		logger.Info("loaded routing table",
+			zap.Int(NumPeers, rt.NumPeers()),
+			zap.Int(NumBuckets, rt.NumBuckets()),
+		)
 		return rt, nil
 	}
 
+	defer logger.Info("created new routing table")
 	return routing.NewEmpty(selfID), nil
 }

@@ -18,7 +18,7 @@ func TestTable_NewWithPeers(t *testing.T) {
 	for n := 1; n <= 256; n *= 2 {
 		rt, _, nAdded := NewTestWithPeers(rng, n)
 		assert.Equal(t, len(rt.(*table).peers), nAdded)
-		assert.Equal(t, len(rt.(*table).peers), int(rt.(*table).numPeers()))
+		assert.Equal(t, len(rt.(*table).peers), int(rt.(*table).NumPeers()))
 	}
 }
 
@@ -40,7 +40,7 @@ func TestTable_NewWithPeers_concurrent(t *testing.T) {
 		}
 
 		wg.Wait()
-		assert.Equal(t, len(rt.(*table).peers), int(rt.(*table).numPeers()))
+		assert.Equal(t, len(rt.(*table).peers), int(rt.(*table).NumPeers()))
 	}
 }
 
@@ -49,13 +49,25 @@ func TestTable_NumPeers(t *testing.T) {
 		// make sure handles zero peers
 		rng := rand.New(rand.NewSource(int64(s)))
 		rt, _, _ := NewTestWithPeers(rng, 0)
-		assert.Equal(t, 0, int(rt.(*table).numPeers()))
+		assert.Equal(t, 0, int(rt.(*table).NumPeers()))
 
 		for n := 1; n <= 256; n *= 2 {
 			info := fmt.Sprintf("s: %v, n: %v", s, n)
 			rt, _, _ = NewTestWithPeers(rng, n)
-			assert.Equal(t, len(rt.(*table).peers), int(rt.(*table).numPeers()), info)
+			assert.Equal(t, len(rt.(*table).peers), int(rt.(*table).NumPeers()), info)
 		}
+	}
+}
+
+func TestTable_NumBuckets(t *testing.T) {
+	// make sure handles single bucket case
+	rng := rand.New(rand.NewSource(0))
+	rt, _, _ := NewTestWithPeers(rng, 0)
+	assert.Equal(t, 1, int(rt.(*table).NumBuckets()))
+
+	for n := 1; n <= 256; n *= 2 {
+		rt, _, _ = NewTestWithPeers(rng, n)
+		assert.Equal(t, len(rt.(*table).buckets), rt.(*table).NumBuckets())
 	}
 }
 
@@ -143,14 +155,14 @@ func TestTable_Pop(t *testing.T) {
 
 			for k := uint(2); k <= 32; k *= 2 {
 				// for different numbers of peers to get
-				numActivePeers := rt.(*table).numPeers()
+				numActivePeers := rt.(*table).NumPeers()
 				info := fmt.Sprintf("nPeers: %v, s: %v, k: %v, nap: %v", n, s,
 					k, numActivePeers)
 				ps = rt.Pop(target, k)
 				checkPoppedPeers(t, k, numActivePeers, ps, info)
 
 				// check that the number of active peers has decreased by len(ps)
-				assert.Equal(t, numActivePeers-uint(len(ps)), rt.(*table).numPeers())
+				assert.Equal(t, numActivePeers-len(ps), rt.(*table).NumPeers())
 
 				// check that no peer exists in our peers maps
 				for _, nextPeer := range ps {
@@ -182,14 +194,14 @@ func TestTable_Peak(t *testing.T) {
 
 			for k := uint(2); k <= 32; k *= 2 {
 				// for different numbers of peers to get
-				numActivePeers := rt.(*table).numPeers()
+				numActivePeers := rt.(*table).NumPeers()
 				info := fmt.Sprintf("nPeers: %v, s: %v, k: %v, nap: %v", n, s,
 					k, numActivePeers)
 				ps = rt.Peak(target, k)
 				checkPoppedPeers(t, k, numActivePeers, ps, info)
 
 				// check that the number of active peers has not decreased
-				assert.Equal(t, int(numActivePeers), int(rt.(*table).numPeers()), info)
+				assert.Equal(t, int(numActivePeers), int(rt.(*table).NumPeers()), info)
 				assert.Equal(t, int(numActivePeers), len(rt.(*table).peers), info)
 
 				// check that peers exist in our peers maps
@@ -211,7 +223,7 @@ func TestTable_Peak_concurrent(t *testing.T) {
 
 	for k := concurrency; k <= 32; k *= 2 {
 		// for different numbers of peers to get
-		numActivePeers := rt.(*table).numPeers()
+		numActivePeers := rt.(*table).NumPeers()
 		var wg sync.WaitGroup
 		for i := uint(0); i < concurrency; i++ {
 			wg.Add(1)
@@ -225,7 +237,7 @@ func TestTable_Peak_concurrent(t *testing.T) {
 		wg.Wait()
 
 		// check that the number of active peers has not decreased
-		assert.Equal(t, int(numActivePeers), int(rt.(*table).numPeers()))
+		assert.Equal(t, int(numActivePeers), int(rt.(*table).NumPeers()))
 		assert.Equal(t, int(numActivePeers), len(rt.(*table).peers))
 	}
 }
@@ -496,7 +508,7 @@ func checkTableConsistent(t *testing.T, rt Table, nExpectedPeers int) {
 	nContainSelf, nPeers := 0, 0
 	assert.True(t, sort.IsSorted(rt.(*table))) // buckets should be in sorted order
 	assert.Equal(t, nExpectedPeers, len(rt.(*table).peers))
-	assert.Equal(t, uint(len(rt.(*table).peers)), rt.(*table).numPeers())
+	assert.Equal(t, len(rt.(*table).peers), rt.(*table).NumPeers())
 
 	idCumMass := 0.0
 	for i := 0; i < len(rt.(*table).buckets); i++ {
@@ -534,14 +546,14 @@ func newIDLsh(x int64, n uint) cid.ID {
 	return cid.FromInt(new(big.Int).Lsh(big.NewInt(x), n))
 }
 
-func checkPoppedPeers(t *testing.T, k uint, numActivePeers uint, ps []peer.Peer, info string) {
-	if k < numActivePeers {
+func checkPoppedPeers(t *testing.T, k uint, numActivePeers int, ps []peer.Peer, info string) {
+	if k < uint(numActivePeers) {
 		// should get k peers
 		assert.Equal(t, int(k), len(ps), info)
 
 	} else {
 		// should get numActivePeers
-		assert.Equal(t, int(numActivePeers), len(ps), info)
+		assert.Equal(t, numActivePeers, len(ps), info)
 	}
 
 	seen := make(map[string]struct{})

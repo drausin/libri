@@ -74,7 +74,7 @@ func getConfig() (*server.Config, *zap.Logger, error) {
 	config.WithDataDir(dataDir)
 	config.WithDBDir(dbDir)
 	config.WithLogLevel(getLogLevel())
-	logger := server.NewDevelopmentLogger(config.LogLevel)
+	logger := server.NewDevLogger(config.LogLevel)
 
 	bootstrapNetAddrs, err := server.ParseAddrs(bootstrapAddrs)
 	if err != nil {
@@ -89,6 +89,9 @@ func getConfig() (*server.Config, *zap.Logger, error) {
 
 func getLogLevel() zapcore.Level {
 	var ll zapcore.Level
-	ll.Set(logLevel)
+	err := ll.Set(logLevel)
+	if err != nil {
+		panic(err)
+	}
 	return ll
 }

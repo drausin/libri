@@ -41,7 +41,7 @@ func TestRoutingTable_SaveLoad(t *testing.T) {
 	// check that routing tables are the same
 	assert.Equal(t, rt1.SelfID().Bytes(), rt2.SelfID().Bytes())
 	assert.Equal(t, len(rt1.(*table).peers), len(rt2.(*table).peers))
-	assert.Equal(t, rt1.(*table).numPeers(), rt2.(*table).numPeers())
+	assert.Equal(t, rt1.(*table).NumPeers(), rt2.(*table).NumPeers())
 	assert.Equal(t, rt1.(*table).peers, rt2.(*table).peers)
 
 	// descend into the protected table fields to check equality

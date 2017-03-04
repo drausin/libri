@@ -31,7 +31,7 @@ func TestNewLibrarian(t *testing.T) {
 	err := lib1.Close()
 	assert.Nil(t, err)
 
-	lib2, err := NewLibrarian(lib1.Config)
+	lib2, err := NewLibrarian(lib1.Config, NewDevInfoLogger())
 	assert.Nil(t, err)
 	assert.Equal(t, nodeID1, lib2.SelfID)
 	err = lib2.CloseAndRemove()
@@ -45,8 +45,9 @@ func newTestLibrarian() *Librarian {
 		panic(err)
 	}
 	config.WithDataDir(dir)
+	config.WithDBDir("")  // resets default DB dir given new data dir
 
-	l, err := NewLibrarian(config)
+	l, err := NewLibrarian(config, NewDevInfoLogger())
 	if err != nil {
 		panic(err)
 	}
