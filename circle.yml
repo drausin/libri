@@ -33,8 +33,7 @@ compile:
 
 test:
   override:
-    # cd enables go list ./... to get the package names right
-    - cd ~/.go_project/src/github.com/drausin/libri && make test-cover
-    - make lint
+    - case $CIRCLE_NODE_INDEX in 0) make test-cover ;; 1) make lint ;; esac:
+        parallel: true
   post:
     - bash <(curl -s https://codecov.io/bash) -f test-coverage-merged.cov
