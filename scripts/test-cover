@@ -7,7 +7,7 @@ mkdir -p .cover
 PKGS=$(go list ./... | grep -v vendor)
 echo ${PKGS} | sed 's| |\n|g' | xargs -I {} -P 4 bash -c '
     COVER_FILE=.cover/$(echo {} | sed -r "s|github.com/drausin/libri/||g" | sed "s|/|-|g").cov &&
-    go test -parallel 4 -race -coverprofile=${COVER_FILE} {}
+    go test -race -coverprofile=${COVER_FILE} {}
 '
 
 # merge profiles together, removing results from auto-generated code
