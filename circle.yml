@@ -33,7 +33,7 @@ compile:
 
 test:
   override:
-    - case $CIRCLE_NODE_INDEX in 0) cd ~/.go_project/src/github.com/drausin/libri && make test-cover ;; 1) make lint ;; esac:
+    - case $CIRCLE_NODE_INDEX in 0) make test-cover ;; 1) make lint ;; esac:
       parallel: true
   post:
     - bash <(curl -s https://codecov.io/bash) -f test-coverage-merged.cov
