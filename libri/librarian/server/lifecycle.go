@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
 
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
@@ -14,14 +15,19 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+const (
+	postListenNotifyWait = 100 * time.Millisecond
+)
+
 var (
 	// LoggerPortKey is the key used by the logger for address ports.
 	LoggerPortKey = "port"
 )
 
 // Start is the entry point for a Librarian server. It bootstraps peers for the Librarians's
-// routing table and then begins listening for and handling requests.
-func Start(config *Config, logger *zap.Logger) error {
+// routing table and then begins listening for and handling requests. It notifies the up channel
+// just before
+func Start(logger *zap.Logger, config *Config, up chan *Librarian) error {
 	// create librarian
 	l, err := NewLibrarian(config, logger)
 	if err != nil {
@@ -34,7 +40,7 @@ func Start(config *Config, logger *zap.Logger) error {
 	}
 
 	// start main listening thread
-	if err := l.listenAndServe(); err != nil {
+	if err := l.listenAndServe(up); err != nil {
 		return err
 	}
 
@@ -48,7 +54,8 @@ func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
 		l.logger.Error("encountered fatal error while bootsrapping", zap.Error(err))
 		return err
 	}
-	if len(intro.Result.Responded) == 0 {
+	if !l.config.isBootstrap() && len(intro.Result.Responded) == 0 {
+		// if we're not a libri bootstrap peer, error if couldn't find any
 		err := errors.New("failed to bootstrap any other peers")
 		l.logger.Error("failed to bootstrap any other peers")
 		return err
@@ -70,8 +77,8 @@ func makeBootstrapPeers(bootstrapAddrs []*net.TCPAddr) []peer.Peer {
 	return peers
 }
 
-func (l *Librarian) listenAndServe() error {
-	lis, err := net.Listen("tcp", l.Config.LocalAddr.String())
+func (l *Librarian) listenAndServe(up chan *Librarian) error {
+	lis, err := net.Listen("tcp", l.config.LocalAddr.String())
 	if err != nil {
 		l.logger.Error("failed to listen", zap.Error(err))
 		return err
@@ -81,10 +88,22 @@ func (l *Librarian) listenAndServe() error {
 	api.RegisterLibrarianServer(s, l)
 	reflection.Register(s)
 
-	l.logger.Info("listening for requests", zap.Int(LoggerPortKey, l.Config.LocalAddr.Port))
+	l.logger.Info("listening for requests", zap.Int(LoggerPortKey, l.config.LocalAddr.Port))
+
+	go func() {
+		// notify up channel shortly after starting to serve requests
+		time.Sleep(postListenNotifyWait)
+		up <- l
+	}()
+	go func() {
+		// handle stop signal
+		<-l.stop
+		l.logger.Info("gracefully stopping server")
+		s.GracefulStop()
+	}()
 	if err := s.Serve(lis); err != nil {
 		l.logger.Error("failed to serve", zap.Error(err))
-		return nil
+		return err
 	}
 	return nil
 }
@@ -108,5 +127,5 @@ func (l *Librarian) CloseAndRemove() error {
 	if err != nil {
 		return err
 	}
-	return os.RemoveAll(l.Config.DataDir)
+	return os.RemoveAll(l.config.DataDir)
 }

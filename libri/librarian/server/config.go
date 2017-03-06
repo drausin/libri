@@ -215,6 +215,15 @@ func (c *Config) WithDefaultLogLevel() *Config {
 	return c
 }
 
+func (c *Config) isBootstrap() bool {
+	for _, a := range c.BootstrapAddrs {
+		if c.PublicAddr.String() == a.String() {
+			return true
+		}
+	}
+	return false
+}
+
 // ParseAddr parses a net.TCPAddr from an IP address and port.
 func ParseAddr(ip string, port int) *net.TCPAddr {
 	return &net.TCPAddr{IP: parseIP(ip), Port: port}

@@ -31,7 +31,7 @@ func TestNewLibrarian(t *testing.T) {
 	err := lib1.Close()
 	assert.Nil(t, err)
 
-	lib2, err := NewLibrarian(lib1.Config, NewDevInfoLogger())
+	lib2, err := NewLibrarian(lib1.config, NewDevInfoLogger())
 	assert.Nil(t, err)
 	assert.Equal(t, nodeID1, lib2.SelfID)
 	err = lib2.CloseAndRemove()
@@ -39,18 +39,22 @@ func TestNewLibrarian(t *testing.T) {
 }
 
 func newTestLibrarian() *Librarian {
+	config := newTestConfig()
+	l, err := NewLibrarian(config, NewDevInfoLogger())
+	if err != nil {
+		panic(err)
+	}
+	return l
+}
+
+func newTestConfig() *Config {
 	config := DefaultConfig()
 	dir, err := ioutil.TempDir("", "test-data-dir")
 	if err != nil {
 		panic(err)
 	}
 	config.WithDataDir(dir).WithDefaultDBDir() // resets default DB dir given new data dir
-
-	l, err := NewLibrarian(config, NewDevInfoLogger())
-	if err != nil {
-		panic(err)
-	}
-	return l
+	return config
 }
 
 // alwaysRequestVerifies implements the RequestVerifier interface but just blindly verifies every
@@ -79,7 +83,7 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 	rt, serverID, _ := routing.NewTestWithPeers(rng, 128)
 
 	lib := &Librarian{
-		Config: &Config{
+		config: &Config{
 			PublicName: peerName,
 			LocalAddr:  publicAddr,
 		},

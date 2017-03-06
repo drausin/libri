@@ -27,7 +27,7 @@ type Librarian struct {
 	SelfID ecid.ID
 
 	// Config holds the configuration parameters of the server
-	Config *Config
+	config *Config
 
 	// fixed API address
 	apiSelf *api.PeerAddress
@@ -71,6 +71,9 @@ type Librarian struct {
 
 	// logger for this instance
 	logger *zap.Logger
+
+	// receives graceful stop signal
+	stop chan struct{}
 }
 
 // NewLibrarian creates a new librarian instance.
@@ -102,7 +105,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 
 	return &Librarian{
 		SelfID:     peerID,
-		Config:     config,
+		config:     config,
 		apiSelf:    api.FromAddress(peerID.ID(), config.PublicName, config.PublicAddr),
 		introducer: introduce.NewDefaultIntroducer(signer),
 		searcher:   searcher,
@@ -117,6 +120,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		signer:     signer,
 		rt:         rt,
 		logger:     logger,
+		stop:       make(chan struct{}),
 	}, nil
 }
 
