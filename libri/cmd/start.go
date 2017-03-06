@@ -33,7 +33,8 @@ var startLibrarianCmd = &cobra.Command{
 		if err != nil {
 			os.Exit(1)
 		}
-		if err = server.Start(config, logger); err != nil {
+		up := make(chan *server.Librarian, 1)
+		if err = server.Start(logger, config, up); err != nil {
 			os.Exit(1)
 		}
 	},

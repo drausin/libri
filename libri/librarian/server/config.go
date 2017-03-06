@@ -11,7 +11,6 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"log"
 )
 
 const (
@@ -217,7 +216,6 @@ func (c *Config) WithDefaultLogLevel() *Config {
 
 func (c *Config) isBootstrap() bool {
 	for _, a := range c.BootstrapAddrs {
-		log.Printf("%v, %v", c.PublicAddr, a)
 		if c.PublicAddr.String() == a.String() {
 			return true
 		}

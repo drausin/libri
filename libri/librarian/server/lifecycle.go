@@ -53,7 +53,7 @@ func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
 		l.logger.Error("encountered fatal error while bootsrapping", zap.Error(err))
 		return err
 	}
-	if !l.Config.isBootstrap() && len(intro.Result.Responded) == 0{
+	if !l.config.isBootstrap() && len(intro.Result.Responded) == 0{
 		// if we're not a libri bootstrap peer, error if couldn't find any
 		err := errors.New("failed to bootstrap any other peers")
 		l.logger.Error("failed to bootstrap any other peers")
@@ -77,7 +77,7 @@ func makeBootstrapPeers(bootstrapAddrs []*net.TCPAddr) []peer.Peer {
 }
 
 func (l *Librarian) listenAndServe(up chan *Librarian) error {
-	lis, err := net.Listen("tcp", l.Config.LocalAddr.String())
+	lis, err := net.Listen("tcp", l.config.LocalAddr.String())
 	if err != nil {
 		l.logger.Error("failed to listen", zap.Error(err))
 		return err
@@ -87,7 +87,7 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 	api.RegisterLibrarianServer(s, l)
 	reflection.Register(s)
 
-	l.logger.Info("listening for requests", zap.Int(LoggerPortKey, l.Config.LocalAddr.Port))
+	l.logger.Info("listening for requests", zap.Int(LoggerPortKey, l.config.LocalAddr.Port))
 
 	go func() {
 		// notify up channel shortly after starting to serve requests
@@ -126,5 +126,5 @@ func (l *Librarian) CloseAndRemove() error {
 	if err != nil {
 		return err
 	}
-	return os.RemoveAll(l.Config.DataDir)
+	return os.RemoveAll(l.config.DataDir)
 }

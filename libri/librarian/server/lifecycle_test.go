@@ -46,7 +46,7 @@ func TestStart_ok(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "pong", rp1.Message)
 
-	librarian.stop <- struct{}{}
+	//librarian.stop <- struct{}{}
 	librarian.CloseAndRemove()
 }
 
@@ -64,10 +64,10 @@ func TestStart_bootstrapPeersErr(t *testing.T) {
 	assert.Nil(t, err)
 	config := DefaultConfig()
 	config.WithDataDir(dataDir).WithDefaultDBDir()
+	config.WithBootstrapAddrs(make([]*net.TCPAddr, 0))
 
-	// erroneously configure bootstrap peer to be self, which will lead to
-	// connection problems
-	config.BootstrapAddrs = append(config.BootstrapAddrs, ParseAddr(DefaultIP, DefaultPort))
+	// configure bootstrap peer to be non-existent peer
+	config.BootstrapAddrs = append(config.BootstrapAddrs, ParseAddr(DefaultIP, DefaultPort + 1))
 
 	// check that bootstrap error bubbles up
 	assert.NotNil(t, Start(zap.NewNop(), config, make(chan *Librarian, 1)))
@@ -90,6 +90,7 @@ func TestLibrarian_bootstrapPeers_ok(t *testing.T) {
 	}
 
 	l := &Librarian{
+		config: DefaultConfig(),
 		introducer: &fixedIntroducer{
 			result: fixedResult,
 		},
@@ -119,6 +120,7 @@ func TestLibrarian_bootstrapPeers_introduceErr(t *testing.T) {
 	}
 
 	l := &Librarian{
+		config: DefaultConfig(),
 		introducer: &fixedIntroducer{
 			err: errors.New("some fatal introduce error"),
 		},
@@ -146,6 +148,7 @@ func TestLibrarian_bootstrapPeers_noResponsesErr(t *testing.T) {
 	fixedResult := introduce.NewInitialResult()
 
 	l := &Librarian{
+		config: DefaultConfig().WithPublicAddr(ParseAddr(DefaultIP, DefaultPort + 1)),
 		introducer: &fixedIntroducer{
 			result: fixedResult,
 		},

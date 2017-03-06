@@ -24,34 +24,34 @@ import (
 // Librarian is the main service of a single peer in the peer to peer network.
 type Librarian struct {
 	// SelfID is the random 256-bit identification number of this node in the hash table
-	SelfID ecid.ID
+	SelfID     ecid.ID
 
 	// Config holds the configuration parameters of the server
-	Config *Config
+	config     *Config
 
 	// fixed API address
-	apiSelf *api.PeerAddress
+	apiSelf    *api.PeerAddress
 
 	// executes introductions to peers
 	introducer introduce.Introducer
 
 	// executes searches for peers and keys
-	searcher search.Searcher
+	searcher   search.Searcher
 
 	// executes stores for key/value
-	storer store.Storer
+	storer     store.Storer
 
 	// verifies requests from peers
-	rqv RequestVerifier
+	rqv        RequestVerifier
 
 	// key-value store DB used for all external storage
-	db db.KVDB
+	db         db.KVDB
 
 	// SL for server data
-	serverSL storage.NamespaceStorerLoader
+	serverSL   storage.NamespaceStorerLoader
 
 	// SL for p2p stored records
-	entriesSL storage.NamespaceStorerLoader
+	entriesSL  storage.NamespaceStorerLoader
 
 	// ensures keys are valid
 	kc storage.Checker
@@ -105,7 +105,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 
 	return &Librarian{
 		SelfID:     peerID,
-		Config:     config,
+		config:     config,
 		apiSelf:    api.FromAddress(peerID.ID(), config.PublicName, config.PublicAddr),
 		introducer: introduce.NewDefaultIntroducer(signer),
 		searcher:   searcher,
