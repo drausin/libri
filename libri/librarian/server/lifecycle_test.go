@@ -46,8 +46,8 @@ func TestStart_ok(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "pong", rp1.Message)
 
-	//librarian.stop <- struct{}{}
-	librarian.CloseAndRemove()
+	librarian.stop <- struct{}{}
+	assert.Nil(t, librarian.CloseAndRemove())
 }
 
 func TestStart_newLibrarianErr(t *testing.T) {
