@@ -4,7 +4,6 @@ import (
 	"math/rand"
 	"net"
 	"testing"
-
 	"io/ioutil"
 
 	cid "github.com/drausin/libri/libri/common/id"
@@ -14,9 +13,42 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
+	"golang.org/x/net/context"
+	"github.com/drausin/libri/libri/librarian/api"
+	"google.golang.org/grpc"
 )
 
-// TODO (drausin) add multi-peer integration test to test Start()'s OK path.
+func TestStart_ok(t *testing.T) {
+	// start a single librarian server
+	config := newTestConfig()
+	assert.True(t, config.isBootstrap())
+
+	var err error
+	up := make(chan *Librarian, 1)
+	go func() {
+		err = Start(NewDevInfoLogger(), config, up)
+		assert.NotNil(t, err) // since the server is shut down
+	}()
+
+	// get the librarian once it's up
+	librarian := <- up
+
+	// set up client
+	conn, err := grpc.Dial(config.LocalAddr.String(), grpc.WithInsecure())
+	assert.NotNil(t, conn)
+	assert.Nil(t, err)
+	client := api.NewLibrarianClient(conn)
+
+	// confirm server is up and responds to ping
+	rq1 := &api.PingRequest{}
+	ctx1 := context.Background()
+	rp1, err := client.Ping(ctx1, rq1)
+	assert.Nil(t, err)
+	assert.Equal(t, "pong", rp1.Message)
+
+	librarian.stop <- struct{}{}
+	librarian.CloseAndRemove()
+}
 
 func TestStart_newLibrarianErr(t *testing.T) {
 	config := &Config{
@@ -24,7 +56,7 @@ func TestStart_newLibrarianErr(t *testing.T) {
 	}
 
 	// check that NewLibrarian error bubbles up
-	assert.NotNil(t, Start(config, zap.NewNop()))
+	assert.NotNil(t, Start(zap.NewNop(), config, make(chan *Librarian, 1)))
 }
 
 func TestStart_bootstrapPeersErr(t *testing.T) {
@@ -38,7 +70,7 @@ func TestStart_bootstrapPeersErr(t *testing.T) {
 	config.BootstrapAddrs = append(config.BootstrapAddrs, ParseAddr(DefaultIP, DefaultPort))
 
 	// check that bootstrap error bubbles up
-	assert.NotNil(t, Start(config, zap.NewNop()))
+	assert.NotNil(t, Start(zap.NewNop(), config, make(chan *Librarian, 1)))
 }
 
 func TestLibrarian_bootstrapPeers_ok(t *testing.T) {

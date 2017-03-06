@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"log"
 )
 
 const (
@@ -213,6 +213,16 @@ func (c *Config) WithLogLevel(logLevel zapcore.Level) *Config {
 func (c *Config) WithDefaultLogLevel() *Config {
 	c.WithLogLevel(DefaultLogLevel)
 	return c
+}
+
+func (c *Config) isBootstrap() bool {
+	for _, a := range c.BootstrapAddrs {
+		log.Printf("%v, %v", c.PublicAddr, a)
+		if c.PublicAddr.String() == a.String() {
+			return true
+		}
+	}
+	return false
 }
 
 // ParseAddr parses a net.TCPAddr from an IP address and port.

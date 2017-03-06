@@ -39,18 +39,22 @@ func TestNewLibrarian(t *testing.T) {
 }
 
 func newTestLibrarian() *Librarian {
+	config := newTestConfig()
+	l, err := NewLibrarian(config, NewDevInfoLogger())
+	if err != nil {
+		panic(err)
+	}
+	return l
+}
+
+func newTestConfig() *Config {
 	config := DefaultConfig()
 	dir, err := ioutil.TempDir("", "test-data-dir")
 	if err != nil {
 		panic(err)
 	}
 	config.WithDataDir(dir).WithDefaultDBDir() // resets default DB dir given new data dir
-
-	l, err := NewLibrarian(config, NewDevInfoLogger())
-	if err != nil {
-		panic(err)
-	}
-	return l
+	return config
 }
 
 // alwaysRequestVerifies implements the RequestVerifier interface but just blindly verifies every

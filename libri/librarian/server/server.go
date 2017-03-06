@@ -71,6 +71,9 @@ type Librarian struct {
 
 	// logger for this instance
 	logger *zap.Logger
+
+	// receives graceful stop signal
+	stop chan struct{}
 }
 
 // NewLibrarian creates a new librarian instance.
@@ -117,6 +120,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		signer:     signer,
 		rt:         rt,
 		logger:     logger,
+		stop: make(chan struct{}),
 	}, nil
 }
 

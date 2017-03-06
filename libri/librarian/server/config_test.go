@@ -19,6 +19,14 @@ func TestDefaultConfig(t *testing.T) {
 	assert.NotEmpty(t, c.LogLevel)
 }
 
+func TestConfig_isBootstrap(t *testing.T) {
+	config := DefaultConfig()
+	assert.True(t, config.isBootstrap())
+
+	config.WithPublicAddr(ParseAddr("localhost", DefaultPort + 1))
+	assert.False(t, config.isBootstrap())
+}
+
 func TestParseAddr(t *testing.T) {
 	cases := []struct {
 		ip      string
@@ -68,3 +76,4 @@ func TestParseAddrs_err(t *testing.T) {
 		assert.NotNil(t, err, a)
 	}
 }
+
