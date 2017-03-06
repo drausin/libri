@@ -1,12 +1,13 @@
 package server
 
 import (
+	"io/ioutil"
 	"math/rand"
 	"net"
 	"testing"
-	"io/ioutil"
 
 	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
@@ -14,7 +15,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
-	"github.com/drausin/libri/libri/librarian/api"
 	"google.golang.org/grpc"
 )
 
@@ -31,7 +31,7 @@ func TestStart_ok(t *testing.T) {
 	}()
 
 	// get the librarian once it's up
-	librarian := <- up
+	librarian := <-up
 
 	// set up client
 	conn, err := grpc.Dial(config.LocalAddr.String(), grpc.WithInsecure())
@@ -67,7 +67,7 @@ func TestStart_bootstrapPeersErr(t *testing.T) {
 	config.WithBootstrapAddrs(make([]*net.TCPAddr, 0))
 
 	// configure bootstrap peer to be non-existent peer
-	config.BootstrapAddrs = append(config.BootstrapAddrs, ParseAddr(DefaultIP, DefaultPort + 1))
+	config.BootstrapAddrs = append(config.BootstrapAddrs, ParseAddr(DefaultIP, DefaultPort+1))
 
 	// check that bootstrap error bubbles up
 	assert.NotNil(t, Start(zap.NewNop(), config, make(chan *Librarian, 1)))
@@ -148,7 +148,7 @@ func TestLibrarian_bootstrapPeers_noResponsesErr(t *testing.T) {
 	fixedResult := introduce.NewInitialResult()
 
 	l := &Librarian{
-		config: DefaultConfig().WithPublicAddr(ParseAddr(DefaultIP, DefaultPort + 1)),
+		config: DefaultConfig().WithPublicAddr(ParseAddr(DefaultIP, DefaultPort+1)),
 		introducer: &fixedIntroducer{
 			result: fixedResult,
 		},

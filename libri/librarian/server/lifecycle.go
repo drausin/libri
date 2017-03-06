@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
+
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
@@ -11,7 +13,6 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
-	"time"
 )
 
 const (
@@ -53,7 +54,7 @@ func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
 		l.logger.Error("encountered fatal error while bootsrapping", zap.Error(err))
 		return err
 	}
-	if !l.config.isBootstrap() && len(intro.Result.Responded) == 0{
+	if !l.config.isBootstrap() && len(intro.Result.Responded) == 0 {
 		// if we're not a libri bootstrap peer, error if couldn't find any
 		err := errors.New("failed to bootstrap any other peers")
 		l.logger.Error("failed to bootstrap any other peers")
@@ -94,9 +95,9 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 		time.Sleep(postListenNotifyWait)
 		up <- l
 	}()
-	go func () {
+	go func() {
 		// handle stop signal
-		<- l.stop
+		<-l.stop
 		l.logger.Info("gracefully stopping server")
 		s.GracefulStop()
 	}()

@@ -23,7 +23,7 @@ func TestConfig_isBootstrap(t *testing.T) {
 	config := DefaultConfig()
 	assert.True(t, config.isBootstrap())
 
-	config.WithPublicAddr(ParseAddr("localhost", DefaultPort + 1))
+	config.WithPublicAddr(ParseAddr("localhost", DefaultPort+1))
 	assert.False(t, config.isBootstrap())
 }
 
@@ -76,4 +76,3 @@ func TestParseAddrs_err(t *testing.T) {
 		assert.NotNil(t, err, a)
 	}
 }
-
