@@ -38,7 +38,7 @@ type Parameters struct {
 }
 
 // NewParameters creates an instance with default parameters.
-func NewParameters() *Parameters {
+func NewDefaultParameters() *Parameters {
 	return &Parameters{
 		NClosestResponses: routing.DefaultMaxActivePeers,
 		NMaxErrors:        DefaultNMaxErrors,

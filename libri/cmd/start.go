@@ -67,7 +67,7 @@ func init() {
 }
 
 func getConfig() (*server.Config, *zap.Logger, error) {
-	config := server.DefaultConfig()
+	config := server.NewDefaultConfig()
 
 	config.WithLocalAddr(server.ParseAddr(localIP, localPort))
 	config.WithPublicAddr(server.ParseAddr(publicIP, publicPort))

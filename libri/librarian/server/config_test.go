@@ -8,7 +8,7 @@ import (
 )
 
 func TestDefaultConfig(t *testing.T) {
-	c := DefaultConfig()
+	c := NewDefaultConfig()
 	assert.NotEmpty(t, c.LocalAddr)
 	assert.NotEmpty(t, c.PublicAddr)
 	assert.NotEmpty(t, c.LocalName)
@@ -20,7 +20,7 @@ func TestDefaultConfig(t *testing.T) {
 }
 
 func TestConfig_isBootstrap(t *testing.T) {
-	config := DefaultConfig()
+	config := NewDefaultConfig()
 	assert.True(t, config.isBootstrap())
 
 	config.WithPublicAddr(ParseAddr("localhost", DefaultPort+1))

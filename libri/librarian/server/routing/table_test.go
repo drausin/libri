@@ -26,7 +26,7 @@ func TestTable_NewWithPeers_concurrent(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	concurrency := 4
 	for n := concurrency; n <= 256; n *= 2 {
-		rt := NewEmpty(cid.NewPseudoRandom(rng))
+		rt := NewEmpty(cid.NewPseudoRandom(rng), NewDefaultParameters())
 		var wg sync.WaitGroup
 		for i := 0; i < concurrency; i++ {
 			wg.Add(1)

@@ -48,7 +48,7 @@ func Start(logger *zap.Logger, config *Config, up chan *Librarian) error {
 }
 
 func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
-	intro := introduce.NewIntroduction(l.SelfID, l.apiSelf, introduce.NewDefaultParameters())
+	intro := introduce.NewIntroduction(l.selfID, l.apiSelf, introduce.NewDefaultParameters())
 	err := l.introducer.Introduce(intro, makeBootstrapPeers(bootstrapAddrs))
 	if err != nil {
 		l.logger.Error("encountered fatal error while bootsrapping", zap.Error(err))

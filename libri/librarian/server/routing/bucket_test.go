@@ -11,7 +11,7 @@ import (
 
 func TestBucket_PushPop(t *testing.T) {
 	for n := 1; n <= 128; n *= 2 {
-		b := newFirstBucket()
+		b := newFirstBucket(DefaultMaxActivePeers)
 		rng := rand.New(rand.NewSource(int64(n)))
 		for _, p := range peer.NewTestPeers(rng, n) {
 			heap.Push(b, p)
@@ -26,7 +26,7 @@ func TestBucket_PushPop(t *testing.T) {
 }
 
 func TestBucket_Peak(t *testing.T) {
-	b := newFirstBucket()
+	b := newFirstBucket(DefaultMaxActivePeers)
 
 	// nothing to peak b/c bucket is empty
 	assert.Equal(t, 0, len(b.Peak(2)))

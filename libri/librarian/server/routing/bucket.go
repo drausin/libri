@@ -36,14 +36,14 @@ type bucket struct {
 }
 
 // newFirstBucket creates a new instance of the first bucket (spanning the entire ID range)
-func newFirstBucket() *bucket {
+func newFirstBucket(maxActivePeers uint) *bucket {
 	return &bucket{
 		depth:          0,
 		lowerBound:     cid.LowerBound,
 		upperBound:     cid.UpperBound,
 		idMass:         1.0,
 		idCumMass:      1.0,
-		maxActivePeers: DefaultMaxActivePeers,
+		maxActivePeers: maxActivePeers,
 		activePeers:    make([]peer.Peer, 0),
 		positions:      make(map[string]int),
 		containsSelf:   true,

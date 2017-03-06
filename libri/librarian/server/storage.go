@@ -65,9 +65,9 @@ func savePeerID(ns storage.NamespaceStorer, peerID ecid.ID) error {
 	return ns.Store(peerIDKey, bytes)
 }
 
-func loadOrCreateRoutingTable(logger *zap.Logger, nl storage.NamespaceLoader, selfID cid.ID) (
-	routing.Table, error) {
-	rt, err := routing.Load(nl)
+func loadOrCreateRoutingTable(logger *zap.Logger, nl storage.NamespaceLoader, selfID cid.ID,
+	params *routing.Parameters) (routing.Table, error) {
+	rt, err := routing.Load(nl, params)
 	if err != nil {
 		logger.Error("error loading routing table", zap.Error(err))
 		return nil, err
@@ -89,5 +89,5 @@ func loadOrCreateRoutingTable(logger *zap.Logger, nl storage.NamespaceLoader, se
 	}
 
 	defer logger.Info("created new routing table")
-	return routing.NewEmpty(selfID), nil
+	return routing.NewEmpty(selfID, params), nil
 }
