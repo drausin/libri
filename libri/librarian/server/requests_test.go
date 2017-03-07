@@ -7,10 +7,10 @@ import (
 
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
-	"github.com/drausin/libri/libri/librarian/signature"
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
+	"github.com/drausin/libri/libri/librarian/client"
 )
 
 // alwaysSigVerifier implements the signature.Verifier interface but just blindly verifies
@@ -28,8 +28,7 @@ func TestRequestVerifier_Verify_ok(t *testing.T) {
 	}
 
 	rng := rand.New(rand.NewSource(0))
-	ctx := context.WithValue(context.Background(), signature.NewContextKey(),
-		"dummy.signed.token")
+	ctx := client.NewSignatureContext(context.Background(), "dummy.signed.token")
 	meta := api.NewRequestMetadata(ecid.NewPseudoRandom(rng))
 
 	assert.Nil(t, rv.Verify(ctx, nil, meta))
@@ -41,7 +40,7 @@ func TestRequestVerifier_Verify_err(t *testing.T) {
 	}
 
 	rng := rand.New(rand.NewSource(0))
-	ctx := context.WithValue(context.Background(), signature.NewContextKey(), "dummy.signed.token")
+	ctx := client.NewSignatureContext(context.Background(), "dummy.signed.token")
 
 	assert.NotNil(t, rv.Verify(ctx, nil, &api.RequestMetadata{
 		PubKey: []byte{255, 254, 253}, // bad pub key

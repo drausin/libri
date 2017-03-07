@@ -13,6 +13,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	"strings"
 )
 
 const (
@@ -22,6 +23,10 @@ const (
 var (
 	// LoggerPortKey is the key used by the logger for address ports.
 	LoggerPortKey = "port"
+
+	LoggerNumBootstrappedPeers = "num_bootstrapped_peers"
+
+	LoggerSeeds = "seeds"
 )
 
 // Start is the entry point for a Librarian server. It bootstraps peers for the Librarians's
@@ -49,7 +54,10 @@ func Start(logger *zap.Logger, config *Config, up chan *Librarian) error {
 
 func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
 	intro := introduce.NewIntroduction(l.selfID, l.apiSelf, introduce.NewDefaultParameters())
-	err := l.introducer.Introduce(intro, makeBootstrapPeers(bootstrapAddrs))
+	bootstraps, bootstrapAddrStrs := makeBootstrapPeers(bootstrapAddrs, l.config.PublicAddr)
+	l.logger.Info("beginning peer bootstrap", zap.Strings(LoggerSeeds, bootstrapAddrStrs))
+
+	err := l.introducer.Introduce(intro, bootstraps)
 	if err != nil {
 		l.logger.Error("encountered fatal error while bootsrapping", zap.Error(err))
 		return err
@@ -65,16 +73,23 @@ func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
 	for _, p := range intro.Result.Responded {
 		l.rt.Push(p)
 	}
+	l.logger.Info("bootstrapped peers",
+		zap.Int(LoggerNumBootstrappedPeers, len(intro.Result.Responded)))
 	return nil
 }
 
-func makeBootstrapPeers(bootstrapAddrs []*net.TCPAddr) []peer.Peer {
-	peers := make([]peer.Peer, len(bootstrapAddrs))
+func makeBootstrapPeers(bootstrapAddrs []*net.TCPAddr, selfPublicAddr *net.TCPAddr) (
+	[]peer.Peer, []string) {
+	peers, addrStrs := make([]peer.Peer, 0), make([]string, 0)
 	for i, bootstrap := range bootstrapAddrs {
-		dummyIDStr := fmt.Sprintf("bootstrap-seed%02d", i)
-		peers[i] = peer.New(nil, dummyIDStr, peer.NewConnector(bootstrap))
+		if bootstrap.String() != selfPublicAddr.String() {
+			dummyIDStr := fmt.Sprintf("bootstrap-seed%02d", i)
+			conn := peer.NewConnector(bootstrap)
+			peers = append(peers, peer.New(nil, dummyIDStr, conn))
+			addrStrs = append(addrStrs, bootstrap.String())
+		}
 	}
-	return peers
+	return peers, addrStrs
 }
 
 func (l *Librarian) listenAndServe(up chan *Librarian) error {
@@ -88,20 +103,24 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 	api.RegisterLibrarianServer(s, l)
 	reflection.Register(s)
 
-	l.logger.Info("listening for requests", zap.Int(LoggerPortKey, l.config.LocalAddr.Port))
-
 	go func() {
 		// notify up channel shortly after starting to serve requests
 		time.Sleep(postListenNotifyWait)
+		l.logger.Info("listening for requests", zap.Int(LoggerPortKey,
+			l.config.LocalAddr.Port))
 		up <- l
 	}()
 	go func() {
 		// handle stop signal
 		<-l.stop
-		l.logger.Info("gracefully stopping server")
+		l.logger.Info("gracefully stopping server", zap.Int(LoggerPortKey,
+			l.config.LocalAddr.Port))
 		s.GracefulStop()
 	}()
 	if err := s.Serve(lis); err != nil {
+		if strings.Contains(fmt.Sprintf("%s", err.Error()), "use of closed network connection") {
+			return nil
+		}
 		l.logger.Error("failed to serve", zap.Error(err))
 		return err
 	}
@@ -110,12 +129,21 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 
 // Close handles cleanup involved in closing down the server.
 func (l *Librarian) Close() error {
+
+	// send stop signal to listener
+	l.stop <- struct{}{}
+
+	// disconnect from peers in routing table
 	if err := l.rt.Disconnect(); err != nil {
 		return err
 	}
+
+	// save routing table state
 	if err := l.rt.Save(l.serverSL); err != nil {
 		return err
 	}
+
+	// close the DB
 	l.db.Close()
 
 	return nil

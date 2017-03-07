@@ -25,16 +25,19 @@ import (
 // TestNewLibrarian checks that we can create a new instance, close it, and create it again as
 // expected.
 func TestNewLibrarian(t *testing.T) {
-	lib1 := newTestLibrarian()
+	l1 := newTestLibrarian()
+	go func() { <- l1.stop }() // dummy stop signal acceptor
 
-	nodeID1 := lib1.selfID // should have been generated
-	err := lib1.Close()
+	nodeID1 := l1.selfID // should have been generated
+	err := l1.Close()
 	assert.Nil(t, err)
 
-	lib2, err := NewLibrarian(lib1.config, NewDevInfoLogger())
+	l2, err := NewLibrarian(l1.config, NewDevInfoLogger())
+	go func() { <- l2.stop }() // dummy stop signal acceptor
+
 	assert.Nil(t, err)
-	assert.Equal(t, nodeID1, lib2.selfID)
-	err = lib2.CloseAndRemove()
+	assert.Equal(t, nodeID1, l2.selfID)
+	err = l2.CloseAndRemove()
 	assert.Nil(t, err)
 }
 

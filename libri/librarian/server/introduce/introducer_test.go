@@ -19,7 +19,10 @@ import (
 
 func TestNewDefaultIntroducer(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	s := NewDefaultIntroducer(signature.NewSigner(ecid.NewPseudoRandom(rng).Key()))
+	s := NewDefaultIntroducer(
+		signature.NewSigner(ecid.NewPseudoRandom(rng).Key()),
+		cid.NewPseudoRandom(rng),
+	)
 	assert.NotNil(t, s.(*introducer).signer)
 	assert.NotNil(t, s.(*introducer).querier)
 	assert.NotNil(t, s.(*introducer).repProcessor)
@@ -179,12 +182,16 @@ func TestResponseProcessor_Process(t *testing.T) {
 	nPeers := 16
 	responder := peer.NewTestPeer(rng, nPeers)
 	peers := peer.NewTestPeers(rng, nPeers)
-	rp := NewResponseProcessor(peer.NewFromer())
+	selfPeer := peer.NewTestPeer(rng, nPeers + 1)
+	rp := NewResponseProcessor(peer.NewFromer(), selfPeer.ID())
+	apiPeers := peer.ToAPIs(peers)
+	apiPeers = append(apiPeers, selfPeer.ToAPI())
+
 	result := NewInitialResult()
 
 	response1 := &api.IntroduceResponse{
 		Self:  responder.ToAPI(),
-		Peers: peer.ToAPIs(peers),
+		Peers: apiPeers,
 	}
 	err := rp.Process(response1, result)
 
@@ -200,6 +207,10 @@ func TestResponseProcessor_Process(t *testing.T) {
 		_, in := result.Unqueried[p.ID().String()]
 		assert.True(t, in)
 	}
+
+	// make sure selfPeer isn't in the unqueried map
+	_, in = result.Unqueried[selfPeer.ID().String()]
+	assert.False(t, in)
 
 	// make in identical response
 	response2 := &api.IntroduceResponse{
@@ -267,12 +278,13 @@ func (erp *errResponseProcessor) Process(rp *api.IntroduceResponse, result *Resu
 	return errors.New("some fatal processing error")
 }
 
-func newTestIntroducer(peersMap map[string]peer.Peer) Introducer {
+func newTestIntroducer(peersMap map[string]peer.Peer, selfID cid.ID) Introducer {
 	return NewIntroducer(
 		&signature.TestNoOpSigner{},
 		&fixedIntroQuerier{},
 		&responseProcessor{
 			fromer: &search.TestFromer{Peers: peersMap},
+			selfID: selfID,
 		},
 	)
 }
@@ -286,7 +298,7 @@ func newTestIntros(concurrency uint) (Introducer, *Introduction, []int, []peer.P
 	}
 
 	// create our introducer
-	introducer := newTestIntroducer(peersMap)
+	introducer := newTestIntroducer(peersMap, selfID)
 
 	intro := NewIntroduction(selfID, apiSelf, &Parameters{
 		TargetNumIntroductions: targetNumIntros,

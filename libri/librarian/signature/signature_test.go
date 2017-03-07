@@ -11,10 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewContextKey(t *testing.T) {
-	assert.Equal(t, ContextKey("signature"), NewContextKey())
-}
-
 func TestSignatureClaims_Valid_ok(t *testing.T) {
 	// all of these should be considered valid hashes
 	cases := []*Claims{

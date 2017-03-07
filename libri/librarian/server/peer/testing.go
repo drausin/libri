@@ -34,7 +34,7 @@ func NewTestPeer(rng *rand.Rand, idx int) Peer {
 
 // NewTestPublicAddr creates a new net.TCPAddr given a particular peer index.
 func NewTestPublicAddr(idx int) *net.TCPAddr {
-	address, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("0.0.0.0:%v", 11000+idx))
+	address, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("127.0.0.1:%v", 11000+idx))
 	if err != nil {
 		panic(err)
 	}

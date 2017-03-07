@@ -10,6 +10,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/signature"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc/metadata"
 )
 
 func TestNewSignedTimeoutContext_ok(t *testing.T) {
@@ -20,7 +21,10 @@ func TestNewSignedTimeoutContext_ok(t *testing.T) {
 		5*time.Second,
 	)
 	assert.NotNil(t, ctx)
-	assert.NotNil(t, ctx.Value(signature.NewContextKey()))
+
+	md, in := metadata.FromContext(ctx)
+	assert.True(t, in)
+	assert.NotNil(t, md[signatureKey])
 	assert.NotNil(t, cancel)
 	assert.Nil(t, err)
 }

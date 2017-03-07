@@ -27,7 +27,7 @@ func TestStart_ok(t *testing.T) {
 	up := make(chan *Librarian, 1)
 	go func() {
 		err = Start(NewDevInfoLogger(), config, up)
-		assert.NotNil(t, err) // since the server is shut down
+		assert.Nil(t, err)
 	}()
 
 	// get the librarian once it's up
@@ -46,7 +46,6 @@ func TestStart_ok(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "pong", rp1.Message)
 
-	librarian.stop <- struct{}{}
 	assert.Nil(t, librarian.CloseAndRemove())
 }
 

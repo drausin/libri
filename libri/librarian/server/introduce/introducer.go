@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"sync"
-
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
@@ -38,11 +37,11 @@ func NewIntroducer(s signature.Signer, q client.IntroduceQuerier, rp ResponsePro
 
 // NewDefaultIntroducer creates a new Introducer with the given signer and default querier and
 // response processor.
-func NewDefaultIntroducer(s signature.Signer) Introducer {
+func NewDefaultIntroducer(s signature.Signer, selfID cid.ID) Introducer {
 	return NewIntroducer(
 		s,
 		client.NewIntroduceQuerier(),
-		NewResponseProcessor(peer.NewFromer()),
+		NewResponseProcessor(peer.NewFromer(), selfID),
 	)
 }
 
@@ -75,6 +74,10 @@ func (i *introducer) introduceWork(intro *Introduction, wg *sync.WaitGroup) {
 		intro.wrapLock(func() {
 			nextIDStr, next = removeAny(intro.Result.Unqueried)
 		})
+		if next == nil {
+			// no more unqueried peers
+			continue
+		}
 		if _, err := next.Connector().Connect(); err != nil {
 			// if we have issues connecting, skip to next peer
 			continue
@@ -99,6 +102,7 @@ func (i *introducer) introduceWork(intro *Introduction, wg *sync.WaitGroup) {
 			delete(intro.Result.Unqueried, nextIDStr)
 			err = i.repProcessor.Process(response, intro.Result)
 		})
+		next.Connector().Disconnect()
 		if err != nil {
 			intro.wrapLock(func() {
 				intro.Result.FatalErr = err
@@ -146,11 +150,15 @@ type ResponseProcessor interface {
 
 type responseProcessor struct {
 	fromer peer.Fromer
+	selfID cid.ID
 }
 
 // NewResponseProcessor creates a new ResponseProcessor with a given peer.Fromer.
-func NewResponseProcessor(f peer.Fromer) ResponseProcessor {
-	return &responseProcessor{fromer: f}
+func NewResponseProcessor(f peer.Fromer, selfID cid.ID) ResponseProcessor {
+	return &responseProcessor{
+		fromer: f,
+		selfID: selfID,
+	}
 }
 
 func (irp *responseProcessor) Process(rp *api.IntroduceResponse, result *Result) error {
@@ -161,11 +169,12 @@ func (irp *responseProcessor) Process(rp *api.IntroduceResponse, result *Result)
 	result.Responded[idStr] = newPeer
 
 	// add newly discovered peers to list of peers to query if they're not already there
+	selfIDStr := irp.selfID.String()
 	for _, pa := range rp.Peers {
 		newIDStr := cid.FromBytes(pa.PeerId).String()
 		_, inResponded := result.Responded[newIDStr]
 		_, inUnqueried := result.Unqueried[newIDStr]
-		if !inResponded && !inUnqueried {
+		if !inResponded && !inUnqueried && newIDStr != selfIDStr {
 			newPeer := irp.fromer.FromAPI(pa)
 			result.Unqueried[newIDStr] = newPeer
 		}
