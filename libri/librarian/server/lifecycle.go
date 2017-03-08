@@ -20,7 +20,7 @@ const (
 	postListenNotifyWait = 100 * time.Millisecond
 )
 
-var (
+const (
 	// LoggerPortKey is the key used by the logger for address ports.
 	LoggerPortKey = "port"
 

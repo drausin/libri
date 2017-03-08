@@ -39,3 +39,21 @@ func TestStoreQuerier_Query_err(t *testing.T) {
 	_, err := q.Query(nil, c, nil, nil)
 	assert.NotNil(t, err)
 }
+
+func TestGetQuerier_Query_err(t *testing.T) {
+	c := &peer.TestErrConnector{}
+	q := NewGetQuerier()
+
+	// check that error from c.Connect() surfaces to q.Query(...)
+	_, err := q.Query(nil, c, nil, nil)
+	assert.NotNil(t, err)
+}
+
+func TestPutQuerier_Query_err(t *testing.T) {
+	c := &peer.TestErrConnector{}
+	q := NewPutQuerier()
+
+	// check that error from c.Connect() surfaces to q.Query(...)
+	_, err := q.Query(nil, c, nil, nil)
+	assert.NotNil(t, err)
+}
