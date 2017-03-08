@@ -53,7 +53,7 @@ func Start(logger *zap.Logger, config *Config, up chan *Librarian) error {
 }
 
 func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
-	intro := introduce.NewIntroduction(l.selfID, l.apiSelf, introduce.NewDefaultParameters())
+	intro := introduce.NewIntroduction(l.selfID, l.apiSelf, l.config.Introduce)
 	bootstraps, bootstrapAddrStrs := makeBootstrapPeers(bootstrapAddrs, l.config.PublicAddr)
 	l.logger.Info("beginning peer bootstrap", zap.Strings(LoggerSeeds, bootstrapAddrStrs))
 

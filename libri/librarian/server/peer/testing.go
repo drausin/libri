@@ -110,12 +110,14 @@ func (c *TestConnector) Disconnect() error {
 	return nil
 }
 
+// Equals is a stub that always returns false.
 func (c *TestConnector) Equals(other Connector) bool {
 	return false
 }
 
+// String is a stub that always returns a dummy value.
 func (c *TestConnector) String() string {
-	return fmt.Sprintf("%s:%s", c.APISelf.Ip, c.APISelf.Port)
+	return "dummy string"
 }
 
 // TestErrConnector mocks the peer.Connector interface. The Connect() methods always returns an
@@ -132,10 +134,12 @@ func (ec *TestErrConnector) Disconnect() error {
 	return nil
 }
 
+// Equals is a stub that always returns false.
 func (c *TestErrConnector) Equals(other Connector) bool {
 	return false
 }
 
+// String is a stub that always returns a dummy value.
 func (c *TestErrConnector) String() string {
 	return "dummy string"
 }
