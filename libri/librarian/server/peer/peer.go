@@ -92,11 +92,9 @@ func (p *peer) Merge(other Peer) error {
 	if other.(*peer).name != "" {
 		p.name = other.(*peer).name
 	}
-	pAddr := p.conn.(*connector).publicAddress
-	if other.Connector() != nil && pAddr != other.Connector().(*connector).publicAddress {
-		otherAddr := other.Connector().(*connector).publicAddress
-		return fmt.Errorf("unable to merge public addresses for peer %v: existing (%v)"+
-			" conflicts with new (%v)", p.id, pAddr.String(), otherAddr.String())
+	if other.Connector() != nil && !p.conn.Equals(other.Connector()) {
+		return fmt.Errorf("unable to merge public addresses for peer %v: existing (%s)"+
+			" conflicts with new (%v)", p.id, p.conn, other.Connector())
 	}
 	p.recorder.Merge(other.Recorder())
 	return nil

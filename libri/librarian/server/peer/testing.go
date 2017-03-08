@@ -110,6 +110,14 @@ func (c *TestConnector) Disconnect() error {
 	return nil
 }
 
+func (c *TestConnector) Equals(other Connector) bool {
+	return false
+}
+
+func (c *TestConnector) String() string {
+	return fmt.Sprintf("%s:%s", c.APISelf.Ip, c.APISelf.Port)
+}
+
 // TestErrConnector mocks the peer.Connector interface. The Connect() methods always returns an
 // error.
 type TestErrConnector struct{}
@@ -122,4 +130,12 @@ func (ec *TestErrConnector) Connect() (api.LibrarianClient, error) {
 // Disconnect is a no-op stub to satisfy the interface's signature.
 func (ec *TestErrConnector) Disconnect() error {
 	return nil
+}
+
+func (c *TestErrConnector) Equals(other Connector) bool {
+	return false
+}
+
+func (c *TestErrConnector) String() string {
+	return "dummy string"
 }
