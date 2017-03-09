@@ -27,7 +27,7 @@ const (
 	// LoggerSeeds is the logger key used for the seeds of a bootstrap operation.
 	LoggerSeeds = "seeds"
 
-	// LoggerNumBootstrappedPeers is the logger key used for the number of peers found
+	// LoggerNBootstrappedPeers is the logger key used for the number of peers found
 	// during a bootstrap operation.
 	LoggerNBootstrappedPeers = "n_bootstrapped_peers"
 )
