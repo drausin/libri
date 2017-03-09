@@ -21,12 +21,15 @@ const (
 )
 
 const (
-	// LoggerPortKey is the key used by the logger for address ports.
+	// LoggerPortKey is the logger key used for address ports.
 	LoggerPortKey = "port"
 
-	LoggerNumBootstrappedPeers = "num_bootstrapped_peers"
-
+	// LoggerSeeds is the logger key used for the seeds of a bootstrap operation.
 	LoggerSeeds = "seeds"
+
+	// LoggerNumBootstrappedPeers is the logger key used for the number of peers found
+	// during a bootstrap operation.
+	LoggerNBootstrappedPeers = "n_bootstrapped_peers"
 )
 
 // Start is the entry point for a Librarian server. It bootstraps peers for the Librarians's
@@ -74,11 +77,11 @@ func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
 		l.rt.Push(p)
 	}
 	l.logger.Info("bootstrapped peers",
-		zap.Int(LoggerNumBootstrappedPeers, len(intro.Result.Responded)))
+		zap.Int(LoggerNBootstrappedPeers, len(intro.Result.Responded)))
 	return nil
 }
 
-func makeBootstrapPeers(bootstrapAddrs []*net.TCPAddr, selfPublicAddr *net.TCPAddr) (
+func makeBootstrapPeers(bootstrapAddrs []*net.TCPAddr, selfPublicAddr fmt.Stringer) (
 	[]peer.Peer, []string) {
 	peers, addrStrs := make([]peer.Peer, 0), make([]string, 0)
 	for i, bootstrap := range bootstrapAddrs {

@@ -14,12 +14,14 @@ const (
 	signatureKey = "signature"
 )
 
+// NewSignatureContext creates a new context with the signed JSON web token (JWT) string.
 func NewSignatureContext(ctx context.Context, signedJWT string) context.Context {
 	md := metadata.MD{}
 	md[signatureKey] = []string{signedJWT}
 	return metadata.NewContext(ctx, md)
 }
 
+// FromSignatureContext extracts the signed JSON web token from the context.
 func FromSignatureContext(ctx context.Context) (string, error) {
 	md, ok := metadata.FromContext(ctx)
 	if !ok {

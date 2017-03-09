@@ -135,11 +135,11 @@ func (ec *TestErrConnector) Disconnect() error {
 }
 
 // Equals is a stub that always returns false.
-func (c *TestErrConnector) Equals(other Connector) bool {
+func (ec *TestErrConnector) Equals(other Connector) bool {
 	return false
 }
 
 // String is a stub that always returns a dummy value.
-func (c *TestErrConnector) String() string {
+func (ec *TestErrConnector) String() string {
 	return "dummy string"
 }

@@ -102,7 +102,13 @@ func (i *introducer) introduceWork(intro *Introduction, wg *sync.WaitGroup) {
 			delete(intro.Result.Unqueried, nextIDStr)
 			err = i.repProcessor.Process(response, intro.Result)
 		})
-		next.Connector().Disconnect()
+		if err != nil {
+			intro.wrapLock(func() {
+				intro.Result.FatalErr = err
+			})
+			return
+		}
+		err = next.Connector().Disconnect()
 		if err != nil {
 			intro.wrapLock(func() {
 				intro.Result.FatalErr = err

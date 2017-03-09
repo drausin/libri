@@ -85,7 +85,7 @@ type Config struct {
 	LogLevel zapcore.Level
 }
 
-// DefaultConfig returns a reasonable default server configuration.
+// NewDefaultConfig returns a reasonable default server configuration.
 func NewDefaultConfig() *Config {
 	config := &Config{}
 
@@ -225,6 +225,7 @@ func (c *Config) WithDefaultBootstrapAddrs() *Config {
 	return c
 }
 
+// WithRouting sets the routing parameters to the given value or the default if it is nil.
 func (c *Config) WithRouting(params *routing.Parameters) *Config {
 	if params == nil {
 		return c.WithDefaultRouting()
@@ -233,11 +234,14 @@ func (c *Config) WithRouting(params *routing.Parameters) *Config {
 	return c
 }
 
+// WithDefaultRouting sets the routing parameters to the default values specified in the routing
+// module.
 func (c *Config) WithDefaultRouting() *Config {
 	c.Routing = routing.NewDefaultParameters()
 	return c
 }
 
+// WithIntroduce sets the introduce parameters to the given value or the default if it is nil.
 func (c *Config) WithIntroduce(params *introduce.Parameters) *Config {
 	if params == nil {
 		return c.WithDefaultIntroduce()
@@ -246,12 +250,14 @@ func (c *Config) WithIntroduce(params *introduce.Parameters) *Config {
 	return c
 }
 
+// WithDefaultIntroduce sets the introduce parameters to the default values specified in the
+// introduce package.
 func (c *Config) WithDefaultIntroduce() *Config {
 	c.Introduce = introduce.NewDefaultParameters()
 	return c
 }
 
-// WithSearch sets the search parameters.
+// WithSearch sets the search parameters to the given value or the default if it is nil.
 func (c *Config) WithSearch(params *search.Parameters) *Config {
 	if params == nil {
 		return c.WithDefaultSearch()
@@ -260,11 +266,14 @@ func (c *Config) WithSearch(params *search.Parameters) *Config {
 	return c
 }
 
-// WithDefaultSearch sets the search parameters to their default values.
+// WithDefaultSearch sets the search parameters to their default values specified in the search
+// package.
 func (c *Config) WithDefaultSearch() *Config {
 	c.Search = search.NewDefaultParameters()
 	return c
 }
+
+// WithStore sets the store parameters to the given value or the default if it is nil.
 func (c *Config) WithStore(params *store.Parameters) *Config {
 	if params == nil {
 		return c.WithDefaultStore()
@@ -273,6 +282,8 @@ func (c *Config) WithStore(params *store.Parameters) *Config {
 	return c
 }
 
+// WithDefaultStore sets the store parameters to their default values specified in the store
+// package.
 func (c *Config) WithDefaultStore() *Config {
 	c.Store = store.NewDefaultParameters()
 	return c

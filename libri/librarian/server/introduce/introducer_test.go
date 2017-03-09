@@ -204,7 +204,7 @@ func TestResponseProcessor_Process(t *testing.T) {
 	// make sure we've added each peer to the unqueried map
 	assert.Equal(t, nPeers, len(result.Unqueried))
 	for _, p := range peers {
-		_, in := result.Unqueried[p.ID().String()]
+		_, in = result.Unqueried[p.ID().String()]
 		assert.True(t, in)
 	}
 
@@ -224,7 +224,7 @@ func TestResponseProcessor_Process(t *testing.T) {
 	// make sure nothing has changed with Unqueried map
 	assert.Equal(t, nPeers, len(result.Unqueried))
 	for _, p := range peers {
-		_, in := result.Unqueried[p.ID().String()]
+		_, in = result.Unqueried[p.ID().String()]
 		assert.True(t, in)
 	}
 }

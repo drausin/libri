@@ -37,7 +37,7 @@ type Parameters struct {
 	Timeout time.Duration
 }
 
-// NewParameters creates an instance with default parameters.
+// NewDefaultParameters creates an instance with default parameters.
 func NewDefaultParameters() *Parameters {
 	return &Parameters{
 		NClosestResponses: routing.DefaultMaxActivePeers,
