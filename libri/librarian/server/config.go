@@ -12,6 +12,10 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"github.com/drausin/libri/libri/librarian/server/routing"
+	"github.com/drausin/libri/libri/librarian/server/store"
+	"github.com/drausin/libri/libri/librarian/server/search"
+	"github.com/drausin/libri/libri/librarian/server/introduce"
 )
 
 const (
@@ -22,14 +26,14 @@ const (
 	// DefaultIP is the default IP of both local and public addresses.
 	DefaultIP = "localhost"
 
-	// DefaultDBSubDir is the default DB subdirectory within the data dir.
-	DefaultDBSubDir = "db"
-
 	// DefaultLogLevel is the default log level to use.
 	DefaultLogLevel = zap.InfoLevel
 
 	// DataSubdir is the name of the data directory.
 	DataSubdir = "data"
+
+	// DBSubDir is the default DB subdirectory within the data dir.
+	DBSubDir = "db"
 )
 
 // Config is used to configure a Librarian server
@@ -65,12 +69,24 @@ type Config struct {
 	// BootstrapAddrs
 	BootstrapAddrs []*net.TCPAddr
 
+	// Routing defines parameters for the server's routing table.
+	Routing *routing.Parameters
+
+	// Introduce defines parameters for introductions the server performs.
+	Introduce *introduce.Parameters
+
+	// Search defines parameters for searches the server performs.
+	Search *search.Parameters
+
+	// Store defines parameters for stores the server performs.
+	Store *store.Parameters
+
 	// LogLevel is the log level
 	LogLevel zapcore.Level
 }
 
-// DefaultConfig returns a reasonable default server configuration.
-func DefaultConfig() *Config {
+// NewDefaultConfig returns a reasonable default server configuration.
+func NewDefaultConfig() *Config {
 	config := &Config{}
 
 	// set defaults via zero values; in cases where the config B depends on config A, config A
@@ -82,6 +98,10 @@ func DefaultConfig() *Config {
 	config.WithDefaultDataDir()
 	config.WithDefaultDBDir()
 	config.WithDefaultBootstrapAddrs()
+	config.WithDefaultRouting()
+	config.WithDefaultIntroduce()
+	config.WithDefaultSearch()
+	config.WithDefaultStore()
 	config.WithDefaultLogLevel()
 
 	return config
@@ -91,7 +111,7 @@ func DefaultConfig() *Config {
 // value is nil.
 func (c *Config) WithLocalAddr(localAddr *net.TCPAddr) *Config {
 	if localAddr == nil {
-		localAddr = ParseAddr(DefaultIP, DefaultPort)
+		return c.WithDefaultLocalAddr()
 	}
 	c.LocalAddr = localAddr
 	return c
@@ -99,7 +119,7 @@ func (c *Config) WithLocalAddr(localAddr *net.TCPAddr) *Config {
 
 // WithDefaultLocalAddr sets the local address to the default value.
 func (c *Config) WithDefaultLocalAddr() *Config {
-	c.WithLocalAddr(nil)
+	c.LocalAddr = ParseAddr(DefaultIP, DefaultPort)
 	return c
 }
 
@@ -107,31 +127,32 @@ func (c *Config) WithDefaultLocalAddr() *Config {
 // is nil.
 func (c *Config) WithPublicAddr(publicAddr *net.TCPAddr) *Config {
 	if publicAddr == nil {
-		publicAddr = c.LocalAddr
+		return c.WithDefaultPublicAddr()
 	}
 	c.PublicAddr = publicAddr
 	return c
 }
 
-// WithDefaultPublicAddr sets the public address to the default value.
+// WithDefaultPublicAddr sets the public address to the local address, useful when just running
+// a cluster locally.
 func (c *Config) WithDefaultPublicAddr() *Config {
-	c.WithPublicAddr(nil)
+	c.PublicAddr = c.LocalAddr
 	return c
 }
 
 // WithLocalName sets the local name to the given value or the default if the given value is empty.
 func (c *Config) WithLocalName(localName string) *Config {
 	if localName == "" {
-		localName = nameFromAddr(c.LocalAddr)
+		return c.WithDefaultLocalName()
 	}
 	c.LocalName = localName
 	return c
 }
 
-// WithDefaultLocalName sets the local name to the default value, comprised of a hash of the
+// WithDefaultLocalName sets the local name to the default value, which uses a hash of the
 // local address.
 func (c *Config) WithDefaultLocalName() *Config {
-	c.WithLocalName("")
+	c.LocalName = nameFromAddr(c.LocalAddr)
 	return c
 }
 
@@ -139,46 +160,50 @@ func (c *Config) WithDefaultLocalName() *Config {
 // empty.
 func (c *Config) WithPublicName(publicName string) *Config {
 	if publicName == "" {
-		publicName = nameFromAddr(c.PublicAddr)
+		return c.WithDefaultPublicName()
 	}
 	c.PublicName = publicName
 	return c
 }
 
-// WithDefaultPublicName sets the public name to the default value, comprised of a hash of the
+// WithDefaultPublicName sets the public name to the default value, which uses a hash of the
 // public address.
 func (c *Config) WithDefaultPublicName() *Config {
-	c.WithPublicName("")
+	c.PublicName = nameFromAddr(c.PublicAddr)
 	return c
 }
 
 // WithDataDir sets the data dir to the given value or the default if the given value is empty.
 func (c *Config) WithDataDir(dataDir string) *Config {
 	if dataDir == "" {
-		dataDir = defaultDataDir()
+		return c.WithDefaultDataDir()
 	}
 	c.DataDir = dataDir
 	return c
 }
 
-// WithDefaultDataDir sets the data dir to the default value.
+// WithDefaultDataDir sets the data dir to a 'data' subdir of the current working directory..
 func (c *Config) WithDefaultDataDir() *Config {
-	c.WithDataDir("")
+	cwd, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+	c.DataDir = filepath.Join(cwd, DataSubdir)
 	return c
 }
 
 // WithDBDir sets the DB dir to the given value or the default if the given value is empty.
 func (c *Config) WithDBDir(dbDir string) *Config {
 	if dbDir == "" {
-		dbDir = defaultDBDir(c.DataDir, c.LocalName, DefaultDBSubDir)
+		return c.WithDefaultDBDir()
 	}
 	c.DbDir = dbDir
 	return c
 }
 
-// WithDefaultDBDir sets the DB dir to the default value, comprised of a hash of the local address.
+// WithDefaultDBDir sets the DB dir to a local name subdir of the data dir.
 func (c *Config) WithDefaultDBDir() *Config {
-	c.WithDBDir("")
+	c.DbDir = filepath.Join(c.DataDir, c.LocalName, DBSubDir)
 	return c
 }
 
@@ -186,16 +211,81 @@ func (c *Config) WithDefaultDBDir() *Config {
 // value is empty.
 func (c *Config) WithBootstrapAddrs(bootstrapAddrs []*net.TCPAddr) *Config {
 	if bootstrapAddrs == nil {
-		// default is itself
-		bootstrapAddrs = []*net.TCPAddr{ParseAddr(DefaultIP, DefaultPort)}
+		return c.WithDefaultBootstrapAddrs()
 	}
 	c.BootstrapAddrs = bootstrapAddrs
 	return c
 }
 
-// WithDefaultBootstrapAddrs sets the bootstrap addresses to the default value.
+// WithDefaultBootstrapAddrs sets the bootstrap addresses to a single address of the default IP
+// and port.
 func (c *Config) WithDefaultBootstrapAddrs() *Config {
-	c.WithBootstrapAddrs(nil)
+	// default is itself
+	c.BootstrapAddrs = []*net.TCPAddr{ParseAddr(DefaultIP, DefaultPort)}
+	return c
+}
+
+// WithRouting sets the routing parameters to the given value or the default if it is nil.
+func (c *Config) WithRouting(params *routing.Parameters) *Config {
+	if params == nil {
+		return c.WithDefaultRouting()
+	}
+	c.Routing = params
+	return c
+}
+
+// WithDefaultRouting sets the routing parameters to the default values specified in the routing
+// module.
+func (c *Config) WithDefaultRouting() *Config {
+	c.Routing = routing.NewDefaultParameters()
+	return c
+}
+
+// WithIntroduce sets the introduce parameters to the given value or the default if it is nil.
+func (c *Config) WithIntroduce(params *introduce.Parameters) *Config {
+	if params == nil {
+		return c.WithDefaultIntroduce()
+	}
+	c.Introduce = params
+	return c
+}
+
+// WithDefaultIntroduce sets the introduce parameters to the default values specified in the
+// introduce package.
+func (c *Config) WithDefaultIntroduce() *Config {
+	c.Introduce = introduce.NewDefaultParameters()
+	return c
+}
+
+// WithSearch sets the search parameters to the given value or the default if it is nil.
+func (c *Config) WithSearch(params *search.Parameters) *Config {
+	if params == nil {
+		return c.WithDefaultSearch()
+	}
+	c.Search = params
+	return c
+}
+
+// WithDefaultSearch sets the search parameters to their default values specified in the search
+// package.
+func (c *Config) WithDefaultSearch() *Config {
+	c.Search = search.NewDefaultParameters()
+	return c
+}
+
+// WithStore sets the store parameters to the given value or the default if it is nil.
+func (c *Config) WithStore(params *store.Parameters) *Config {
+	if params == nil {
+		return c.WithDefaultStore()
+	}
+	c.Store = params
+	return c
+}
+
+// WithDefaultStore sets the store parameters to their default values specified in the store
+// package.
+func (c *Config) WithDefaultStore() *Config {
+	c.Store = store.NewDefaultParameters()
 	return c
 }
 
@@ -203,15 +293,15 @@ func (c *Config) WithDefaultBootstrapAddrs() *Config {
 // on the creation of the logger instance.
 func (c *Config) WithLogLevel(logLevel zapcore.Level) *Config {
 	if logLevel == 0 {
-		logLevel = DefaultLogLevel
+		return c.WithDefaultLogLevel()
 	}
 	c.LogLevel = logLevel
 	return c
 }
 
-// WithDefaultLogLevel sets the default log level.
+// WithDefaultLogLevel sets the log level to INFO.
 func (c *Config) WithDefaultLogLevel() *Config {
-	c.WithLogLevel(DefaultLogLevel)
+	c.LogLevel = DefaultLogLevel
 	return c
 }
 
@@ -252,18 +342,6 @@ func parseIP(ip string) net.IP {
 		return net.ParseIP("127.0.0.1")
 	}
 	return net.ParseIP(ip)
-}
-
-func defaultDataDir() string {
-	cwd, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
-	return filepath.Join(cwd, DataSubdir)
-}
-
-func defaultDBDir(dataDir string, localName string, dbSubDir string) string {
-	return filepath.Join(dataDir, localName, dbSubDir)
 }
 
 // localPeerName gives the local name (on the host) of the node using the NodeIndex

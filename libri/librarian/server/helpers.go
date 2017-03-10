@@ -1,13 +1,12 @@
 package server
 
 import (
-	"context"
-
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/gogo/protobuf/proto"
+	"golang.org/x/net/context"
 )
 
 // newStubPeerFromPublicKeyBytes creates a new stub peer with an ID coming from an ECDSA public key.
@@ -24,7 +23,7 @@ func newIDFromPublicKeyBytes(pubKeyBytes []byte) (cid.ID, error) {
 func (l *Librarian) NewResponseMetadata(m *api.RequestMetadata) *api.ResponseMetadata {
 	return &api.ResponseMetadata{
 		RequestId: m.RequestId,
-		PubKey:    ecid.ToPublicKeyBytes(l.SelfID),
+		PubKey:    ecid.ToPublicKeyBytes(l.selfID),
 	}
 }
 

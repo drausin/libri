@@ -8,7 +8,7 @@ GIT_STATUS_PKGS=$(shell git status --porcelain | grep -e '\.go$$' | sed -r 's|^.
 CHANGED_PKGS=$(shell echo $(ALL_PKGS) $(GIT_STATUS_PKGS) | tr " " "\n" | sort | uniq -d)
 
 # all builds binaries for all targets
-all: build fix lint test
+all: build fix lint test acceptance
 
 build:
 	@echo "--> Running go build"
@@ -21,6 +21,10 @@ test-cover:
 test:
 	@echo "--> Running go test"
 	@go test -race ./... --cover
+
+acceptance:
+	@echo "--> Running acceptance tests"
+	@go test -tags acceptance github.com/drausin/libri/libri/acceptance
 
 fix:
 	@echo "--> Running goimports"
@@ -49,4 +53,4 @@ tools:
 	go get -u $(GOTOOLS)
 	gometalinter --install
 
-.PHONY: all build cov test fix lint tools
+.PHONY: all build cov test acceptance fix lint tools

@@ -24,31 +24,31 @@ import (
 // Librarian is the main service of a single peer in the peer to peer network.
 type Librarian struct {
 	// SelfID is the random 256-bit identification number of this node in the hash table
-	SelfID ecid.ID
+	selfID     ecid.ID
 
 	// Config holds the configuration parameters of the server
-	config *Config
+	config     *Config
 
 	// fixed API address
-	apiSelf *api.PeerAddress
+	apiSelf    *api.PeerAddress
 
 	// executes introductions to peers
 	introducer introduce.Introducer
 
 	// executes searches for peers and keys
-	searcher search.Searcher
+	searcher   search.Searcher
 
 	// executes stores for key/value
-	storer store.Storer
+	storer     store.Storer
 
 	// verifies requests from peers
-	rqv RequestVerifier
+	rqv        RequestVerifier
 
 	// key-value store DB used for all external storage
-	db db.KVDB
+	db         db.KVDB
 
 	// SL for server data
-	serverSL storage.NamespaceStorerLoader
+	serverSL   storage.NamespaceStorerLoader
 
 	// SL for p2p stored records
 	entriesSL storage.NamespaceStorerLoader
@@ -95,7 +95,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		return nil, err
 	}
 
-	rt, err := loadOrCreateRoutingTable(logger, serverSL, peerID)
+	rt, err := loadOrCreateRoutingTable(logger, serverSL, peerID, config.Routing)
 	if err != nil {
 		return nil, err
 	}
@@ -104,10 +104,10 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 	searcher := search.NewDefaultSearcher(signer)
 
 	return &Librarian{
-		SelfID:     peerID,
+		selfID:     peerID,
 		config:     config,
 		apiSelf:    api.FromAddress(peerID.ID(), config.PublicName, config.PublicAddr),
-		introducer: introduce.NewDefaultIntroducer(signer),
+		introducer: introduce.NewDefaultIntroducer(signer, peerID.ID()),
 		searcher:   searcher,
 		storer:     store.NewStorer(signer, searcher, client.NewStoreQuerier()),
 		rqv:        NewRequestVerifier(),
@@ -217,7 +217,7 @@ func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetRespon
 	l.record(requesterID, peer.Request, peer.Success)
 
 	key := cid.FromBytes(rq.Key)
-	s := search.NewSearch(l.SelfID, key, search.NewParameters())
+	s := search.NewSearch(l.selfID, key, l.config.Search)
 	seeds := l.rt.Peak(key, s.Params.Concurrency)
 	err = l.searcher.Search(s, seeds)
 	if err != nil {
@@ -264,10 +264,10 @@ func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutRespon
 
 	key := cid.FromBytes(rq.Key)
 	s := store.NewStore(
-		l.SelfID,
-		search.NewSearch(l.SelfID, key, search.NewParameters()),
+		l.selfID,
+		search.NewSearch(l.selfID, key, l.config.Search),
 		rq.Value,
-		store.NewParameters(),
+		l.config.Store,
 	)
 	seeds := l.rt.Peak(key, s.Search.Params.Concurrency)
 	err = l.storer.Store(s, seeds)

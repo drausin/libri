@@ -5,11 +5,12 @@ import (
 
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/signature"
 	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
+	"github.com/drausin/libri/libri/librarian/server/ecid"
+	"github.com/drausin/libri/libri/librarian/client"
 )
 
 // RequestVerifier verifies requests by checking the signature in the context.
@@ -30,7 +31,10 @@ func NewRequestVerifier() RequestVerifier {
 
 func (rv *requestVerifier) Verify(ctx context.Context, msg proto.Message,
 	meta *api.RequestMetadata) error {
-	encToken := ctx.Value(signature.NewContextKey()).(string)
+	encToken, err := client.FromSignatureContext(ctx)
+	if err != nil {
+		return err
+	}
 	pubKey, err := ecid.FromPublicKeyBytes(meta.PubKey)
 	if err != nil {
 		return err

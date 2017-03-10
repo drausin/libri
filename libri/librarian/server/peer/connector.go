@@ -15,6 +15,12 @@ type Connector interface {
 
 	// Disconnect closes the connection with the peer.
 	Disconnect() error
+
+	// Equals determines whether the Connector has the same underlying address as the other.
+	Equals(other Connector) bool
+
+	// String returns a string representation of the public address.
+	String() string
 }
 
 type connector struct {
@@ -56,4 +62,12 @@ func (c *connector) Disconnect() error {
 		return c.clientConn.Close()
 	}
 	return nil
+}
+
+func (c *connector) Equals(other Connector) bool {
+	return c.publicAddress.String() == other.(*connector).publicAddress.String()
+}
+
+func (c *connector) String() string {
+	return c.publicAddress.String()
 }

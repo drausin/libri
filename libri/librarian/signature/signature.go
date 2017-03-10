@@ -12,20 +12,6 @@ import (
 	"github.com/gogo/protobuf/proto"
 )
 
-// TODO (drausin) move context stuff to librarian/client
-
-// ContextKey defines the signature key to a net Context.
-type ContextKey string
-
-// NewContextKey returns a fixed signature key for a Context. This is a fixed function instead of a
-// const aor var to get around golint error:
-//
-// 	should not use basic type string as key in context.WithValue
-//
-func NewContextKey() ContextKey {
-	return ContextKey("signature")
-}
-
 // regex pattern for a base-64 url-encoded string for a 256-bit number
 var b64url256bit *regexp.Regexp
 

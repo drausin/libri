@@ -14,7 +14,7 @@ var (
 	// DefaultNMaxErrors is the maximum number of errors tolerated during a search.
 	DefaultNMaxErrors = uint(3)
 
-	// DefaultConcurrency is the number of parallel search workers.
+	// DefaultConcurrency is the number of parallel store workers.
 	DefaultConcurrency = uint(3)
 
 	// DefaultQueryTimeout is the timeout for each query to a peer.
@@ -33,8 +33,8 @@ type Parameters struct {
 	Timeout time.Duration
 }
 
-// NewParameters creates an instance with default parameters.
-func NewParameters() *Parameters {
+// NewDefaultParameters creates an instance with default parameters.
+func NewDefaultParameters() *Parameters {
 	return &Parameters{
 		NMaxErrors:  DefaultNMaxErrors,
 		Concurrency: DefaultConcurrency,

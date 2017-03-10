@@ -66,7 +66,7 @@ func TestCheckRequest_verifyErr(t *testing.T) {
 	rq := api.NewGetRequest(selfID, cid.NewPseudoRandom(rng))
 	l := &Librarian{
 		rqv: &neverRequestVerifier{},
-		rt:  routing.NewEmpty(selfID),
+		rt:  routing.NewEmpty(selfID, routing.NewDefaultParameters()),
 	}
 	requesterID, err := l.checkRequest(nil, rq, rq.Metadata)
 
@@ -80,7 +80,7 @@ func TestCheckRequestAndKey_ok(t *testing.T) {
 	l := &Librarian{
 		rqv: &alwaysRequestVerifier{},
 		kc:  storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		rt:  routing.NewEmpty(selfID),
+		rt:  routing.NewEmpty(selfID, routing.NewDefaultParameters()),
 	}
 	rq := api.NewGetRequest(selfID, key)
 	requesterID, err := l.checkRequestAndKey(nil, rq, rq.Metadata, key.Bytes())
@@ -108,7 +108,7 @@ func TestCheckRequestAndKey_checkErr(t *testing.T) {
 	l := &Librarian{
 		rqv: &alwaysRequestVerifier{},
 		kc:  storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		rt:  routing.NewEmpty(selfID),
+		rt:  routing.NewEmpty(selfID, routing.NewDefaultParameters()),
 	}
 	requesterID, err := l.checkRequestAndKey(nil, rq, rq.Metadata, []byte("bad key"))
 
@@ -121,7 +121,7 @@ func TestCheckRequestAndKeyValue_ok(t *testing.T) {
 	selfID := ecid.NewPseudoRandom(rng)
 	key, value := newKeyValue(t, rng, 512)
 	l := &Librarian{
-		rt:  routing.NewEmpty(selfID),
+		rt:  routing.NewEmpty(selfID, routing.NewDefaultParameters()),
 		rqv: &alwaysRequestVerifier{},
 		kc:  storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		kvc: storage.NewHashKeyValueChecker(),
@@ -151,7 +151,7 @@ func TestCheckRequestAndKeyValue_checkErr(t *testing.T) {
 	selfID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
 	rq := api.NewGetRequest(selfID, key)
 	l := &Librarian{
-		rt:  routing.NewEmpty(selfID),
+		rt:  routing.NewEmpty(selfID, routing.NewDefaultParameters()),
 		rqv: &alwaysRequestVerifier{},
 		kc:  storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		kvc: storage.NewHashKeyValueChecker(),

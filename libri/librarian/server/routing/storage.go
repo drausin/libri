@@ -10,7 +10,7 @@ import (
 var tableKey = []byte("RoutingTable")
 
 // Load retrieves the routing table form the KV DB.
-func Load(nl storage.NamespaceLoader) (Table, error) {
+func Load(nl storage.NamespaceLoader, params *Parameters) (Table, error) {
 	bytes, err := nl.Load(tableKey)
 	if bytes == nil || err != nil {
 		return nil, err
@@ -20,7 +20,7 @@ func Load(nl storage.NamespaceLoader) (Table, error) {
 	if err != nil {
 		return nil, err
 	}
-	return fromStored(stored), nil
+	return fromStored(stored, params), nil
 }
 
 // Save stores a representation of the routing table to the KV DB.
@@ -33,12 +33,12 @@ func (rt *table) Save(ns storage.NamespaceStorer) error {
 }
 
 // fromStored returns a new Table instance from a StoredRoutingTable instance.
-func fromStored(stored *storage.RoutingTable) Table {
+func fromStored(stored *storage.RoutingTable, params *Parameters) Table {
 	peers := make([]peer.Peer, len(stored.Peers))
 	for i, sp := range stored.Peers {
 		peers[i] = peer.FromStored(sp)
 	}
-	rt, _ := NewWithPeers(id.FromBytes(stored.SelfId), peers)
+	rt, _ := NewWithPeers(id.FromBytes(stored.SelfId), params, peers)
 	return rt
 }
 

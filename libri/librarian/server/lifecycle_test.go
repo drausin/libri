@@ -27,7 +27,7 @@ func TestStart_ok(t *testing.T) {
 	up := make(chan *Librarian, 1)
 	go func() {
 		err = Start(NewDevInfoLogger(), config, up)
-		assert.NotNil(t, err) // since the server is shut down
+		assert.Nil(t, err)
 	}()
 
 	// get the librarian once it's up
@@ -46,7 +46,6 @@ func TestStart_ok(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "pong", rp1.Message)
 
-	librarian.stop <- struct{}{}
 	assert.Nil(t, librarian.CloseAndRemove())
 }
 
@@ -62,7 +61,7 @@ func TestStart_newLibrarianErr(t *testing.T) {
 func TestStart_bootstrapPeersErr(t *testing.T) {
 	dataDir, err := ioutil.TempDir("", "test-start")
 	assert.Nil(t, err)
-	config := DefaultConfig()
+	config := NewDefaultConfig()
 	config.WithDataDir(dataDir).WithDefaultDBDir()
 	config.WithBootstrapAddrs(make([]*net.TCPAddr, 0))
 
@@ -90,11 +89,11 @@ func TestLibrarian_bootstrapPeers_ok(t *testing.T) {
 	}
 
 	l := &Librarian{
-		config: DefaultConfig(),
+		config: NewDefaultConfig(),
 		introducer: &fixedIntroducer{
 			result: fixedResult,
 		},
-		rt:     routing.NewEmpty(cid.NewPseudoRandom(rng)),
+		rt:     routing.NewEmpty(cid.NewPseudoRandom(rng), routing.NewDefaultParameters()),
 		logger: NewDevInfoLogger(),
 	}
 
@@ -120,11 +119,11 @@ func TestLibrarian_bootstrapPeers_introduceErr(t *testing.T) {
 	}
 
 	l := &Librarian{
-		config: DefaultConfig(),
+		config: NewDefaultConfig(),
 		introducer: &fixedIntroducer{
 			err: errors.New("some fatal introduce error"),
 		},
-		rt:     routing.NewEmpty(cid.NewPseudoRandom(rng)),
+		rt:     routing.NewEmpty(cid.NewPseudoRandom(rng), routing.NewDefaultParameters()),
 		logger: NewDevInfoLogger(),
 	}
 
@@ -148,11 +147,11 @@ func TestLibrarian_bootstrapPeers_noResponsesErr(t *testing.T) {
 	fixedResult := introduce.NewInitialResult()
 
 	l := &Librarian{
-		config: DefaultConfig().WithPublicAddr(ParseAddr(DefaultIP, DefaultPort+1)),
+		config: NewDefaultConfig().WithPublicAddr(ParseAddr(DefaultIP, DefaultPort+1)),
 		introducer: &fixedIntroducer{
 			result: fixedResult,
 		},
-		rt:     routing.NewEmpty(cid.NewPseudoRandom(rng)),
+		rt:     routing.NewEmpty(cid.NewPseudoRandom(rng), routing.NewDefaultParameters()),
 		logger: NewDevInfoLogger(),
 	}
 

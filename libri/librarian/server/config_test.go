@@ -5,10 +5,15 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/drausin/libri/libri/librarian/server/routing"
+	"github.com/drausin/libri/libri/librarian/server/introduce"
+	"github.com/drausin/libri/libri/librarian/server/search"
+	"github.com/drausin/libri/libri/librarian/server/store"
+	"go.uber.org/zap/zapcore"
 )
 
 func TestDefaultConfig(t *testing.T) {
-	c := DefaultConfig()
+	c := NewDefaultConfig()
 	assert.NotEmpty(t, c.LocalAddr)
 	assert.NotEmpty(t, c.PublicAddr)
 	assert.NotEmpty(t, c.LocalName)
@@ -16,11 +21,120 @@ func TestDefaultConfig(t *testing.T) {
 	assert.NotEmpty(t, c.DataDir)
 	assert.NotEmpty(t, c.DbDir)
 	assert.NotEmpty(t, c.BootstrapAddrs)
+	assert.NotEmpty(t, c.Routing)
+	assert.NotEmpty(t, c.Introduce)
+	assert.NotEmpty(t, c.Search)
+	assert.NotEmpty(t, c.Store)
 	assert.NotEmpty(t, c.LogLevel)
 }
 
+func TestConfig_WithLocalAddr(t *testing.T) {
+	c1, c2, c3 := &Config{}, &Config{}, &Config{}
+	c1.WithDefaultLocalAddr()
+	assert.Equal(t, c1.LocalAddr, c2.WithLocalAddr(nil).LocalAddr)
+	assert.NotEqual(t, c1.LocalAddr, c3.WithLocalAddr(ParseAddr("localhost", 1234)).LocalAddr)
+}
+
+func TestConfig_WithPublicAddr(t *testing.T) {
+	c1, c2, c3 := &Config{}, &Config{}, &Config{}
+	c1.WithDefaultPublicAddr()
+	assert.Equal(t, c1.PublicAddr, c2.WithPublicAddr(nil).PublicAddr)
+	assert.NotEqual(t,
+		c1.PublicAddr,
+		c3.WithPublicAddr(ParseAddr("localhost", 1234)).PublicAddr,
+	)
+}
+
+func TestConfig_WithLocalName(t *testing.T) {
+	c1, c2, c3 := &Config{}, &Config{}, &Config{}
+	c1.WithDefaultLocalName()
+	assert.Equal(t, c1.LocalName, c2.WithLocalName("").LocalName)
+	assert.NotEqual(t, c1.LocalName, c3.WithLocalName("some other name").LocalName)
+}
+
+func TestConfig_WithPublicName(t *testing.T) {
+	c1, c2, c3 := &Config{}, &Config{}, &Config{}
+	c1.WithDefaultPublicName()
+	assert.Equal(t, c1.PublicName, c2.WithPublicName("").PublicName)
+	assert.NotEqual(t, c1.PublicName, c3.WithPublicName("some other name").PublicName)
+}
+
+func TestConfig_WithDataDir(t *testing.T) {
+	c1, c2, c3 := &Config{}, &Config{}, &Config{}
+	c1.WithDefaultDataDir()
+	assert.Equal(t, c1.DataDir, c2.WithDataDir("").DataDir)
+	assert.NotEqual(t, c1.DataDir, c3.WithDataDir("/some/other/dir").DataDir)
+}
+
+func TestConfig_WithDBDir(t *testing.T) {
+	c1, c2, c3 := &Config{}, &Config{}, &Config{}
+	c1.WithDefaultDBDir()
+	assert.Equal(t, c1.DbDir, c2.WithDBDir("").DbDir)
+	assert.NotEqual(t, c1.DbDir, c3.WithDBDir("/some/other/dir").DbDir)
+}
+
+func TestConfig_WithBootstrapAddrs(t *testing.T) {
+	c1, c2, c3 := &Config{}, &Config{}, &Config{}
+	c1.WithDefaultBootstrapAddrs()
+	assert.Equal(t, c1.BootstrapAddrs, c2.WithBootstrapAddrs(nil).BootstrapAddrs)
+	assert.NotEqual(t,
+		c1.BootstrapAddrs,
+		c3.WithBootstrapAddrs([]*net.TCPAddr{ParseAddr("localhost", 1234)}).BootstrapAddrs,
+	)
+}
+
+func TestConfig_WithRouting(t *testing.T) {
+	c1, c2, c3 := &Config{}, &Config{}, &Config{}
+	c1.WithDefaultRouting()
+	assert.Equal(t, c1.Routing, c2.WithRouting(nil).Routing)
+	assert.NotEqual(t,
+		c1.Routing,
+		c3.WithRouting(&routing.Parameters{MaxBucketPeers: 10}).Routing,
+	)
+}
+
+func TestConfig_WithIntroduce(t *testing.T) {
+	c1, c2, c3 := &Config{}, &Config{}, &Config{}
+	c1.WithDefaultIntroduce()
+	assert.Equal(t, c1.Introduce, c2.WithIntroduce(nil).Introduce)
+	assert.NotEqual(t,
+		c1.Introduce,
+		c3.WithIntroduce(&introduce.Parameters{Concurrency: 1}).Introduce,
+	)
+}
+
+func TestConfig_WithSearch(t *testing.T) {
+	c1, c2, c3 := &Config{}, &Config{}, &Config{}
+	c1.WithDefaultSearch()
+	assert.Equal(t, c1.Search, c2.WithSearch(nil).Search)
+	assert.NotEqual(t,
+		c1.Search,
+		c3.WithSearch(&search.Parameters{Concurrency: 1}).Search,
+	)
+}
+
+func TestConfig_WithStore(t *testing.T) {
+	c1, c2, c3 := &Config{}, &Config{}, &Config{}
+	c1.WithDefaultStore()
+	assert.Equal(t, c1.Store, c2.WithStore(nil).Store)
+	assert.NotEqual(t,
+		c1.Store,
+		c3.WithStore(&store.Parameters{Concurrency: 1}).Store,
+	)
+}
+
+func TestConfig_WithLogLevel(t *testing.T) {
+	c1, c2, c3 := &Config{}, &Config{}, &Config{}
+	c1.WithDefaultLogLevel()
+	assert.Equal(t, c1.LogLevel, c2.WithLogLevel(0).LogLevel)
+	assert.NotEqual(t,
+		c1.LogLevel,
+		c3.WithLogLevel(zapcore.DebugLevel).LogLevel,
+	)
+}
+
 func TestConfig_isBootstrap(t *testing.T) {
-	config := DefaultConfig()
+	config := NewDefaultConfig()
 	assert.True(t, config.isBootstrap())
 
 	config.WithPublicAddr(ParseAddr("localhost", DefaultPort+1))

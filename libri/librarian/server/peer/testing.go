@@ -34,7 +34,7 @@ func NewTestPeer(rng *rand.Rand, idx int) Peer {
 
 // NewTestPublicAddr creates a new net.TCPAddr given a particular peer index.
 func NewTestPublicAddr(idx int) *net.TCPAddr {
-	address, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("0.0.0.0:%v", 11000+idx))
+	address, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("127.0.0.1:%v", 11000+idx))
 	if err != nil {
 		panic(err)
 	}
@@ -110,6 +110,16 @@ func (c *TestConnector) Disconnect() error {
 	return nil
 }
 
+// Equals is a stub that always returns false.
+func (c *TestConnector) Equals(other Connector) bool {
+	return false
+}
+
+// String is a stub that always returns a dummy value.
+func (c *TestConnector) String() string {
+	return "dummy string"
+}
+
 // TestErrConnector mocks the peer.Connector interface. The Connect() methods always returns an
 // error.
 type TestErrConnector struct{}
@@ -122,4 +132,14 @@ func (ec *TestErrConnector) Connect() (api.LibrarianClient, error) {
 // Disconnect is a no-op stub to satisfy the interface's signature.
 func (ec *TestErrConnector) Disconnect() error {
 	return nil
+}
+
+// Equals is a stub that always returns false.
+func (ec *TestErrConnector) Equals(other Connector) bool {
+	return false
+}
+
+// String is a stub that always returns a dummy value.
+func (ec *TestErrConnector) String() string {
+	return "dummy string"
 }

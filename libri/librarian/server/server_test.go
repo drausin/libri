@@ -25,16 +25,19 @@ import (
 // TestNewLibrarian checks that we can create a new instance, close it, and create it again as
 // expected.
 func TestNewLibrarian(t *testing.T) {
-	lib1 := newTestLibrarian()
+	l1 := newTestLibrarian()
+	go func() { <- l1.stop }() // dummy stop signal acceptor
 
-	nodeID1 := lib1.SelfID // should have been generated
-	err := lib1.Close()
+	nodeID1 := l1.selfID // should have been generated
+	err := l1.Close()
 	assert.Nil(t, err)
 
-	lib2, err := NewLibrarian(lib1.config, NewDevInfoLogger())
+	l2, err := NewLibrarian(l1.config, NewDevInfoLogger())
+	go func() { <- l2.stop }() // dummy stop signal acceptor
+
 	assert.Nil(t, err)
-	assert.Equal(t, nodeID1, lib2.SelfID)
-	err = lib2.CloseAndRemove()
+	assert.Equal(t, nodeID1, l2.selfID)
+	err = l2.CloseAndRemove()
 	assert.Nil(t, err)
 }
 
@@ -48,7 +51,7 @@ func newTestLibrarian() *Librarian {
 }
 
 func newTestConfig() *Config {
-	config := DefaultConfig()
+	config := NewDefaultConfig()
 	dir, err := ioutil.TempDir("", "test-data-dir")
 	if err != nil {
 		panic(err)
@@ -89,7 +92,7 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 		},
 		apiSelf: api.FromAddress(serverID.ID(), peerName, publicAddr),
 		fromer:  peer.NewFromer(),
-		SelfID:  serverID,
+		selfID:  serverID,
 		rt:      rt,
 		rqv:     &alwaysRequestVerifier{},
 	}
@@ -175,7 +178,7 @@ func TestLibrarian_Find(t *testing.T) {
 			rng := rand.New(rand.NewSource(int64(s)))
 			rt, peerID, nAdded := routing.NewTestWithPeers(rng, n)
 			l := &Librarian{
-				SelfID:    peerID,
+				selfID:    peerID,
 				entriesSL: storage.NewEntriesKVDBStorerLoader(kvdb),
 				kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
 				rt:        rt,
@@ -184,7 +187,7 @@ func TestLibrarian_Find(t *testing.T) {
 
 			numClosest := uint32(routing.DefaultMaxActivePeers)
 			rq := &api.FindRequest{
-				Metadata: newTestRequestMetadata(rng, l.SelfID),
+				Metadata: newTestRequestMetadata(rng, l.selfID),
 				Key:      cid.NewPseudoRandom(rng).Bytes(),
 				NumPeers: numClosest,
 			}
@@ -225,7 +228,7 @@ func TestLibrarian_Find_present(t *testing.T) {
 	assert.Nil(t, err)
 
 	l := &Librarian{
-		SelfID:    peerID,
+		selfID:    peerID,
 		db:        kvdb,
 		serverSL:  storage.NewServerKVDBStorerLoader(kvdb),
 		entriesSL: storage.NewEntriesKVDBStorerLoader(kvdb),
@@ -248,7 +251,7 @@ func TestLibrarian_Find_present(t *testing.T) {
 	// make request for key
 	numClosest := uint32(routing.DefaultMaxActivePeers)
 	rq := &api.FindRequest{
-		Metadata: newTestRequestMetadata(rng, l.SelfID),
+		Metadata: newTestRequestMetadata(rng, l.selfID),
 		Key:      key[:],
 		NumPeers: numClosest,
 	}
@@ -269,7 +272,7 @@ func TestLibrarian_Find_missing(t *testing.T) {
 	assert.Nil(t, err)
 
 	l := &Librarian{
-		SelfID:    peerID,
+		selfID:    peerID,
 		rt:        rt,
 		db:        kvdb,
 		serverSL:  storage.NewServerKVDBStorerLoader(kvdb),
@@ -281,7 +284,7 @@ func TestLibrarian_Find_missing(t *testing.T) {
 	// make request
 	numClosest := uint32(routing.DefaultMaxActivePeers)
 	rq := &api.FindRequest{
-		Metadata: newTestRequestMetadata(rng, l.SelfID),
+		Metadata: newTestRequestMetadata(rng, l.selfID),
 		Key:      cid.NewPseudoRandom(rng).Bytes(),
 		NumPeers: numClosest,
 	}
@@ -311,7 +314,7 @@ func TestLibrarian_Store(t *testing.T) {
 	assert.Nil(t, err)
 
 	l := &Librarian{
-		SelfID:    peerID,
+		selfID:    peerID,
 		rt:        rt,
 		db:        kvdb,
 		serverSL:  storage.NewServerKVDBStorerLoader(kvdb),
@@ -326,7 +329,7 @@ func TestLibrarian_Store(t *testing.T) {
 
 	// make store request
 	rq := &api.StoreRequest{
-		Metadata: newTestRequestMetadata(rng, l.SelfID),
+		Metadata: newTestRequestMetadata(rng, l.selfID),
 		Key:      key.Bytes(),
 		Value:    value,
 	}
@@ -387,7 +390,7 @@ func TestLibrarian_Get_FoundValue(t *testing.T) {
 	peerID := ecid.NewPseudoRandom(rng)
 
 	// create mock search result where the value has been found
-	searchParams := search.NewParameters()
+	searchParams := search.NewDefaultParameters()
 	foundValueResult := search.NewInitialResult(key, searchParams)
 	foundValueResult.Value = value
 
@@ -407,7 +410,7 @@ func TestLibrarian_Get_FoundClosestPeers(t *testing.T) {
 	key, peerID := cid.NewPseudoRandom(rng), ecid.NewPseudoRandom(rng)
 
 	// create mock search result to return FoundClosestPeers() == true
-	searchParams := search.NewParameters()
+	searchParams := search.NewDefaultParameters()
 	foundClosestPeersResult := search.NewInitialResult(key, searchParams)
 	dummyClosest := peer.NewTestPeers(rng, int(searchParams.NClosestResponses))
 	err := foundClosestPeersResult.Closest.SafePushMany(dummyClosest)
@@ -430,7 +433,7 @@ func TestLibrarian_Get_Errored(t *testing.T) {
 	key, peerID := cid.NewPseudoRandom(rng), ecid.NewPseudoRandom(rng)
 
 	// create mock search result with fatal error, making Errored() true
-	searchParams := search.NewParameters()
+	searchParams := search.NewDefaultParameters()
 	fatalErrorResult := search.NewInitialResult(key, searchParams)
 	fatalErrorResult.FatalErr = errors.New("some fatal error")
 
@@ -449,7 +452,7 @@ func TestLibrarian_Get_Exhausted(t *testing.T) {
 	key, peerID := cid.NewPseudoRandom(rng), ecid.NewPseudoRandom(rng)
 
 	// create mock search result with Exhausted() true
-	searchParams := search.NewParameters()
+	searchParams := search.NewDefaultParameters()
 	exhaustedResult := search.NewInitialResult(key, searchParams)
 
 	// create librarian and request
@@ -491,7 +494,8 @@ func newGetLibrarian(rng *rand.Rand, searchResult *search.Result, searchErr erro
 	n := 8
 	rt, peerID, _ := routing.NewTestWithPeers(rng, n)
 	return &Librarian{
-		SelfID: peerID,
+		selfID: peerID,
+		config: NewDefaultConfig(),
 		rt:     rt,
 		kc:     storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		searcher: &fixedSearcher{
@@ -521,7 +525,7 @@ func TestLibrarian_Put_Stored(t *testing.T) {
 	peerID := ecid.NewPseudoRandom(rng)
 
 	// create mock search result where the value has been stored
-	searchParams := search.NewParameters()
+	searchParams := search.NewDefaultParameters()
 	nReplicas := searchParams.NClosestResponses
 	addedResult := store.NewInitialResult(search.NewInitialResult(key, searchParams))
 	addedResult.Responded = peer.NewTestPeers(rng, int(nReplicas))
@@ -544,7 +548,7 @@ func TestLibrarian_Put_Exists(t *testing.T) {
 	peerID := ecid.NewPseudoRandom(rng)
 
 	// create mock search result where the value has been stored
-	searchParams := search.NewParameters()
+	searchParams := search.NewDefaultParameters()
 	foundValueResult := search.NewInitialResult(key, searchParams)
 	foundValueResult.Value = value
 	existsResult := store.NewInitialResult(foundValueResult)
@@ -566,7 +570,7 @@ func TestLibrarian_Put_Errored(t *testing.T) {
 	peerID := ecid.NewPseudoRandom(rng)
 
 	// create mock search result where the value has been stored
-	searchParams := search.NewParameters()
+	searchParams := search.NewDefaultParameters()
 	erroredResult := store.NewInitialResult(search.NewInitialResult(key, searchParams))
 	erroredResult.FatalErr = errors.New("some fatal error")
 
@@ -611,7 +615,8 @@ func newPutLibrarian(rng *rand.Rand, storeResult *store.Result, searchErr error)
 	n := 8
 	rt, peerID, _ := routing.NewTestWithPeers(rng, n)
 	return &Librarian{
-		SelfID: peerID,
+		selfID: peerID,
+		config: NewDefaultConfig(),
 		rt:     rt,
 		kc:     storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		kvc:    storage.NewHashKeyValueChecker(),

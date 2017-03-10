@@ -12,6 +12,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestNewDefaultParameters(t *testing.T) {
+	p := NewDefaultParameters()
+	assert.NotZero(t, p.NMaxErrors)
+	assert.NotZero(t, p.Concurrency)
+	assert.NotZero(t, p.Timeout)
+}
+
 func TestStore_Stored(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	peerID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)

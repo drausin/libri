@@ -258,7 +258,7 @@ func TestResponseProcessor_Process_Value(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	key := cid.NewPseudoRandom(rng)
 	rp := NewResponseProcessor(peer.NewFromer())
-	result := NewInitialResult(key, NewParameters())
+	result := NewInitialResult(key, NewDefaultParameters())
 
 	// create response with the value
 	value := cid.NewPseudoRandom(rng).Bytes() // random value
@@ -284,7 +284,7 @@ func TestResponseProcessor_Process_Addresses(t *testing.T) {
 
 	key := cid.NewPseudoRandom(rng)
 	rp := NewResponseProcessor(peer.NewFromer())
-	result := NewInitialResult(key, NewParameters())
+	result := NewInitialResult(key, NewDefaultParameters())
 
 	// create response or nAddresses and process it
 	response1 := &api.FindResponse{
@@ -326,7 +326,7 @@ func TestResponseProcessor_Process_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	key := cid.NewPseudoRandom(rng)
 	rp := NewResponseProcessor(peer.NewFromer())
-	result := NewInitialResult(key, NewParameters())
+	result := NewInitialResult(key, NewDefaultParameters())
 
 	// create a bad response with neither a value nor peer addresses
 	response2 := &api.FindResponse{

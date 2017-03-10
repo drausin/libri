@@ -66,33 +66,50 @@ type Table interface {
 	Save(ns storage.NamespaceStorer) error
 }
 
+// Parameters are the parameters of the routing table.
+type Parameters struct {
+
+	// MaxBucketPeers is the maximum number of peers in a bucket.
+	MaxBucketPeers uint
+}
+
+func NewDefaultParameters() *Parameters {
+	return &Parameters{
+		MaxBucketPeers: DefaultMaxActivePeers,
+	}
+}
+
 type table struct {
-	// This peer's node ID
+	// this peer's node ID
 	selfID cid.ID
 
-	// All known peers, keyed by string encoding of the ID
+	// all known peers, keyed by string encoding of the ID
 	peers map[string]peer.Peer
 
-	// Routing buckets ordered by the max ID possible in each bucket.
+	// routing buckets ordered by the max ID possible in each bucket.
 	buckets []*bucket
+
+	// defines some aspects of behavior
+	params *Parameters
 
 	// manages pushes and pops
 	mu sync.Mutex
 }
 
 // NewEmpty creates a new routing table without peers.
-func NewEmpty(selfID cid.ID) Table {
-	firstBucket := newFirstBucket()
+func NewEmpty(selfID cid.ID, params *Parameters) Table {
+	firstBucket := newFirstBucket(params.MaxBucketPeers)
 	return &table{
 		selfID:  selfID,
 		peers:   make(map[string]peer.Peer),
 		buckets: []*bucket{firstBucket},
+		params: params,
 	}
 }
 
 // NewWithPeers creates a new routing table with peers, returning it and the number of peers added.
-func NewWithPeers(selfID cid.ID, peers []peer.Peer) (Table, int) {
-	rt := NewEmpty(selfID)
+func NewWithPeers(selfID cid.ID, params *Parameters, peers []peer.Peer) (Table, int) {
+	rt := NewEmpty(selfID, params)
 	nAdded := 0
 	for _, p := range peers {
 		if rt.Push(p) == Added {
@@ -105,7 +122,8 @@ func NewWithPeers(selfID cid.ID, peers []peer.Peer) (Table, int) {
 // NewTestWithPeers creates a new test routing table with pseudo-random SelfID and n peers.
 func NewTestWithPeers(rng *rand.Rand, n int) (Table, ecid.ID, int) {
 	peerID := ecid.NewPseudoRandom(rng)
-	rt, nAdded := NewWithPeers(peerID, peer.NewTestPeers(rng, n))
+	params := NewDefaultParameters()
+	rt, nAdded := NewWithPeers(peerID, params, peer.NewTestPeers(rng, n))
 	return rt, peerID, nAdded
 }
 
