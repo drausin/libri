@@ -12,6 +12,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestNewDefaultParameters(t *testing.T) {
+	p := NewDefaultParameters()
+	assert.NotZero(t, p.NClosestResponses)
+	assert.NotZero(t, p.NMaxErrors)
+	assert.NotZero(t, p.Concurrency)
+	assert.NotZero(t, p.Timeout)
+}
+
 func TestSearch_FoundClosestPeers(t *testing.T) {
 	// target = 0 makes it easy to compute XOR distance manually
 	rng := rand.New(rand.NewSource(0))

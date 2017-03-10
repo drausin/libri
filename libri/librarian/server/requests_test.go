@@ -39,6 +39,8 @@ func TestRequestVerifier_Verify_err(t *testing.T) {
 		sigVerifier: &alwaysSigVerifier{},
 	}
 
+	assert.NotNil(t, rv.Verify(context.Background(), nil, nil))  // no signature in context
+
 	rng := rand.New(rand.NewSource(0))
 	ctx := client.NewSignatureContext(context.Background(), "dummy.signed.token")
 

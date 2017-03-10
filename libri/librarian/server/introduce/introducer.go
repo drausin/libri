@@ -71,9 +71,7 @@ func (i *introducer) introduceWork(intro *Introduction, wg *sync.WaitGroup) {
 		// get next peer to query
 		var nextIDStr string
 		var next peer.Peer
-		intro.wrapLock(func() {
-			nextIDStr, next = removeAny(intro.Result.Unqueried)
-		})
+		intro.wrapLock(func() { nextIDStr, next = removeAny(intro.Result.Unqueried) })
 		if next == nil {
 			// no more unqueried peers
 			continue
@@ -93,9 +91,7 @@ func (i *introducer) introduceWork(intro *Introduction, wg *sync.WaitGroup) {
 			})
 			continue
 		}
-		intro.wrapLock(func() {
-			next.Recorder().Record(peer.Response, peer.Success)
-		})
+		intro.wrapLock(func() { next.Recorder().Record(peer.Response, peer.Success) })
 
 		// process the heap's response
 		intro.wrapLock(func() {
@@ -103,16 +99,12 @@ func (i *introducer) introduceWork(intro *Introduction, wg *sync.WaitGroup) {
 			err = i.repProcessor.Process(response, intro.Result)
 		})
 		if err != nil {
-			intro.wrapLock(func() {
-				intro.Result.FatalErr = err
-			})
+			intro.wrapLock(func() { intro.Result.FatalErr = err })
 			return
 		}
 		err = next.Connector().Disconnect()
 		if err != nil {
-			intro.wrapLock(func() {
-				intro.Result.FatalErr = err
-			})
+			intro.wrapLock(func() { intro.Result.FatalErr = err })
 			return
 		}
 	}
