@@ -42,12 +42,12 @@ func TestTestErrConnector_Disconnect(t *testing.T) {
 	assert.Nil(t, err)
 }
 func TestTestErrConnector_Equals(t *testing.T) {
-	c1, c2 := &TestConnector{}, &TestConnector{}
+	c1, c2 := &TestErrConnector{}, &TestErrConnector{}
 	assert.False(t, c1.Equals(c2))
 }
 
 func TestTestErrConnector_String(t *testing.T) {
-	c := &TestConnector{}
+	c := &TestErrConnector{}
 	assert.True(t, len(c.String()) > 0)
 }
 
