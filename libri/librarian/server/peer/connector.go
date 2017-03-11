@@ -44,7 +44,6 @@ func NewConnector(address *net.TCPAddr) Connector {
 // it.
 func (c *connector) Connect() (api.LibrarianClient, error) {
 	if c.client == nil {
-		// TODO (drausin) add SSL
 		conn, err := grpc.Dial(c.publicAddress.String(), grpc.WithInsecure())
 		if err != nil {
 			return nil, err
