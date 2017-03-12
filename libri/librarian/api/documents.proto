@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+package api;
+
+// Document contains either an Envelope, Entry, or Page message.
+message Document {
+    oneof contents {
+        Envelope envelope = 1;
+        Entry entry = 2;
+        Page page = 3;
+    }
+}
+
+// Envelope contains the (encrypted) keys used to encrypt a particular Entry and its Pages. It uses
+// DCDH exchange from the author to a particular reader. The envelope contains the encrypted
+// secret, which gives the 4 keys required to decrypt the Entry and Pages.
+message Envelope {
+
+    // ECDSA public key of the entry author/sender
+    bytes author_public_key = 1;
+
+    // ECDSA public key of the entry reader/recipient
+    bytes reader_public_key = 2;
+
+    // 32-byte key of the Entry whose encryption keys are being sent
+    bytes entry_key = 3;
+
+    // ciphertext of the encryption keys (the Diffie-Hellman secret) for the given Entry; the
+    // secret plaintext contains (in order)
+    // 1) 32-byte AES-256 key, used to enrypt Pages and Entry metadata
+    // 2) 32-byte Page initialization vector (IV) seed
+    // 3) 32-byte Page ciphertext HMAC-256 key
+    // 4) 12-byte metadata block cipher initialization vector
+    bytes encryption_keys_ciphertext = 4;
+}
+
+// Entry is the main unit of storage in the Libri network.
+message Entry {
+
+    // ECDSA public key of the entry author
+    bytes author_public_key = 1;
+
+    // created epoch time (seconds since 1970-01-01)
+    int64 created_time = 2;
+
+    // 32-byte MAC of metatadata ciphertext, encrypted with the 32-byte Entry AES-256 key and
+    // 12-byte metadata block cipher IV
+    bytes metadata_ciphertext_mac = 3;
+
+    // ciphertext of marshalled Metadata message properties
+    bytes metadata_ciphertext = 4;
+
+    // 32-byte MAC of the contents ciphertext, across all blocks (in order)
+    bytes contents_ciphertext_mac = 5;
+
+    // total length (in bytes) of the ciphertext, across all pages
+    uint64 contents_ciphertext_size = 6;
+
+    // contents of the entry, either a single Page or a list of page keys
+    oneof contents {
+        Page page = 7;
+        PageKeys page_keys = 8;
+    }
+
+}
+
+// Metadata is a map of (property, value) combinations.
+message Metadata {
+    map<string, bytes> properties = 1;
+}
+
+// PageKeys is an ordered list of keys to Page documents that comprise an Entry document.
+message PageKeys {
+    repeated bytes keys = 1;
+}
+
+// Page is a portion (possibly all) of an Entry document.
+message Page {
+
+    // ECDSA public key of the entry author
+    bytes author_public_key = 1;
+
+    // index of Page within Entry contents
+    uint32 index = 2;
+
+    // 32-byte MAC of ciphertext using the 32-byte Page ciphertext HMAC-256 key
+    bytes ciphertext_mac = 3;
+
+    // ciphertext of Page contents, encrypted using the 32-byte AES-256 key with the block cipher
+    // initialized by the first 12 bytes of HMAC-256(IV seed, page index)
+    bytes ciphertext = 4;
+}

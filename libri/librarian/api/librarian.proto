@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package api;
 
+import "libri/librarian/api/documents.proto";
+
 // The Librarian service handles all of the main Libri functionality.
 service Librarian {
 
