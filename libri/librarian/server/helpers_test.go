@@ -6,14 +6,14 @@ import (
 
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/storage"
+	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
-	"github.com/drausin/libri/libri/librarian/client"
-	"github.com/golang/protobuf/proto"
 )
 
 func TestNewIDFromPublicKeyBytes_ok(t *testing.T) {
@@ -151,7 +151,7 @@ func TestCheckRequestAndKeyValue_checkErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	selfID := ecid.NewPseudoRandom(rng)
 	value, _ := api.NewTestDocument(rng)
-	key := cid.NewPseudoRandom(rng)  // bad key, not hash of value
+	key := cid.NewPseudoRandom(rng) // bad key, not hash of value
 	rq := client.NewGetRequest(selfID, key)
 	l := &Librarian{
 		rt:  routing.NewEmpty(selfID, routing.NewDefaultParameters()),

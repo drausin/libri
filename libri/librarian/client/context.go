@@ -3,10 +3,10 @@ package client
 import (
 	"time"
 
+	"github.com/golang/protobuf/proto"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/metadata"
-	"github.com/pkg/errors"
-	"github.com/golang/protobuf/proto"
 )
 
 const (

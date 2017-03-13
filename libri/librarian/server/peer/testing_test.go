@@ -50,4 +50,3 @@ func TestTestErrConnector_String(t *testing.T) {
 	c := &TestErrConnector{}
 	assert.True(t, len(c.String()) > 0)
 }
-

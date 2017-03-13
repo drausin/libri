@@ -9,7 +9,9 @@ import (
 	"os"
 	"sync"
 	"testing"
+
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/client"
 	lclient "github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
@@ -17,10 +19,9 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/search"
-	"github.com/drausin/libri/libri/librarian/client"
+	"github.com/drausin/libri/libri/librarian/server/store"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
-	"github.com/drausin/libri/libri/librarian/server/store"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -174,13 +175,12 @@ func testGet(t *testing.T, rng *rand.Rand, client *testClient, peerConfigs []*se
 	}
 }
 
-
 // testClient has enough info to make requests to other peers
 type testClient struct {
-	selfID ecid.ID
+	selfID  ecid.ID
 	selfAPI *api.PeerAddress
-	signer client.Signer
-	logger *zap.Logger
+	signer  client.Signer
+	logger  *zap.Logger
 }
 
 func setUp(rng *rand.Rand, nSeeds, nPeers int, logLevel zapcore.Level) (*testClient,
@@ -224,10 +224,10 @@ func setUp(rng *rand.Rand, nSeeds, nPeers int, logLevel zapcore.Level) (*testCli
 	selfPeer := peer.New(selfID.ID(), "test client", peer.NewConnector(publicAddr))
 	signer := client.NewSigner(selfID.Key())
 	clientImpl := &testClient{
-		selfID: selfID,
+		selfID:  selfID,
 		selfAPI: selfPeer.ToAPI(),
-		signer: signer,
-		logger: server.NewDevLogger(logLevel),
+		signer:  signer,
+		logger:  server.NewDevLogger(logLevel),
 	}
 
 	return clientImpl, seedConfigs, peerConfigs, seeds, peers

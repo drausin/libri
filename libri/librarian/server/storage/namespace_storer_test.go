@@ -8,8 +8,8 @@ import (
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/db"
 	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/stretchr/testify/assert"
 	"github.com/golang/protobuf/proto"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestServerStorerLoader_StoreLoad_ok(t *testing.T) {

@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"context"
+
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/metadata"
-	"context"
 )
 
 func TestNewFromSignatureContext(t *testing.T) {
@@ -28,7 +29,7 @@ func TestFromSignatureContext_missingMetadataErr(t *testing.T) {
 }
 
 func TestFromSignatureContext_missingSignatureErr(t *testing.T) {
-	ctx := metadata.NewContext(context.Background(), metadata.MD{})  // no signature key
+	ctx := metadata.NewContext(context.Background(), metadata.MD{}) // no signature key
 	signedToken, err := FromSignatureContext(ctx)
 	assert.Zero(t, signedToken)
 	assert.NotNil(t, err)
@@ -60,4 +61,3 @@ func TestNewSignedTimeoutContext_err(t *testing.T) {
 	assert.NotNil(t, cancel)
 	assert.NotNil(t, err)
 }
-

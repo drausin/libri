@@ -23,56 +23,56 @@ import (
 // Librarian is the main service of a single peer in the peer to peer network.
 type Librarian struct {
 	// SelfID is the random 256-bit identification number of this node in the hash table
-	selfID     ecid.ID
+	selfID ecid.ID
 
 	// Config holds the configuration parameters of the server
-	config     *Config
+	config *Config
 
 	// fixed API address
-	apiSelf    *api.PeerAddress
+	apiSelf *api.PeerAddress
 
 	// executes introductions to peers
 	introducer introduce.Introducer
 
 	// executes searches for peers and keys
-	searcher   search.Searcher
+	searcher search.Searcher
 
 	// executes stores for key/value
-	storer     store.Storer
+	storer store.Storer
 
 	// verifies requests from peers
-	rqv        RequestVerifier
+	rqv RequestVerifier
 
 	// key-value store DB used for all external storage
-	db         db.KVDB
+	db db.KVDB
 
 	// SL for server data
-	serverSL   storage.NamespaceStorerLoader
+	serverSL storage.NamespaceStorerLoader
 
 	// SL for p2p stored documents
 	documentSL storage.DocumentStorerLoader
 
 	// ensures keys are valid
-	kc         storage.Checker
+	kc storage.Checker
 
 	// ensures keys and values are valid
-	kvc        storage.KeyValueChecker
+	kvc storage.KeyValueChecker
 
 	// creates new peers
-	fromer     peer.Fromer
+	fromer peer.Fromer
 
 	// signs requests
 	// signs requests
-	signer     client.Signer
+	signer client.Signer
 
 	// routing table of peers
-	rt         routing.Table
+	rt routing.Table
 
 	// logger for this instance
-	logger     *zap.Logger
+	logger *zap.Logger
 
 	// receives graceful stop signal
-	stop       chan struct{}
+	stop chan struct{}
 }
 
 // NewLibrarian creates a new librarian instance.
@@ -112,7 +112,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		rqv:        NewRequestVerifier(),
 		db:         rdb,
 		serverSL:   serverSL,
-		documentSL:  documentSL,
+		documentSL: documentSL,
 		kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		kvc:        storage.NewHashKeyValueChecker(),
 		fromer:     peer.NewFromer(),

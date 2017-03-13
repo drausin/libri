@@ -2,9 +2,10 @@ package api
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type Document_BadContent struct{}
@@ -178,4 +179,3 @@ func TestValidatePageKeys_err(t *testing.T) {
 		assert.NotNil(t, ValidatePageKeys(c), fmt.Sprintf("case %d", i))
 	}
 }
-

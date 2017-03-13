@@ -1,10 +1,11 @@
 package storage
 
 import (
+	"log"
+
+	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/db"
 	"github.com/drausin/libri/libri/librarian/api"
-	cid "github.com/drausin/libri/libri/common/id"
-	"log"
 	"github.com/golang/protobuf/proto"
 )
 

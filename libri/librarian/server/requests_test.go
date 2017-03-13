@@ -6,11 +6,11 @@ import (
 	"testing"
 
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
+	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
-	"github.com/drausin/libri/libri/librarian/client"
-	"github.com/golang/protobuf/proto"
 )
 
 // alwaysSigVerifier implements the signature.Verifier interface but just blindly verifies
@@ -39,7 +39,7 @@ func TestRequestVerifier_Verify_err(t *testing.T) {
 		sigVerifier: &alwaysSigVerifier{},
 	}
 
-	assert.NotNil(t, rv.Verify(context.Background(), nil, nil))  // no signature in context
+	assert.NotNil(t, rv.Verify(context.Background(), nil, nil)) // no signature in context
 
 	rng := rand.New(rand.NewSource(0))
 	ctx := client.NewSignatureContext(context.Background(), "dummy.signed.token")

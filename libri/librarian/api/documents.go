@@ -1,27 +1,26 @@
 package api
 
 import (
-	"github.com/pkg/errors"
-	"fmt"
-	"crypto/sha256"
-	"github.com/drausin/libri/libri/common/id"
 	"bytes"
+	"crypto/sha256"
+	"fmt"
+
+	"github.com/drausin/libri/libri/common/id"
+	"github.com/pkg/errors"
 )
 
 const (
-	ECPubKeyLength = 65
-	EntryKeyLength = id.Length
+	ECPubKeyLength       = 65
+	EntryKeyLength       = id.Length
 	AES256KeyLength      = 32
 	PageIVSeedLength     = 32
 	PageHMAC256KeyLength = 32
 	MetadataIVLength     = 12
-	EncryptionKeysLength =
-		AES256KeyLength +
+	EncryptionKeysLength = AES256KeyLength +
 		PageIVSeedLength +
 		PageHMAC256KeyLength +
 		MetadataIVLength
 	HMAC256Length = sha256.Size
-
 )
 
 func ValidateDocument(d *Document) error {

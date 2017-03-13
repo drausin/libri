@@ -8,31 +8,31 @@ import (
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/db"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/storage"
 	"github.com/drausin/libri/libri/librarian/server/store"
+	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
-	"github.com/drausin/libri/libri/librarian/client"
-	"github.com/golang/protobuf/proto"
 )
 
 // TestNewLibrarian checks that we can create a new instance, close it, and create it again as
 // expected.
 func TestNewLibrarian(t *testing.T) {
 	l1 := newTestLibrarian()
-	go func() { <- l1.stop }() // dummy stop signal acceptor
+	go func() { <-l1.stop }() // dummy stop signal acceptor
 
 	nodeID1 := l1.selfID // should have been generated
 	err := l1.Close()
 	assert.Nil(t, err)
 
 	l2, err := NewLibrarian(l1.config, NewDevInfoLogger())
-	go func() { <- l2.stop }() // dummy stop signal acceptor
+	go func() { <-l2.stop }() // dummy stop signal acceptor
 
 	assert.Nil(t, err)
 	assert.Equal(t, nodeID1, l2.selfID)
@@ -177,11 +177,11 @@ func TestLibrarian_Find(t *testing.T) {
 			rng := rand.New(rand.NewSource(int64(s)))
 			rt, peerID, nAdded := routing.NewTestWithPeers(rng, n)
 			l := &Librarian{
-				selfID:    peerID,
+				selfID:     peerID,
 				documentSL: storage.NewDocumentKVDBStorerLoader(kvdb),
-				kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
-				rt:        rt,
-				rqv:       &alwaysRequestVerifier{},
+				kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
+				rt:         rt,
+				rqv:        &alwaysRequestVerifier{},
 			}
 
 			numClosest := uint32(routing.DefaultMaxActivePeers)
@@ -227,13 +227,13 @@ func TestLibrarian_Find_present(t *testing.T) {
 	assert.Nil(t, err)
 
 	l := &Librarian{
-		selfID:    peerID,
-		db:        kvdb,
-		serverSL:  storage.NewServerKVDBStorerLoader(kvdb),
+		selfID:     peerID,
+		db:         kvdb,
+		serverSL:   storage.NewServerKVDBStorerLoader(kvdb),
 		documentSL: storage.NewDocumentKVDBStorerLoader(kvdb),
-		rt:        rt,
-		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		rqv:       &alwaysRequestVerifier{},
+		rt:         rt,
+		kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
+		rqv:        &alwaysRequestVerifier{},
 	}
 
 	// create key-value and store
@@ -266,13 +266,13 @@ func TestLibrarian_Find_missing(t *testing.T) {
 	assert.Nil(t, err)
 
 	l := &Librarian{
-		selfID:    peerID,
-		rt:        rt,
-		db:        kvdb,
-		serverSL:  storage.NewServerKVDBStorerLoader(kvdb),
+		selfID:     peerID,
+		rt:         rt,
+		db:         kvdb,
+		serverSL:   storage.NewServerKVDBStorerLoader(kvdb),
 		documentSL: storage.NewDocumentKVDBStorerLoader(kvdb),
-		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		rqv:       &alwaysRequestVerifier{},
+		kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
+		rqv:        &alwaysRequestVerifier{},
 	}
 
 	// make request
@@ -308,14 +308,14 @@ func TestLibrarian_Store(t *testing.T) {
 	assert.Nil(t, err)
 
 	l := &Librarian{
-		selfID:    peerID,
-		rt:        rt,
-		db:        kvdb,
-		serverSL:  storage.NewServerKVDBStorerLoader(kvdb),
+		selfID:     peerID,
+		rt:         rt,
+		db:         kvdb,
+		serverSL:   storage.NewServerKVDBStorerLoader(kvdb),
 		documentSL: storage.NewDocumentKVDBStorerLoader(kvdb),
-		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		kvc:       storage.NewHashKeyValueChecker(),
-		rqv:       &alwaysRequestVerifier{},
+		kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
+		kvc:        storage.NewHashKeyValueChecker(),
+		rqv:        &alwaysRequestVerifier{},
 	}
 
 	// create key-value

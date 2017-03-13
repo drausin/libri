@@ -84,7 +84,7 @@ type GetQuerier interface {
 		opts ...grpc.CallOption) (*api.GetResponse, error)
 }
 
-type getQuerier struct {}
+type getQuerier struct{}
 
 // NewGetQuerier returns a new GetQuerier instance.
 func NewGetQuerier() GetQuerier {
@@ -107,7 +107,7 @@ type PutQuerier interface {
 		opts ...grpc.CallOption) (*api.PutResponse, error)
 }
 
-type putQuerier struct {}
+type putQuerier struct{}
 
 // NewPutQuerier returns a new PutQuerier instance.
 func NewPutQuerier() PutQuerier {

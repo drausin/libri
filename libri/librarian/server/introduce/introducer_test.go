@@ -8,10 +8,10 @@ import (
 
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
-	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -182,7 +182,7 @@ func TestResponseProcessor_Process(t *testing.T) {
 	nPeers := 16
 	responder := peer.NewTestPeer(rng, nPeers)
 	peers := peer.NewTestPeers(rng, nPeers)
-	selfPeer := peer.NewTestPeer(rng, nPeers + 1)
+	selfPeer := peer.NewTestPeer(rng, nPeers+1)
 	rp := NewResponseProcessor(peer.NewFromer(), selfPeer.ID())
 	apiPeers := peer.ToAPIs(peers)
 	apiPeers = append(apiPeers, selfPeer.ToAPI())

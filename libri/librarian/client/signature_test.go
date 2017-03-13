@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	cid "github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/librarian/server/ecid"
-	"github.com/stretchr/testify/assert"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/golang/protobuf/proto"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSignatureClaims_Valid_ok(t *testing.T) {
