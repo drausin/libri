@@ -86,7 +86,7 @@ message FindResponse {
     repeated PeerAddress peers = 2;
 
     // value, if found
-    bytes value = 3;
+    Document value = 3;
 }
 
 message PeerAddress {
@@ -110,7 +110,7 @@ message StoreRequest {
     bytes key = 2;
 
     // value to store for key
-    bytes value = 3;
+    Document value = 3;
 }
 
 message StoreResponse {
@@ -128,7 +128,7 @@ message GetResponse {
     ResponseMetadata metadata = 1;
 
     // value to store for key
-    bytes value = 3;
+    Document value = 3;
 }
 
 message PutRequest {
@@ -138,7 +138,7 @@ message PutRequest {
     bytes key = 2;
 
     // value to store for key
-    bytes value = 3;
+    Document value = 3;
 }
 
 message PutResponse {

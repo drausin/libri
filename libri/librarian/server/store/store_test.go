@@ -10,6 +10,7 @@ import (
 	ssearch "github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/drausin/libri/libri/librarian/api"
 )
 
 func TestNewDefaultParameters(t *testing.T) {
@@ -21,8 +22,8 @@ func TestNewDefaultParameters(t *testing.T) {
 
 func TestStore_Stored(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	peerID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
-	value := cid.NewPseudoRandom(rng).Bytes() // use ID for convenience, but could be anything
+	peerID := ecid.NewPseudoRandom(rng)
+	value, key := api.NewTestDocument(rng)
 
 	// create search with result of closest peers
 	nClosestResponse := uint(4)

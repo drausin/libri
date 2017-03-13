@@ -3,11 +3,10 @@ package client
 import (
 	"time"
 
-	"github.com/drausin/libri/libri/librarian/signature"
-	"github.com/gogo/protobuf/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/metadata"
 	"github.com/pkg/errors"
+	"github.com/golang/protobuf/proto"
 )
 
 const (
@@ -35,7 +34,7 @@ func FromSignatureContext(ctx context.Context) (string, error) {
 }
 
 // NewSignedTimeoutContext creates a new context with a timeout and request signature.
-func NewSignedTimeoutContext(signer signature.Signer, request proto.Message,
+func NewSignedTimeoutContext(signer Signer, request proto.Message,
 	timeout time.Duration) (context.Context, context.CancelFunc, error) {
 	ctx := context.Background()
 

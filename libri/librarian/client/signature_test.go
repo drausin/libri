@@ -1,14 +1,14 @@
-package signature
+package client
 
 import (
 	"math/rand"
 	"testing"
 
 	cid "github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
-	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/golang/protobuf/proto"
 )
 
 func TestSignatureClaims_Valid_ok(t *testing.T) {
@@ -42,16 +42,15 @@ func TestSignatureClaims_Valid_err(t *testing.T) {
 func TestEcdsaSignerVerifer_SignVerify_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	peerID := ecid.NewPseudoRandom(rng)
-	key, value := cid.NewPseudoRandom(rng), make([]byte, 512)
-	rng.Read(value)
+	value, key := api.NewTestDocument(rng)
 
 	signer, verifier := NewSigner(peerID.Key()), NewVerifier()
 
 	cases := []proto.Message{
-		api.NewFindRequest(peerID, key, 20),
-		api.NewStoreRequest(peerID, key, value),
-		api.NewGetRequest(peerID, key),
-		api.NewPutRequest(peerID, key, value),
+		NewFindRequest(peerID, key, 20),
+		NewStoreRequest(peerID, key, value),
+		NewGetRequest(peerID, key),
+		NewPutRequest(peerID, key, value),
 	}
 	for _, c := range cases {
 		encToken, err := signer.Sign(c)
@@ -77,7 +76,7 @@ func TestEcdsaVerifer_Verify_err(t *testing.T) {
 	rng.Read(value)
 
 	signer, verifier := NewSigner(peerID.Key()), NewVerifier()
-	message := api.NewFindRequest(peerID, key, 20)
+	message := NewFindRequest(peerID, key, 20)
 	encToken, err := signer.Sign(message)
 	assert.Nil(t, err)
 
@@ -92,8 +91,8 @@ func TestEcdsaVerifer_Verify_err(t *testing.T) {
 		{"", peerID, message},
 
 		// different messages
-		{encToken, peerID, api.NewFindRequest(peerID, key, 10)}, // NPeers
-		{encToken, peerID, api.NewFindRequest(peerID, key, 20)}, // Metadata.RequestID
+		{encToken, peerID, NewFindRequest(peerID, key, 10)}, // NPeers
+		{encToken, peerID, NewFindRequest(peerID, key, 20)}, // Metadata.RequestID
 
 		// different peer
 		{encToken, ecid.NewPseudoRandom(rng), message},

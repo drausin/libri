@@ -17,11 +17,9 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/search"
-	"github.com/drausin/libri/libri/librarian/signature"
+	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
-	"crypto/sha256"
-	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/server/store"
 	"go.uber.org/zap/zapcore"
 )
@@ -76,7 +74,7 @@ func testIntroduce(t *testing.T, rng *rand.Rand, client *testClient, peerConfigs
 		// issue Introduce query to random peer
 		i := rng.Int31n(int32(nPeers))
 		conn := peer.NewConnector(peerConfigs[i].PublicAddr)
-		rq := api.NewIntroduceRequest(client.selfID, client.selfAPI, 8)
+		rq := lclient.NewIntroduceRequest(client.selfID, client.selfAPI, 8)
 		ctx, cancel, err := lclient.NewSignedTimeoutContext(client.signer, rq,
 			search.DefaultQueryTimeout)
 		assert.Nil(t, err)
@@ -97,19 +95,18 @@ func testIntroduce(t *testing.T, rng *rand.Rand, client *testClient, peerConfigs
 }
 
 func testPut(t *testing.T, rng *rand.Rand, client *testClient, peerConfigs []*server.Config,
-	peers []*server.Librarian, nPuts int) [][]byte {
+	peers []*server.Librarian, nPuts int) []*api.Document {
 	nPeers := len(peers)
 	q := lclient.NewPutQuerier()
-	values := make([][]byte, nPuts)
+	values := make([]*api.Document, nPuts)
 
 	// create a bunch of random values to put
 	for c := 0; c < nPuts; c++ {
 
 		// create random bytes of length [2, 256)
-		nValueBytes := int(2 + rng.Int31n(int32(254)))
-		key, value := newKeyValue(t, rng, nValueBytes)
+		value, key := api.NewTestDocument(rng)
 		values[c] = value
-		rq := api.NewPutRequest(client.selfID, key, value)
+		rq := lclient.NewPutRequest(client.selfID, key, value)
 
 		// issue Put query to random peer
 		i := rng.Int31n(int32(nPeers))
@@ -139,7 +136,7 @@ func testPut(t *testing.T, rng *rand.Rand, client *testClient, peerConfigs []*se
 }
 
 func testGet(t *testing.T, rng *rand.Rand, client *testClient, peerConfigs []*server.Config,
-	peers []*server.Librarian, values [][]byte) {
+	peers []*server.Librarian, values []*api.Document) {
 	nPeers := len(peers)
 	q := lclient.NewGetQuerier()
 
@@ -148,8 +145,9 @@ func testGet(t *testing.T, rng *rand.Rand, client *testClient, peerConfigs []*se
 
 		// create Get request for value
 		value := values[c]
-		key := getKey(value)
-		rq := api.NewGetRequest(client.selfID, key)
+		key, err := api.GetKey(value)
+		assert.Nil(t, err)
+		rq := lclient.NewGetRequest(client.selfID, key)
 
 		// issue Get query to random peer
 		i := rng.Int31n(int32(nPeers))
@@ -165,12 +163,13 @@ func testGet(t *testing.T, rng *rand.Rand, client *testClient, peerConfigs []*se
 		cancel()
 		client.logger.Debug("received Get response",
 			zap.String("from_peer", conn.String()),
-			zap.Int("value_len", int(len(rp.Value))),
 		)
 
 		// check everything went fine
 		assert.Nil(t, err)
-		assert.Equal(t, key, getKey(rp.Value))
+		rpKey, err := api.GetKey(rp.Value)
+		assert.Nil(t, err)
+		assert.Equal(t, key, rpKey)
 		assert.Equal(t, value, rp.Value)
 	}
 }
@@ -180,7 +179,7 @@ func testGet(t *testing.T, rng *rand.Rand, client *testClient, peerConfigs []*se
 type testClient struct {
 	selfID ecid.ID
 	selfAPI *api.PeerAddress
-	signer signature.Signer
+	signer client.Signer
 	logger *zap.Logger
 }
 
@@ -223,15 +222,15 @@ func setUp(rng *rand.Rand, nSeeds, nPeers int, logLevel zapcore.Level) (*testCli
 	selfID := ecid.NewPseudoRandom(rng)
 	publicAddr := peer.NewTestPublicAddr(nSeeds + nPeers + 1)
 	selfPeer := peer.New(selfID.ID(), "test client", peer.NewConnector(publicAddr))
-	signer := signature.NewSigner(selfID.Key())
-	client := &testClient{
+	signer := client.NewSigner(selfID.Key())
+	clientImpl := &testClient{
 		selfID: selfID,
 		selfAPI: selfPeer.ToAPI(),
 		signer: signer,
 		logger: server.NewDevLogger(logLevel),
 	}
 
-	return client, seedConfigs, peerConfigs, seeds, peers
+	return clientImpl, seedConfigs, peerConfigs, seeds, peers
 }
 
 func tearDown(seedConfigs []*server.Config, seeds []*server.Librarian, peers []*server.Librarian) {
@@ -293,17 +292,4 @@ func newConfig(dataDir string, port int, maxBucketPeers uint) *server.Config {
 		WithRouting(rtParams).
 		WithIntroduce(introParams).
 		WithSearch(searchParams)
-}
-
-func newKeyValue(t *testing.T, rng *rand.Rand, nValueBytes int) (cid.ID, []byte) {
-	value := make([]byte, nValueBytes)
-	nRead, err := rng.Read(value)
-	assert.Equal(t, nValueBytes, nRead)
-	assert.Nil(t, err)
-	return getKey(value), value
-}
-
-func getKey(value []byte) cid.ID {
-	key := sha256.Sum256(value)
-	return cid.FromBytes(key[:])
 }

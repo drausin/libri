@@ -8,6 +8,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
+	"github.com/drausin/libri/libri/librarian/client"
 )
 
 var (
@@ -91,9 +92,11 @@ type Store struct {
 }
 
 // NewStore creates a new Store instance for a given target, search type, and search parameters.
-func NewStore(peerID ecid.ID, search *search.Search, value []byte, params *Parameters) *Store {
+func NewStore(
+	peerID ecid.ID, search *search.Search, value *api.Document, params *Parameters,
+) *Store {
 	return &Store{
-		Request: api.NewStoreRequest(peerID, search.Key, value),
+		Request: client.NewStoreRequest(peerID, search.Key, value),
 		Search:  search,
 		Params:  params,
 	}

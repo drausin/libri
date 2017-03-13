@@ -1,9 +1,9 @@
-package signature
+package client
 
 import (
 	"errors"
 
-	"github.com/gogo/protobuf/proto"
+	"github.com/golang/protobuf/proto"
 )
 
 // TestNoOpSigner implements the signature.Signer interface but just returns a dummy token.

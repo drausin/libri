@@ -1,4 +1,4 @@
-package signature
+package client
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 	"regexp"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/gogo/protobuf/proto"
+	"github.com/golang/protobuf/proto"
 )
 
 // regex pattern for a base-64 url-encoded string for a 256-bit number

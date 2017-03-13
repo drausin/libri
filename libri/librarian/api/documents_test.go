@@ -2,7 +2,6 @@ package api
 
 import (
 	"fmt"
-	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"testing"
@@ -14,11 +13,14 @@ func (*Document_BadContent) isDocument_Contents() {}
 
 func TestValidateDocument_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	d1 := &Document{&Document_Envelope{newTestEnvelope(rng)}}
+
+	d1 := &Document{&Document_Envelope{NewTestEnvelope(rng)}}
 	assert.Nil(t, ValidateDocument(d1))
-	d2 := &Document{&Document_Entry{newTestPageEntry(rng)}}
+
+	d2, _ := NewTestDocument(rng)
 	assert.Nil(t, ValidateDocument(d2))
-	d3 := &Document{&Document_Page{newTestPage(rng)}}
+
+	d3 := &Document{&Document_Page{NewTestPage(rng)}}
 	assert.Nil(t, ValidateDocument(d3))
 }
 
@@ -30,7 +32,7 @@ func TestValidateDocument_err(t *testing.T) {
 
 func TestValidateEnvelope_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	e := newTestEnvelope(rng)
+	e := NewTestEnvelope(rng)
 	assert.Nil(t, ValidateEnvelope(e))
 }
 
@@ -60,7 +62,7 @@ func TestValidateEnvelope_err(t *testing.T) {
 
 	assert.NotNil(t, ValidateEnvelope(nil))
 	for i, c := range cases {
-		badEnvelope := newTestEnvelope(rng)
+		badEnvelope := NewTestEnvelope(rng)
 		c(badEnvelope)
 		assert.NotNil(t, ValidateEnvelope(badEnvelope), fmt.Sprintf("case %d", i))
 	}
@@ -68,10 +70,10 @@ func TestValidateEnvelope_err(t *testing.T) {
 
 func TestValidateEntry_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	e1 := newTestPageEntry(rng)
+	e1 := NewTestPageEntry(rng)
 	assert.Nil(t, ValidateEntry(e1))
 
-	e2 := newTestPageEntry(rng)
+	e2 := NewTestPageEntry(rng)
 	e2.Contents = &Entry_PageKeys{
 		&PageKeys{
 			Keys: [][]byte{[]byte{0, 1, 2}, []byte{1, 2, 3}},
@@ -86,7 +88,7 @@ func (*Entry_BadContent) isEntry_Contents() {}
 
 func TestValidateEntry_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	badLen, diffPK := randBytes(rng, 100), ecid.ToPublicKeyBytes(ecid.NewPseudoRandom(rng))
+	badLen, diffPK := randBytes(rng, 100), fakePubKey(rng)
 	empty, zeros := []byte{}, []byte{0, 0, 0}
 
 	// each of the cases takes a valid *Entry and changes it in some way to make it invalid
@@ -115,7 +117,7 @@ func TestValidateEntry_err(t *testing.T) {
 
 	assert.NotNil(t, ValidateEntry(nil))
 	for i, c := range cases {
-		badEntry := newTestPageEntry(rng)
+		badEntry := NewTestPageEntry(rng)
 		c(badEntry)
 		assert.NotNil(t, ValidateEntry(badEntry), fmt.Sprintf("case %d", i))
 	}
@@ -123,7 +125,7 @@ func TestValidateEntry_err(t *testing.T) {
 
 func TestValidatePage_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	p := newTestPage(rng)
+	p := NewTestPage(rng)
 	assert.Nil(t, ValidatePage(p))
 }
 
@@ -148,7 +150,7 @@ func TestValidatePage_err(t *testing.T) {
 
 	assert.NotNil(t, ValidatePage(nil))
 	for i, c := range cases {
-		badPage := newTestPage(rng)
+		badPage := NewTestPage(rng)
 		c(badPage)
 		assert.NotNil(t, ValidatePage(badPage), fmt.Sprintf("case %d", i))
 	}
@@ -177,41 +179,3 @@ func TestValidatePageKeys_err(t *testing.T) {
 	}
 }
 
-func newTestEnvelope(rng *rand.Rand) *Envelope {
-	return &Envelope{
-		AuthorPublicKey:          ecid.ToPublicKeyBytes(ecid.NewPseudoRandom(rng)),
-		ReaderPublicKey:          ecid.ToPublicKeyBytes(ecid.NewPseudoRandom(rng)),
-		EntryKey:                 randBytes(rng, 32),
-		EncryptionKeysCiphertext: randBytes(rng, 108),
-	}
-}
-
-func newTestPageEntry(rng *rand.Rand) *Entry {
-	page := newTestPage(rng)
-	return &Entry{
-		AuthorPublicKey:        page.AuthorPublicKey,
-		CreatedTime:            1,
-		MetadataCiphertextMac:  randBytes(rng, 32),
-		MetadataCiphertext:     randBytes(rng, 64),
-		ContentsCiphertextMac:  randBytes(rng, 32),
-		ContentsCiphertextSize: 100,
-		Contents:               &Entry_Page{page},
-	}
-}
-
-func newTestPage(rng *rand.Rand) *Page {
-	return &Page{
-		AuthorPublicKey: ecid.ToPublicKeyBytes(ecid.NewPseudoRandom(rng)),
-		CiphertextMac:   randBytes(rng, 32),
-		Ciphertext:      randBytes(rng, 64),
-	}
-}
-
-func randBytes(rng *rand.Rand, length int) []byte {
-	b := make([]byte, length)
-	_, err := rng.Read(b)
-	if err != nil {
-		panic(err)
-	}
-	return b
-}

@@ -9,7 +9,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	ssearch "github.com/drausin/libri/libri/librarian/server/search"
-	"github.com/drausin/libri/libri/librarian/signature"
+	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
@@ -44,7 +44,7 @@ func NewTestStorer(peerID ecid.ID, peersMap map[string]peer.Peer) Storer {
 	return &storer{
 		searcher: ssearch.NewTestSearcher(peersMap),
 		querier:  &TestStoreQuerier{peerID: peerID},
-		signer:   &signature.TestNoOpSigner{},
+		signer:   &client.TestNoOpSigner{},
 	}
 }
 
@@ -54,8 +54,7 @@ func TestStorer_Store_ok(t *testing.T) {
 	peers, peersMap, selfPeerIdxs, selfID := ssearch.NewTestPeers(rng, n)
 
 	// create our searcher
-	key := cid.NewPseudoRandom(rng)
-	value := cid.NewPseudoRandom(rng).Bytes() // use ID for convenience, but could be anything
+	value, key := api.NewTestDocument(rng)
 	storer := NewTestStorer(selfID, peersMap)
 
 	for concurrency := uint(1); concurrency <= 3; concurrency++ {
@@ -162,8 +161,7 @@ func newTestStore() (Storer, *Store, []int, []peer.Peer, cid.ID) {
 	peers, peersMap, selfPeerIdxs, selfID := ssearch.NewTestPeers(rng, n)
 
 	// create our searcher
-	key := cid.NewPseudoRandom(rng)
-	value := cid.NewPseudoRandom(rng).Bytes() // use ID for convenience, but could be anything
+	value, key := api.NewTestDocument(rng)
 	storerImpl := NewTestStorer(selfID, peersMap)
 
 	concurrency := uint(1)
@@ -225,40 +223,40 @@ func (f *diffRequestIDQuerier) Query(ctx context.Context, pConn peer.Connector,
 
 func TestStorer_query_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	client := peer.NewConnector(nil) // won't actually be used since we're mocking the finder
-	selfID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
-	value := cid.NewPseudoRandom(rng).Bytes() // use ID for convenience, but could be anything
+	clientConn := peer.NewConnector(nil) // won't actually be used since we're mocking the finder
+	value, key := api.NewTestDocument(rng)
+	selfID := ecid.NewPseudoRandom(rng)
 	search := ssearch.NewSearch(selfID, key, &ssearch.Parameters{
 		Timeout: DefaultQueryTimeout,
 	})
 	store := NewStore(selfID, search, value, &Parameters{})
 
 	s1 := &storer{
-		signer: &signature.TestNoOpSigner{},
+		signer: &client.TestNoOpSigner{},
 		// use querier that simulates a timeout
 		querier: &timeoutQuerier{},
 	}
-	rp1, err := s1.query(client, store)
+	rp1, err := s1.query(clientConn, store)
 	assert.Nil(t, rp1)
 	assert.NotNil(t, err)
 
 	s2 := &storer{
-		signer: &signature.TestNoOpSigner{},
+		signer: &client.TestNoOpSigner{},
 		// use querier that simulates a different request ID
 		querier: &diffRequestIDQuerier{
 			rng:    rng,
 			peerID: selfID,
 		},
 	}
-	rp2, err := s2.query(client, store)
+	rp2, err := s2.query(clientConn, store)
 	assert.Nil(t, rp2)
 	assert.NotNil(t, err)
 
 	s3 := &storer{
 		// use signer that returns an error
-		signer: &signature.TestErrSigner{},
+		signer: &client.TestErrSigner{},
 	}
-	rp3, err := s3.query(client, store)
+	rp3, err := s3.query(clientConn, store)
 	assert.Nil(t, rp3)
 	assert.NotNil(t, err)
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
-	"github.com/drausin/libri/libri/librarian/signature"
+	"github.com/drausin/libri/libri/librarian/client"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -47,7 +47,7 @@ func (f *TestFromer) FromAPI(apiAddress *api.PeerAddress) peer.Peer {
 // each just return fixed addresses and peers, respectively.
 func NewTestSearcher(peersMap map[string]peer.Peer) Searcher {
 	return NewSearcher(
-		&signature.TestNoOpSigner{},
+		&client.TestNoOpSigner{},
 		&TestFindQuerier{},
 		&responseProcessor{
 			fromer: &TestFromer{Peers: peersMap},

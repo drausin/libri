@@ -7,9 +7,9 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/storage"
-	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"github.com/golang/protobuf/proto"
 )
 
 // logger keys

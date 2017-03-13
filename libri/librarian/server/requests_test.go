@@ -7,10 +7,10 @@ import (
 
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
-	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"github.com/drausin/libri/libri/librarian/client"
+	"github.com/golang/protobuf/proto"
 )
 
 // alwaysSigVerifier implements the signature.Verifier interface but just blindly verifies
@@ -23,19 +23,19 @@ func (asv *alwaysSigVerifier) Verify(encToken string, fromPubKey *ecdsa.PublicKe
 }
 
 func TestRequestVerifier_Verify_ok(t *testing.T) {
-	rv := &requestVerifier{
+	rv := &verifier{
 		sigVerifier: &alwaysSigVerifier{},
 	}
 
 	rng := rand.New(rand.NewSource(0))
 	ctx := client.NewSignatureContext(context.Background(), "dummy.signed.token")
-	meta := api.NewRequestMetadata(ecid.NewPseudoRandom(rng))
+	meta := client.NewRequestMetadata(ecid.NewPseudoRandom(rng))
 
 	assert.Nil(t, rv.Verify(ctx, nil, meta))
 }
 
 func TestRequestVerifier_Verify_err(t *testing.T) {
-	rv := &requestVerifier{
+	rv := &verifier{
 		sigVerifier: &alwaysSigVerifier{},
 	}
 

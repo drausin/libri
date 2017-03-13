@@ -1,8 +1,6 @@
 package server
 
 import (
-	"bytes"
-	"crypto/sha256"
 	"io/ioutil"
 	"math/rand"
 	"testing"
@@ -16,10 +14,11 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/storage"
 	"github.com/drausin/libri/libri/librarian/server/store"
-	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
+	"github.com/drausin/libri/libri/librarian/client"
+	"github.com/golang/protobuf/proto"
 )
 
 // TestNewLibrarian checks that we can create a new instance, close it, and create it again as
@@ -128,7 +127,7 @@ func TestLibrarian_Introduce_checkRequestErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	l := &Librarian{}
 	rq := &api.IntroduceRequest{
-		Metadata: api.NewRequestMetadata(ecid.NewPseudoRandom(rng)),
+		Metadata: client.NewRequestMetadata(ecid.NewPseudoRandom(rng)),
 	}
 	rq.Metadata.PubKey = []byte("corrupted pub key")
 
@@ -179,7 +178,7 @@ func TestLibrarian_Find(t *testing.T) {
 			rt, peerID, nAdded := routing.NewTestWithPeers(rng, n)
 			l := &Librarian{
 				selfID:    peerID,
-				entriesSL: storage.NewEntriesKVDBStorerLoader(kvdb),
+				documentSL: storage.NewDocumentKVDBStorerLoader(kvdb),
 				kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
 				rt:        rt,
 				rqv:       &alwaysRequestVerifier{},
@@ -231,28 +230,23 @@ func TestLibrarian_Find_present(t *testing.T) {
 		selfID:    peerID,
 		db:        kvdb,
 		serverSL:  storage.NewServerKVDBStorerLoader(kvdb),
-		entriesSL: storage.NewEntriesKVDBStorerLoader(kvdb),
+		documentSL: storage.NewDocumentKVDBStorerLoader(kvdb),
 		rt:        rt,
 		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		rqv:       &alwaysRequestVerifier{},
 	}
 
 	// create key-value and store
-	nValueBytes := 1014
-	value := make([]byte, nValueBytes)
-	nRead, err := rand.Read(value)
-	assert.Equal(t, nValueBytes, nRead)
-	assert.Nil(t, err)
-	key := sha256.Sum256(value)
+	value, key := api.NewTestDocument(rng)
 
-	err = l.entriesSL.Store(key[:], value)
+	err = l.documentSL.Store(key, value)
 	assert.Nil(t, err)
 
 	// make request for key
 	numClosest := uint32(routing.DefaultMaxActivePeers)
 	rq := &api.FindRequest{
 		Metadata: newTestRequestMetadata(rng, l.selfID),
-		Key:      key[:],
+		Key:      key.Bytes(),
 		NumPeers: numClosest,
 	}
 	rp, err := l.Find(nil, rq)
@@ -261,7 +255,7 @@ func TestLibrarian_Find_present(t *testing.T) {
 	// we should get back the value we stored
 	assert.NotNil(t, rp.Value)
 	assert.Nil(t, rp.Peers)
-	assert.True(t, bytes.Equal(value, rp.Value))
+	assert.Equal(t, value, rp.Value)
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
 }
 
@@ -276,7 +270,7 @@ func TestLibrarian_Find_missing(t *testing.T) {
 		rt:        rt,
 		db:        kvdb,
 		serverSL:  storage.NewServerKVDBStorerLoader(kvdb),
-		entriesSL: storage.NewEntriesKVDBStorerLoader(kvdb),
+		documentSL: storage.NewDocumentKVDBStorerLoader(kvdb),
 		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		rqv:       &alwaysRequestVerifier{},
 	}
@@ -299,7 +293,7 @@ func TestLibrarian_Find_missing(t *testing.T) {
 func TestLibrarian_Find_checkRequestError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	l := &Librarian{}
-	rq := api.NewFindRequest(ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng), uint(8))
+	rq := client.NewFindRequest(ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng), uint(8))
 	rq.Metadata.PubKey = []byte("corrupted pub key")
 
 	rp, err := l.Find(nil, rq)
@@ -318,14 +312,14 @@ func TestLibrarian_Store(t *testing.T) {
 		rt:        rt,
 		db:        kvdb,
 		serverSL:  storage.NewServerKVDBStorerLoader(kvdb),
-		entriesSL: storage.NewEntriesKVDBStorerLoader(kvdb),
+		documentSL: storage.NewDocumentKVDBStorerLoader(kvdb),
 		kc:        storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		kvc:       storage.NewHashKeyValueChecker(),
 		rqv:       &alwaysRequestVerifier{},
 	}
 
 	// create key-value
-	key, value := newKeyValue(t, rng, 512)
+	value, key := api.NewTestDocument(rng)
 
 	// make store request
 	rq := &api.StoreRequest{
@@ -337,19 +331,10 @@ func TestLibrarian_Store(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, rp)
 
-	stored, err := l.entriesSL.Load(key.Bytes())
+	stored, err := l.documentSL.Load(key)
 	assert.Nil(t, err)
-	assert.True(t, bytes.Equal(value, stored))
+	assert.Equal(t, value, stored)
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
-}
-
-func newKeyValue(t *testing.T, rng *rand.Rand, nValueBytes int) (cid.ID, []byte) {
-	value := make([]byte, nValueBytes)
-	nRead, err := rng.Read(value)
-	assert.Equal(t, nValueBytes, nRead)
-	assert.Nil(t, err)
-	key := sha256.Sum256(value)
-	return cid.FromBytes(key[:]), value
 }
 
 func newTestRequestMetadata(rng *rand.Rand, peerID ecid.ID) *api.RequestMetadata {
@@ -362,8 +347,8 @@ func newTestRequestMetadata(rng *rand.Rand, peerID ecid.ID) *api.RequestMetadata
 func TestLibrarian_Store_checkRequestError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	l := &Librarian{}
-	rq := api.NewStoreRequest(ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng),
-		[]byte("some value"))
+	value, key := api.NewTestDocument(rng)
+	rq := client.NewStoreRequest(ecid.NewPseudoRandom(rng), key, value)
 	rq.Metadata.PubKey = []byte("corrupted pub key")
 
 	rp, err := l.Store(nil, rq)
@@ -386,7 +371,7 @@ func (s *fixedSearcher) Search(search *search.Search, seeds []peer.Peer) error {
 
 func TestLibrarian_Get_FoundValue(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	key, value := newKeyValue(t, rng, 512)
+	value, key := api.NewTestDocument(rng)
 	peerID := ecid.NewPseudoRandom(rng)
 
 	// create mock search result where the value has been found
@@ -396,7 +381,7 @@ func TestLibrarian_Get_FoundValue(t *testing.T) {
 
 	// create librarian and request
 	l := newGetLibrarian(rng, foundValueResult, nil)
-	rq := api.NewGetRequest(peerID, key)
+	rq := client.NewGetRequest(peerID, key)
 
 	// since fixedSearcher returns fixed value, should get that back in response
 	rp, err := l.Get(nil, rq)
@@ -418,7 +403,7 @@ func TestLibrarian_Get_FoundClosestPeers(t *testing.T) {
 
 	// create librarian and request
 	l := newGetLibrarian(rng, foundClosestPeersResult, nil)
-	rq := api.NewGetRequest(peerID, key)
+	rq := client.NewGetRequest(peerID, key)
 
 	// since fixedSearcher returns a Search value where FoundClosestPeers() is true, shouldn't
 	// have any Value
@@ -439,7 +424,7 @@ func TestLibrarian_Get_Errored(t *testing.T) {
 
 	// create librarian and request
 	l := newGetLibrarian(rng, fatalErrorResult, nil)
-	rq := api.NewGetRequest(peerID, key)
+	rq := client.NewGetRequest(peerID, key)
 
 	// since we have a fatal search error, Get() should also return an error
 	rp, err := l.Get(nil, rq)
@@ -457,7 +442,7 @@ func TestLibrarian_Get_Exhausted(t *testing.T) {
 
 	// create librarian and request
 	l := newGetLibrarian(rng, exhaustedResult, nil)
-	rq := api.NewGetRequest(peerID, key)
+	rq := client.NewGetRequest(peerID, key)
 
 	// since we have a fatal search error, Get() should also return an error
 	rp, err := l.Get(nil, rq)
@@ -471,7 +456,7 @@ func TestLibrarian_Get_err(t *testing.T) {
 
 	// create librarian and request
 	l := newGetLibrarian(rng, nil, errors.New("some unexpected search error"))
-	rq := api.NewGetRequest(peerID, key)
+	rq := client.NewGetRequest(peerID, key)
 
 	// since fixedSearcher returns fixed value, should get that back in response
 	rp, err := l.Get(nil, rq)
@@ -482,7 +467,7 @@ func TestLibrarian_Get_err(t *testing.T) {
 func TestLibrarian_Get_checkRequestError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	l := &Librarian{}
-	rq := api.NewGetRequest(ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng))
+	rq := client.NewGetRequest(ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng))
 	rq.Metadata.PubKey = []byte("corrupted pub key")
 
 	rp, err := l.Get(nil, rq)
@@ -521,7 +506,7 @@ func (s *fixedStorer) Store(store *store.Store, seeds []peer.Peer) error {
 
 func TestLibrarian_Put_Stored(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	key, value := newKeyValue(t, rng, 512)
+	value, key := api.NewTestDocument(rng)
 	peerID := ecid.NewPseudoRandom(rng)
 
 	// create mock search result where the value has been stored
@@ -532,7 +517,7 @@ func TestLibrarian_Put_Stored(t *testing.T) {
 
 	// create librarian and request
 	l := newPutLibrarian(rng, addedResult, nil)
-	rq := api.NewPutRequest(peerID, key, value)
+	rq := client.NewPutRequest(peerID, key, value)
 
 	// since fixedSearcher returns fixed value, should get that back in response
 	rp, err := l.Put(nil, rq)
@@ -544,7 +529,7 @@ func TestLibrarian_Put_Stored(t *testing.T) {
 
 func TestLibrarian_Put_Exists(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	key, value := newKeyValue(t, rng, 512)
+	value, key := api.NewTestDocument(rng)
 	peerID := ecid.NewPseudoRandom(rng)
 
 	// create mock search result where the value has been stored
@@ -555,7 +540,7 @@ func TestLibrarian_Put_Exists(t *testing.T) {
 
 	// create librarian and request
 	l := newPutLibrarian(rng, existsResult, nil)
-	rq := api.NewPutRequest(peerID, key, value)
+	rq := client.NewPutRequest(peerID, key, value)
 
 	// since fixedSearcher returns fixed value, should get that back in response
 	rp, err := l.Put(nil, rq)
@@ -566,7 +551,7 @@ func TestLibrarian_Put_Exists(t *testing.T) {
 
 func TestLibrarian_Put_Errored(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	key, value := newKeyValue(t, rng, 512)
+	value, key := api.NewTestDocument(rng)
 	peerID := ecid.NewPseudoRandom(rng)
 
 	// create mock search result where the value has been stored
@@ -576,7 +561,7 @@ func TestLibrarian_Put_Errored(t *testing.T) {
 
 	// create librarian and request
 	l := newPutLibrarian(rng, erroredResult, nil)
-	rq := api.NewPutRequest(peerID, key, value)
+	rq := client.NewPutRequest(peerID, key, value)
 
 	// since fixedSearcher returns fixed value, should get that back in response
 	rp, err := l.Put(nil, rq)
@@ -586,12 +571,12 @@ func TestLibrarian_Put_Errored(t *testing.T) {
 
 func TestLibrarian_Put_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	key, value := newKeyValue(t, rng, 512)
+	value, key := api.NewTestDocument(rng)
 	peerID := ecid.NewPseudoRandom(rng)
 
 	// create librarian and request
 	l := newPutLibrarian(rng, nil, errors.New("some store error"))
-	rq := api.NewPutRequest(peerID, key, value)
+	rq := client.NewPutRequest(peerID, key, value)
 
 	// since fixedSearcher returns fixed value, should get that back in response
 	rp, err := l.Put(nil, rq)
@@ -602,8 +587,8 @@ func TestLibrarian_Put_err(t *testing.T) {
 func TestLibrarian_Put_checkRequestError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	l := &Librarian{}
-	rq := api.NewPutRequest(ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng),
-		[]byte("some value"))
+	value, key := api.NewTestDocument(rng)
+	rq := client.NewPutRequest(ecid.NewPseudoRandom(rng), key, value)
 	rq.Metadata.PubKey = []byte("corrupted pub key")
 
 	rp, err := l.Put(nil, rq)

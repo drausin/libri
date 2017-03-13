@@ -9,6 +9,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
+	"github.com/drausin/libri/libri/librarian/client"
 )
 
 var (
@@ -50,7 +51,7 @@ func NewDefaultParameters() *Parameters {
 // Result holds search's (intermediate) result: collections of peers and possibly the value.
 type Result struct {
 	// found value when looking for one, otherwise nil
-	Value []byte
+	Value *api.Document
 
 	// heap of the responding peers found closest to the target
 	Closest FarthestPeers
@@ -101,7 +102,7 @@ type Search struct {
 func NewSearch(selfID ecid.ID, key cid.ID, params *Parameters) *Search {
 	return &Search{
 		Key:     key,
-		Request: api.NewFindRequest(selfID, key, params.NClosestResponses),
+		Request: client.NewFindRequest(selfID, key, params.NClosestResponses),
 		Result:  NewInitialResult(key, params),
 		Params:  params,
 	}

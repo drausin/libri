@@ -10,6 +10,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/drausin/libri/libri/librarian/api"
 )
 
 func TestNewDefaultParameters(t *testing.T) {
@@ -68,7 +69,7 @@ func TestSearch_FoundValue(t *testing.T) {
 	assert.False(t, search.FoundValue())
 
 	// set the result
-	search.Result.Value = cid.FromInt64(1).Bytes() // arbitrary, just needs to something
+	search.Result.Value, _ = api.NewTestDocument(rng)
 	assert.True(t, search.FoundValue())
 }
 
