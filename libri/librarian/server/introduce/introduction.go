@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 )
@@ -100,7 +101,7 @@ type Introduction struct {
 func NewIntroduction(selfID ecid.ID, apiSelf *api.PeerAddress, params *Parameters) *Introduction {
 	return &Introduction{
 		NewRequest: func() *api.IntroduceRequest {
-			return api.NewIntroduceRequest(selfID, apiSelf, params.NumPeersPerRequest)
+			return client.NewIntroduceRequest(selfID, apiSelf, params.NumPeersPerRequest)
 		},
 		Result: NewInitialResult(),
 		Params: params,

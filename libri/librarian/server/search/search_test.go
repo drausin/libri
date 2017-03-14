@@ -6,6 +6,7 @@ import (
 	"math/rand"
 
 	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/pkg/errors"
@@ -68,7 +69,7 @@ func TestSearch_FoundValue(t *testing.T) {
 	assert.False(t, search.FoundValue())
 
 	// set the result
-	search.Result.Value = cid.FromInt64(1).Bytes() // arbitrary, just needs to something
+	search.Result.Value, _ = api.NewTestDocument(rng)
 	assert.True(t, search.FoundValue())
 }
 

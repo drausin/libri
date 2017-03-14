@@ -47,7 +47,8 @@ lint-optional:
 
 proto:
 	@echo "--> Running protoc"
-	@find . -name '*.proto' -execdir protoc '{}' --go_out=plugins=grpc:. \;
+	@protoc ./libri/librarian/api/*.proto --go_out=plugins=grpc:.
+	@protoc ./libri/librarian/server/storage/*.proto --go_out=plugins=grpc:.
 
 tools:
 	go get -u $(GOTOOLS)

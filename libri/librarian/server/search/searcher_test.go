@@ -8,9 +8,9 @@ import (
 
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
-	"github.com/drausin/libri/libri/librarian/signature"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
@@ -19,7 +19,7 @@ import (
 
 func TestNewDefaultSearcher(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	s := NewDefaultSearcher(signature.NewSigner(ecid.NewPseudoRandom(rng).Key()))
+	s := NewDefaultSearcher(client.NewSigner(ecid.NewPseudoRandom(rng).Key()))
 	assert.NotNil(t, s.(*searcher).signer)
 	assert.NotNil(t, s.(*searcher).querier)
 	assert.NotNil(t, s.(*searcher).rp)
@@ -186,13 +186,13 @@ func TestSearcher_query_ok(t *testing.T) {
 	peerID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
 	search := NewSearch(peerID, key, &Parameters{})
 	s := &searcher{
-		signer:  &signature.TestNoOpSigner{},
+		signer:  &client.TestNoOpSigner{},
 		querier: &noOpQuerier{},
 		rp:      nil,
 	}
-	client := peer.NewConnector(nil) // won't actually be uses since we're mocking the finder
+	connClient := peer.NewConnector(nil) // won't actually be uses since we're mocking the finder
 
-	rp, err := s.query(client, search)
+	rp, err := s.query(connClient, search)
 	assert.Nil(t, err)
 	assert.NotNil(t, rp.Metadata.RequestId)
 	assert.Nil(t, rp.Value)
@@ -222,34 +222,34 @@ func (f *diffRequestIDQuerier) Query(ctx context.Context, pConn peer.Connector,
 
 func TestSearcher_query_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	client := peer.NewConnector(nil) // won't actually be used since we're mocking the finder
+	connClient := peer.NewConnector(nil) // won't actually be used since we're mocking the finder
 	peerID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
 	search := NewSearch(peerID, key, &Parameters{})
 
 	s1 := &searcher{
-		signer: &signature.TestNoOpSigner{},
+		signer: &client.TestNoOpSigner{},
 		// use querier that simulates a timeout
 		querier: &timeoutQuerier{},
 	}
-	rp1, err := s1.query(client, search)
+	rp1, err := s1.query(connClient, search)
 	assert.Nil(t, rp1)
 	assert.NotNil(t, err)
 
 	s2 := &searcher{
-		signer: &signature.TestNoOpSigner{},
+		signer: &client.TestNoOpSigner{},
 		// use querier that simulates a different request ID
 		querier: &diffRequestIDQuerier{
 			rng: rng,
 		},
 	}
-	rp2, err := s2.query(client, search)
+	rp2, err := s2.query(connClient, search)
 	assert.Nil(t, rp2)
 	assert.NotNil(t, err)
 
 	s3 := &searcher{
-		signer: &signature.TestErrSigner{},
+		signer: &client.TestErrSigner{},
 	}
-	rp3, err := s3.query(client, search)
+	rp3, err := s3.query(connClient, search)
 	assert.Nil(t, rp3)
 	assert.NotNil(t, err)
 }
@@ -261,7 +261,7 @@ func TestResponseProcessor_Process_Value(t *testing.T) {
 	result := NewInitialResult(key, NewDefaultParameters())
 
 	// create response with the value
-	value := cid.NewPseudoRandom(rng).Bytes() // random value
+	value, _ := api.NewTestDocument(rng)
 	response2 := &api.FindResponse{
 		Peers: nil,
 		Value: value,

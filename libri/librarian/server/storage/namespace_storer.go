@@ -1,7 +1,10 @@
 package storage
 
 import (
+	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/db"
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/golang/protobuf/proto"
 )
 
 const (
@@ -24,8 +27,8 @@ var (
 	// Server namespace contains values relevant to the server itself.
 	Server Namespace = []byte("server")
 
-	// Entries namespace contains all libri p2p stored values.
-	Entries Namespace = []byte("entries")
+	// Documents namespace contains all libri p2p stored values.
+	Documents Namespace = []byte("documents")
 )
 
 // Namespace denotes a storage namespace, which reduces to a key prefix.
@@ -67,33 +70,52 @@ func (nsl *namespaceStorerLoader) Load(key []byte) ([]byte, error) {
 	return nsl.sl.Load(nsl.ns.Bytes(), key)
 }
 
+// DocumentStorerLoader both stores and loads api.Document values.
+type DocumentStorerLoader interface {
+	// Store an api.Document value under the given key.
+	Store(key cid.ID, value *api.Document) error
+
+	// Load an api.Document value with the given key.
+	Load(key cid.ID) (*api.Document, error)
+}
+
 // keyHashNamespaceStorerLoader checks that the key equals the hash of the value before storing it.
-type keyHashNamespaceStorerLoader struct {
+type documentStorerLoader struct {
 	nsl NamespaceStorerLoader
 	c   KeyValueChecker
 }
 
 // Store checks that the key equals the SHA256 hash of the value before storing it.
-func (khnsl *keyHashNamespaceStorerLoader) Store(key []byte, value []byte) error {
-	if err := khnsl.c.Check(key, value); err != nil {
+func (dnsl *documentStorerLoader) Store(key cid.ID, value *api.Document) error {
+	valueBytes, err := proto.Marshal(value)
+	if err != nil {
 		return err
 	}
-	return khnsl.nsl.Store(key, value)
+	keyBytes := key.Bytes()
+	if err := dnsl.c.Check(keyBytes, valueBytes); err != nil {
+		return err
+	}
+	return dnsl.nsl.Store(keyBytes, valueBytes)
 }
 
-func (khnsl *keyHashNamespaceStorerLoader) Load(key []byte) ([]byte, error) {
-	value, err := khnsl.nsl.Load(key)
+func (dnsl *documentStorerLoader) Load(key cid.ID) (*api.Document, error) {
+	keyBytes := key.Bytes()
+	valueBytes, err := dnsl.nsl.Load(keyBytes)
 	if err != nil {
 		return nil, err
 	}
-	if value == nil {
+	if valueBytes == nil {
 		return nil, nil
 	}
-	if err := khnsl.c.Check(key, value); err != nil {
+	if err := dnsl.c.Check(keyBytes, valueBytes); err != nil {
 		// should never happen b/c we check on Store, but being defensive just in case
 		return nil, err
 	}
-	return value, nil
+	doc := &api.Document{}
+	if err := proto.Unmarshal(valueBytes, doc); err != nil {
+		return nil, err
+	}
+	return doc, nil
 }
 
 // NewServerStorerLoader creates a new NamespaceStorerLoader for the "server" namespace.
@@ -116,21 +138,21 @@ func NewServerKVDBStorerLoader(kvdb db.KVDB) NamespaceStorerLoader {
 	)
 }
 
-// NewEntriesStorerLoader creates a new NamespaceStorerLoader for the "entries" namespace.
-func NewEntriesStorerLoader(sl StorerLoader) NamespaceStorerLoader {
-	return &keyHashNamespaceStorerLoader{
+// NewDocumentStorerLoader creates a new DocumentStorerLoader for the "documents" namespace.
+func NewDocumentStorerLoader(sl StorerLoader) DocumentStorerLoader {
+	return &documentStorerLoader{
 		nsl: &namespaceStorerLoader{
-			ns: Entries,
+			ns: Documents,
 			sl: sl,
 		},
 		c: NewHashKeyValueChecker(),
 	}
 }
 
-// NewEntriesKVDBStorerLoader creates a new NamespaceStorerLoader for the "entries" namespace backed
-// by a db.KVDB instance.
-func NewEntriesKVDBStorerLoader(kvdb db.KVDB) NamespaceStorerLoader {
-	return NewEntriesStorerLoader(
+// NewDocumentKVDBStorerLoader creates a new NamespaceStorerLoader for the "entries" namespace
+// backed by a db.KVDB instance.
+func NewDocumentKVDBStorerLoader(kvdb db.KVDB) DocumentStorerLoader {
+	return NewDocumentStorerLoader(
 		NewKVDBStorerLoader(
 			kvdb,
 			NewExactLengthChecker(EntriesKeyLength),

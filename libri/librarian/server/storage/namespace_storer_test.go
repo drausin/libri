@@ -5,11 +5,12 @@ import (
 	"math/rand"
 	"testing"
 
-	"crypto/sha256"
-
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/db"
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
+	"github.com/pkg/errors"
 )
 
 func TestServerStorerLoader_StoreLoad_ok(t *testing.T) {
@@ -81,67 +82,90 @@ func TestServerStorerLoader_Load_err(t *testing.T) {
 	}
 }
 
-func TestKeyHashNamespaceStorerLoader_StoreLoad_ok(t *testing.T) {
-	cases := [][]byte{
-		[]byte("some value"),
-		[]byte{255},
-		bytes.Repeat([]byte{1}, 64),
-	}
+func TestDocumentNamespaceStorerLoader_StoreLoad_ok(t *testing.T) {
 	kvdb, err := db.NewTempDirRocksDB()
 	assert.Nil(t, err)
 	defer kvdb.Close()
-	esl := NewEntriesKVDBStorerLoader(kvdb)
+	dsl := NewDocumentKVDBStorerLoader(kvdb)
 
-	for _, c := range cases {
-		key := sha256.Sum256(c) // explicitly get the hash of the value as our key
-		err := esl.Store(key[:], c)
-		assert.Nil(t, err)
+	rng := rand.New(rand.NewSource(0))
+	value1, key := api.NewTestDocument(rng)
 
-		value, err := esl.Load(key[:])
-		assert.Nil(t, err)
-		assert.Equal(t, c, value)
-	}
+	err = dsl.Store(key, value1)
+	assert.Nil(t, err)
+
+	value2, err := dsl.Load(key)
+	assert.Nil(t, err)
+	assert.Equal(t, value1, value2)
 }
 
-func TestKeyHashNamespaceStorerLoader_Store_err(t *testing.T) {
-	cases := []struct {
-		key   []byte
-		value []byte
-	}{
-		{[]byte("some key"), []byte("some value")},
-		{[]byte("some key"), []byte{255}},
-		{bytes.Repeat([]byte{1}, 64), bytes.Repeat([]byte{1}, 64)},
-	}
+func TestDocumentNamespaceStorerLoader_Store_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	value, _ := api.NewTestDocument(rng)
+	key := cid.NewPseudoRandom(rng)
+
 	kvdb, err := db.NewTempDirRocksDB()
 	assert.Nil(t, err)
 	defer kvdb.Close()
-	esl := NewEntriesKVDBStorerLoader(kvdb)
+	dsl := NewDocumentKVDBStorerLoader(kvdb)
 
-	for _, c := range cases {
-		err := esl.Store(c.key, c.value)
-		assert.NotNil(t, err)
-	}
+	err = dsl.Store(key, value)
+	assert.NotNil(t, err)
 }
 
-func TestKeyHashNamespaceStorerLoader_Load_err(t *testing.T) {
-	cases := []struct {
-		key   []byte
-		value []byte
-	}{
-		{[]byte("some key"), []byte("some value")},
-		{[]byte("some key"), []byte{255}},
-		{bytes.Repeat([]byte{1}, 64), bytes.Repeat([]byte{1}, 64)},
-	}
+type fixedStorerLoader struct {
+	storeErr error
+	loadValue []byte
+	loadErr error
+}
+
+func (fsl *fixedStorerLoader) Store(namespace []byte, key []byte, value []byte) error {
+	return fsl.storeErr
+}
+
+func (fsl *fixedStorerLoader) Load(namespace []byte, key []byte) ([]byte, error) {
+	return fsl.loadValue, fsl.loadErr
+}
+
+func TestDocumentStorerLoader_Load_empty(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	key := cid.NewPseudoRandom(rng)
+	dsl1 := NewDocumentStorerLoader(&fixedStorerLoader{
+		loadValue: nil, // simulates empty/missing value
+	})
+
+	// check that load returns nil
+	value, err := dsl1.Load(key)
+	assert.Nil(t, value)
+	assert.Nil(t, err)
+}
+
+func TestDocumentStorerLoader_Load_loadErr(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	key := cid.NewPseudoRandom(rng)
+	dsl1 := NewDocumentStorerLoader(&fixedStorerLoader{
+		loadErr: errors.New("some load error"),
+	})
+
+	// check that load error propagates up
+	_, err := dsl1.Load(key)
+	assert.NotNil(t, err)
+}
+
+func TestDocumentStorerLoader_Load_checkErr(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	value, _ := api.NewTestDocument(rng)
+	key := cid.NewPseudoRandom(rng)
 	kvdb, err := db.NewTempDirRocksDB()
 	assert.Nil(t, err)
 	defer kvdb.Close()
-	esl := NewEntriesKVDBStorerLoader(kvdb)
+	dsl := NewDocumentKVDBStorerLoader(kvdb)
 
-	for _, c := range cases {
-		// hackily put a value with a non-hash key; should never happen in the wild
-		err := kvdb.Put(append(Entries, c.key...), c.value)
-		assert.Nil(t, err)
-		_, err = esl.Load(c.key)
-		assert.NotNil(t, err)
-	}
+	// hackily put a value with a non-hash key; should never happen in the wild
+	valueBytes, err := proto.Marshal(value)
+	assert.Nil(t, err)
+	err = kvdb.Put(append(Documents, key.Bytes()...), valueBytes)
+	assert.Nil(t, err)
+	_, err = dsl.Load(key)
+	assert.NotNil(t, err)
 }

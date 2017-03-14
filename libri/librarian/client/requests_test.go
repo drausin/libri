@@ -1,10 +1,11 @@
-package api
+package client
 
 import (
 	"math/rand"
 	"testing"
 
 	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/stretchr/testify/assert"
 )
@@ -25,7 +26,7 @@ func TestNewIntroduceRequest(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	selfID, nPeers := ecid.NewPseudoRandom(rng), uint(8)
 
-	rq := NewIntroduceRequest(selfID, &PeerAddress{}, nPeers)
+	rq := NewIntroduceRequest(selfID, &api.PeerAddress{}, nPeers)
 	assert.NotNil(t, rq.Metadata)
 	assert.NotNil(t, rq.Self)
 	assert.Equal(t, uint32(nPeers), rq.NumPeers)
@@ -43,7 +44,7 @@ func TestNewFindRequest(t *testing.T) {
 func TestNewStoreRequest(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	peerID := ecid.NewPseudoRandom(rng)
-	key, value := cid.NewPseudoRandom(rng), []byte("some value")
+	value, key := api.NewTestDocument(rng)
 	rq := NewStoreRequest(peerID, key, value)
 	assert.NotNil(t, rq.Metadata)
 	assert.Equal(t, key.Bytes(), rq.Key)
@@ -61,7 +62,7 @@ func TestNewGetRequest(t *testing.T) {
 func TestNewPutRequest(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	peerID := ecid.NewPseudoRandom(rng)
-	key, value := cid.NewPseudoRandom(rng), []byte("some value")
+	value, key := api.NewTestDocument(rng)
 	rq := NewPutRequest(peerID, key, value)
 	assert.NotNil(t, rq.Metadata)
 	assert.Equal(t, key.Bytes(), rq.Key)

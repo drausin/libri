@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"fmt"
 	"sync"
+
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
-	"github.com/drausin/libri/libri/librarian/signature"
 )
 
 // Introducer executes recursive introductions.
@@ -18,7 +18,7 @@ type Introducer interface {
 }
 
 type introducer struct {
-	signer signature.Signer
+	signer client.Signer
 
 	querier client.IntroduceQuerier
 
@@ -27,7 +27,7 @@ type introducer struct {
 
 // NewIntroducer creates a new Introducer instance with the given signer, querier, and response
 // processor.
-func NewIntroducer(s signature.Signer, q client.IntroduceQuerier, rp ResponseProcessor) Introducer {
+func NewIntroducer(s client.Signer, q client.IntroduceQuerier, rp ResponseProcessor) Introducer {
 	return &introducer{
 		signer:       s,
 		querier:      q,
@@ -37,7 +37,7 @@ func NewIntroducer(s signature.Signer, q client.IntroduceQuerier, rp ResponsePro
 
 // NewDefaultIntroducer creates a new Introducer with the given signer and default querier and
 // response processor.
-func NewDefaultIntroducer(s signature.Signer, selfID cid.ID) Introducer {
+func NewDefaultIntroducer(s client.Signer, selfID cid.ID) Introducer {
 	return NewIntroducer(
 		s,
 		client.NewIntroduceQuerier(),

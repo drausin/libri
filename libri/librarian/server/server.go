@@ -15,7 +15,6 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/storage"
 	"github.com/drausin/libri/libri/librarian/server/store"
-	"github.com/drausin/libri/libri/librarian/signature"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
@@ -24,34 +23,34 @@ import (
 // Librarian is the main service of a single peer in the peer to peer network.
 type Librarian struct {
 	// SelfID is the random 256-bit identification number of this node in the hash table
-	selfID     ecid.ID
+	selfID ecid.ID
 
 	// Config holds the configuration parameters of the server
-	config     *Config
+	config *Config
 
 	// fixed API address
-	apiSelf    *api.PeerAddress
+	apiSelf *api.PeerAddress
 
 	// executes introductions to peers
 	introducer introduce.Introducer
 
 	// executes searches for peers and keys
-	searcher   search.Searcher
+	searcher search.Searcher
 
 	// executes stores for key/value
-	storer     store.Storer
+	storer store.Storer
 
 	// verifies requests from peers
-	rqv        RequestVerifier
+	rqv RequestVerifier
 
 	// key-value store DB used for all external storage
-	db         db.KVDB
+	db db.KVDB
 
 	// SL for server data
-	serverSL   storage.NamespaceStorerLoader
+	serverSL storage.NamespaceStorerLoader
 
-	// SL for p2p stored records
-	entriesSL storage.NamespaceStorerLoader
+	// SL for p2p stored documents
+	documentSL storage.DocumentStorerLoader
 
 	// ensures keys are valid
 	kc storage.Checker
@@ -64,7 +63,7 @@ type Librarian struct {
 
 	// signs requests
 	// signs requests
-	signer signature.Signer
+	signer client.Signer
 
 	// routing table of peers
 	rt routing.Table
@@ -84,7 +83,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		return nil, err
 	}
 	serverSL := storage.NewServerKVDBStorerLoader(rdb)
-	entriesSL := storage.NewEntriesKVDBStorerLoader(rdb)
+	documentSL := storage.NewDocumentKVDBStorerLoader(rdb)
 
 	// get peer ID and immediately save it so subsequent restarts have it
 	peerID, err := loadOrCreatePeerID(logger, serverSL)
@@ -100,7 +99,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		return nil, err
 	}
 
-	signer := signature.NewSigner(peerID.Key())
+	signer := client.NewSigner(peerID.Key())
 	searcher := search.NewDefaultSearcher(signer)
 
 	return &Librarian{
@@ -113,7 +112,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		rqv:        NewRequestVerifier(),
 		db:         rdb,
 		serverSL:   serverSL,
-		entriesSL:  entriesSL,
+		documentSL: documentSL,
 		kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		kvc:        storage.NewHashKeyValueChecker(),
 		fromer:     peer.NewFromer(),
@@ -159,15 +158,14 @@ func (l *Librarian) Introduce(ctx context.Context, rq *api.IntroduceRequest) (
 }
 
 // Find returns either the value at a given target or the peers closest to it.
-func (l *Librarian) Find(ctx context.Context, rq *api.FindRequest) (*api.FindResponse,
-	error) {
+func (l *Librarian) Find(ctx context.Context, rq *api.FindRequest) (*api.FindResponse, error) {
 	requesterID, err := l.checkRequestAndKey(ctx, rq, rq.Metadata, rq.Key)
 	if err != nil {
 		return nil, err
 	}
 	l.record(requesterID, peer.Request, peer.Success)
 
-	value, err := l.entriesSL.Load(rq.Key)
+	value, err := l.documentSL.Load(cid.FromBytes(rq.Key))
 	if err != nil {
 		// something went wrong during load
 		return nil, err
@@ -199,7 +197,7 @@ func (l *Librarian) Store(ctx context.Context, rq *api.StoreRequest) (
 	}
 	l.record(requesterID, peer.Request, peer.Success)
 
-	if err := l.entriesSL.Store(rq.Key, rq.Value); err != nil {
+	if err := l.documentSL.Store(cid.FromBytes(rq.Key), rq.Value); err != nil {
 		return nil, err
 	}
 	return &api.StoreResponse{

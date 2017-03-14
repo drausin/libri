@@ -8,10 +8,10 @@ import (
 
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
-	"github.com/drausin/libri/libri/librarian/signature"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -20,7 +20,7 @@ import (
 func TestNewDefaultIntroducer(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	s := NewDefaultIntroducer(
-		signature.NewSigner(ecid.NewPseudoRandom(rng).Key()),
+		client.NewSigner(ecid.NewPseudoRandom(rng).Key()),
 		cid.NewPseudoRandom(rng),
 	)
 	assert.NotNil(t, s.(*introducer).signer)
@@ -136,7 +136,7 @@ func TestIntroducer_Introduce_rpErr(t *testing.T) {
 func TestIntroducer_query_ok(t *testing.T) {
 	intro := newQueryTestIntroduction()
 	introducerImpl := &introducer{
-		signer:  &signature.TestNoOpSigner{},
+		signer:  &client.TestNoOpSigner{},
 		querier: &noOpQuerier{},
 	}
 
@@ -150,7 +150,7 @@ func TestIntroducer_query_ok(t *testing.T) {
 func TestIntroducer_query_timeoutErr(t *testing.T) {
 	intro := newQueryTestIntroduction()
 	introducerImpl := &introducer{
-		signer:  &signature.TestNoOpSigner{},
+		signer:  &client.TestNoOpSigner{},
 		querier: &timeoutQuerier{},
 	}
 
@@ -164,7 +164,7 @@ func TestIntroducer_query_timeoutErr(t *testing.T) {
 func TestIntroducer_query_diffRequestIdErr(t *testing.T) {
 	intro := newQueryTestIntroduction()
 	introducerImpl := &introducer{
-		signer: &signature.TestNoOpSigner{},
+		signer: &client.TestNoOpSigner{},
 		querier: &diffRequestIDQuerier{
 			rng: rand.New(rand.NewSource(int64(0))),
 		},
@@ -182,7 +182,7 @@ func TestResponseProcessor_Process(t *testing.T) {
 	nPeers := 16
 	responder := peer.NewTestPeer(rng, nPeers)
 	peers := peer.NewTestPeers(rng, nPeers)
-	selfPeer := peer.NewTestPeer(rng, nPeers + 1)
+	selfPeer := peer.NewTestPeer(rng, nPeers+1)
 	rp := NewResponseProcessor(peer.NewFromer(), selfPeer.ID())
 	apiPeers := peer.ToAPIs(peers)
 	apiPeers = append(apiPeers, selfPeer.ToAPI())
@@ -280,7 +280,7 @@ func (erp *errResponseProcessor) Process(rp *api.IntroduceResponse, result *Resu
 
 func newTestIntroducer(peersMap map[string]peer.Peer, selfID cid.ID) Introducer {
 	return NewIntroducer(
-		&signature.TestNoOpSigner{},
+		&client.TestNoOpSigner{},
 		&fixedIntroQuerier{},
 		&responseProcessor{
 			fromer: &search.TestFromer{Peers: peersMap},

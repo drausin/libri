@@ -5,7 +5,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
-	"github.com/gogo/protobuf/proto"
+	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
 )
 
@@ -62,12 +62,16 @@ func (l *Librarian) checkRequestAndKey(ctx context.Context, rq proto.Message,
 // checkRequestAndKey verifies the request signature and key/value combo, recording errors with
 // the peer if necessary. It returns the ID of the requester or an error.
 func (l *Librarian) checkRequestAndKeyValue(ctx context.Context, rq proto.Message,
-	meta *api.RequestMetadata, key []byte, value []byte) (cid.ID, error) {
+	meta *api.RequestMetadata, key []byte, value *api.Document) (cid.ID, error) {
 	requester, err := l.checkRequest(ctx, rq, meta)
 	if err != nil {
 		return nil, err
 	}
-	if err := l.kvc.Check(key, value); err != nil {
+	valueBytes, err := proto.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+	if err := l.kvc.Check(key, valueBytes); err != nil {
 		l.record(requester, peer.Request, peer.Error)
 		return nil, err
 	}

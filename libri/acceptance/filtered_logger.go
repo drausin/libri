@@ -31,7 +31,6 @@
  *
  */
 
-
 /*
  * This log filtering is lifted from grpc's own end-to-end tests:
  * 	https://github.com/grpc/grpc-go/blob/master/test/end2end_test.go
@@ -42,16 +41,17 @@
 package acceptance
 
 import (
-	"flag"
-	"os"
 	"bytes"
-	"strings"
-	"time"
+	"flag"
 	"io"
-	"sync"
-	"google.golang.org/grpc/grpclog"
 	"log"
+	"os"
+	"strings"
+	"sync"
 	"testing"
+	"time"
+
+	"google.golang.org/grpc/grpclog"
 )
 
 var verboseLogs = flag.Bool("verbose_logs", false, "show all grpclog output, without filtering")
@@ -60,7 +60,6 @@ var testLogOutput = &lockingWriter{w: os.Stderr}
 func init() {
 	grpclog.SetLogger(log.New(testLogOutput, "", log.LstdFlags))
 }
-
 
 type lockingWriter struct {
 	mu sync.Mutex
@@ -78,7 +77,6 @@ func (lw *lockingWriter) setWriter(w io.Writer) {
 	defer lw.mu.Unlock()
 	lw.w = w
 }
-
 
 // awaitNewConnLogOutput waits for any of grpc.NewConn's goroutines to
 // terminate, if they're still running. It spams logs with this
@@ -177,5 +175,3 @@ func (fw *filterWriter) Write(p []byte) (n int, err error) {
 	}
 	return fw.dst.Write(p)
 }
-
-

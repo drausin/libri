@@ -1,21 +1,24 @@
-package api
+package client
 
 import (
 	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 )
 
 // NewRequestMetadata creates a RequestMetadata object from the peer ID and a random request ID.
-func NewRequestMetadata(peerID ecid.ID) *RequestMetadata {
-	return &RequestMetadata{
+func NewRequestMetadata(peerID ecid.ID) *api.RequestMetadata {
+	return &api.RequestMetadata{
 		RequestId: cid.NewRandom().Bytes(),
 		PubKey:    ecid.ToPublicKeyBytes(peerID),
 	}
 }
 
 // NewIntroduceRequest creates an IntroduceRequest object.
-func NewIntroduceRequest(peerID ecid.ID, apiSelf *PeerAddress, nPeers uint) *IntroduceRequest {
-	return &IntroduceRequest{
+func NewIntroduceRequest(
+	peerID ecid.ID, apiSelf *api.PeerAddress, nPeers uint,
+) *api.IntroduceRequest {
+	return &api.IntroduceRequest{
 		Metadata: NewRequestMetadata(peerID),
 		Self:     apiSelf,
 		NumPeers: uint32(nPeers),
@@ -23,8 +26,8 @@ func NewIntroduceRequest(peerID ecid.ID, apiSelf *PeerAddress, nPeers uint) *Int
 }
 
 // NewFindRequest creates a FindRequest object.
-func NewFindRequest(peerID ecid.ID, key cid.ID, nPeers uint) *FindRequest {
-	return &FindRequest{
+func NewFindRequest(peerID ecid.ID, key cid.ID, nPeers uint) *api.FindRequest {
+	return &api.FindRequest{
 		Metadata: NewRequestMetadata(peerID),
 		Key:      key.Bytes(),
 		NumPeers: uint32(nPeers),
@@ -32,8 +35,8 @@ func NewFindRequest(peerID ecid.ID, key cid.ID, nPeers uint) *FindRequest {
 }
 
 // NewStoreRequest creates a StoreRequest object.
-func NewStoreRequest(peerID ecid.ID, key cid.ID, value []byte) *StoreRequest {
-	return &StoreRequest{
+func NewStoreRequest(peerID ecid.ID, key cid.ID, value *api.Document) *api.StoreRequest {
+	return &api.StoreRequest{
 		Metadata: NewRequestMetadata(peerID),
 		Key:      key.Bytes(),
 		Value:    value,
@@ -41,16 +44,16 @@ func NewStoreRequest(peerID ecid.ID, key cid.ID, value []byte) *StoreRequest {
 }
 
 // NewGetRequest creates a GetRequest object.
-func NewGetRequest(peerID ecid.ID, key cid.ID) *GetRequest {
-	return &GetRequest{
+func NewGetRequest(peerID ecid.ID, key cid.ID) *api.GetRequest {
+	return &api.GetRequest{
 		Metadata: NewRequestMetadata(peerID),
 		Key:      key.Bytes(),
 	}
 }
 
 // NewPutRequest creates a PutRequest object.
-func NewPutRequest(peerID ecid.ID, key cid.ID, value []byte) *PutRequest {
-	return &PutRequest{
+func NewPutRequest(peerID ecid.ID, key cid.ID, value *api.Document) *api.PutRequest {
+	return &api.PutRequest{
 		Metadata: NewRequestMetadata(peerID),
 		Key:      key.Bytes(),
 		Value:    value,

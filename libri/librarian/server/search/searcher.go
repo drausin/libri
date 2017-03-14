@@ -10,7 +10,6 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
-	"github.com/drausin/libri/libri/librarian/signature"
 	"github.com/pkg/errors"
 )
 
@@ -22,7 +21,7 @@ type Searcher interface {
 
 type searcher struct {
 	// signs queries
-	signer signature.Signer
+	signer client.Signer
 
 	// issues find queries to the peers
 	querier client.FindQuerier
@@ -32,12 +31,12 @@ type searcher struct {
 }
 
 // NewSearcher returns a new Searcher with the given Querier and ResponseProcessor.
-func NewSearcher(s signature.Signer, q client.FindQuerier, rp ResponseProcessor) Searcher {
+func NewSearcher(s client.Signer, q client.FindQuerier, rp ResponseProcessor) Searcher {
 	return &searcher{signer: s, querier: q, rp: rp}
 }
 
 // NewDefaultSearcher creates a new Searcher with default sub-object instantiations.
-func NewDefaultSearcher(signer signature.Signer) Searcher {
+func NewDefaultSearcher(signer client.Signer) Searcher {
 	return NewSearcher(
 		signer,
 		client.NewFindQuerier(),

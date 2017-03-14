@@ -10,7 +10,6 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
-	"github.com/drausin/libri/libri/librarian/signature"
 )
 
 // Storer executes store operations.
@@ -21,7 +20,7 @@ type Storer interface {
 
 type storer struct {
 	// signs queries
-	signer signature.Signer
+	signer client.Signer
 
 	// searcher is used for the first search half of the store operation
 	searcher search.Searcher
@@ -31,7 +30,7 @@ type storer struct {
 }
 
 // NewStorer creates a new Storer instance with given Searcher and StoreQuerier instances.
-func NewStorer(signer signature.Signer, searcher search.Searcher, q client.StoreQuerier) Storer {
+func NewStorer(signer client.Signer, searcher search.Searcher, q client.StoreQuerier) Storer {
 	return &storer{
 		signer:   signer,
 		searcher: searcher,
@@ -41,7 +40,7 @@ func NewStorer(signer signature.Signer, searcher search.Searcher, q client.Store
 
 // NewDefaultStorer creates a new Storer with default Searcher and StoreQuerier instances.
 func NewDefaultStorer(peerID ecid.ID) Storer {
-	signer := signature.NewSigner(peerID.Key())
+	signer := client.NewSigner(peerID.Key())
 	return NewStorer(
 		signer,
 		search.NewDefaultSearcher(signer),

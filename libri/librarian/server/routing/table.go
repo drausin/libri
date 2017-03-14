@@ -103,7 +103,7 @@ func NewEmpty(selfID cid.ID, params *Parameters) Table {
 		selfID:  selfID,
 		peers:   make(map[string]peer.Peer),
 		buckets: []*bucket{firstBucket},
-		params: params,
+		params:  params,
 	}
 }
 
