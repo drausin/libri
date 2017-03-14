@@ -1,8 +1,6 @@
 package storage
 
 import (
-	"log"
-
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/db"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -29,7 +27,7 @@ var (
 	// Server namespace contains values relevant to the server itself.
 	Server Namespace = []byte("server")
 
-	// Entries namespace contains all libri p2p stored values.
+	// Documents namespace contains all libri p2p stored values.
 	Documents Namespace = []byte("documents")
 )
 
@@ -72,8 +70,12 @@ func (nsl *namespaceStorerLoader) Load(key []byte) ([]byte, error) {
 	return nsl.sl.Load(nsl.ns.Bytes(), key)
 }
 
+// DocumentStorerLoader both stores and loads api.Document values.
 type DocumentStorerLoader interface {
+	// Store an api.Document value under the given key.
 	Store(key cid.ID, value *api.Document) error
+
+	// Load an api.Document value with the given key.
 	Load(key cid.ID) (*api.Document, error)
 }
 
@@ -86,7 +88,6 @@ type documentStorerLoader struct {
 // Store checks that the key equals the SHA256 hash of the value before storing it.
 func (dnsl *documentStorerLoader) Store(key cid.ID, value *api.Document) error {
 	valueBytes, err := proto.Marshal(value)
-	log.Printf("dnsl len %d", len(valueBytes))
 	if err != nil {
 		return err
 	}
@@ -148,8 +149,8 @@ func NewDocumentStorerLoader(sl StorerLoader) DocumentStorerLoader {
 	}
 }
 
-// NewDocumentKVDBStorerLoader creates a new NamespaceStorerLoader for the "entries" namespace backed
-// by a db.KVDB instance.
+// NewDocumentKVDBStorerLoader creates a new NamespaceStorerLoader for the "entries" namespace
+// backed by a db.KVDB instance.
 func NewDocumentKVDBStorerLoader(kvdb db.KVDB) DocumentStorerLoader {
 	return NewDocumentStorerLoader(
 		NewKVDBStorerLoader(

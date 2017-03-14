@@ -8,9 +8,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type Document_BadContent struct{}
-
-func (*Document_BadContent) isDocument_Contents() {}
+func TestGetKey(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	value, _ := NewTestDocument(rng)
+	key, err := GetKey(value)
+	assert.Nil(t, err)
+	assert.Nil(t, validateArray(key.Bytes(), DocumentKeyLength, "key"))
+}
 
 func TestValidateDocument_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
@@ -23,12 +27,6 @@ func TestValidateDocument_ok(t *testing.T) {
 
 	d3 := &Document{&Document_Page{NewTestPage(rng)}}
 	assert.Nil(t, ValidateDocument(d3))
-}
-
-func TestValidateDocument_err(t *testing.T) {
-	assert.NotNil(t, ValidateDocument(nil))
-	d := &Document{&Document_BadContent{}}
-	assert.NotNil(t, ValidateDocument(d))
 }
 
 func TestValidateEnvelope_ok(t *testing.T) {
@@ -83,10 +81,6 @@ func TestValidateEntry_ok(t *testing.T) {
 	assert.Nil(t, ValidateEntry(e2))
 }
 
-type Entry_BadContent struct{}
-
-func (*Entry_BadContent) isEntry_Contents() {}
-
 func TestValidateEntry_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	badLen, diffPK := randBytes(rng, 100), fakePubKey(rng)
@@ -111,8 +105,7 @@ func TestValidateEntry_err(t *testing.T) {
 		func(e *Entry) { e.ContentsCiphertextMac = zeros },  // 14) can't be all zeros
 		func(e *Entry) { e.ContentsCiphertextMac = badLen }, // 15) length must be 65
 		func(e *Entry) { e.ContentsCiphertextSize = 0 },     // 16) must be non-zero
-		func(e *Entry) { e.Contents = &Entry_BadContent{} }, // 17) bad content
-		func(e *Entry) { e.AuthorPublicKey = diffPK },       // 18) different PK from Page
+		func(e *Entry) { e.AuthorPublicKey = diffPK },       // 17) different PK from Page
 
 	}
 

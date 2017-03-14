@@ -123,6 +123,7 @@ func TestDocumentStorerLoader_Load_err(t *testing.T) {
 
 	// hackily put a value with a non-hash key; should never happen in the wild
 	valueBytes, err := proto.Marshal(value)
+	assert.Nil(t, err)
 	err = kvdb.Put(append(Documents, key.Bytes()...), valueBytes)
 	assert.Nil(t, err)
 	_, err = dsl.Load(key)

@@ -23,6 +23,7 @@
   "LineLength": 100,
   "Format": "({{.Linter}}): {{.Severity}}: {{.Path}}:{{.Line}}:{{if .Col}}{{.Col}}{{end}}: {{.Message}}",
   "Linters": {
+    "errcheck": "errcheck -abspath {path}:^(?P<path>.*?[^pb\\.]{3}\\.go):(?P<line>\\d+):(?P<col>\\d+):\\s*(?P<message>.*)$",
     "golint": "golint -min_confidence {min_confidence} {path}:^(?P<path>.*?[^pb\\.]{3}\\.go):(?P<line>\\d+):(?P<col>\\d+):\\s*(?P<message>.*)$",
     "lll": "lll -g -l {maxlinelength} {path}:^(?P<path>.*?[^pb\\.]{3}\\.go):(?P<line>\\d+):\\s*(?P<message>.*)$",
     "vet": "go tool vet {path}:^(?:vet:.*?\\.go:\\s+(?P<path>.*?[^pb\\.]{3}\\.go):(?P<line>\\d+):(?P<col>\\d+):\\s*(?P<message>.*))|(?:(?P<path>.*?\\.go):(?P<line>\\d+):\\s*(?P<message>.*))$",

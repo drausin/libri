@@ -6,6 +6,7 @@ import (
 	cid "github.com/drausin/libri/libri/common/id"
 )
 
+// NewTestDocument generates a dummy Entry document for use in testing.
 func NewTestDocument(rng *rand.Rand) (*Document, cid.ID) {
 	doc := &Document{&Document_Entry{NewTestPageEntry(rng)}}
 	key, err := GetKey(doc)
@@ -15,6 +16,7 @@ func NewTestDocument(rng *rand.Rand) (*Document, cid.ID) {
 	return doc, key
 }
 
+// NewTestEnvelope generates a dummy Envelope document for use in testing.
 func NewTestEnvelope(rng *rand.Rand) *Envelope {
 	return &Envelope{
 		AuthorPublicKey:          fakePubKey(rng),
@@ -24,6 +26,7 @@ func NewTestEnvelope(rng *rand.Rand) *Envelope {
 	}
 }
 
+// NewTestPageEntry generates a dummy Entry document with a single Page for use in testing.
 func NewTestPageEntry(rng *rand.Rand) *Entry {
 	page := NewTestPage(rng)
 	return &Entry{
@@ -37,6 +40,7 @@ func NewTestPageEntry(rng *rand.Rand) *Entry {
 	}
 }
 
+// NewTestPage generates a dummy Page for use in testing.
 func NewTestPage(rng *rand.Rand) *Page {
 	return &Page{
 		AuthorPublicKey: fakePubKey(rng),
