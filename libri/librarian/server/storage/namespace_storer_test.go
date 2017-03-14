@@ -93,9 +93,9 @@ func TestDocumentNamespaceStorerLoader_StoreLoad_ok(t *testing.T) {
 	err = dsl.Store(key, value1)
 	assert.Nil(t, err)
 
-	//value2, err := dsl.Load(key)
-	//assert.Nil(t, err)
-	//assert.Equal(t, value1, value2)
+	value2, err := dsl.Load(key)
+	assert.Nil(t, err)
+	assert.Equal(t, value1, value2)
 }
 
 func TestDocumentNamespaceStorerLoader_Store_err(t *testing.T) {

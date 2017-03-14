@@ -301,7 +301,7 @@ func TestLibrarian_Find_checkRequestError(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestLibrarian_Store(t *testing.T) {
+func TestLibrarian_Store_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	rt, peerID, _ := routing.NewTestWithPeers(rng, 64)
 	kvdb, err := db.NewTempDirRocksDB()
@@ -350,6 +350,35 @@ func TestLibrarian_Store_checkRequestError(t *testing.T) {
 	value, key := api.NewTestDocument(rng)
 	rq := client.NewStoreRequest(ecid.NewPseudoRandom(rng), key, value)
 	rq.Metadata.PubKey = []byte("corrupted pub key")
+
+	rp, err := l.Store(nil, rq)
+	assert.Nil(t, rp)
+	assert.NotNil(t, err)
+}
+
+type errDocStorerLoader struct {}
+
+func (* errDocStorerLoader) Store(key cid.ID, value *api.Document) error {
+	return errors.New("some store error")
+}
+
+func (* errDocStorerLoader) Load(key cid.ID) (*api.Document, error) {
+	return nil, errors.New("some load error")
+}
+
+func TestLibrarian_Store_storeError(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	rt, peerID, _ := routing.NewTestWithPeers(rng, 64)
+	l := &Librarian{
+		selfID: peerID,
+		rt: rt,
+		kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
+		kvc:        storage.NewHashKeyValueChecker(),
+		rqv:        &alwaysRequestVerifier{},
+		documentSL: &errDocStorerLoader{},
+	}
+	value, key := api.NewTestDocument(rng)
+	rq := client.NewStoreRequest(ecid.NewPseudoRandom(rng), key, value)
 
 	rp, err := l.Store(nil, rq)
 	assert.Nil(t, rp)
