@@ -10,6 +10,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
+	"github.com/pkg/errors"
 )
 
 func TestServerStorerLoader_StoreLoad_ok(t *testing.T) {
@@ -112,7 +113,46 @@ func TestDocumentNamespaceStorerLoader_Store_err(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestDocumentStorerLoader_Load_err(t *testing.T) {
+type fixedStorerLoader struct {
+	storeErr error
+	loadValue []byte
+	loadErr error
+}
+
+func (fsl *fixedStorerLoader) Store(namespace []byte, key []byte, value []byte) error {
+	return fsl.storeErr
+}
+
+func (fsl *fixedStorerLoader) Load(namespace []byte, key []byte) ([]byte, error) {
+	return fsl.loadValue, fsl.loadErr
+}
+
+func TestDocumentStorerLoader_Load_empty(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	key := cid.NewPseudoRandom(rng)
+	dsl1 := NewDocumentStorerLoader(&fixedStorerLoader{
+		loadValue: nil, // simulates empty/missing value
+	})
+
+	// check that load returns nil
+	value, err := dsl1.Load(key)
+	assert.Nil(t, value)
+	assert.Nil(t, err)
+}
+
+func TestDocumentStorerLoader_Load_loadErr(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	key := cid.NewPseudoRandom(rng)
+	dsl1 := NewDocumentStorerLoader(&fixedStorerLoader{
+		loadErr: errors.New("some load error"),
+	})
+
+	// check that load error propagates up
+	_, err := dsl1.Load(key)
+	assert.NotNil(t, err)
+}
+
+func TestDocumentStorerLoader_Load_checkErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	value, _ := api.NewTestDocument(rng)
 	key := cid.NewPseudoRandom(rng)
