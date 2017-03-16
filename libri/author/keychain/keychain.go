@@ -15,7 +15,7 @@ type Keychain struct {
 	keyEncKeys map[string]*ecdsa.PrivateKey
 }
 
-// New creates a new (plaintext) Keychain with n individual keys.
+
 func New(n int) *Keychain {
 	keys := make(map[string]*ecdsa.PrivateKey)
 	for c := 0; c < n; c++ {
@@ -25,21 +25,6 @@ func New(n int) *Keychain {
 	return &Keychain{keys}
 }
 
-// Save saves and encrypts a keychain to a file.
-func Save(filepath, auth string, kc *Keychain, scryptN, scryptP int) error {
-	stored, err := EncryptToStored(kc, auth, scryptN, scryptP)
-	if err != nil {
-		return err
-	}
-	buf, err := proto.Marshal(stored)
-	if err != nil {
-		return err
-	}
-	const filePerm = 0600  // only user can read
-	return ioutil.WriteFile(filepath, buf, filePerm)
-}
-
-// Load loads and decrypts a keychain from a file.
 func Load(filepath, auth string) (*Keychain, error) {
 	buf, err := ioutil.ReadFile(filepath)
 	if err != nil {
@@ -49,6 +34,19 @@ func Load(filepath, auth string) (*Keychain, error) {
 	if err := proto.Unmarshal(buf, stored); err != nil {
 		return nil, err
 	}
-	return DecryptFromStored(stored, auth)
+	return FromStored(stored, auth)
 }
 
+func Save(filepath, auth string, kc *Keychain, scryptN, scryptP int) error {
+	stored, err := ToStored(kc, auth, scryptN, scryptP)
+	if err != nil {
+		return err
+	}
+	buf, err := proto.Marshal(stored)
+	if err != nil {
+		return err
+	}
+	const filePerm = 0600  // only user can read
+	ioutil.WriteFile(filepath, buf, filePerm)
+	return nil
+}
