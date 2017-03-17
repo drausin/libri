@@ -37,7 +37,7 @@ func loadOrCreatePeerID(logger *zap.Logger, nl storage.NamespaceLoader) (ecid.ID
 
 	if bytes != nil {
 		// return saved PeerID
-		stored := &storage.ECID{}
+		stored := &ecid.ECDSAPrivateKey{}
 		if err := proto.Unmarshal(bytes, stored); err != nil {
 			return nil, err
 		}

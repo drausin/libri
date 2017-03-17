@@ -7,11 +7,10 @@ import (
 	"math/big"
 
 	cid "github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/librarian/server/storage"
 )
 
-// FromStored creates a new ID instance from a storage.ECID instance.
-func FromStored(stored *storage.ECID) (ID, error) {
+// FromStored creates a new ID instance from a ECID instance.
+func FromStored(stored *ECDSAPrivateKey) (ID, error) {
 	key := new(ecdsa.PrivateKey)
 
 	switch stored.Curve {
@@ -37,10 +36,10 @@ func FromStored(stored *storage.ECID) (ID, error) {
 	}, nil
 }
 
-// ToStored creates a new storage.ECID instance from an ID instance.
-func ToStored(ecid ID) *storage.ECID {
+// ToStored creates a new ECID instance from an ID instance.
+func ToStored(ecid ID) *ECDSAPrivateKey {
 	key := ecid.Key()
-	return &storage.ECID{
+	return &ECDSAPrivateKey{
 		Curve: key.Params().Name,
 		X:     key.X.Bytes(),
 		Y:     key.Y.Bytes(),
