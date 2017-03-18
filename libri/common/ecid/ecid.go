@@ -17,6 +17,7 @@ import (
 // and 65-byte public keys, though the X value of the public key point is 32 bytes.
 var Curve = secp256k1.S256()
 
+// CurveName gives the name of the elliptic curve used for the private key.
 const CurveName = "secp256k1"
 
 // ID is an elliptic curve identifier, where the ID is the x-value of the (x, y) public key
