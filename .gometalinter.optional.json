@@ -1,9 +1,11 @@
 {
   "Enable": [
-    "dupl",
-    "misspell",
     "deadcode",
-    "gas"
+    "dupl",
+    "gas",
+    "goconst",
+    "misspell",
+    "structcheck"
   ],
   "VendoredLinters": true,
   "Vendor": true,
