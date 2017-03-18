@@ -20,7 +20,7 @@ test-cover:
 
 test:
 	@echo "--> Running go test"
-	@go test ./... --cover
+	@go test -race ./... --cover
 
 acceptance:
 	@echo "--> Running acceptance tests"
