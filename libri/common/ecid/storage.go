@@ -2,11 +2,11 @@ package ecid
 
 import (
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"fmt"
 	"math/big"
 
 	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 )
 
 // FromStored creates a new ID instance from a ECID instance.
@@ -14,8 +14,8 @@ func FromStored(stored *ECDSAPrivateKey) (ID, error) {
 	key := new(ecdsa.PrivateKey)
 
 	switch stored.Curve {
-	case elliptic.P256().Params().Name:
-		key.PublicKey.Curve = elliptic.P256()
+	case "secp256k1":
+		key.PublicKey.Curve = secp256k1.S256()
 	default:
 		return nil, fmt.Errorf("unrecognized curve %v", stored.Curve)
 	}
@@ -40,7 +40,7 @@ func FromStored(stored *ECDSAPrivateKey) (ID, error) {
 func ToStored(ecid ID) *ECDSAPrivateKey {
 	key := ecid.Key()
 	return &ECDSAPrivateKey{
-		Curve: key.Params().Name,
+		Curve: CurveName,
 		X:     key.X.Bytes(),
 		Y:     key.Y.Bytes(),
 		D:     key.D.Bytes(),

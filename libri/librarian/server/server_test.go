@@ -97,17 +97,17 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 	}
 
 	clientID, clientPeerIdx := ecid.NewPseudoRandom(rng), 1
-	client := peer.New(
+	clientImpl := peer.New(
 		clientID.ID(),
 		"client",
 		peer.NewTestConnector(clientPeerIdx),
 	)
-	assert.Nil(t, lib.rt.Get(client.ID()))
+	assert.Nil(t, lib.rt.Get(clientImpl.ID()))
 
 	numPeers := uint32(8)
 	rq := &api.IntroduceRequest{
 		Metadata: newTestRequestMetadata(rng, clientID),
-		Self:     client.ToAPI(),
+		Self:     clientImpl.ToAPI(),
 		NumPeers: numPeers,
 	}
 	rp, err := lib.Introduce(nil, rq)
@@ -118,9 +118,6 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 	assert.Equal(t, serverID.ID().Bytes(), rp.Self.PeerId)
 	assert.Equal(t, peerName, rp.Self.PeerName)
 	assert.Equal(t, int(numPeers), len(rp.Peers))
-
-	// check client peer in lib's routing table
-	assert.NotNil(t, lib.rt.Get(client.ID()))
 }
 
 func TestLibrarian_Introduce_checkRequestErr(t *testing.T) {

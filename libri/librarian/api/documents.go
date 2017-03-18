@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	// ECPubKeyLength is the length of a P-256 ECDSA public key point serialized (uncompressed)
-	// to a byte string.
+	// ECPubKeyLength is the length of a 256-bit ECDSA public key point serialized
+	// (uncompressed) to a byte string.
 	ECPubKeyLength       = 65
 
 	// DocumentKeyLength is the byte length a document's key.

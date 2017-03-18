@@ -16,7 +16,10 @@ import (
 func TestEcid_NewRandom_ok(t *testing.T) {
 	// since we're testing the other main functions in other tests, just make sure this runs
 	// without error
-	assert.NotNil(t, NewRandom())
+	c1, c2 := NewRandom(), NewRandom()
+	assert.NotNil(t, c1)
+	assert.NotEqual(t, c1, c2)
+	assert.NotEqual(t, c1.ID(), c2.ID())
 }
 
 type truncReader struct{}
