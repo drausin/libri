@@ -47,8 +47,9 @@ lint-optional:
 
 proto:
 	@echo "--> Running protoc"
-	@protoc ./libri/librarian/api/*.proto --go_out=plugins=grpc:.
+	@protoc ./libri/author/keychain/*.proto --go_out=plugins=grpc:.
 	@protoc ./libri/common/ecid/*.proto --go_out=plugins=grpc:.
+	@protoc ./libri/librarian/api/*.proto --go_out=plugins=grpc:.
 	@protoc ./libri/librarian/server/storage/*.proto --go_out=plugins=grpc:.
 
 tools:
