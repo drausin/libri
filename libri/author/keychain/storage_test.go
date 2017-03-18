@@ -45,4 +45,8 @@ func TestToFromStored_err(t *testing.T) {
 	kc2, err := DecryptFromStored(stored1, "wrong passphrase")
 	assert.NotNil(t, err)
 	assert.Nil(t, kc2)
+
+	stored2, err := EncryptToStored(kc1, "test passphrase", -1, -1)  // bad scrypt params
+	assert.Nil(t, stored2)
+	assert.NotNil(t, err)
 }
