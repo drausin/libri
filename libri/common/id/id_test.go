@@ -82,9 +82,9 @@ func TestDistance(t *testing.T) {
 func TestString(t *testing.T) {
 	assert.Equal(t, strings.Repeat("00", Length), FromInt(big.NewInt(0)).String())
 	assert.Equal(t, strings.Repeat("00", Length-1)+"01", FromInt(big.NewInt(1)).String())
-	assert.Equal(t, strings.Repeat("00", Length-1)+"FF", FromInt(big.NewInt(255)).String())
+	assert.Equal(t, strings.Repeat("00", Length-1)+"ff", FromInt(big.NewInt(255)).String())
 	assert.Equal(t, strings.Repeat("00", Length), LowerBound.String())
-	assert.Equal(t, strings.Repeat("FF", Length), UpperBound.String())
+	assert.Equal(t, strings.Repeat("ff", Length), UpperBound.String())
 }
 
 func TestID_Bytes(t *testing.T) {
