@@ -61,7 +61,7 @@ func (x *id) Bytes() []byte {
 }
 
 func (x *id) String() string {
-	return fmt.Sprintf("%064X", x.Bytes())
+	return fmt.Sprintf("%064x", x.Bytes())
 }
 
 func (x *id) Cmp(other ID) int {
