@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	cid "github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/librarian/server/ecid"
+	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/storage"
 )

@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package ecid;
+
+// ECDSAPrivateKey represents an ECDSA key-pair, whose public key x-value is used as the peer ID to outside
+// world.
+message ECDSAPrivateKey {
+    // name of the curve (should always be P-256, but here for backward compatibility)
+    string curve = 1;
+
+    // private key
+    bytes D = 2;
+
+    // x-value of public key
+    bytes X = 3;
+
+    // y-value of public key
+    bytes Y = 4;
+}

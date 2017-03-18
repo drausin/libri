@@ -8,7 +8,7 @@ import (
 	"context"
 
 	cid "github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/librarian/server/ecid"
+	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/metadata"
 )

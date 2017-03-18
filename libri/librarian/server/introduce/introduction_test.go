@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/drausin/libri/libri/librarian/server/ecid"
+	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"

@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	cid "github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/librarian/server/ecid"
+	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/storage"
 	"github.com/golang/protobuf/proto"
@@ -37,7 +37,7 @@ func loadOrCreatePeerID(logger *zap.Logger, nl storage.NamespaceLoader) (ecid.ID
 
 	if bytes != nil {
 		// return saved PeerID
-		stored := &storage.ECID{}
+		stored := &ecid.ECDSAPrivateKey{}
 		if err := proto.Unmarshal(bytes, stored); err != nil {
 			return nil, err
 		}

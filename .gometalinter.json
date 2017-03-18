@@ -2,7 +2,6 @@
   "Enable": [
     "aligncheck",
     "errcheck",
-    "goconst",
     "gocyclo",
     "golint",
     "gosimple",
@@ -10,9 +9,7 @@
     "ineffassign",
     "interfacer",
     "staticcheck",
-    "structcheck",
     "unconvert",
-    "unused",
     "varcheck",
     "vet",
     "vetshadow"
