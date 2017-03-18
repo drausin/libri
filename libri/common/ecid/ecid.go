@@ -10,11 +10,14 @@ import (
 	mrand "math/rand"
 
 	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 )
 
-// Curve defines the elliptic curve public & private keys use. Curve P256 implies 32-byte private
+// Curve defines the elliptic curve public & private keys use. Curve S256 implies 32-byte private
 // and 65-byte public keys, though the X value of the public key point is 32 bytes.
-var Curve = elliptic.P256()
+var Curve = secp256k1.S256()
+
+const CurveName = "secp256k1"
 
 // ID is an elliptic curve identifier, where the ID is the x-value of the (x, y) public key
 // point on the curve. When couples with the private key, this allows something (e.g., a libri
