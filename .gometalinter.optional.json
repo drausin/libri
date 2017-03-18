@@ -4,8 +4,11 @@
     "dupl",
     "gas",
     "goconst",
+    "gosimple",
     "misspell",
-    "structcheck"
+    "staticcheck",
+    "structcheck",
+    "unused"
   ],
   "VendoredLinters": true,
   "Vendor": true,
