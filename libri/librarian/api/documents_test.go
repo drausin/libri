@@ -13,7 +13,7 @@ func TestGetKey(t *testing.T) {
 	value, _ := NewTestDocument(rng)
 	key, err := GetKey(value)
 	assert.Nil(t, err)
-	assert.Nil(t, validateArray(key.Bytes(), DocumentKeyLength, "key"))
+	assert.Nil(t, ValidateBytes(key.Bytes(), DocumentKeyLength, "key"))
 }
 
 func TestValidateDocument_ok(t *testing.T) {
