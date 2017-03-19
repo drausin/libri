@@ -128,3 +128,15 @@ func (s *Store) Finished() bool {
 	defer s.mu.Unlock()
 	return s.Stored() || s.Errored() || s.Exists()
 }
+
+func (s *Store) MoreUnqueried() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.Result.Unqueried) > 0
+}
+
+func (s *Store) wrapLock(operation func()) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	operation()
+}

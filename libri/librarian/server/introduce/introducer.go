@@ -45,7 +45,6 @@ func NewDefaultIntroducer(s client.Signer, selfID cid.ID) Introducer {
 	)
 }
 
-// In
 func (i *introducer) Introduce(intro *Introduction, seeds []peer.Peer) error {
 	for i, seed := range seeds {
 		// since we may be bootstrapping, these peers may not have IDs, so create our own
