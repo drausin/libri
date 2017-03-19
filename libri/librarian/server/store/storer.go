@@ -69,16 +69,15 @@ func (s *storer) storeWork(store *Store, wg *sync.WaitGroup) {
 	defer wg.Done()
 	// work is finished when either the store is finished or we have no more unqueried peers
 	// (but the final, remaining queried peers may not have responded yet)
-	for !store.Finished() && len(store.Result.Unqueried) > 0 {
+	for !store.Finished() && store.moreUnqueried() {
 
 		// get next peer to query
-		store.mu.Lock()
-		if len(store.Result.Unqueried) == 0 {
+		if !store.moreUnqueried() {
 			// also check for empty unqueried peers here in case anything has changed
 			// since loop condition
-			store.mu.Unlock()
 			break
 		}
+		store.mu.Lock()
 		next := store.Result.Unqueried[0]
 		store.Result.Unqueried = store.Result.Unqueried[1:]
 		store.mu.Unlock()
@@ -91,20 +90,18 @@ func (s *storer) storeWork(store *Store, wg *sync.WaitGroup) {
 		_, err := s.query(next.Connector(), store)
 		if err != nil {
 			// if we had an issue querying, skip to next peer
-			store.mu.Lock()
-			store.Result.NErrors++
-			next.Recorder().Record(peer.Response, peer.Error)
-			store.mu.Unlock()
+			store.wrapLock(func() {
+				store.Result.NErrors++
+				next.Recorder().Record(peer.Response, peer.Error)
+			})
 			continue
 		}
-		store.mu.Lock()
-		next.Recorder().Record(peer.Response, peer.Success)
-		store.mu.Unlock()
+		store.wrapLock(func() {next.Recorder().Record(peer.Response, peer.Success)})
 
 		// add to slice of responded peers
-		store.mu.Lock()
-		store.Result.Responded = append(store.Result.Responded, next)
-		store.mu.Unlock()
+		store.wrapLock(func() {
+			store.Result.Responded = append(store.Result.Responded, next)
+		})
 	}
 }
 
