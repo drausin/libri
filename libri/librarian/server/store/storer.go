@@ -69,15 +69,16 @@ func (s *storer) storeWork(store *Store, wg *sync.WaitGroup) {
 	defer wg.Done()
 	// work is finished when either the store is finished or we have no more unqueried peers
 	// (but the final, remaining queried peers may not have responded yet)
-	for !store.Finished() && store.moreUnqueried() {
+	for !store.Finished() && store.safeMoreUnqueried() {
 
 		// get next peer to query
+		store.mu.Lock()
 		if !store.moreUnqueried() {
 			// also check for empty unqueried peers here in case anything has changed
 			// since loop condition
+			store.mu.Unlock()
 			break
 		}
-		store.mu.Lock()
 		next := store.Result.Unqueried[0]
 		store.Result.Unqueried = store.Result.Unqueried[1:]
 		store.mu.Unlock()
