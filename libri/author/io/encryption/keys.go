@@ -8,10 +8,19 @@ import (
 	mrand "math/rand"
 )
 
+// Keys are used to encrypt an Entry and its Pages.
 type Keys struct {
+	// AESKey is the 32-byte AES-256 key used to encrypt Pages and Entry metadata.
 	AESKey      []byte
+
+	// PageIVSeed is the 32-byte block cipher initialization vector (IV) seed for Page
+	// encryption.
 	PageIVSeed  []byte
+
+	// PageHMACKey is the 32-byte key used for Page HMAC-256 calculations.
 	PageHMACKey []byte
+
+	// MetadataIV is the 12-byte IV for the Entry metadata block cipher.
 	MetadataIV  []byte
 }
 
