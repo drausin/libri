@@ -102,5 +102,5 @@ func decryptKey(keyJSON []byte, auth string) (*ecdsa.PrivateKey, error) {
 }
 
 func pubKeyString(privKey *ecdsa.PrivateKey) string {
-	return fmt.Sprintf("%064X", privKey.X.Bytes())
+	return fmt.Sprintf("%064x", privKey.X.Bytes())
 }
