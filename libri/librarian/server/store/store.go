@@ -130,9 +130,13 @@ func (s *Store) Finished() bool {
 }
 
 func (s *Store) moreUnqueried() bool {
+	return len(s.Result.Unqueried) > 0
+}
+
+func (s *Store) safeMoreUnqueried() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return len(s.Result.Unqueried) > 0
+	return s.moreUnqueried()
 }
 
 func (s *Store) wrapLock(operation func()) {
