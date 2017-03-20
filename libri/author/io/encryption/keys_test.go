@@ -7,7 +7,7 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	k1 := NewRandom()
+	k1 := NewRandomKeys()
 
 	assert.NotNil(t, k1.AESKey)
 	assert.NotNil(t, k1.PageIVSeed)
@@ -22,7 +22,7 @@ func TestNew(t *testing.T) {
 
 func TestMarshallUnmarshall_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	k1 := NewPseudoRandom(rng)
+	k1 := NewPseudoRandomKeys(rng)
 	k2, err := Unmarshal(Marshal(k1))
 	assert.Nil(t, err)
 	assert.Equal(t, k1, k2)

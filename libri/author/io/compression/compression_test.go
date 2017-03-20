@@ -9,7 +9,7 @@ import (
 	"io"
 )
 
-func TestNewCompressorDecompressor(t *testing.T) {
+func TestCompressDecompress(t *testing.T) {
 	cases := []struct {
 		mediaType string
 		equalSize bool

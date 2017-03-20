@@ -25,12 +25,12 @@ type Keys struct {
 }
 
 // NewRandom creates new Keys using crypto.Rand as a source of entropy.
-func NewRandom() *Keys {
+func NewRandomKeys() *Keys {
 	return newRandom(crand.Reader)
 }
 
 // NewPseudoRandom creates new Keys using math.Rand as a source of entropy.
-func NewPseudoRandom(rng *mrand.Rand) *Keys {
+func NewPseudoRandomKeys(rng *mrand.Rand) *Keys {
 	return newRandom(rng)
 }
 
