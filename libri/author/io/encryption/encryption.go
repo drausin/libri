@@ -7,26 +7,18 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"hash"
-	"io"
 )
 
-// TODO after putting compression and encryption together
-// - do things need to be closeable, or can we just wrap and flush compression
-// - do we need SetPageIndex at all, or can we just put into New...
-
 type Encrypter interface {
-	io.WriteCloser
-	SetPageIndex(page uint32)
+	Encrypt(plaintext []byte, page uint32) ([]byte, error)
 }
 
 type encrypter struct {
-	gcmCipher        cipher.AEAD
-	pageIVMac        hash.Hash
-	currentPageIV    []byte
-	output           io.WriteCloser
+	gcmCipher   cipher.AEAD
+	pageIVMACer hash.Hash
 }
 
-func NewEncrypter(output io.WriteCloser, keys *Keys) (Encrypter, error) {
+func NewEncrypter(keys *Keys) (Encrypter, error) {
 	block, err := aes.NewCipher(keys.AESKey)
 	if err != nil {
 		return nil, err
@@ -35,42 +27,29 @@ func NewEncrypter(output io.WriteCloser, keys *Keys) (Encrypter, error) {
 	if err != nil {
 		return nil, err
 	}
-	pageIVMac := hmac.New(sha256.New, keys.PageIVSeed)
-	currentPageIV := generatePageIV(uint32(0), pageIVMac, gcmCipher.NonceSize())
 	return &encrypter{
 		gcmCipher:        gcmCipher,
-		pageIVMac:        pageIVMac,
-		currentPageIV:    currentPageIV,
-		output:           output,
+		pageIVMACer:        hmac.New(sha256.New, keys.PageIVSeed),
 	}, nil
 }
 
-func (e *encrypter) SetPageIndex(page uint32) {
-	e.currentPageIV = generatePageIV(page, e.pageIVMac, e.gcmCipher.NonceSize())
+func (e *encrypter) Encrypt(plaintext []byte, page uint32) ([]byte, error) {
+	pageIV := generatePageIV(page, e.pageIVMACer, e.gcmCipher.NonceSize())
+	ciphertext := e.gcmCipher.Seal(nil, pageIV, plaintext, nil)
+	return ciphertext, nil
 }
 
-func (e *encrypter) Write(plaintext []byte) (int, error) {
-	ciphertext := e.gcmCipher.Seal(nil, e.currentPageIV, plaintext, nil)
-	return e.output.Write(ciphertext)
-}
-
-func (e *encrypter) Close() error {
-	return e.output.Close()
-}
 
 type Decrypter interface {
-	io.ReadCloser
-	SetPageIndex(page uint32)
+	Decrypt(ciphertext []byte, page uint32) ([]byte, error)
 }
 
 type decrypter struct {
-	gcmCipher        cipher.AEAD
-	pageIVMac        hash.Hash
-	currentPageIV    []byte
-	input            io.ReadCloser
+	gcmCipher   cipher.AEAD
+	pageIVMACer hash.Hash
 }
 
-func NewDecrypter(input io.ReadCloser, keys *Keys) (Decrypter, error) {
+func NewDecrypter(keys *Keys) (Decrypter, error) {
 	block, err := aes.NewCipher(keys.AESKey)
 	if err != nil {
 		return nil, err
@@ -79,38 +58,15 @@ func NewDecrypter(input io.ReadCloser, keys *Keys) (Decrypter, error) {
 	if err != nil {
 		return nil, err
 	}
-	pageIVMac := hmac.New(sha256.New, keys.PageIVSeed)
-	currentPageIV := generatePageIV(uint32(0), pageIVMac, gcmCipher.NonceSize())
 	return &decrypter{
 		gcmCipher:        gcmCipher,
-		pageIVMac:        pageIVMac,
-		currentPageIV:    currentPageIV,
-		input:            input,
+		pageIVMACer:        hmac.New(sha256.New, keys.PageIVSeed),
 	}, nil
 }
 
-func (d *decrypter) SetPageIndex(page uint32) {
-	d.currentPageIV = generatePageIV(page, d.pageIVMac, d.gcmCipher.NonceSize())
-}
-
-func (d *decrypter) Read(plaintext []byte) (int, error) {
-	ciphertext := make([]byte, len(plaintext)+d.gcmCipher.Overhead())
-	n1, err := d.input.Read(ciphertext)
-	if err != nil {
-		return 0, err
-	}
-
-	plaintextBuf, err := d.gcmCipher.Open(nil, d.currentPageIV, ciphertext[:n1], nil)
-	if err != nil {
-		return 0, err
-	}
-	n2 := len(plaintextBuf)
-	copy(plaintext, plaintextBuf)
-	return n2, nil
-}
-
-func (d *decrypter) Close() error {
-	return d.input.Close()
+func (d *decrypter) Decrypt(ciphertext []byte, page uint32) ([]byte, error) {
+	pageIV := generatePageIV(page, d.pageIVMACer, d.gcmCipher.NonceSize())
+	return d.gcmCipher.Open(nil, pageIV, ciphertext, nil)
 }
 
 func generatePageIV(pageIndex uint32, pageIVMac hash.Hash, size int) []byte {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"bytes"
 )
 
 // Codec is a compression codec.
@@ -21,6 +22,10 @@ const (
 	DefaultCodec       = GZIPCodec
 )
 
+const (
+	DefaultUncompressedBufferSize = 1024 * 1024
+)
+
 // MediaToCompressionCodec maps MIME media types to what compression codec should be used with
 // them.
 var MediaToCompressionCodec = map[string]Codec{
@@ -31,9 +36,59 @@ var MediaToCompressionCodec = map[string]Codec{
 	"application/zip":              NoneCodec,
 }
 
-// NewCompressor creates a new io.WriteCloser that writes compressed bytes to the underlying
-// output io.Writer. It uses rawMediaType to determine which compression codec to use.
-func NewCompressor(output io.Writer, rawMediaType string) (io.WriteCloser, error) {
+type flushWriter interface {
+	io.Writer
+	Flush() error
+}
+
+// compressor implements io.Reader, writing compressed bytes to an internal buffer that is then
+// read from
+type compressor struct {
+	uncompressed io.Reader
+	inner flushWriter
+	buf *bytes.Buffer
+	uncompressedBufferSize int
+}
+
+func (c *compressor) Read(p []byte) (int, error) {
+	// write compressed contents into buffer until we have enough for p
+	var err error
+	nMore := c.uncompressedBufferSize
+	for nMore == c.uncompressedBufferSize && c.buf.Len() < len(p) {
+		more := make([]byte, c.uncompressedBufferSize)
+		nMore, err = c.uncompressed.Read(more)
+		if err != nil && err != io.EOF {
+			return 0, err
+		}
+		c.inner.Write(more[:nMore])
+		c.inner.Flush()
+	}
+
+	// read compressed contents from buffer (written to by c.inner) into p
+	n, err := c.buf.Read(p)
+	if err != nil {
+		return n, err
+	}
+
+	// copy remainder of existing buffer to temp buffer, truncate existing buffer, and copy
+	// remainder back; this prevents existing buffer from getting too long over many sequential
+	// Read() calls, at the expense of copying data back and forth
+	temp := new(bytes.Buffer)
+	_, err = temp.ReadFrom(c.buf)
+	if err != nil {
+		return n, err
+	}
+	c.buf.Reset()
+	_, err = c.buf.ReadFrom(temp)
+
+	return n, err
+}
+
+// NewCompressor creates a new io.Reader for the compressed contents. It uses rawMediaType to
+// determine which compression codec to use.
+func NewCompressor(
+	uncompressed io.Reader, rawMediaType string, uncompressedBuffSize int,
+) (io.Reader, error) {
 	codec, err := GetCompressionCodec(rawMediaType)
 	if err != nil {
 		return nil, err
@@ -43,18 +98,29 @@ func NewCompressor(output io.Writer, rawMediaType string) (io.WriteCloser, error
 	case GZIPCodec:
 		// optimize for best compression to reduce network transfer volume and time (at
 		// expense of more client CPU)
-		return gzip.NewWriterLevel(output, gzip.BestCompression)
+		buf := new(bytes.Buffer)
+		inner, err := gzip.NewWriterLevel(buf, gzip.BestCompression)
+		if err != nil {
+			return nil, err
+		}
+		return &compressor{
+			uncompressed: uncompressed,
+			inner: inner,
+			buf: buf,
+			uncompressedBufferSize: uncompressedBuffSize,
+		}, nil
 	case NoneCodec:
-		// just pass through underlying reader
-		return noOpWriteCloser{output}, nil
+		// just pass through uncompressed reader
+		return uncompressed, nil
 	default:
 		panic(fmt.Errorf("unexpected codec: %s", codec))
 	}
 }
 
-// NewDecompressor creates a new io.ReadCloser that reads compressed bytes from the underlying
-// input io.Reader. It uses rawMediaType to determine which (de)compression codec to use.
-func NewDecompressor(input io.Reader, rawMediaType string) (io.ReadCloser, error) {
+
+// NewDecompressor creates a new io.Reader for the uncompressed contents. It uses rawMediaType to
+// determine which (de)compression codec to use.
+func NewDecompressor(compressed io.Reader, rawMediaType string) (io.Reader, error) {
 	codec, err := GetCompressionCodec(rawMediaType)
 	if err != nil {
 		return nil, err
@@ -62,9 +128,9 @@ func NewDecompressor(input io.Reader, rawMediaType string) (io.ReadCloser, error
 
 	switch codec {
 	case GZIPCodec:
-		return gzip.NewReader(input)
+		return gzip.NewReader(compressed)
 	case NoneCodec:
-		return noOpReadCloser{input}, nil
+		return compressed, nil
 	default:
 		panic(fmt.Errorf("unexpected codec: %s", codec))
 	}
@@ -86,17 +152,3 @@ func GetCompressionCodec(mediaType string) (Codec, error) {
 
 	return DefaultCodec, nil
 }
-
-// noOpReadCloser implements a no-op Close method on top of an io.Reader.
-type noOpReadCloser struct {
-	io.Reader
-}
-
-func (noOpReadCloser) Close() error { return nil }
-
-// noOpWriteCloser implements a no-op Close method on top of an io.Writer.
-type noOpWriteCloser struct {
-	io.Writer
-}
-
-func (noOpWriteCloser) Close() error { return nil }
