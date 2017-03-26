@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"mime"
-	"log"
 )
 
 // Codec is a compression codec.
@@ -98,10 +97,9 @@ func NewCompressor(
 
 func (c *compressor) Read(p []byte) (int, error) {
 	// write compressed contents into buffer until we have enough for p
-	for c.buf.Len() < len(p) - c.inner.FooterSize() {
+	for c.buf.Len() < len(p) {
 		more := make([]byte, c.uncompressedBufferSize)
 		nMore, err := c.uncompressed.Read(more)
-		log.Printf("nMore: %v, err: %v", nMore, err)
 		if err != nil && err != io.EOF {
 			return 0, err
 		}
@@ -109,17 +107,13 @@ func (c *compressor) Read(p []byte) (int, error) {
 		c.inner.Flush()
 		if nMore < c.uncompressedBufferSize {
 			// break if no more uncompressed data to read
-			log.Printf("compressor internal buf len pre-close: %d", c.buf.Len())
 			c.inner.Close()
-			log.Printf("compressor internal buf len post-close: %d", c.buf.Len())
 			break
 		}
-		log.Printf("compressor internal buf len: %d", c.buf.Len())
 	}
 
 	// read compressed contents from buffer (written to by c.inner) into p
 	n, err := c.buf.Read(p)
-	log.Printf("internal compressed buf read: n: %v, err: %v", n, err)
 	if err != nil {
 		return n, err
 	}
@@ -143,49 +137,9 @@ func trimBuffer(buf *bytes.Buffer) error {
 	return err
 }
 
-func writeNBytes(
-	from io.Reader, w io.Writer, wBuf *bytes.Buffer, n int, tol float32,
-) (int, error) {
-	nLB := int(float32(n) * tol)
-	nLeft := nLB - wBuf.Len()
-	writeRatio := float32(1.0)
-	for nLeft > 0 {
-		log.Printf("nLeft: %d", nLeft)
-		nextN := int(float32(nLeft) * writeRatio)
-		log.Printf("nextN: %d", nextN)
-		more := make([]byte, nextN)
-		nRead, err := from.Read(more)
-		log.Printf("nRead: %d", nRead)
-		if err != nil {
-			return wBuf.Len(), err
-		}
-
-		bufPreWriteLen := wBuf.Len()
-		_, err = w.Write(more)
-		if err != nil {
-			return wBuf.Len(), err
-		}
-		log.Printf("postWriteLen: %d", wBuf.Len())
-		if wBuf.Len() > bufPreWriteLen {
-			writeRatio = float32(nRead) / float32(wBuf.Len() - bufPreWriteLen)
-			log.Printf("writeRatio: %d", writeRatio)
-		}
-		nLeft = nLB - wBuf.Len()
-	}
-
-	if wBuf.Len() > n {
-		return wBuf.Len(), fmt.Errorf("overshot writing [%d, %d] bytes when actually " +
-			"wrote %d", nLB, n, wBuf.Len())
-	}
-
-	return wBuf.Len(), nil
-}
-
-func max(x, y int) int {
-	if x > y {
-		return x
-	}
-	return y
+type FlushWriter interface {
+	io.Writer
+	Flush() error
 }
 
 type decompressor struct {
@@ -198,7 +152,7 @@ type decompressor struct {
 
 func NewDecompressor(
 	uncompressed io.Writer, rawMediaType string, uncompressedBufferSize int,
-) (io.Writer, error) {
+) (FlushWriter, error) {
 	codec, err := GetCompressionCodec(rawMediaType)
 	if err != nil {
 		return nil, err
@@ -227,13 +181,11 @@ func (d *decompressor) Write(p []byte) (int, error) {
 
 	// write compressed contents to buffer
 	n, err := d.buf.Write(p)
-	log.Printf("decompressor wrote %d compressed bytes to internal buffer", n)
 	if err != nil {
 		return n, err
 	}
 	if d.inner == nil {
 		d.inner, err = newInnerDecompressor(d.buf, d.codec)
-		log.Print("inner decompressor created")
 		if err != nil {
 			return n, err
 		}
@@ -241,27 +193,37 @@ func (d *decompressor) Write(p []byte) (int, error) {
 
 	// use inner reader to read compressed chunks from the buffer and then write them to
 	// uncompressed io.Writer
-	nMore := d.uncompressedBufferSize
-	for nMore == d.uncompressedBufferSize {
-		more := make([]byte, d.uncompressedBufferSize)
-		log.Printf("buf len 1: %d", d.buf.Len())
-		nMore, err = d.inner.Read(more)
-		log.Printf("buf len 2: %d", d.buf.Len())
-		log.Printf("nMore: %d, err: %v", nMore, err)
-		if err != nil && err != io.EOF {
-			log.Print("returning error")
-			return n, err
-		}
-		_, err := d.uncompressed.Write(more[:nMore])
-		log.Printf("uncompressed len: %d", d.uncompressed.(*bytes.Buffer).Len())
+	for d.buf.Len() > d.uncompressedBufferSize {
+		_, err := d.writeUncompressed()
 		if err != nil {
 			return n, err
 		}
 	}
 
-	//err = trimBuffer(d.buf)
+	err = trimBuffer(d.buf)
 	return n, nil
 
+}
+
+func (d *decompressor) Flush() error {
+	var err error
+	for d.buf.Len() > 0 {
+		_, err = d.writeUncompressed()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (d *decompressor) writeUncompressed() (int, error) {
+	more := make([]byte, d.uncompressedBufferSize)
+	nMore, err := d.inner.Read(more)
+	if err != nil && err != io.EOF {
+		return nMore, err
+	}
+	_, err = d.uncompressed.Write(more[:nMore])
+	return nMore, err
 }
 
 // GetCompressionCodec returns the compression codec to use given a MIME media type.

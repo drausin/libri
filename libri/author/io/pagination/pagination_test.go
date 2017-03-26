@@ -18,16 +18,12 @@ func TestPaginateUnpaginate(t *testing.T) {
 
 	encrypter, err := encryption.NewEncrypter(keys)
 	assert.Nil(t, err)
-
 	decrypter, err := encryption.NewDecrypter(keys)
 	assert.Nil(t, err)
 
-	//uncompressedSizes := []int{128, 192, 256, 384, 512, 768, 1024}
-	uncompressedSizes := []int{256}
-	//pageSizes := []uint32{128, 256, 512, 1024}
-	pageSizes := []uint32{128}
-	//mediaTypes := []string{"application/x-pdf", "application/x-gzip"}
-	mediaTypes := []string{"application/x-pdf"}
+	uncompressedSizes := []int{128, 192, 256, 384, 512, 768, 1024}
+	pageSizes := []uint32{128, 256, 512, 1024}
+	mediaTypes := []string{"application/x-pdf", "application/x-gzip"}
 
 	for _, c := range caseCrossProduct(pageSizes, uncompressedSizes, mediaTypes) {
 		pages := make(chan *api.Page, 3)
@@ -38,7 +34,7 @@ func TestPaginateUnpaginate(t *testing.T) {
 		uncompressed1 := newTestBytes(rng, c.uncompressedSize)
 		uncompressed1Bytes := uncompressed1.Bytes()
 
-		uncompressedBufferSize := int(c.pageSize)
+		uncompressedBufferSize := int(c.pageSize) / 5  // somewhat arbitrary
 		compressor, err := compression.NewCompressor(uncompressed1, c.mediaType,
 			uncompressedBufferSize)
 		assert.Nil(t, err)

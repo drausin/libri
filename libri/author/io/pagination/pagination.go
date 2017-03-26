@@ -11,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"fmt"
 	"bytes"
-	"log"
+	"github.com/drausin/libri/libri/author/io/compression"
 )
 
 
@@ -62,7 +62,6 @@ func (p *paginator) ReadFrom(compressor io.Reader) (int64, error) {
 			return n, err
 		}
 
-		log.Printf("sending page %d, len %d", i, len(pageCiphertext))
 		p.pages <- p.getPage(pageCiphertext, i)
 	}
 	return n, nil
@@ -81,12 +80,19 @@ func (p *paginator) getPage(ciphertext []byte, index uint32) *api.Page {
 type unpaginator struct {
 	pages chan *api.Page
 	decrypter encryption.Decrypter
+	compressedBuf *bytes.Buffer
 	pageMACer hash.Hash
 }
 
+type Unpaginator interface {
+	WriteTo(decompressor compression.FlushWriter) (int64, error)
+}
+
 func NewUnpaginator(
-	pages chan *api.Page, decrypter encryption.Decrypter, pageHMACKey []byte,
-) (io.WriterTo, error) {
+	pages chan *api.Page,
+	decrypter encryption.Decrypter,
+	pageHMACKey []byte,
+) (Unpaginator, error) {
 	if err := api.ValidatePageHMACKey(pageHMACKey); err != nil {
 		return nil, err
 	}
@@ -97,11 +103,10 @@ func NewUnpaginator(
 	}, nil
 }
 
-func (u *unpaginator) WriteTo(decompressor io.Writer) (int64, error) {
+func (u *unpaginator) WriteTo(decompressor compression.FlushWriter) (int64, error) {
 	var n int64
 	var pageIndex uint32
 	for page := range u.pages {
-		log.Printf("receiving page %d, len %d", page.Index, len(page.Ciphertext))
 		if page.Index != pageIndex {
 			return n, fmt.Errorf("received out of order page index %d, expected %d",
 				page.Index, pageIndex)
@@ -117,14 +122,13 @@ func (u *unpaginator) WriteTo(decompressor io.Writer) (int64, error) {
 
 		np, err := decompressor.Write(compressedPage)
 		if err != nil {
-			log.Printf("returning decompressor error: %v", err)
 			return n, err
 		}
 		n += int64(np)
-		log.Printf("finished writing; n: %d", n)
 		pageIndex++
 	}
-	return n, nil
+
+	return n, decompressor.Flush()
 }
 
 func (u *unpaginator) checkCiphertextMAC(page *api.Page) error {

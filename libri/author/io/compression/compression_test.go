@@ -7,7 +7,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"compress/gzip"
+	"log"
 )
 
 
@@ -28,6 +28,7 @@ func TestCompressDecompress(t *testing.T) {
 
 	rng := rand.New(rand.NewSource(0))
 	for _, c := range cases {
+		log.Printf("running case: %s", c.String())
 		uncompressed1 := newTestBytes(rng, c.uncompressedSize)
 		uncompressed1Bytes := uncompressed1.Bytes()
 		assert.Equal(t, c.uncompressedSize, uncompressed1.Len())
@@ -47,6 +48,7 @@ func TestCompressDecompress(t *testing.T) {
 			n1, err = compressor.Read(buf)
 			assert.True(t, err == nil || err == io.EOF, c.String())
 			compressed.Write(buf[:n1])
+			log.Printf("wrote %d bytes to compressed buffer", n1)
 		}
 
 		if !c.media.equalSize {
@@ -66,6 +68,11 @@ func TestCompressDecompress(t *testing.T) {
 		n2, err := decompressorImpl.Write(compressed.Bytes())
 		assert.Equal(t, compressedLen, n2)
 		assert.Nil(t, err)
+
+		err = decompressorImpl.Flush()
+		assert.Nil(t, err)
+
+		assert.Equal(t, len(uncompressed1Bytes), uncompressed2.Len(), c.String())
 		assert.Equal(t, uncompressed1Bytes, uncompressed2.Bytes(), c.String())
 	}
 }
@@ -92,26 +99,6 @@ func TestGetCompressionCodec(t *testing.T) {
 	assert.Nil(t, err)
 
 }
-
-func TestWriteNBytes(t *testing.T) {
-	rng := rand.New(rand.NewSource(0))
-	for writeSize := 16; writeSize < 32 ; writeSize *= 2 {
-		for tol := float32(0.8); tol < 0.9; tol += (1.0 - tol) * 0.5 {
-			info := fmt.Sprintf("compressedSize: %d, tolBelow: %d", writeSize,
-				tol)
-			from := newTestBytes(rng, writeSize * 10)  // assumed enough
-			wBuf := new(bytes.Buffer)
-			w, err := gzip.NewWriterLevel(wBuf, gzip.BestCompression)
-			assert.Nil(t, err)
-
-			n, err := writeNBytes(from, w, wBuf, writeSize, tol)
-			assert.Nil(t, err, info)
-			assert.True(t, int(float32(writeSize) * tol) <= n, info)
-			assert.True(t, n <= writeSize, info)
-		}
-	}
-}
-
 
 type mediaTestCase struct {
 	mediaType string
