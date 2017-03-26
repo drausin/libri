@@ -19,6 +19,7 @@ type encrypter struct {
 }
 
 func NewEncrypter(keys *Keys) (Encrypter, error) {
+	// TODO (drausin) pass in just keys needed + validate
 	block, err := aes.NewCipher(keys.AESKey)
 	if err != nil {
 		return nil, err
@@ -73,7 +74,6 @@ func generatePageIV(pageIndex uint32, pageIVMac hash.Hash, size int) []byte {
 	pageIndexBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(pageIndexBytes, pageIndex)
 	pageIVMac.Reset()
-	pageIVMac.Write(pageIndexBytes)
-	iv := pageIVMac.Sum(nil)
+	iv := pageIVMac.Sum(pageIndexBytes)
 	return iv[:size]
 }

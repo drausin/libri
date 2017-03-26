@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"compress/gzip"
 )
 
 
@@ -15,9 +16,9 @@ func TestCompressDecompress(t *testing.T) {
 		{"application/pdf", false},
 		{"application/x-gzip", true},  // equalSize since we're not compressing twice
 	}
-	uncompressedSizes := []int{128, 256, 512, 1024}
-	uncompressedBufferSizes := []int{128, 256, 512, 1024}
-	compressedBufferSizes := []int{128, 256, 512, 1024}
+	uncompressedSizes := []int{128, 192, 256, 384, 512, 768, 1024}
+	uncompressedBufferSizes := []int{128, 192, 256, 384, 512, 768, 1024}
+	compressedBufferSizes := []int{128, 192, 256, 384, 512, 768, 1024}
 	cases := caseCrossProduct(
 		uncompressedSizes,
 		uncompressedBufferSizes,
@@ -53,11 +54,17 @@ func TestCompressDecompress(t *testing.T) {
 			assert.True(t, compressed.Len() < c.uncompressedSize, c.String())
 		}
 
-		decompressor, err := NewDecompressor(compressed, c.media.mediaType)
+		uncompressed2 := new(bytes.Buffer)
+		decompressorImpl, err := NewDecompressor(
+			uncompressed2,
+			c.media.mediaType,
+			c.uncompressedBufferSize,
+		)
 		assert.Nil(t, err, c.String())
 
-		uncompressed2 := new(bytes.Buffer)
-		uncompressed2.ReadFrom(decompressor)
+		compressedLen := compressed.Len()
+		n2, err := decompressorImpl.Write(compressed.Bytes())
+		assert.Equal(t, compressedLen, n2)
 		assert.Nil(t, err)
 		assert.Equal(t, uncompressed1Bytes, uncompressed2.Bytes(), c.String())
 	}
@@ -85,6 +92,26 @@ func TestGetCompressionCodec(t *testing.T) {
 	assert.Nil(t, err)
 
 }
+
+func TestWriteNBytes(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	for writeSize := 16; writeSize < 32 ; writeSize *= 2 {
+		for tol := float32(0.8); tol < 0.9; tol += (1.0 - tol) * 0.5 {
+			info := fmt.Sprintf("compressedSize: %d, tolBelow: %d", writeSize,
+				tol)
+			from := newTestBytes(rng, writeSize * 10)  // assumed enough
+			wBuf := new(bytes.Buffer)
+			w, err := gzip.NewWriterLevel(wBuf, gzip.BestCompression)
+			assert.Nil(t, err)
+
+			n, err := writeNBytes(from, w, wBuf, writeSize, tol)
+			assert.Nil(t, err, info)
+			assert.True(t, int(float32(writeSize) * tol) <= n, info)
+			assert.True(t, n <= writeSize, info)
+		}
+	}
+}
+
 
 type mediaTestCase struct {
 	mediaType string
