@@ -31,8 +31,8 @@ func NewEncrypter(keys *Keys) (Encrypter, error) {
 		return nil, err
 	}
 	return &encrypter{
-		gcmCipher:        gcmCipher,
-		pageIVMACer:        hmac.New(sha256.New, keys.PageIVSeed),
+		gcmCipher:   gcmCipher,
+		pageIVMACer: hmac.New(sha256.New, keys.PageIVSeed),
 	}, nil
 }
 
@@ -64,8 +64,8 @@ func NewDecrypter(keys *Keys) (Decrypter, error) {
 		return nil, err
 	}
 	return &decrypter{
-		gcmCipher:        gcmCipher,
-		pageIVMACer:        hmac.New(sha256.New, keys.PageIVSeed),
+		gcmCipher:   gcmCipher,
+		pageIVMACer: hmac.New(sha256.New, keys.PageIVSeed),
 	}, nil
 }
 

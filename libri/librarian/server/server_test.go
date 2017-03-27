@@ -5,11 +5,11 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/db"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
-	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/search"
@@ -353,13 +353,13 @@ func TestLibrarian_Store_checkRequestError(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-type errDocStorerLoader struct {}
+type errDocStorerLoader struct{}
 
-func (* errDocStorerLoader) Store(key cid.ID, value *api.Document) error {
+func (*errDocStorerLoader) Store(key cid.ID, value *api.Document) error {
 	return errors.New("some store error")
 }
 
-func (* errDocStorerLoader) Load(key cid.ID) (*api.Document, error) {
+func (*errDocStorerLoader) Load(key cid.ID) (*api.Document, error) {
 	return nil, errors.New("some load error")
 }
 
@@ -367,8 +367,8 @@ func TestLibrarian_Store_storeError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	rt, peerID, _ := routing.NewTestWithPeers(rng, 64)
 	l := &Librarian{
-		selfID: peerID,
-		rt: rt,
+		selfID:     peerID,
+		rt:         rt,
 		kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		kvc:        storage.NewHashKeyValueChecker(),
 		rqv:        &alwaysRequestVerifier{},

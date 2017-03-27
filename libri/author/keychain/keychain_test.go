@@ -1,10 +1,11 @@
 package keychain
 
 import (
-	"testing"
 	"io/ioutil"
-	"github.com/stretchr/testify/assert"
 	"os"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSaveLoad(t *testing.T) {

@@ -1,14 +1,14 @@
 package compression
 
 import (
-	"testing"
-	"math/rand"
-	"github.com/stretchr/testify/assert"
 	"bytes"
 	"fmt"
 	"io"
-)
+	"math/rand"
+	"testing"
 
+	"github.com/stretchr/testify/assert"
+)
 
 func TestGetCompressionCodec(t *testing.T) {
 	// check handles empty string media type ok
@@ -36,7 +36,7 @@ func TestGetCompressionCodec(t *testing.T) {
 func TestCompressDecompress(t *testing.T) {
 	mediaCases := []mediaTestCase{
 		{GZIPCodec, false},
-		{NoneCodec, true},  // equalSize since we're not compressing twice
+		{NoneCodec, true}, // equalSize since we're not compressing twice
 	}
 	uncompressedSizes := []int{128, 192, 256, 384, 512, 1024}
 	uncompressedBufferSizes := []int{128, 192, 256, 384, 512, 1024}
@@ -97,7 +97,7 @@ func TestTrimBuffer(t *testing.T) {
 	originalMessage := bytes.Repeat([]byte{1, 2, 3, 4}, 4)
 	buf.Write(originalMessage)
 
-	part1 := make([]byte, len(originalMessage) / 2)
+	part1 := make([]byte, len(originalMessage)/2)
 	n1, err := buf.Read(part1)
 	assert.Nil(t, err)
 	assert.Equal(t, n1, len(part1))
@@ -105,7 +105,7 @@ func TestTrimBuffer(t *testing.T) {
 	err = trimBuffer(buf)
 	assert.Nil(t, err)
 
-	part2 := make([]byte, len(originalMessage) / 2)
+	part2 := make([]byte, len(originalMessage)/2)
 	n2, err := buf.Read(part2)
 	assert.Nil(t, err)
 	assert.Equal(t, n2, len(part2))
@@ -115,21 +115,21 @@ func TestTrimBuffer(t *testing.T) {
 }
 
 type mediaTestCase struct {
-	codec Codec
+	codec     Codec
 	equalSize bool
 }
 
 type compressionTestCase struct {
-	uncompressedSize int
+	uncompressedSize       int
 	uncompressedBufferSize int
-	compressedBufferSize int
-	media mediaTestCase
+	compressedBufferSize   int
+	media                  mediaTestCase
 }
 
 func (c compressionTestCase) String() string {
 	return fmt.Sprintf(
-		"uncompressedSize: %d, uncompressedBufferSize: %d, " +
-		"compressedBufferSize: %d, codec: %v, equalSize: %v",
+		"uncompressedSize: %d, uncompressedBufferSize: %d, "+
+			"compressedBufferSize: %d, codec: %v, equalSize: %v",
 		c.uncompressedSize,
 		c.uncompressedBufferSize,
 		c.compressedBufferSize,
@@ -150,10 +150,10 @@ func caseCrossProduct(
 			for _, compressedBufferSize := range compressedBufferSizes {
 				for _, media := range mediaCases {
 					cases = append(cases, compressionTestCase{
-						uncompressedSize: uncompressedSize,
+						uncompressedSize:       uncompressedSize,
 						uncompressedBufferSize: uncompressedBufferSize,
-						compressedBufferSize: compressedBufferSize,
-						media: media,
+						compressedBufferSize:   compressedBufferSize,
+						media:                  media,
 					})
 				}
 			}
@@ -169,9 +169,9 @@ func newTestBytes(rng *rand.Rand, size int) *bytes.Buffer {
 	words := new(bytes.Buffer)
 	for {
 		word := dict[int(rng.Int31n(int32(len(dict))))] + " "
-		if words.Len() + len(word) > size {
+		if words.Len()+len(word) > size {
 			// pad words to exact length
-			words.Write(make([]byte, size - words.Len()))
+			words.Write(make([]byte, size-words.Len()))
 			break
 		}
 		words.WriteString(word)
@@ -179,5 +179,3 @@ func newTestBytes(rng *rand.Rand, size int) *bytes.Buffer {
 
 	return words
 }
-
-

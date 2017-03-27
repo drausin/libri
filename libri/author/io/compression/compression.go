@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"mime"
+
 	"github.com/pkg/errors"
 )
 
@@ -164,7 +165,7 @@ type decompressor struct {
 	inner                  io.Reader
 	codec                  Codec
 	buf                    *bytes.Buffer
-	closed bool
+	closed                 bool
 	uncompressedBufferSize int
 }
 
@@ -172,11 +173,11 @@ type decompressor struct {
 func NewDecompressor(uncompressed io.Writer, codec Codec, uncompressedBufferSize int) (
 	CloseWriter, error) {
 	return &decompressor{
-		uncompressed: uncompressed,
-		inner:        nil,
-		codec:        codec,
-		buf:          new(bytes.Buffer),
-		closed: false,
+		uncompressed:           uncompressed,
+		inner:                  nil,
+		codec:                  codec,
+		buf:                    new(bytes.Buffer),
+		closed:                 false,
 		uncompressedBufferSize: uncompressedBufferSize,
 	}, nil
 }
@@ -248,4 +249,3 @@ func (d *decompressor) writeUncompressed() (int, error) {
 	_, err = d.uncompressed.Write(more[:nMore])
 	return nMore, err
 }
-

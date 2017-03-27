@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
-	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
 )
@@ -97,7 +97,7 @@ func (s *storer) storeWork(store *Store, wg *sync.WaitGroup) {
 			})
 			continue
 		}
-		store.wrapLock(func() {next.Recorder().Record(peer.Response, peer.Success)})
+		store.wrapLock(func() { next.Recorder().Record(peer.Response, peer.Success) })
 
 		// add to slice of responded peers
 		store.wrapLock(func() {

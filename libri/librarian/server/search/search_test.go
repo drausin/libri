@@ -5,9 +5,9 @@ import (
 
 	"math/rand"
 
+	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"

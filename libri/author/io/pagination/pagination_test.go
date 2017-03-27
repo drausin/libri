@@ -2,14 +2,15 @@ package pagination
 
 import (
 	"bytes"
-	"github.com/drausin/libri/libri/author/io/compression"
-	"github.com/drausin/libri/libri/author/io/encryption"
-	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/stretchr/testify/assert"
+	"fmt"
 	"math/rand"
 	"testing"
+
+	"github.com/drausin/libri/libri/author/io/compression"
+	"github.com/drausin/libri/libri/author/io/encryption"
 	"github.com/drausin/libri/libri/common/ecid"
-	"fmt"
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPaginateUnpaginate(t *testing.T) {
@@ -33,7 +34,7 @@ func TestPaginateUnpaginate(t *testing.T) {
 		uncompressed1 := newTestBytes(rng, c.uncompressedSize)
 		uncompressed1Bytes := uncompressed1.Bytes()
 
-		uncompressedBufferSize := int(c.pageSize) / 5  // somewhat arbitrary
+		uncompressedBufferSize := int(c.pageSize) / 5 // somewhat arbitrary
 		compressor, err := compression.NewCompressor(uncompressed1, c.codec,
 			uncompressedBufferSize)
 		assert.Nil(t, err)
@@ -60,7 +61,6 @@ func TestPaginateUnpaginate(t *testing.T) {
 	}
 }
 
-
 type pageTestCase struct {
 	pageSize         uint32
 	uncompressedSize int
@@ -74,15 +74,15 @@ func (p pageTestCase) String() string {
 
 func caseCrossProduct(
 	pageSizes []uint32, uncompressedSizes []int, codecs []compression.Codec,
-) ([]*pageTestCase) {
+) []*pageTestCase {
 	cases := make([]*pageTestCase, 0)
 	for _, pageSize := range pageSizes {
 		for _, uncompressedSize := range uncompressedSizes {
 			for _, mediaType := range codecs {
 				cases = append(cases, &pageTestCase{
-					pageSize: pageSize,
+					pageSize:         pageSize,
 					uncompressedSize: uncompressedSize,
-					codec: mediaType,
+					codec:            mediaType,
 				})
 			}
 		}

@@ -1,17 +1,18 @@
 package pagination
 
 import (
-	"io"
-	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/drausin/libri/libri/author/io/encryption"
-	"github.com/drausin/libri/libri/common/ecid"
-	"hash"
+	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
-	"github.com/pkg/errors"
 	"fmt"
-	"bytes"
+	"hash"
+	"io"
+
 	"github.com/drausin/libri/libri/author/io/compression"
+	"github.com/drausin/libri/libri/author/io/encryption"
+	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/pkg/errors"
 )
 
 // paginator is an io.ReaderFrom that reads compressed bytes and emits them in discrete pages.
@@ -19,7 +20,7 @@ type paginator struct {
 	pages     chan *api.Page
 	encrypter encryption.Encrypter
 	pageSize  uint32
-	authorID ecid.ID
+	authorID  ecid.ID
 	pageMACer hash.Hash
 }
 
@@ -35,10 +36,10 @@ func NewPaginator(
 		return nil, err
 	}
 	return &paginator{
-		pages: pages,
+		pages:     pages,
 		encrypter: encrypter,
-		pageSize: pageSize,
-		authorID: authorID,
+		pageSize:  pageSize,
+		authorID:  authorID,
 		pageMACer: hmac.New(sha256.New, keys.PageHMACKey),
 	}, nil
 }
@@ -75,12 +76,11 @@ func (p *paginator) getPage(ciphertext []byte, index uint32) *api.Page {
 	p.pageMACer.Reset()
 	return &api.Page{
 		AuthorPublicKey: p.authorID.Bytes(),
-		Index: index,
-		Ciphertext: ciphertext,
-		CiphertextMac: p.pageMACer.Sum(ciphertext),
+		Index:           index,
+		Ciphertext:      ciphertext,
+		CiphertextMac:   p.pageMACer.Sum(ciphertext),
 	}
 }
-
 
 // Unpaginator writes content from discrete pages to a decompressed writer.
 type Unpaginator interface {
@@ -89,10 +89,10 @@ type Unpaginator interface {
 }
 
 type unpaginator struct {
-	pages chan *api.Page
-	decrypter encryption.Decrypter
+	pages         chan *api.Page
+	decrypter     encryption.Decrypter
 	compressedBuf *bytes.Buffer
-	pageMACer hash.Hash
+	pageMACer     hash.Hash
 }
 
 // NewUnpaginator creates a new Unpaginator from the channel of pages and decrypter.
@@ -105,7 +105,7 @@ func NewUnpaginator(
 		return nil, err
 	}
 	return &unpaginator{
-		pages: pages,
+		pages:     pages,
 		decrypter: decrypter,
 		pageMACer: hmac.New(sha256.New, keys.PageHMACKey),
 	}, nil
