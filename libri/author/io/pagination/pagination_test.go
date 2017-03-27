@@ -21,30 +21,29 @@ func TestPaginateUnpaginate(t *testing.T) {
 	decrypter, err := encryption.NewDecrypter(keys)
 	assert.Nil(t, err)
 
-	uncompressedSizes := []int{128, 192, 256, 384, 512, 768, 1024}
+	uncompressedSizes := []int{128, 192, 256, 384, 512, 768, 1024, 2048, 4096, 8192}
 	pageSizes := []uint32{128, 256, 512, 1024}
-	mediaTypes := []string{"application/x-pdf", "application/x-gzip"}
+	codecs := []compression.Codec{compression.GZIPCodec, compression.NoneCodec}
 
-	for _, c := range caseCrossProduct(pageSizes, uncompressedSizes, mediaTypes) {
+	for _, c := range caseCrossProduct(pageSizes, uncompressedSizes, codecs) {
 		pages := make(chan *api.Page, 3)
-		paginator, err := NewPaginator(pages, encrypter, authorID, keys.PageHMACKey,
-			c.pageSize)
+		paginator, err := NewPaginator(pages, encrypter, keys, authorID, c.pageSize)
 		assert.Nil(t, err)
 
 		uncompressed1 := newTestBytes(rng, c.uncompressedSize)
 		uncompressed1Bytes := uncompressed1.Bytes()
 
 		uncompressedBufferSize := int(c.pageSize) / 5  // somewhat arbitrary
-		compressor, err := compression.NewCompressor(uncompressed1, c.mediaType,
+		compressor, err := compression.NewCompressor(uncompressed1, c.codec,
 			uncompressedBufferSize)
 		assert.Nil(t, err)
 
 		uncompressed2 := new(bytes.Buffer)
-		decompressor, err := compression.NewDecompressor(uncompressed2, c.mediaType,
+		decompressor, err := compression.NewDecompressor(uncompressed2, c.codec,
 			uncompressedBufferSize)
 		assert.Nil(t, err)
 
-		unpaginator, err := NewUnpaginator(pages, decrypter, keys.PageHMACKey)
+		unpaginator, err := NewUnpaginator(pages, decrypter, keys)
 		assert.Nil(t, err)
 
 		// test writing and reading in parallel
@@ -63,27 +62,27 @@ func TestPaginateUnpaginate(t *testing.T) {
 
 
 type pageTestCase struct {
-	pageSize uint32
+	pageSize         uint32
 	uncompressedSize int
-	mediaType string
+	codec            compression.Codec
 }
 
 func (p pageTestCase) String() string {
 	return fmt.Sprintf("pageSize: %d, uncompressedSize: %d, mediaType: %s", p.pageSize,
-		p.uncompressedSize, p.mediaType)
+		p.uncompressedSize, p.codec)
 }
 
 func caseCrossProduct(
-	pageSizes []uint32, uncompressedSizes []int, mediaTypes []string,
+	pageSizes []uint32, uncompressedSizes []int, codecs []compression.Codec,
 ) ([]*pageTestCase) {
 	cases := make([]*pageTestCase, 0)
 	for _, pageSize := range pageSizes {
 		for _, uncompressedSize := range uncompressedSizes {
-			for _, mediaType := range mediaTypes {
+			for _, mediaType := range codecs {
 				cases = append(cases, &pageTestCase{
 					pageSize: pageSize,
 					uncompressedSize: uncompressedSize,
-					mediaType: mediaType,
+					codec: mediaType,
 				})
 			}
 		}

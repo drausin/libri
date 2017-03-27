@@ -9,8 +9,10 @@ import (
 	"hash"
 )
 
+// Encrypter encrypts (compressed) plaintext of a page.
 type Encrypter interface {
-	Encrypt(plaintext []byte, page uint32) ([]byte, error)
+	// Encrypt encrypts the given plaintext for a given pageIndex, returning the ciphertext.
+	Encrypt(plaintext []byte, pageIndex uint32) ([]byte, error)
 }
 
 type encrypter struct {
@@ -18,8 +20,8 @@ type encrypter struct {
 	pageIVMACer hash.Hash
 }
 
+// NewEncrypter creates a new Encrypter using the encryption keys.
 func NewEncrypter(keys *Keys) (Encrypter, error) {
-	// TODO (drausin) pass in just keys needed + validate
 	block, err := aes.NewCipher(keys.AESKey)
 	if err != nil {
 		return nil, err
@@ -34,15 +36,16 @@ func NewEncrypter(keys *Keys) (Encrypter, error) {
 	}, nil
 }
 
-func (e *encrypter) Encrypt(plaintext []byte, page uint32) ([]byte, error) {
-	pageIV := generatePageIV(page, e.pageIVMACer, e.gcmCipher.NonceSize())
+func (e *encrypter) Encrypt(plaintext []byte, pageIndex uint32) ([]byte, error) {
+	pageIV := generatePageIV(pageIndex, e.pageIVMACer, e.gcmCipher.NonceSize())
 	ciphertext := e.gcmCipher.Seal(nil, pageIV, plaintext, nil)
 	return ciphertext, nil
 }
 
-
+// Decrypter decrypts a page's ciphertext.
 type Decrypter interface {
-	Decrypt(ciphertext []byte, page uint32) ([]byte, error)
+	// Decrypt decrypts the ciphertext of a particular page.
+	Decrypt(ciphertext []byte, pageIndex uint32) ([]byte, error)
 }
 
 type decrypter struct {
@@ -50,6 +53,7 @@ type decrypter struct {
 	pageIVMACer hash.Hash
 }
 
+// NewDecrypter creates a new Decrypter instance using the encryption keys.
 func NewDecrypter(keys *Keys) (Decrypter, error) {
 	block, err := aes.NewCipher(keys.AESKey)
 	if err != nil {
@@ -65,8 +69,8 @@ func NewDecrypter(keys *Keys) (Decrypter, error) {
 	}, nil
 }
 
-func (d *decrypter) Decrypt(ciphertext []byte, page uint32) ([]byte, error) {
-	pageIV := generatePageIV(page, d.pageIVMACer, d.gcmCipher.NonceSize())
+func (d *decrypter) Decrypt(ciphertext []byte, pageIndex uint32) ([]byte, error) {
+	pageIV := generatePageIV(pageIndex, d.pageIVMACer, d.gcmCipher.NonceSize())
 	return d.gcmCipher.Open(nil, pageIV, ciphertext, nil)
 }
 

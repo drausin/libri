@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"github.com/pkg/errors"
 )
 
 // Codec is a compression codec.
@@ -32,51 +33,62 @@ var MediaToCompressionCodec = map[string]Codec{
 	"application/zip":              NoneCodec,
 }
 
-type innerCompressor interface {
+// GetCompressionCodec returns the compression codec to use given a MIME media type.
+func GetCompressionCodec(mediaType string) (Codec, error) {
+	if mediaType == "" {
+		return DefaultCodec, nil
+	}
+
+	parsedMediaType, _, err := mime.ParseMediaType(mediaType)
+	if err != nil {
+		return DefaultCodec, err
+	}
+	if codec, in := MediaToCompressionCodec[parsedMediaType]; in {
+		return codec, nil
+	}
+
+	return DefaultCodec, nil
+}
+
+// CloseWriter is an io.Writer that requires Close() to be called at the end of writing.
+type CloseWriter interface {
 	io.Writer
-	Flush() error
+
+	// Close writes any outstanding contents and additional footers.
 	Close() error
-	FooterSize() int
 }
 
-type gzipInnerCompressor struct {
-	*gzip.Writer
+// FlushCloseWriter is a CloseWriter with a Flush() method that can be called in between writes.
+type FlushCloseWriter interface {
+	CloseWriter
+
+	// Flush flushes the contents to the underlying writer.
+	Flush() error
 }
-
-// FooterSize is the number of footer bytes during a close operation. See CRC32 and ISIZE
-// sections of http://www.zlib.org/rfc-gzip.html.
-func (gzipInnerCompressor) FooterSize() int { return 8 }
-
-
 
 // compressor implements io.Reader, writing compressed bytes to an internal buffer that is then
-// read from
+// read from during Read calls.
 type compressor struct {
 	uncompressed           io.Reader
-	inner                  innerCompressor
+	inner                  FlushCloseWriter
 	buf                    *bytes.Buffer
 	uncompressedBufferSize int
 }
 
-// NewCompressor creates a new io.Reader for the compressed contents. It uses rawMediaType to
-// determine which compression codec to use.
-func NewCompressor(
-	uncompressed io.Reader, rawMediaType string, uncompressedBufferSize int,
-) (io.Reader, error) {
-	codec, err := GetCompressionCodec(rawMediaType)
-	if err != nil {
-		return nil, err
-	}
-
+// NewCompressor creates a new io.Reader for the compressed contents using the given compression
+// codec. Larger values of uncompressedBufferSize will result in fewer calls to the uncompressed
+// io.Reader, at the expense of reading more than is needed into the internal buffer.
+func NewCompressor(uncompressed io.Reader, codec Codec, uncompressedBufferSize int) (io.Reader,
+	error) {
+	var err error
+	var inner FlushCloseWriter
 	buf := new(bytes.Buffer)
-	var inner innerCompressor
+
 	switch codec {
 	case GZIPCodec:
 		// optimize for best compression to reduce network transfer volume and time (at
 		// expense of more client CPU)
-		var c *gzip.Writer
-		c, err = gzip.NewWriterLevel(buf, gzip.BestCompression)
-		inner = gzipInnerCompressor{c}
+		inner, err = gzip.NewWriterLevel(buf, gzip.BestCompression)
 	case NoneCodec:
 		// just pass through uncompressed reader
 		return uncompressed, nil
@@ -95,6 +107,7 @@ func NewCompressor(
 	}, nil
 }
 
+// Read reads compressed contents into p from the underling uncompressed io.Reader.
 func (c *compressor) Read(p []byte) (int, error) {
 	// write compressed contents into buffer until we have enough for p
 	for c.buf.Len() < len(p) {
@@ -103,11 +116,18 @@ func (c *compressor) Read(p []byte) (int, error) {
 		if err != nil && err != io.EOF {
 			return 0, err
 		}
-		c.inner.Write(more[:nMore])
-		c.inner.Flush()
+		if _, err = c.inner.Write(more[:nMore]); err != nil {
+			return 0, err
+		}
+		if err = c.inner.Flush(); err != nil {
+			return 0, err
+		}
+
 		if nMore < c.uncompressedBufferSize {
 			// break if no more uncompressed data to read
-			c.inner.Close()
+			if err = c.inner.Close(); err != nil {
+				return 0, err
+			}
 			break
 		}
 	}
@@ -118,14 +138,14 @@ func (c *compressor) Read(p []byte) (int, error) {
 		return n, err
 	}
 
-	// copy remainder of existing buffer to temp buffer, truncate existing buffer, and copy
-	// remainder back; this prevents existing buffer from getting too long over many sequential
-	// Read() calls, at the expense of copying data back and forth
 	err = trimBuffer(c.buf)
-
 	return n, err
 }
 
+// trimBuffer trims the read part of a bytes.Buffer by copying the remainder of existing buffer to
+// a temp buffer, truncating the existing buffer, and coping the remainder back; this prevents
+// the existing buffer from getting too long over many sequential Read() calls, at the expense of
+// copying data back and forth.
 func trimBuffer(buf *bytes.Buffer) error {
 	temp := new(bytes.Buffer)
 	_, err := temp.ReadFrom(buf)
@@ -137,36 +157,32 @@ func trimBuffer(buf *bytes.Buffer) error {
 	return err
 }
 
-type FlushWriter interface {
-	io.Writer
-	Flush() error
-}
-
+// decompressor implements CloseWriter, writing compressed contents to an internal buffer from which
+// uncompressed contents are read and written to the underlying uncompressed io.Writer.
 type decompressor struct {
 	uncompressed           io.Writer
 	inner                  io.Reader
 	codec                  Codec
 	buf                    *bytes.Buffer
+	closed bool
 	uncompressedBufferSize int
 }
 
-func NewDecompressor(
-	uncompressed io.Writer, rawMediaType string, uncompressedBufferSize int,
-) (FlushWriter, error) {
-	codec, err := GetCompressionCodec(rawMediaType)
-	if err != nil {
-		return nil, err
-	}
+// NewDecompressor creates a new CloseWriter decompressor.
+func NewDecompressor(uncompressed io.Writer, codec Codec, uncompressedBufferSize int) (
+	CloseWriter, error) {
 	return &decompressor{
 		uncompressed: uncompressed,
 		inner:        nil,
 		codec:        codec,
 		buf:          new(bytes.Buffer),
+		closed: false,
 		uncompressedBufferSize: uncompressedBufferSize,
 	}, nil
 }
 
-func newInnerDecompressor(buf *bytes.Buffer, codec Codec) (io.Reader, error) {
+// newInnerDecompressor creates a new io.Reader given the codec.
+func newInnerDecompressor(buf io.Reader, codec Codec) (io.Reader, error) {
 	switch codec {
 	case GZIPCodec:
 		return gzip.NewReader(buf)
@@ -177,13 +193,19 @@ func newInnerDecompressor(buf *bytes.Buffer, codec Codec) (io.Reader, error) {
 	}
 }
 
+// Write decompressed p and writes its contents to the underlying uncompressed io.Writer.
 func (d *decompressor) Write(p []byte) (int, error) {
+	if d.closed {
+		return 0, errors.New("decompressor is closed")
+	}
 
 	// write compressed contents to buffer
 	n, err := d.buf.Write(p)
 	if err != nil {
 		return n, err
 	}
+
+	// init inner reader if needed
 	if d.inner == nil {
 		d.inner, err = newInnerDecompressor(d.buf, d.codec)
 		if err != nil {
@@ -194,18 +216,18 @@ func (d *decompressor) Write(p []byte) (int, error) {
 	// use inner reader to read compressed chunks from the buffer and then write them to
 	// uncompressed io.Writer
 	for d.buf.Len() > d.uncompressedBufferSize {
-		_, err := d.writeUncompressed()
+		_, err = d.writeUncompressed()
 		if err != nil {
 			return n, err
 		}
 	}
 
 	err = trimBuffer(d.buf)
-	return n, nil
-
+	return n, err
 }
 
-func (d *decompressor) Flush() error {
+// Close writes any remaining contents to the underlying uncompressed io.Writer.
+func (d *decompressor) Close() error {
 	var err error
 	for d.buf.Len() > 0 {
 		_, err = d.writeUncompressed()
@@ -213,6 +235,7 @@ func (d *decompressor) Flush() error {
 			return err
 		}
 	}
+	d.closed = true
 	return nil
 }
 
@@ -226,19 +249,3 @@ func (d *decompressor) writeUncompressed() (int, error) {
 	return nMore, err
 }
 
-// GetCompressionCodec returns the compression codec to use given a MIME media type.
-func GetCompressionCodec(mediaType string) (Codec, error) {
-	if mediaType == "" {
-		return DefaultCodec, nil
-	}
-
-	parsedMediaType, _, err := mime.ParseMediaType(mediaType)
-	if err != nil {
-		return DefaultCodec, err
-	}
-	if codec, in := MediaToCompressionCodec[parsedMediaType]; in {
-		return codec, nil
-	}
-
-	return DefaultCodec, nil
-}

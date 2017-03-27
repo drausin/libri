@@ -14,7 +14,7 @@ import (
 	"github.com/drausin/libri/libri/author/io/compression"
 )
 
-
+// paginator is an io.ReaderFrom that reads compressed bytes and emits them in discrete pages.
 type paginator struct {
 	pages     chan *api.Page
 	encrypter encryption.Encrypter
@@ -23,14 +23,15 @@ type paginator struct {
 	pageMACer hash.Hash
 }
 
+// NewPaginator creates a new paginator that emits pages to the given channel.
 func NewPaginator(
 	pages chan *api.Page,
 	encrypter encryption.Encrypter,
+	keys *encryption.Keys,
 	authorID ecid.ID,
-	pageHMACKey []byte,
 	pageSize uint32,
 ) (io.ReaderFrom, error) {
-	if err := api.ValidatePageHMACKey(pageHMACKey); err != nil {
+	if err := api.ValidatePageHMACKey(keys.PageHMACKey); err != nil {
 		return nil, err
 	}
 	return &paginator{
@@ -38,10 +39,12 @@ func NewPaginator(
 		encrypter: encrypter,
 		pageSize: pageSize,
 		authorID: authorID,
-		pageMACer: hmac.New(sha256.New, pageHMACKey),
+		pageMACer: hmac.New(sha256.New, keys.PageHMACKey),
 	}, nil
 }
 
+// ReadFrom reads pages from the compressor io.Reader and emits encrypted pages to the
+// underlying channel.
 func (p *paginator) ReadFrom(compressor io.Reader) (int64, error) {
 	var n int64
 	var ni int
@@ -67,6 +70,7 @@ func (p *paginator) ReadFrom(compressor io.Reader) (int64, error) {
 	return n, nil
 }
 
+// getPage constructs a page from a given ciphertext.
 func (p *paginator) getPage(ciphertext []byte, index uint32) *api.Page {
 	p.pageMACer.Reset()
 	return &api.Page{
@@ -77,6 +81,13 @@ func (p *paginator) getPage(ciphertext []byte, index uint32) *api.Page {
 	}
 }
 
+
+// Unpaginator writes content from discrete pages to a decompressed writer.
+type Unpaginator interface {
+	// WriteTo writes content from the underlying channel of pages to the decompressor.
+	WriteTo(decompressor compression.CloseWriter) (int64, error)
+}
+
 type unpaginator struct {
 	pages chan *api.Page
 	decrypter encryption.Decrypter
@@ -84,26 +95,23 @@ type unpaginator struct {
 	pageMACer hash.Hash
 }
 
-type Unpaginator interface {
-	WriteTo(decompressor compression.FlushWriter) (int64, error)
-}
-
+// NewUnpaginator creates a new Unpaginator from the channel of pages and decrypter.
 func NewUnpaginator(
 	pages chan *api.Page,
 	decrypter encryption.Decrypter,
-	pageHMACKey []byte,
+	keys *encryption.Keys,
 ) (Unpaginator, error) {
-	if err := api.ValidatePageHMACKey(pageHMACKey); err != nil {
+	if err := api.ValidatePageHMACKey(keys.PageHMACKey); err != nil {
 		return nil, err
 	}
 	return &unpaginator{
 		pages: pages,
 		decrypter: decrypter,
-		pageMACer: hmac.New(sha256.New, pageHMACKey),
+		pageMACer: hmac.New(sha256.New, keys.PageHMACKey),
 	}, nil
 }
 
-func (u *unpaginator) WriteTo(decompressor compression.FlushWriter) (int64, error) {
+func (u *unpaginator) WriteTo(decompressor compression.CloseWriter) (int64, error) {
 	var n int64
 	var pageIndex uint32
 	for page := range u.pages {
@@ -128,9 +136,11 @@ func (u *unpaginator) WriteTo(decompressor compression.FlushWriter) (int64, erro
 		pageIndex++
 	}
 
-	return n, decompressor.Flush()
+	return n, decompressor.Close()
 }
 
+// checkCiphertextMac checks that a given page's message authentication code (MAC) matches the
+// supplied value.
 func (u *unpaginator) checkCiphertextMAC(page *api.Page) error {
 	u.pageMACer.Reset()
 	mac := u.pageMACer.Sum(page.Ciphertext)

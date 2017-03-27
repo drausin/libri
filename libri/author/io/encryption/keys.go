@@ -24,12 +24,12 @@ type Keys struct {
 	MetadataIV  []byte
 }
 
-// NewRandom creates new Keys using crypto.Rand as a source of entropy.
+// NewRandomKeys creates new Keys using crypto.Rand as a source of entropy.
 func NewRandomKeys() *Keys {
 	return newRandom(crand.Reader)
 }
 
-// NewPseudoRandom creates new Keys using math.Rand as a source of entropy.
+// NewPseudoRandomKeys creates new Keys using math.Rand as a source of entropy.
 func NewPseudoRandomKeys(rng *mrand.Rand) *Keys {
 	return newRandom(rng)
 }
