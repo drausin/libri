@@ -174,26 +174,32 @@ func ValidatePageKeys(pk *PageKeys) error {
 	return nil
 }
 
+// ValidatePublicKey checks that a value can be a 256-bit elliptic curve public key.
 func ValidatePublicKey(value []byte) error {
 	return ValidateBytes(value, ECPubKeyLength, "PublicKey")
 }
 
+// ValidateAESKey checks the a value can be a 256-bit AES key.
 func ValidateAESKey(value []byte) error {
 	return ValidateBytes(value, AESKeyLength, "AESKey")
 }
 
+// ValidatePageHMACKey checks that a value can be an HMAC-256 key.
 func ValidatePageHMACKey(value []byte) error {
 	return ValidateBytes(value, PageHMACKeyLength, "PageHMACKey")
 }
 
+// ValidatePageIVSeed checks that a value can be a 256-bit initialization vector seed.
 func ValidatePageIVSeed(value []byte) error {
 	return ValidateBytes(value, PageIVSeedLength, "PageIVSeed")
 }
 
+// ValidateMetadataIV checks that a value can be a 12-byte GCM initialization vector.
 func ValidateMetadataIV(value []byte) error {
 	return ValidateBytes(value, MetadataIVLength, "MetadataIV")
 }
 
+// ValidateHMAC256 checks that a value can be an HMAC-256.
 func ValidateHMAC256(value []byte) error {
 	return ValidateBytes(value, HMAC256Length, "HMAC256")
 }
