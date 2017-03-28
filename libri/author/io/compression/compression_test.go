@@ -48,7 +48,12 @@ func TestNewCompressor_ok(t *testing.T) {
 func TestNewCompressor_err(t *testing.T) {
 	// unexpected codec
 	assert.Panics(t, func() {
-		NewCompressor(new(bytes.Buffer), Codec("unexpected"), MinUncompressedBufferSize)
+		_, err := NewCompressor(
+			new(bytes.Buffer),
+			Codec("unexpected"),
+			MinUncompressedBufferSize,
+		)
+		assert.Nil(t, err)
 	})
 
 	// too small uncompressed buffer
