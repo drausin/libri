@@ -28,7 +28,7 @@ func TestNewDecrypter_ok(t *testing.T) {
 	enc, err := NewDecrypter(keys)
 	assert.Nil(t, err)
 	assert.NotNil(t, enc.(*decrypter).gcmCipher)
-	assert.NotNil(t, enc.(*encrypter).pageIVMACer)
+	assert.NotNil(t, enc.(*decrypter).pageIVMACer)
 }
 
 func TestNewDecrypter_err(t *testing.T) {

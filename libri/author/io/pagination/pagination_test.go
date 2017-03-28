@@ -34,10 +34,11 @@ func TestPaginateUnpaginate(t *testing.T) {
 		uncompressed1 := newTestBytes(rng, c.uncompressedSize)
 		uncompressed1Bytes := uncompressed1.Bytes()
 
-		uncompressedBufferSize := int(c.pageSize) / 5 // somewhat arbitrary
+		uncompressedBufferSize := int(c.pageSize) / 2
 		compressor, err := compression.NewCompressor(uncompressed1, c.codec,
 			uncompressedBufferSize)
 		assert.Nil(t, err)
+		assert.NotNil(t, compressor)
 
 		uncompressed2 := new(bytes.Buffer)
 		decompressor, err := compression.NewDecompressor(uncompressed2, c.codec,
