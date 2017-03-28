@@ -7,6 +7,36 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestNewEncrypter_ok(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	keys := NewPseudoRandomKeys(rng)
+	enc, err := NewEncrypter(keys)
+	assert.Nil(t, err)
+	assert.NotNil(t, enc.(*encrypter).gcmCipher)
+	assert.NotNil(t, enc.(*encrypter).pageIVMACer)
+}
+
+func TestNewEncrypter_err(t *testing.T) {
+	enc, err := NewEncrypter(&Keys{})
+	assert.NotNil(t, err)
+	assert.Nil(t, enc)
+}
+
+func TestNewDecrypter_ok(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	keys := NewPseudoRandomKeys(rng)
+	enc, err := NewDecrypter(keys)
+	assert.Nil(t, err)
+	assert.NotNil(t, enc.(*decrypter).gcmCipher)
+	assert.NotNil(t, enc.(*encrypter).pageIVMACer)
+}
+
+func TestNewDecrypter_err(t *testing.T) {
+	enc, err := NewDecrypter(&Keys{})
+	assert.NotNil(t, err)
+	assert.Nil(t, enc)
+}
+
 func TestEncryptDecrypt(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	keys := NewPseudoRandomKeys(rng)

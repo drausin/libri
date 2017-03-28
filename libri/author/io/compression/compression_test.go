@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/pkg/errors"
+	"compress/gzip"
 )
 
 func TestGetCompressionCodec(t *testing.T) {
@@ -31,6 +33,206 @@ func TestGetCompressionCodec(t *testing.T) {
 	assert.Equal(t, GZIPCodec, c4)
 	assert.Nil(t, err)
 
+}
+
+func TestNewCompressor_ok(t *testing.T) {
+	uncompressed, codec, minUncompressedBufferSize := new(bytes.Buffer), GZIPCodec, 256
+	comp, err := NewCompressor(uncompressed, codec, minUncompressedBufferSize)
+	assert.Nil(t, err)
+	assert.Equal(t, uncompressed, comp.(*compressor).uncompressed)
+	assert.NotNil(t, comp.(*compressor).inner)
+	assert.NotNil(t, comp.(*compressor).buf)
+	assert.Equal(t, minUncompressedBufferSize, comp.(*compressor).uncompressedBufferSize)
+}
+
+func TestNewCompressor_err(t *testing.T) {
+	// unexpected codec
+	assert.Panics(t, func() {
+		NewCompressor(new(bytes.Buffer), Codec("unexpected"), MinUncompressedBufferSize)
+	})
+
+	// too small uncompressed buffer
+	comp, err := NewCompressor(new(bytes.Buffer), GZIPCodec, 0)
+	assert.NotNil(t, err)
+	assert.Nil(t, comp)
+}
+
+func TestNewDecompressor_ok(t *testing.T) {
+	uncompressed, codec, minUncompressedBufferSize := new(bytes.Buffer), GZIPCodec, 256
+	comp, err := NewDecompressor(uncompressed, codec, minUncompressedBufferSize)
+	assert.Nil(t, err)
+	assert.Equal(t, uncompressed, comp.(*decompressor).uncompressed)
+	assert.Nil(t, comp.(*decompressor).inner)
+	assert.NotNil(t, comp.(*decompressor).buf)
+	assert.Equal(t, minUncompressedBufferSize, comp.(*decompressor).uncompressedBufferSize)
+}
+
+type errReader struct {}
+
+func (errReader) Read(p []byte) (int, error) {
+	return 0, errors.New("some read error")
+}
+
+type errFlushCloseWriter struct {
+	writeErr error
+	flushErr error
+	closeErr error
+}
+
+func (w errFlushCloseWriter) Write(p []byte) (int, error) {
+	return 0, w.writeErr
+}
+
+func (w errFlushCloseWriter) Flush() error {
+	return w.flushErr
+}
+
+func (w errFlushCloseWriter) Close() error {
+	return w.closeErr
+}
+
+func TestCompressor_Read_ok(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	uncompressed1 := newTestBytes(rng, 256)
+	uncompressed1Bytes := uncompressed1.Bytes()
+
+	comp, err := NewCompressor(
+		uncompressed1,
+		GZIPCodec,
+		MinUncompressedBufferSize,
+	)
+	assert.Nil(t, err)
+
+	compressed := make([]byte, len(uncompressed1Bytes))
+	n1, err := comp.Read(compressed)
+	assert.Nil(t, err)
+	assert.True(t, n1 > 0)
+
+	reader, err := gzip.NewReader(bytes.NewReader(compressed[:n1]))
+	assert.Nil(t, err)
+
+	uncompressed2 := new(bytes.Buffer)
+	n2, err := uncompressed2.ReadFrom(reader)
+	assert.Nil(t, err)
+	assert.Equal(t, len(uncompressed1Bytes), int(n2))
+	assert.Equal(t, uncompressed1Bytes, uncompressed2.Bytes())
+}
+
+func TestCompressor_Read_err(t *testing.T) {
+	comp, err := NewCompressor(errReader{}, GZIPCodec, MinUncompressedBufferSize)
+	assert.Nil(t, err)
+
+	// check that error from errReader bubbles up
+	n, err := comp.Read(make([]byte, 32))
+	assert.NotNil(t, err)
+	assert.Zero(t, n)
+
+	buf := bytes.NewReader([]byte("some data"))
+	comp, err = NewCompressor(buf, GZIPCodec, MinUncompressedBufferSize)
+	comp.(*compressor).inner = errFlushCloseWriter{
+		writeErr: errors.New("some write error"),
+	}
+	assert.Nil(t, err)
+
+	// check that write error bubbles up
+	n, err = comp.Read(make([]byte, 32))
+	assert.NotNil(t, err)
+	assert.Zero(t, n)
+
+	buf = bytes.NewReader([]byte("some data"))
+	comp, err = NewCompressor(buf, GZIPCodec, MinUncompressedBufferSize)
+	comp.(*compressor).inner = errFlushCloseWriter{
+		flushErr: errors.New("some flush error"),
+	}
+	assert.Nil(t, err)
+
+	// check that flush error bubbles up
+	n, err = comp.Read(make([]byte, 32))
+	assert.NotNil(t, err)
+	assert.Zero(t, n)
+
+	buf = bytes.NewReader([]byte("some data"))
+	comp, err = NewCompressor(buf, GZIPCodec, MinUncompressedBufferSize)
+	comp.(*compressor).inner = errFlushCloseWriter{
+		closeErr: errors.New("some close error"),
+	}
+	assert.Nil(t, err)
+
+	// check that close error bubbles up
+	n, err = comp.Read(make([]byte, 32))
+	assert.NotNil(t, err)
+	assert.Zero(t, n)
+
+	buf = bytes.NewReader([]byte("some data"))
+	comp, err = NewCompressor(buf, GZIPCodec, MinUncompressedBufferSize)
+	comp.(*compressor).buf = new(bytes.Buffer)  // will case buf.Read() to return io.EOF error
+	assert.Nil(t, err)
+
+	// check that buf.Read() error bubbles up
+	n, err = comp.Read(make([]byte, 32))
+	assert.NotNil(t, err)
+	assert.Zero(t, n)
+}
+
+func TestDecompressor_Write_ok(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	uncompressed1 := newTestBytes(rng, 256).Bytes()
+
+	compressed := new(bytes.Buffer)
+	writer := gzip.NewWriter(compressed)
+	n, err := writer.Write(uncompressed1)
+	assert.Nil(t, err)
+	assert.NotZero(t, n)
+
+	err = writer.Close()
+	assert.Nil(t, err)
+	assert.NotZero(t, compressed.Len())
+
+	uncompressed2 := new(bytes.Buffer)
+	decomp, err := NewDecompressor(uncompressed2, GZIPCodec, MinUncompressedBufferSize)
+	assert.Nil(t, err)
+
+	n, err = decomp.Write(compressed.Bytes())
+	assert.Nil(t, err)
+	assert.NotZero(t, n)
+
+	err = decomp.Close()
+	assert.Nil(t, err)
+
+	assert.Equal(t, uncompressed1, uncompressed2.Bytes())
+}
+
+func TestDecompressor_Write_err(t *testing.T) {
+	decomp, err := NewDecompressor(nil, GZIPCodec, MinUncompressedBufferSize)
+	assert.Nil(t, err)
+	decomp.(*decompressor).closed = true
+	compressed := make([]byte, MinUncompressedBufferSize * 2)
+
+	// check that Write when decomp is closed produces errors
+	n, err := decomp.Write(compressed)
+	assert.NotNil(t, err)
+	assert.Zero(t, n)
+
+	decomp, err = NewDecompressor(new(bytes.Buffer), GZIPCodec, MinUncompressedBufferSize)
+	assert.Nil(t, err)
+
+	// check that failure to create inner decompressor bubbles up
+	n, err = decomp.Write(compressed)
+	assert.NotNil(t, err)
+	assert.Equal(t, len(compressed), n)
+
+	decomp, err = NewDecompressor(new(bytes.Buffer), GZIPCodec, MinUncompressedBufferSize)
+	assert.Nil(t, err)
+	decomp.(*decompressor).inner = errReader{}
+
+	// check that inner.Read() error bubbles up
+	n, err = decomp.Write(compressed)
+	assert.NotNil(t, err)
+	assert.Equal(t, len(compressed), n)
+
+	// check that inner.Close() error bubbles up
+	err = decomp.Close()
+	assert.NotNil(t, err)
 }
 
 func TestCompressDecompress(t *testing.T) {

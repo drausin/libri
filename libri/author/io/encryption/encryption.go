@@ -22,11 +22,7 @@ type encrypter struct {
 
 // NewEncrypter creates a new Encrypter using the encryption keys.
 func NewEncrypter(keys *Keys) (Encrypter, error) {
-	block, err := aes.NewCipher(keys.AESKey)
-	if err != nil {
-		return nil, err
-	}
-	gcmCipher, err := cipher.NewGCM(block)
+	gcmCipher, err := newGCMCipher(keys.AESKey)
 	if err != nil {
 		return nil, err
 	}
@@ -34,6 +30,14 @@ func NewEncrypter(keys *Keys) (Encrypter, error) {
 		gcmCipher:   gcmCipher,
 		pageIVMACer: hmac.New(sha256.New, keys.PageIVSeed),
 	}, nil
+}
+
+func newGCMCipher(aesKey []byte) (cipher.AEAD, error) {
+	block, err := aes.NewCipher(aesKey)
+	if err != nil {
+		return nil, err
+	}
+	return cipher.NewGCM(block)
 }
 
 func (e *encrypter) Encrypt(plaintext []byte, pageIndex uint32) ([]byte, error) {
@@ -55,11 +59,7 @@ type decrypter struct {
 
 // NewDecrypter creates a new Decrypter instance using the encryption keys.
 func NewDecrypter(keys *Keys) (Decrypter, error) {
-	block, err := aes.NewCipher(keys.AESKey)
-	if err != nil {
-		return nil, err
-	}
-	gcmCipher, err := cipher.NewGCM(block)
+	gcmCipher, err := newGCMCipher(keys.AESKey)
 	if err != nil {
 		return nil, err
 	}

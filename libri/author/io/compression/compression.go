@@ -22,6 +22,10 @@ const (
 
 	// DefaultCodec defines the default compression scheme.
 	DefaultCodec = GZIPCodec
+
+	// MinUncompressedBufferSize is the minimum size of the uncompressed buffer used by
+	// compressor and decompressor.
+	MinUncompressedBufferSize = 64
 )
 
 // MediaToCompressionCodec maps MIME media types to what compression codec should be used with
@@ -99,6 +103,10 @@ func NewCompressor(uncompressed io.Reader, codec Codec, uncompressedBufferSize i
 
 	if err != nil {
 		return nil, err
+	}
+	if uncompressedBufferSize < MinUncompressedBufferSize {
+		return nil, fmt.Errorf("uncompressedBufferSize %d is below the mimimum value %d",
+			uncompressedBufferSize, MinUncompressedBufferSize)
 	}
 	return &compressor{
 		uncompressed: uncompressed,
