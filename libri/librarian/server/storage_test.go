@@ -7,7 +7,7 @@ import (
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/server/routing"
-	"github.com/drausin/libri/libri/librarian/server/storage"
+	"github.com/drausin/libri/libri/common/storage"
 	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
