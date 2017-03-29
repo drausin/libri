@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	cid "github.com/drausin/libri/libri/common/id"
+	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
@@ -26,7 +27,7 @@ func TestStart_ok(t *testing.T) {
 	var err error
 	up := make(chan *Librarian, 1)
 	go func() {
-		err = Start(NewDevInfoLogger(), config, up)
+		err = Start(clogging.NewDevInfoLogger(), config, up)
 		assert.Nil(t, err)
 	}()
 
@@ -94,7 +95,7 @@ func TestLibrarian_bootstrapPeers_ok(t *testing.T) {
 			result: fixedResult,
 		},
 		rt:     routing.NewEmpty(cid.NewPseudoRandom(rng), routing.NewDefaultParameters()),
-		logger: NewDevInfoLogger(),
+		logger: clogging.NewDevInfoLogger(),
 	}
 
 	err := l.bootstrapPeers(seeds)
@@ -124,7 +125,7 @@ func TestLibrarian_bootstrapPeers_introduceErr(t *testing.T) {
 			err: errors.New("some fatal introduce error"),
 		},
 		rt:     routing.NewEmpty(cid.NewPseudoRandom(rng), routing.NewDefaultParameters()),
-		logger: NewDevInfoLogger(),
+		logger: clogging.NewDevInfoLogger(),
 	}
 
 	err := l.bootstrapPeers(seeds)
@@ -152,7 +153,7 @@ func TestLibrarian_bootstrapPeers_noResponsesErr(t *testing.T) {
 			result: fixedResult,
 		},
 		rt:     routing.NewEmpty(cid.NewPseudoRandom(rng), routing.NewDefaultParameters()),
-		logger: NewDevInfoLogger(),
+		logger: clogging.NewDevInfoLogger(),
 	}
 
 	err := l.bootstrapPeers(seeds)

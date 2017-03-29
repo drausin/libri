@@ -6,6 +6,7 @@ import (
 
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
+	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/golang/protobuf/proto"
@@ -25,7 +26,7 @@ func (l *fixedLoader) Load(key []byte) ([]byte, error) {
 func TestLoadOrCreatePeerID_ok(t *testing.T) {
 
 	// create new peer ID
-	id1, err := loadOrCreatePeerID(NewDevInfoLogger(), &fixedLoader{})
+	id1, err := loadOrCreatePeerID(clogging.NewDevInfoLogger(), &fixedLoader{})
 	assert.NotNil(t, id1)
 	assert.Nil(t, err)
 
@@ -35,20 +36,20 @@ func TestLoadOrCreatePeerID_ok(t *testing.T) {
 	bytes, err := proto.Marshal(ecid.ToStored(peerID2))
 	assert.Nil(t, err)
 
-	id2, err := loadOrCreatePeerID(NewDevInfoLogger(), &fixedLoader{bytes: bytes})
+	id2, err := loadOrCreatePeerID(clogging.NewDevInfoLogger(), &fixedLoader{bytes: bytes})
 
 	assert.Equal(t, peerID2, id2)
 	assert.Nil(t, err)
 }
 
 func TestLoadOrCreatePeerID_err(t *testing.T) {
-	id1, err := loadOrCreatePeerID(NewDevInfoLogger(), &fixedLoader{
+	id1, err := loadOrCreatePeerID(clogging.NewDevInfoLogger(), &fixedLoader{
 		err: errors.New("some load error"),
 	})
 	assert.Nil(t, id1)
 	assert.NotNil(t, err)
 
-	id2, err := loadOrCreatePeerID(NewDevInfoLogger(), &fixedLoader{
+	id2, err := loadOrCreatePeerID(clogging.NewDevInfoLogger(), &fixedLoader{
 		bytes: []byte("the wrong bytes"),
 	})
 	assert.Nil(t, id2)
@@ -80,14 +81,14 @@ func TestLoadOrCreateRoutingTable_ok(t *testing.T) {
 	fullLoader := &fixedLoader{
 		bytes: bytes,
 	}
-	rt1, err := loadOrCreateRoutingTable(NewDevInfoLogger(), fullLoader, selfID1,
+	rt1, err := loadOrCreateRoutingTable(clogging.NewDevInfoLogger(), fullLoader, selfID1,
 		routing.NewDefaultParameters())
 	assert.Equal(t, selfID1, rt1.SelfID())
 	assert.Nil(t, err)
 
 	// create new RT
 	selfID2 := id.NewPseudoRandom(rng)
-	rt2, err := loadOrCreateRoutingTable(NewDevInfoLogger(), &fixedLoader{}, selfID2,
+	rt2, err := loadOrCreateRoutingTable(clogging.NewDevInfoLogger(), &fixedLoader{}, selfID2,
 		routing.NewDefaultParameters())
 	assert.Equal(t, selfID2, rt2.SelfID())
 	assert.Nil(t, err)
@@ -101,7 +102,7 @@ func TestLoadOrCreateRoutingTable_loadErr(t *testing.T) {
 		err: errors.New("some error during load"),
 	}
 
-	rt1, err := loadOrCreateRoutingTable(NewDevInfoLogger(), errLoader, selfID,
+	rt1, err := loadOrCreateRoutingTable(clogging.NewDevInfoLogger(), errLoader, selfID,
 		routing.NewDefaultParameters())
 	assert.Nil(t, rt1)
 	assert.NotNil(t, err)
@@ -123,7 +124,7 @@ func TestLoadOrCreateRoutingTable_selfIDErr(t *testing.T) {
 
 	// error with conflicting/different selfID
 	selfID2 := id.NewPseudoRandom(rng)
-	rt1, err := loadOrCreateRoutingTable(NewDevInfoLogger(), fullLoader, selfID2,
+	rt1, err := loadOrCreateRoutingTable(clogging.NewDevInfoLogger(), fullLoader, selfID2,
 		routing.NewDefaultParameters())
 	assert.Nil(t, rt1)
 	assert.NotNil(t, err)

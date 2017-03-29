@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/drausin/libri/libri/librarian/server"
+	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -76,7 +77,7 @@ func getConfig() (*server.Config, *zap.Logger, error) {
 	config.WithDataDir(dataDir)
 	config.WithDBDir(dbDir)
 	config.WithLogLevel(getLogLevel())
-	logger := server.NewDevLogger(config.LogLevel)
+	logger := clogging.NewDevLogger(config.LogLevel)
 
 	bootstrapNetAddrs, err := server.ParseAddrs(bootstrapAddrs)
 	if err != nil {

@@ -7,6 +7,7 @@ import (
 
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
+	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
@@ -31,7 +32,7 @@ func TestNewLibrarian(t *testing.T) {
 	err := l1.Close()
 	assert.Nil(t, err)
 
-	l2, err := NewLibrarian(l1.config, NewDevInfoLogger())
+	l2, err := NewLibrarian(l1.config, clogging.NewDevInfoLogger())
 	go func() { <-l2.stop }() // dummy stop signal acceptor
 
 	assert.Nil(t, err)
@@ -42,7 +43,7 @@ func TestNewLibrarian(t *testing.T) {
 
 func newTestLibrarian() *Librarian {
 	config := newTestConfig()
-	l, err := NewLibrarian(config, NewDevInfoLogger())
+	l, err := NewLibrarian(config, clogging.NewDevInfoLogger())
 	if err != nil {
 		panic(err)
 	}
