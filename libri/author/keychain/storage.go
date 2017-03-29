@@ -2,10 +2,11 @@ package keychain
 
 import (
 	"crypto/ecdsa"
-	ethkeystore "github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/ethereum/go-ethereum/crypto"
 	"fmt"
 	"sync"
+
+	ethkeystore "github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // EncryptToStored encrypts the contents of Keychain using the authentication passphrase and scrypt
@@ -31,17 +32,17 @@ func EncryptToStored(kc *Keychain, auth string, scryptN, scryptP int) (*StoredKe
 		}(s1, key1)
 	}
 
-	go func () {
+	go func() {
 		wg.Wait()
 		done <- struct{}{}
 	}()
 
 	select {
-	case <- done:
+	case <-done:
 		return &StoredKeychain{
 			KeyEncKeys: storedKeyEncKeys,
 		}, nil
-	case err := <- errs:
+	case err := <-errs:
 		return nil, err
 	}
 }
@@ -69,17 +70,17 @@ func DecryptFromStored(stored *StoredKeychain, auth string) (*Keychain, error) {
 		}(keyJSON1)
 	}
 
-	go func () {
+	go func() {
 		wg.Wait()
 		done <- struct{}{}
 	}()
 
 	select {
-	case <- done:
+	case <-done:
 		return &Keychain{
 			keyEncKeys: keyEncKeys,
 		}, nil
-	case err := <- errs:
+	case err := <-errs:
 		return nil, err
 	}
 }
@@ -87,7 +88,7 @@ func DecryptFromStored(stored *StoredKeychain, auth string) (*Keychain, error) {
 func encryptKey(key *ecdsa.PrivateKey, auth string, scryptN, scryptP int) ([]byte, error) {
 	ethKey := &ethkeystore.Key{
 		// Address is not not used by libri, but required for encryption & decryption
-		Address: crypto.PubkeyToAddress(key.PublicKey),
+		Address:    crypto.PubkeyToAddress(key.PublicKey),
 		PrivateKey: key,
 	}
 	return ethkeystore.EncryptKey(ethKey, auth, scryptN, scryptP)

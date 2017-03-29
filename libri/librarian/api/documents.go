@@ -6,35 +6,35 @@ import (
 	"fmt"
 
 	cid "github.com/drausin/libri/libri/common/id"
-	"github.com/pkg/errors"
 	"github.com/golang/protobuf/proto"
+	"github.com/pkg/errors"
 )
 
 const (
 	// ECPubKeyLength is the length of a 256-bit ECDSA public key point serialized
 	// (uncompressed) to a byte string.
-	ECPubKeyLength       = 65
+	ECPubKeyLength = 65
 
 	// DocumentKeyLength is the byte length a document's key.
 	DocumentKeyLength = cid.Length
 
-	// AES256KeyLength is the byte length of an AES-256 encryption key.
-	AES256KeyLength      = 32
+	// AESKeyLength is the byte length of an AES-256 encryption key.
+	AESKeyLength = 32
 
 	// PageIVSeedLength is the byte length of the Page block cipher initialization vector (IV)
 	// seed.
-	PageIVSeedLength     = 32
+	PageIVSeedLength = 32
 
-	// PageHMAC256KeyLength is the byte length of the Page HMAC-256 key.
-	PageHMAC256KeyLength = 32
+	// PageHMACKeyLength is the byte length of the Page HMAC-256 key.
+	PageHMACKeyLength = 32
 
 	// MetadataIVLength is the byte length of the metadata block cipher initialization vector.
-	MetadataIVLength     = 12
+	MetadataIVLength = 12
 
 	// EncryptionKeysLength is the total byte length of all the keys used to encrypt an Entry.
-	EncryptionKeysLength = AES256KeyLength +
+	EncryptionKeysLength = AESKeyLength +
 		PageIVSeedLength +
-		PageHMAC256KeyLength +
+		PageHMACKeyLength +
 		MetadataIVLength
 
 	// HMAC256Length is the byte length of an HMAC-256.
@@ -75,16 +75,16 @@ func ValidateEnvelope(e *Envelope) error {
 	if e == nil {
 		return errors.New("Envelope may not be nil")
 	}
-	if err := validateArray(e.AuthorPublicKey, ECPubKeyLength, "AuthorPublicKey"); err != nil {
+	if err := ValidatePublicKey(e.AuthorPublicKey); err != nil {
 		return err
 	}
-	if err := validateArray(e.ReaderPublicKey, ECPubKeyLength, "ReaderPublicKey"); err != nil {
+	if err := ValidatePublicKey(e.ReaderPublicKey); err != nil {
 		return err
 	}
-	if err := validateArray(e.EntryKey, DocumentKeyLength, "EntryPublicKey"); err != nil {
+	if err := ValidateBytes(e.EntryKey, DocumentKeyLength, "EntryPublicKey"); err != nil {
 		return err
 	}
-	if err := validateArray(e.EncryptionKeysCiphertext, EncryptionKeysLength,
+	if err := ValidateBytes(e.EncryptionKeysCiphertext, EncryptionKeysLength,
 		"EncryptionKeysLength"); err != nil {
 		return err
 	}
@@ -98,21 +98,19 @@ func ValidateEntry(e *Entry) error {
 	if e == nil {
 		return errors.New("Entry may not be nil")
 	}
-	if err := validateArray(e.AuthorPublicKey, ECPubKeyLength, "AuthorPublicKey"); err != nil {
+	if err := ValidatePublicKey(e.AuthorPublicKey); err != nil {
 		return err
 	}
 	if e.CreatedTime == 0 {
 		return errors.New("CreateTime must be populated")
 	}
-	if err := validateArray(e.MetadataCiphertextMac, HMAC256Length,
-		"MetadataCiphertextMac"); err != nil {
+	if err := ValidateHMAC256(e.MetadataCiphertextMac); err != nil {
 		return err
 	}
 	if err := validateNotEmpty(e.MetadataCiphertext, "MetadataCiphertext"); err != nil {
 		return err
 	}
-	if err := validateArray(e.ContentsCiphertextMac, HMAC256Length,
-		"ContentsCiphertextMac"); err != nil {
+	if err := ValidateHMAC256(e.ContentsCiphertextMac); err != nil {
 		return err
 	}
 	if e.ContentsCiphertextSize == 0 {
@@ -143,11 +141,11 @@ func ValidatePage(p *Page) error {
 	if p == nil {
 		return errors.New("Page may not be nil")
 	}
-	if err := validateArray(p.AuthorPublicKey, ECPubKeyLength, "AuthorPublicKey"); err != nil {
+	if err := ValidatePublicKey(p.AuthorPublicKey); err != nil {
 		return err
 	}
 	// nothing to check for index, since it's zero value is legitimate
-	if err := validateArray(p.CiphertextMac, HMAC256Length, "CiphertextMac"); err != nil {
+	if err := ValidateHMAC256(p.CiphertextMac); err != nil {
 		return err
 	}
 	if err := validateNotEmpty(p.Ciphertext, "Ciphertext"); err != nil {
@@ -176,7 +174,38 @@ func ValidatePageKeys(pk *PageKeys) error {
 	return nil
 }
 
-func validateArray(value []byte, expectedLen int, name string) error {
+// ValidatePublicKey checks that a value can be a 256-bit elliptic curve public key.
+func ValidatePublicKey(value []byte) error {
+	return ValidateBytes(value, ECPubKeyLength, "PublicKey")
+}
+
+// ValidateAESKey checks the a value can be a 256-bit AES key.
+func ValidateAESKey(value []byte) error {
+	return ValidateBytes(value, AESKeyLength, "AESKey")
+}
+
+// ValidatePageHMACKey checks that a value can be an HMAC-256 key.
+func ValidatePageHMACKey(value []byte) error {
+	return ValidateBytes(value, PageHMACKeyLength, "PageHMACKey")
+}
+
+// ValidatePageIVSeed checks that a value can be a 256-bit initialization vector seed.
+func ValidatePageIVSeed(value []byte) error {
+	return ValidateBytes(value, PageIVSeedLength, "PageIVSeed")
+}
+
+// ValidateMetadataIV checks that a value can be a 12-byte GCM initialization vector.
+func ValidateMetadataIV(value []byte) error {
+	return ValidateBytes(value, MetadataIVLength, "MetadataIV")
+}
+
+// ValidateHMAC256 checks that a value can be an HMAC-256.
+func ValidateHMAC256(value []byte) error {
+	return ValidateBytes(value, HMAC256Length, "HMAC256")
+}
+
+// ValidateBytes returns whether the byte slice is not empty and has an expected length.
+func ValidateBytes(value []byte, expectedLen int, name string) error {
 	if err := validateNotEmpty(value, name); err != nil {
 		return err
 	}

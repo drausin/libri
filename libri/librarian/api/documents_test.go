@@ -13,7 +13,7 @@ func TestGetKey(t *testing.T) {
 	value, _ := NewTestDocument(rng)
 	key, err := GetKey(value)
 	assert.Nil(t, err)
-	assert.Nil(t, validateArray(key.Bytes(), DocumentKeyLength, "key"))
+	assert.Nil(t, ValidateBytes(key.Bytes(), DocumentKeyLength, "key"))
 }
 
 func TestValidateDocument_ok(t *testing.T) {
@@ -171,4 +171,58 @@ func TestValidatePageKeys_err(t *testing.T) {
 	for i, c := range cases {
 		assert.NotNil(t, ValidatePageKeys(c), fmt.Sprintf("case %d", i))
 	}
+}
+
+func TestValidatePublicKey(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	assert.Nil(t, ValidatePublicKey(randBytes(rng, 65)))
+	assert.NotNil(t, ValidatePublicKey(randBytes(rng, 32)))
+	assert.NotNil(t, ValidatePublicKey(make([]byte, 0)))
+	assert.NotNil(t, ValidatePublicKey(make([]byte, 65)))
+	assert.NotNil(t, ValidatePublicKey(nil))
+}
+
+func TestValidateAESKey(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	assert.Nil(t, ValidateAESKey(randBytes(rng, 32)))
+	assert.NotNil(t, ValidateAESKey(randBytes(rng, 16)))
+	assert.NotNil(t, ValidateAESKey(make([]byte, 0)))
+	assert.NotNil(t, ValidateAESKey(make([]byte, 32)))
+	assert.NotNil(t, ValidateAESKey(nil))
+}
+
+func TestValidatePageHMACKey(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	assert.Nil(t, ValidatePageHMACKey(randBytes(rng, 32)))
+	assert.NotNil(t, ValidatePageHMACKey(randBytes(rng, 16)))
+	assert.NotNil(t, ValidatePageHMACKey(make([]byte, 0)))
+	assert.NotNil(t, ValidatePageHMACKey(make([]byte, 32)))
+	assert.NotNil(t, ValidatePageHMACKey(nil))
+}
+
+func TestValidatePageIVSeed(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	assert.Nil(t, ValidatePageIVSeed(randBytes(rng, 32)))
+	assert.NotNil(t, ValidatePageIVSeed(randBytes(rng, 16)))
+	assert.NotNil(t, ValidatePageIVSeed(make([]byte, 0)))
+	assert.NotNil(t, ValidatePageIVSeed(make([]byte, 32)))
+	assert.NotNil(t, ValidatePageIVSeed(nil))
+}
+
+func TestValidateMetadataIV(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	assert.Nil(t, ValidateMetadataIV(randBytes(rng, 12)))
+	assert.NotNil(t, ValidateMetadataIV(randBytes(rng, 32)))
+	assert.NotNil(t, ValidateMetadataIV(make([]byte, 0)))
+	assert.NotNil(t, ValidateMetadataIV(make([]byte, 12)))
+	assert.NotNil(t, ValidateMetadataIV(nil))
+}
+
+func TestValidateHMAC256(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	assert.Nil(t, ValidateHMAC256(randBytes(rng, 32)))
+	assert.NotNil(t, ValidateHMAC256(randBytes(rng, 16)))
+	assert.NotNil(t, ValidateHMAC256(make([]byte, 0)))
+	assert.NotNil(t, ValidateHMAC256(make([]byte, 32)))
+	assert.NotNil(t, ValidateHMAC256(nil))
 }

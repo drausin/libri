@@ -2,12 +2,11 @@ package keychain
 
 import (
 	"crypto/ecdsa"
-	"github.com/drausin/libri/libri/common/ecid"
 	"io/ioutil"
+
+	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/golang/protobuf/proto"
 )
-
-
 
 // Keychain represents a collection of ECDSA private keys.
 type Keychain struct {
@@ -35,7 +34,7 @@ func Save(filepath, auth string, kc *Keychain, scryptN, scryptP int) error {
 	if err != nil {
 		return err
 	}
-	const filePerm = 0600  // only user can read
+	const filePerm = 0600 // only user can read
 	return ioutil.WriteFile(filepath, buf, filePerm)
 }
 
@@ -51,4 +50,3 @@ func Load(filepath, auth string) (*Keychain, error) {
 	}
 	return DecryptFromStored(stored, auth)
 }
-

@@ -9,8 +9,8 @@ import (
 	"github.com/drausin/libri/libri/db"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/golang/protobuf/proto"
-	"github.com/stretchr/testify/assert"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestServerStorerLoader_StoreLoad_ok(t *testing.T) {
@@ -114,9 +114,9 @@ func TestDocumentNamespaceStorerLoader_Store_err(t *testing.T) {
 }
 
 type fixedStorerLoader struct {
-	storeErr error
+	storeErr  error
 	loadValue []byte
-	loadErr error
+	loadErr   error
 }
 
 func (fsl *fixedStorerLoader) Store(namespace []byte, key []byte, value []byte) error {
