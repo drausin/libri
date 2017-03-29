@@ -23,7 +23,9 @@ func TestLoad_err(t *testing.T) {
 	file, err := ioutil.TempFile("", "kechain-test")
 	defer func() { assert.Nil(t, os.Remove(file.Name())) }()
 	assert.Nil(t, err)
-	file.Write([]byte("not a keychain"))
+	n, err := file.Write([]byte("not a keychain"))
+	assert.Nil(t, err)
+	assert.NotZero(t, n)
 	assert.Nil(t, file.Close())
 
 	// check that error from unmarshalling bad file bubbles up

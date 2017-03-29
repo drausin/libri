@@ -53,6 +53,7 @@ func TestPaginator_ReadFrom_err(t *testing.T) {
 	assert.Zero(t, n)
 
 	paginator, err = NewPaginator(pages, errEncrypter{}, keys, authorID, 256)
+	assert.Nil(t, err)
 
 	// check that encyption error bubbles up
 	_, err = paginator.ReadFrom(bytes.NewReader([]byte("some fake compressed bytes")))
@@ -90,6 +91,7 @@ func TestUnpaginator_WriteTo_err(t *testing.T) {
 	assert.Nil(t, err)
 	pages := make(chan *api.Page, 1)
 	u, err := NewUnpaginator(pages, decrypter, keys)
+	assert.Nil(t, err)
 
 	// check that out of order page creates an error
 	pages <- &api.Page{Index: 1} // should start with 0
@@ -108,6 +110,7 @@ func TestUnpaginator_WriteTo_err(t *testing.T) {
 
 	// create paginator for just making new pages
 	encrypter, err := encryption.NewEncrypter(keys)
+	assert.Nil(t, err)
 	p, err := NewPaginator(pages, encrypter, keys, authorID, 256)
 	assert.Nil(t, err)
 
