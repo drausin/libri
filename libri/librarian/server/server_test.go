@@ -7,7 +7,7 @@ import (
 
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/db"
+	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"

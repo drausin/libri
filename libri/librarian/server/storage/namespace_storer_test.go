@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	cid "github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/db"
+	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
