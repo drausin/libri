@@ -11,7 +11,122 @@ import (
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
+	"errors"
 )
+
+func TestNewPaginator_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	keys := encryption.NewPseudoRandomKeys(rng)
+	keys.PageHMACKey = nil
+
+	// invalid PageHMACKey should bubble up
+	p, err := NewPaginator(nil, nil, keys, nil, 0)
+	assert.NotNil(t, err)
+	assert.Nil(t, p)
+}
+
+type errReader struct {}
+
+func (errReader) Read(p []byte) (int, error) {
+	return 0, errors.New("some read error")
+}
+
+type errEncrypter struct {}
+
+func (errEncrypter) Encrypt(plaintext []byte, pageIndex uint32) ([]byte, error) {
+	return nil, errors.New("some encrypt error")
+}
+
+func TestPaginator_ReadFrom_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	keys, authorID := encryption.NewPseudoRandomKeys(rng), ecid.NewPseudoRandom(rng)
+	pages := make(chan *api.Page, 3)
+
+	encrypter, err := encryption.NewEncrypter(keys)
+	assert.Nil(t, err)
+	paginator, err := NewPaginator(pages, encrypter, keys, authorID, 256)
+	assert.Nil(t, err)
+
+	// check that compressed read error bubbles up
+	n, err := paginator.ReadFrom(errReader{})
+	assert.NotNil(t, err)
+	assert.Zero(t, n)
+
+	paginator, err = NewPaginator(pages, errEncrypter{}, keys, authorID, 256)
+
+	// check that encyption error bubbles up
+	_, err = paginator.ReadFrom(bytes.NewReader([]byte("some fake compressed bytes")))
+	assert.NotNil(t, err)
+}
+
+func TestNewUnpaginator(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	keys := encryption.NewPseudoRandomKeys(rng)
+	keys.PageHMACKey = nil
+
+	// invalid PageHMACKey should bubble up
+	u, err := NewUnpaginator(nil, nil, keys)
+	assert.NotNil(t, err)
+	assert.Nil(t, u)
+}
+
+type errCloseWriter struct {
+	writeErr error
+	closeErr error
+}
+
+func (e *errCloseWriter) Write(p []byte) (int, error) {
+	return 0, e.writeErr
+}
+
+func (e *errCloseWriter) Close() error {
+	return e.closeErr
+}
+
+func TestUnpaginator_WriteTo_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	keys, authorID := encryption.NewPseudoRandomKeys(rng), ecid.NewPseudoRandom(rng)
+	decrypter, err := encryption.NewDecrypter(keys)
+	assert.Nil(t, err)
+	pages := make(chan *api.Page, 1)
+	u, err := NewUnpaginator(pages, decrypter, keys)
+
+	// check that out of order page creates an error
+	pages <- &api.Page{Index: 1} // should start with 0
+	n, err := u.WriteTo(nil)
+	assert.NotNil(t, err)
+	assert.Zero(t, n)
+
+	// check that bad ciphertext MAC creates error
+	pages <- &api.Page{
+		Ciphertext: []byte("some secret stuff"),
+		CiphertextMac: []byte("not the right mac"),
+	}
+	n, err = u.WriteTo(nil)
+	assert.NotNil(t, err)
+	assert.Zero(t, n)
+
+	// create paginator for just making new pages
+	encrypter, err := encryption.NewEncrypter(keys)
+	p, err := NewPaginator(pages, encrypter, keys, authorID, 256)
+	assert.Nil(t, err)
+
+	// check that decompressor write error bubbles up
+	pages <- p.(*paginator).getPage([]byte("some fake ciphertext"), 0)
+	n, err = u.WriteTo(&errCloseWriter{
+		writeErr: errors.New("some write error"),
+	})
+	assert.NotNil(t, err)
+	assert.Zero(t, n)
+
+	// check that decompressor close error bubbles up
+	pages <- p.(*paginator).getPage([]byte("some fake ciphertext"), 0)
+	n, err = u.WriteTo(&errCloseWriter{
+		closeErr: errors.New("some close error"),
+	})
+	assert.NotNil(t, err)
+	assert.Zero(t, n)
+}
 
 func TestPaginateUnpaginate(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
