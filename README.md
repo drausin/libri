@@ -12,9 +12,11 @@ libri is currently under active development and not yet ready for primetime
 
 #### design
 The peers of the network are called librarians. Each librarian exposes a set of simple endpoints, 
- descripted in [librarian.proto](https://github.com/drausin/libri/blob/develop/libri/librarian/api/librarian.proto).
+ descripted in [librarian.proto](https://github.com/drausin/libri/blob/develop/libri/librarian/api/librarian.proto) and [documents.proto](https://github.com/drausin/libri/blob/develop/libri/librarian/api/documents.proto)
  
 Each librarian uses [RocksDB](https://github.com/facebook/rocksdb) for local storage.
+
+The [acceptance tests](https://github.com/drausin/libri/blob/develop/libri/acceptance/librarian_test.go) and [librarian type](https://github.com/drausin/libri/blob/develop/libri/librarian/server/server.go) are good places from which to start exploring the codebase.
 
 #### references
 - [Kademila](https://pdos.csail.mit.edu/~petar/papers/maymounkov-kademlia-lncs.pdf) protocol and approach
