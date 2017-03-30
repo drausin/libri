@@ -18,14 +18,13 @@ dependencies:
     - make tools
 
     # install RocksDB (possibly using cached directory if it exists)
-    - if [ ! -d "${HOME}/rocksdb-4.11.2" ]; then cd ~ && wget https://github.com/facebook/rocksdb/archive/v4.11.2.zip && unzip ~/v4.11.2.zip -d ~; fi
-    - cd ~/rocksdb-4.11.2 && make static_lib && sudo make install
+    - if [ ! -d "${HOME}/rocksdb-5.2.1" ]; then cd ~ && wget https://github.com/facebook/rocksdb/archive/v5.2.1.zip && unzip ~/v5.2.1.zip -d ~; fi
+    - cd ~/rocksdb-5.2.1 && make static_lib && sudo make install
 
-    # checkout and build gorocksdb driver that actually works with version v4.11.2
-    - cd ~/.go_workspace/src/github.com/tecbot/gorocksdb && git checkout f2a0b10
+    # build gorocksdb driver
     - CGO_CFLAGS="-I/usr/local/include/rocksdb" CGO_LDFLAGS="-L/usr/local/lib/librocksdb.a -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy" go get github.com/tecbot/gorocksdb
   cache_directories:
-    - ~/rocksdb-4.11.2
+    - ~/rocksdb-5.2.1
 
 compile:
   override:
