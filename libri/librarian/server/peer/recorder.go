@@ -3,7 +3,7 @@ package peer
 import (
 	"time"
 
-	"github.com/drausin/libri/libri/librarian/server/storage"
+	"github.com/drausin/libri/libri/common/storage"
 )
 
 // QueryType is a type of query, for now just distinguishing between requests and responses.

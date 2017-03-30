@@ -28,10 +28,10 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
-// ECDSAPrivateKey represents an ECDSA key-pair, whose public key x-value is used as the peer ID to outside
-// world.
+// ECDSAPrivateKey represents an ECDSA key-pair, whose public key x-value is used as the peer ID
+// to outside world.
 type ECDSAPrivateKey struct {
-	// name of the curve (should always be P-256, but here for backward compatibility)
+	// name of the curve used
 	Curve string `protobuf:"bytes,1,opt,name=curve" json:"curve,omitempty"`
 	// private key
 	D []byte `protobuf:"bytes,2,opt,name=D,proto3" json:"D,omitempty"`

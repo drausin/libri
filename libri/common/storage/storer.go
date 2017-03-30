@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"github.com/drausin/libri/libri/db"
+	"github.com/drausin/libri/libri/common/db"
 )
 
 const (
