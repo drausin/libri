@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/drausin/libri/libri/common/ecid"
+	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	lclient "github.com/drausin/libri/libri/librarian/client"
@@ -188,7 +189,7 @@ func setUp(rng *rand.Rand, nSeeds, nPeers int, logLevel zapcore.Level) (*testCli
 	maxBucketPeers := uint(8)
 	seedConfigs, peerConfigs := newConfigs(nSeeds, nPeers, maxBucketPeers)
 	seeds, peers := make([]*server.Librarian, nSeeds), make([]*server.Librarian, nPeers)
-	logger := server.NewDevInfoLogger()
+	logger := clogging.NewDevInfoLogger()
 	seedsUp := make(chan *server.Librarian, 1)
 
 	// create & start seeds
@@ -227,7 +228,7 @@ func setUp(rng *rand.Rand, nSeeds, nPeers int, logLevel zapcore.Level) (*testCli
 		selfID:  selfID,
 		selfAPI: selfPeer.ToAPI(),
 		signer:  signer,
-		logger:  server.NewDevLogger(logLevel),
+		logger:  clogging.NewDevLogger(logLevel),
 	}
 
 	return clientImpl, seedConfigs, peerConfigs, seeds, peers
