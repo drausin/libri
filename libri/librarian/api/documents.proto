@@ -12,7 +12,7 @@ message Document {
 }
 
 // Envelope contains the (encrypted) keys used to encrypt a particular Entry and its Pages. It uses
-// DCDH exchange from the author to a particular reader. The envelope contains the encrypted
+// ECDH exchange from the author to a particular reader. The envelope contains the encrypted
 // secret, which gives the 4 keys required to decrypt the Entry and Pages.
 message Envelope {
 
