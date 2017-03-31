@@ -25,7 +25,6 @@ We use RocksDB v5.2.1, which you'll need to [install](https://github.com/faceboo
 CGO_CFLAGS="-I/usr/local/include/rocksdb" \
 CGO_LDFLAGS="-L/usr/local/opt/rocksdb -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy -llz4" \
   go get github.com/tecbot/gorocksdb
-
 ```
 
 Run the tests with
