@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/rand"
 	"testing"
-
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -17,9 +16,9 @@ import (
 func TestNewPaginator_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	keys := enc.NewPseudoRandomKeys(rng)
-	keys.PageHMACKey = nil
+	keys.HMACKey = nil
 
-	// invalid PageHMACKey should bubble up
+	// invalid HMACKey should bubble up
 	p, err := NewPaginator(nil, nil, keys, nil, 0)
 	assert.NotNil(t, err)
 	assert.Nil(t, p)
@@ -63,9 +62,9 @@ func TestPaginator_ReadFrom_err(t *testing.T) {
 func TestNewUnpaginator(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	keys := enc.NewPseudoRandomKeys(rng)
-	keys.PageHMACKey = nil
+	keys.HMACKey = nil
 
-	// invalid PageHMACKey should bubble up
+	// invalid HMACKey should bubble up
 	u, err := NewUnpaginator(nil, nil, keys)
 	assert.NotNil(t, err)
 	assert.Nil(t, u)

@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// field lengths
 const (
 	// ECPubKeyLength is the length of a 256-bit ECDSA public key point serialized
 	// (uncompressed) to a byte string.
@@ -25,8 +26,8 @@ const (
 	// seed.
 	PageIVSeedLength = 32
 
-	// PageHMACKeyLength is the byte length of the Page HMAC-256 key.
-	PageHMACKeyLength = 32
+	// HMACKeyLength is the byte length of the Page HMAC-256 key.
+	HMACKeyLength = 32
 
 	// MetadataIVLength is the byte length of the metadata block cipher initialization vector.
 	MetadataIVLength = 12
@@ -34,7 +35,7 @@ const (
 	// EncryptionKeysLength is the total byte length of all the keys used to encrypt an Entry.
 	EncryptionKeysLength = AESKeyLength +
 		PageIVSeedLength +
-		PageHMACKeyLength +
+		HMACKeyLength +
 		MetadataIVLength
 
 	// HMAC256Length is the byte length of an HMAC-256.
@@ -107,14 +108,8 @@ func ValidateEntry(e *Entry) error {
 	if err := ValidateHMAC256(e.MetadataCiphertextMac); err != nil {
 		return err
 	}
-	if err := validateNotEmpty(e.MetadataCiphertext, "MetadataCiphertext"); err != nil {
+	if err := ValidateNotEmpty(e.MetadataCiphertext, "MetadataCiphertext"); err != nil {
 		return err
-	}
-	if err := ValidateHMAC256(e.ContentsCiphertextMac); err != nil {
-		return err
-	}
-	if e.ContentsCiphertextSize == 0 {
-		return errors.New("ContentsCiphertextSize must be greateer than zero")
 	}
 	if err := validateEntryContents(e); err != nil {
 		return err
@@ -148,7 +143,7 @@ func ValidatePage(p *Page) error {
 	if err := ValidateHMAC256(p.CiphertextMac); err != nil {
 		return err
 	}
-	if err := validateNotEmpty(p.Ciphertext, "Ciphertext"); err != nil {
+	if err := ValidateNotEmpty(p.Ciphertext, "Ciphertext"); err != nil {
 		return err
 	}
 	return nil
@@ -167,7 +162,7 @@ func ValidatePageKeys(pk *PageKeys) error {
 		return errors.New("PageKeys.Keys must have length > 0")
 	}
 	for i, k := range pk.Keys {
-		if err := validateNotEmpty(k, fmt.Sprintf("key %d", i)); err != nil {
+		if err := ValidateNotEmpty(k, fmt.Sprintf("key %d", i)); err != nil {
 			return err
 		}
 	}
@@ -184,9 +179,9 @@ func ValidateAESKey(value []byte) error {
 	return ValidateBytes(value, AESKeyLength, "AESKey")
 }
 
-// ValidatePageHMACKey checks that a value can be an HMAC-256 key.
-func ValidatePageHMACKey(value []byte) error {
-	return ValidateBytes(value, PageHMACKeyLength, "PageHMACKey")
+// ValidateHMACKey checks that a value can be an HMAC-256 key.
+func ValidateHMACKey(value []byte) error {
+	return ValidateBytes(value, HMACKeyLength, "HMACKey")
 }
 
 // ValidatePageIVSeed checks that a value can be a 256-bit initialization vector seed.
@@ -206,7 +201,7 @@ func ValidateHMAC256(value []byte) error {
 
 // ValidateBytes returns whether the byte slice is not empty and has an expected length.
 func ValidateBytes(value []byte, expectedLen int, name string) error {
-	if err := validateNotEmpty(value, name); err != nil {
+	if err := ValidateNotEmpty(value, name); err != nil {
 		return err
 	}
 	if len(value) != expectedLen {
@@ -216,7 +211,7 @@ func ValidateBytes(value []byte, expectedLen int, name string) error {
 	return nil
 }
 
-func validateNotEmpty(value []byte, name string) error {
+func ValidateNotEmpty(value []byte, name string) error {
 	if value == nil {
 		return fmt.Errorf("%s may not be nil", name)
 	}

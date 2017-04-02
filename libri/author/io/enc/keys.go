@@ -2,12 +2,18 @@ package enc
 
 import (
 	"bytes"
-	crand "crypto/rand"
-	"io"
-	mrand "math/rand"
-
+	"crypto/ecdsa"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/pkg/errors"
+	"golang.org/x/crypto/hkdf"
+	"crypto/sha256"
+	"math/rand"
 )
+
+var AuthorOffCurveErr = errors.New("author public key point not on expected elliptic curve")
+var ReaderOffCurveErr = errors.New("reader public key point not on expected elliptic curve")
+var IncompleteKeyDefinitionErr = errors.New("incomplete key definition")
 
 // Keys are used to encrypt an Entry and its Pages.
 type Keys struct {
@@ -18,34 +24,40 @@ type Keys struct {
 	// enc.
 	PageIVSeed []byte
 
-	// PageHMACKey is the 32-byte key used for Page HMAC-256 calculations.
-	PageHMACKey []byte
+	// HMACKey is the 32-byte key used for Page HMAC-256 calculations.
+	HMACKey []byte
 
 	// MetadataIV is the 12-byte IV for the Entry metadata block cipher.
 	MetadataIV []byte
 }
 
-// NewRandomKeys creates new Keys using crypto.Rand as a source of entropy.
-func NewRandomKeys() *Keys {
-	return newRandom(crand.Reader)
+func NewKeys(priv *ecdsa.PrivateKey, pub *ecdsa.PublicKey) (*Keys, error) {
+	if !ecid.Curve.IsOnCurve(priv.X, priv.Y) {
+		return nil, AuthorOffCurveErr
+	}
+	if !ecid.Curve.IsOnCurve(pub.X, pub.Y) {
+		return nil, ReaderOffCurveErr
+	}
+	secretX, _ := ecid.Curve.ScalarMult(pub.X, pub.Y, priv.D.Bytes())
+	kdf := hkdf.New(sha256.New, secretX.Bytes(), nil, nil)
+	keyBytes := make([]byte, api.EncryptionKeysLength)
+	n, err := kdf.Read(keyBytes)
+	if err != nil {
+		return nil, err
+	}
+	if n != api.EncryptionKeysLength {
+		return nil, IncompleteKeyDefinitionErr
+	}
+	return Unmarshal(keyBytes)
 }
 
-// NewPseudoRandomKeys creates new Keys using math.Rand as a source of entropy.
-func NewPseudoRandomKeys(rng *mrand.Rand) *Keys {
-	return newRandom(rng)
-}
-
-func newRandom(r io.Reader) *Keys {
-	buf := make([]byte, api.EncryptionKeysLength)
-	_, err := r.Read(buf)
+func NewPseudoRandomKeys(rng *rand.Rand) *Keys {
+	authorPriv := ecid.NewPseudoRandom(rng)
+	readerPriv := ecid.NewPseudoRandom(rng)
+	keys, err := NewKeys(authorPriv.Key(), &readerPriv.Key().PublicKey)
 	if err != nil {
 		panic(err)
 	}
-	keys, err := Unmarshal(buf)
-	if err != nil {
-		panic(err)
-	}
-
 	return keys
 }
 
@@ -55,7 +67,7 @@ func Marshal(keys *Keys) []byte {
 		[][]byte{
 			keys.AESKey,
 			keys.PageIVSeed,
-			keys.PageHMACKey,
+			keys.HMACKey,
 			keys.MetadataIV,
 		},
 		[]byte{},
@@ -70,10 +82,10 @@ func Unmarshal(x []byte) (*Keys, error) {
 	}
 	var offset int
 	return &Keys{
-		AESKey:      next(x, &offset, api.AESKeyLength),
-		PageIVSeed:  next(x, &offset, api.PageIVSeedLength),
-		PageHMACKey: next(x, &offset, api.PageHMACKeyLength),
-		MetadataIV:  next(x, &offset, api.MetadataIVLength),
+		AESKey:     next(x, &offset, api.AESKeyLength),
+		PageIVSeed: next(x, &offset, api.PageIVSeedLength),
+		HMACKey:    next(x, &offset, api.HMACKeyLength),
+		MetadataIV: next(x, &offset, api.MetadataIVLength),
 	}, nil
 }
 

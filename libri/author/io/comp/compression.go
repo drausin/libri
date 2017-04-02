@@ -23,9 +23,13 @@ const (
 	// DefaultCodec defines the default comp.scheme.
 	DefaultCodec = GZIPCodec
 
-	// MinUncompressedBufferSize is the minimum size of the uncompressed buffer used by
+	// MinUncompressedBufferSize is the minimum size of the uncompressed buffer used by the
 	// compressor and decompressor.
 	MinUncompressedBufferSize = 64
+
+	// DefaultUncompressedBufferSize is the default size of the uncompressed buffer used by
+	// the compressor and decompressor.
+	DefaultUncompressedBufferSize = 1024
 )
 
 // MediaToCompressionCodec maps MIME media types to what comp.codec should be used with

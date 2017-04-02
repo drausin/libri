@@ -191,13 +191,13 @@ func TestValidateAESKey(t *testing.T) {
 	assert.NotNil(t, ValidateAESKey(nil))
 }
 
-func TestValidatePageHMACKey(t *testing.T) {
+func TestValidateHMACKey(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	assert.Nil(t, ValidatePageHMACKey(randBytes(rng, 32)))
-	assert.NotNil(t, ValidatePageHMACKey(randBytes(rng, 16)))
-	assert.NotNil(t, ValidatePageHMACKey(make([]byte, 0)))
-	assert.NotNil(t, ValidatePageHMACKey(make([]byte, 32)))
-	assert.NotNil(t, ValidatePageHMACKey(nil))
+	assert.Nil(t, ValidateHMACKey(randBytes(rng, 32)))
+	assert.NotNil(t, ValidateHMACKey(randBytes(rng, 16)))
+	assert.NotNil(t, ValidateHMACKey(make([]byte, 0)))
+	assert.NotNil(t, ValidateHMACKey(make([]byte, 32)))
+	assert.NotNil(t, ValidateHMACKey(nil))
 }
 
 func TestValidatePageIVSeed(t *testing.T) {

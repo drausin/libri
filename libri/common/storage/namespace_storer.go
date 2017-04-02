@@ -87,6 +87,9 @@ type documentStorerLoader struct {
 
 // Store checks that the key equals the SHA256 hash of the value before storing it.
 func (dnsl *documentStorerLoader) Store(key cid.ID, value *api.Document) error {
+	if err := api.ValidateDocument(value); err != nil {
+		return err
+	}
 	valueBytes, err := proto.Marshal(value)
 	if err != nil {
 		return err
@@ -113,6 +116,10 @@ func (dnsl *documentStorerLoader) Load(key cid.ID) (*api.Document, error) {
 	}
 	doc := &api.Document{}
 	if err := proto.Unmarshal(valueBytes, doc); err != nil {
+		return nil, err
+	}
+	if err := api.ValidateDocument(doc); err != nil {
+		// should never happen b/c we check on Store, but being defensive just in case
 		return nil, err
 	}
 	return doc, nil

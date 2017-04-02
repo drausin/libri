@@ -34,8 +34,6 @@ func NewTestPageEntry(rng *rand.Rand) *Entry {
 		CreatedTime:            1,
 		MetadataCiphertextMac:  randBytes(rng, 32),
 		MetadataCiphertext:     randBytes(rng, 64),
-		ContentsCiphertextMac:  randBytes(rng, 32),
-		ContentsCiphertextSize: 100,
 		Contents:               &Entry_Page{page},
 	}
 }
