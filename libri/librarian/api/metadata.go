@@ -49,22 +49,7 @@ func NewEntryMetadata(
 	uncompressedSize uint64,
 	uncompressedMAC []byte,
 ) (*Metadata, error) {
-	if mediaType == "" {
-		return nil, UnexpectedZeroErr
-	}
-	if ciphertextSize == 0 {
-		return nil, UnexpectedZeroErr
-	}
-	if err := ValidateHMAC256(ciphertextMAC); err != nil {
-		return nil, err
-	}
-	if uncompressedSize == 0 {
-		return nil, UnexpectedZeroErr
-	}
-	if err := ValidateHMAC256(uncompressedMAC); err != nil {
-		return nil, err
-	}
-	return &Metadata{
+	m := &Metadata{
 		Properties: map[string][]byte{
 			MetadataEntryMediaType:        []byte(mediaType),
 			MetadataEntryCiphertextSize:   uint64Bytes(ciphertextSize),
@@ -72,48 +57,72 @@ func NewEntryMetadata(
 			MetadataEntryUncompressedSize: uint64Bytes(uncompressedSize),
 			MetadataEntryUncompressedMAC:  uncompressedMAC,
 		},
-	}, nil
+	}
+	if err := ValidateMetadata(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
-func (m Metadata) GetMediaType() (string, bool) {
+// ValidateMetadata checks that the metadata has all the required non-zero values.
+func ValidateMetadata(m *Metadata) error {
+	if value, _ := m.GetMediaType(); value == "" {
+		return UnexpectedZeroErr
+	}
+	if value, _ := m.GetCiphertextSize(); value == 0 {
+		return UnexpectedZeroErr
+	}
+	if value, _ := m.GetCiphertextMAC(); ValidateHMAC256(value) != nil {
+		return ValidateHMAC256(value)
+	}
+	if value, _ := m.GetUncompressedSize(); value == 0 {
+		return UnexpectedZeroErr
+	}
+	if value, _ := m.GetUncompressedMAC(); ValidateHMAC256(value) != nil {
+		return ValidateHMAC256(value)
+	}
+	return nil
+}
+
+func (m *Metadata) GetMediaType() (string, bool) {
 	return m.GetString(MetadataEntryMediaType)
 }
 
-func (m Metadata) GetCiphertextSize() (uint64, bool) {
+func (m *Metadata) GetCiphertextSize() (uint64, bool) {
 	return m.GetUint64(MetadataEntryCiphertextSize)
 }
 
-func (m Metadata) GetCiphertextMAC() ([]byte, bool) {
+func (m *Metadata) GetCiphertextMAC() ([]byte, bool) {
 	return m.GetBytes(MetadataEntryCiphertextMAC)
 }
 
-func (m Metadata) GetUncompressedSize() (uint64, bool) {
+func (m *Metadata) GetUncompressedSize() (uint64, bool) {
 	return m.GetUint64(MetadataEntryUncompressedSize)
 }
 
-func (m Metadata) GetUncompressedMAC() ([]byte, bool) {
+func (m *Metadata) GetUncompressedMAC() ([]byte, bool) {
 	return m.GetBytes(MetadataEntryUncompressedMAC)
 }
 
-func (m Metadata) GetBytes(key string) ([]byte, bool) {
+func (m *Metadata) GetBytes(key string) ([]byte, bool) {
 	value, in := m.Properties[key]
 	return value, in
 }
 
-func (m Metadata) SetBytes(key string, value []byte) {
+func (m *Metadata) SetBytes(key string, value []byte) {
 	m.Properties[key] = value
 }
 
-func (m Metadata) GetString(key string) (string, bool) {
+func (m *Metadata) GetString(key string) (string, bool) {
 	value, in := m.Properties[key]
 	return string(value), in
 }
 
-func (m Metadata) SetString(key string, value string) {
+func (m *Metadata) SetString(key string, value string) {
 	m.Properties[key] = []byte(value)
 }
 
-func (m Metadata) GetUint64(key string) (uint64, bool) {
+func (m *Metadata) GetUint64(key string) (uint64, bool) {
 	value, in := m.Properties[key]
 	if !in {
 		return 0, false
@@ -121,7 +130,7 @@ func (m Metadata) GetUint64(key string) (uint64, bool) {
 	return binary.BigEndian.Uint64(value), true
 }
 
-func (m Metadata) SetUint64(key string, value uint64) {
+func (m *Metadata) SetUint64(key string, value uint64) {
 	m.Properties[key] = uint64Bytes(value)
 }
 

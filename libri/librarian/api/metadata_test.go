@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewEntryMetadata_ok(t *testing.T) {
+func TestValidateMetadata_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	mediaType := "application/x-pdf"
 	m, err := NewEntryMetadata(mediaType, 1, randBytes(rng, 32), 2, randBytes(rng, 32))
@@ -14,7 +14,7 @@ func TestNewEntryMetadata_ok(t *testing.T) {
 	assert.NotNil(t, m)
 }
 
-func TestNewEntryMetadata_err(t *testing.T) {
+func TestValidateMetadata_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	mediaType := "application/x-pdf"
 

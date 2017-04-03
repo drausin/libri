@@ -6,22 +6,56 @@ import (
 
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/golang/protobuf/proto"
+	"math/rand"
+	"github.com/pkg/errors"
 )
+
+var EmptyKeychainErr = errors.New("empty keychain")
+
+type Sampler interface {
+	Sample() (ecid.ID, error)
+}
 
 // Keychain represents a collection of ECDSA private keys.
 type Keychain struct {
-	// keys indexed by the hex string of the public key X value (a.k.a., ecid.ID.String())
-	keyEncKeys map[string]*ecdsa.PrivateKey
+	// private keys indexed by the hex string of the public key X value
+	// (a.k.a., ecid.ID.String())
+	privs map[string]*ecdsa.PrivateKey
+
+	// hex string of public key X values
+	pubs []string
+
+	// random number generator for sampling keys
+	rng   *rand.Rand
 }
 
 // New creates a new (plaintext) Keychain with n individual keys.
 func New(n int) *Keychain {
-	keys := make(map[string]*ecdsa.PrivateKey)
-	for c := 0; c < n; c++ {
+	privs := make(map[string]*ecdsa.PrivateKey)
+	for i := 0; i < n; i++ {
 		ecidKey := ecid.NewRandom()
-		keys[ecidKey.String()] = ecidKey.Key()
+		privs[ecidKey.String()] = ecidKey.Key()
 	}
-	return &Keychain{keys}
+	return FromPrivateKeys(privs)
+}
+
+func FromPrivateKeys(privs map[string]*ecdsa.PrivateKey) *Keychain {
+	pubs, i := make([]string, len(privs)), 0
+	for pub := range privs {
+		pubs[i] = pub
+		i++
+	}
+	return &Keychain{
+		privs: privs,
+		pubs: pubs,
+		rng: rand.New(rand.NewSource(int64(len(privs)))),
+	}
+}
+
+func (kc *Keychain) Sample() ecid.ID {
+	i := kc.rng.Int31n(int32(len(kc.pubs)))
+	priv := kc.privs[kc.pubs[i]]
+	return ecid.FromPrivateKey(priv)
 }
 
 // Save saves and encrypts a keychain to a file.

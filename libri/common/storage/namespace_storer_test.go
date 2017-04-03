@@ -101,15 +101,24 @@ func TestDocumentNamespaceStorerLoader_StoreLoad_ok(t *testing.T) {
 
 func TestDocumentNamespaceStorerLoader_Store_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	value, _ := api.NewTestDocument(rng)
-	key := cid.NewPseudoRandom(rng)
 
 	kvdb, err := db.NewTempDirRocksDB()
 	assert.Nil(t, err)
 	defer kvdb.Close()
 	dsl := NewDocumentKVDBStorerLoader(kvdb)
 
-	err = dsl.Store(key, value)
+	// check invalid document returns error
+	value1, _ := api.NewTestDocument(rng)
+	value1.Contents.(*api.Document_Entry).Entry.AuthorPublicKey = nil
+	key1, err := api.GetKey(value1)
+	assert.Nil(t, err)
+	err = dsl.Store(key1, value1)
+	assert.NotNil(t, err)
+
+	// check bad key returns error
+	value2, _ := api.NewTestDocument(rng)
+	key2 := cid.NewPseudoRandom(rng)
+	err = dsl.Store(key2, value2)
 	assert.NotNil(t, err)
 }
 
@@ -166,6 +175,30 @@ func TestDocumentStorerLoader_Load_checkErr(t *testing.T) {
 	assert.Nil(t, err)
 	err = kvdb.Put(append(Documents, key.Bytes()...), valueBytes)
 	assert.Nil(t, err)
+
+	// check Check error propagates up
 	_, err = dsl.Load(key)
 	assert.NotNil(t, err)
 }
+
+func TestDocumentStorerLoader_Load_validateDocumentErr(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	value, _ := api.NewTestDocument(rng)
+	value.Contents.(*api.Document_Entry).Entry.AuthorPublicKey = nil
+	key := cid.NewPseudoRandom(rng)
+	kvdb, err := db.NewTempDirRocksDB()
+	assert.Nil(t, err)
+	defer kvdb.Close()
+	dsl := NewDocumentKVDBStorerLoader(kvdb)
+
+	// hackily put a value with a non-hash key; should never happen in the wild
+	valueBytes, err := proto.Marshal(value)
+	assert.Nil(t, err)
+	err = kvdb.Put(append(Documents, key.Bytes()...), valueBytes)
+	assert.Nil(t, err)
+
+	// check ValidateDocument error propagates up
+	_, err = dsl.Load(key)
+	assert.NotNil(t, err)
+}
+

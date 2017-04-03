@@ -206,6 +206,7 @@ func ValidateBytes(value []byte, expectedLen int, name string) error {
 	return nil
 }
 
+// ValidateNotEmpty returns whether the byte slice is not empty.
 func ValidateNotEmpty(value []byte, name string) error {
 	if value == nil {
 		return fmt.Errorf("%s may not be nil", name)
