@@ -53,10 +53,6 @@ func TestValidateEnvelope_err(t *testing.T) {
 		func(e *Envelope) { e.EntryKey = empty },                  // 9) can't be 0-length
 		func(e *Envelope) { e.EntryKey = zeros },                  // 10) can't be all zeros
 		func(e *Envelope) { e.EntryKey = badLen },                 // 11) length must be 65
-		func(e *Envelope) { e.EncryptionKeysCiphertext = nil },    // 12) can't be nil
-		func(e *Envelope) { e.EncryptionKeysCiphertext = empty },  // 13) can't be 0-length
-		func(e *Envelope) { e.EncryptionKeysCiphertext = zeros },  // 14) can't be all zeros
-		func(e *Envelope) { e.EncryptionKeysCiphertext = badLen }, // 15) length must be 65
 	}
 
 	assert.NotNil(t, ValidateEnvelope(nil))
@@ -100,13 +96,7 @@ func TestValidateEntry_err(t *testing.T) {
 		func(e *Entry) { e.MetadataCiphertext = nil },       // 9) can't be nil
 		func(e *Entry) { e.MetadataCiphertext = empty },     // 10) can't be zero-length
 		func(e *Entry) { e.MetadataCiphertext = zeros },     // 11) can't be all zeros
-		func(e *Entry) { e.ContentsCiphertextMac = nil },    // 12) can't be nil
-		func(e *Entry) { e.ContentsCiphertextMac = empty },  // 13) can't be zero-length
-		func(e *Entry) { e.ContentsCiphertextMac = zeros },  // 14) can't be all zeros
-		func(e *Entry) { e.ContentsCiphertextMac = badLen }, // 15) length must be 65
-		func(e *Entry) { e.ContentsCiphertextSize = 0 },     // 16) must be non-zero
-		func(e *Entry) { e.AuthorPublicKey = diffPK },       // 17) different PK from Page
-
+		func(e *Entry) { e.AuthorPublicKey = diffPK },       // 12) different PK from Page
 	}
 
 	assert.NotNil(t, ValidateEntry(nil))

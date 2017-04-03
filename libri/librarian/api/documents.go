@@ -82,14 +82,9 @@ func ValidateEnvelope(e *Envelope) error {
 	if err := ValidatePublicKey(e.ReaderPublicKey); err != nil {
 		return err
 	}
-	if err := ValidateBytes(e.EntryKey, DocumentKeyLength, "EntryPublicKey"); err != nil {
+	if err := ValidateBytes(e.EntryKey, DocumentKeyLength, "EntryKey"); err != nil {
 		return err
 	}
-	if err := ValidateBytes(e.EncryptionKeysCiphertext, EncryptionKeysLength,
-		"EncryptionKeysLength"); err != nil {
-		return err
-	}
-
 	return nil
 }
 

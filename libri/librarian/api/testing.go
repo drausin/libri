@@ -22,7 +22,6 @@ func NewTestEnvelope(rng *rand.Rand) *Envelope {
 		AuthorPublicKey:          fakePubKey(rng),
 		ReaderPublicKey:          fakePubKey(rng),
 		EntryKey:                 randBytes(rng, 32),
-		EncryptionKeysCiphertext: randBytes(rng, 108),
 	}
 }
 
