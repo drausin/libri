@@ -9,7 +9,7 @@ import (
 func TestValidateMetadata_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	mediaType := "application/x-pdf"
-	m, err := NewEntryMetadata(mediaType, 1, randBytes(rng, 32), 2, randBytes(rng, 32))
+	m, err := NewEntryMetadata(mediaType, 1, RandBytes(rng, 32), 2, RandBytes(rng, 32))
 	assert.Nil(t, err)
 	assert.NotNil(t, m)
 }
@@ -18,23 +18,23 @@ func TestValidateMetadata_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	mediaType := "application/x-pdf"
 
-	m1, err := NewEntryMetadata("", 1, randBytes(rng, 32), 2, randBytes(rng, 32))
+	m1, err := NewEntryMetadata("", 1, RandBytes(rng, 32), 2, RandBytes(rng, 32))
 	assert.Equal(t, UnexpectedZeroErr, err)
 	assert.Nil(t, m1)
 
-	m2, err := NewEntryMetadata(mediaType, 0, randBytes(rng, 32), 2, randBytes(rng, 32))
+	m2, err := NewEntryMetadata(mediaType, 0, RandBytes(rng, 32), 2, RandBytes(rng, 32))
 	assert.Equal(t, UnexpectedZeroErr, err)
 	assert.Nil(t, m2)
 
-	m3, err := NewEntryMetadata(mediaType, 1, nil, 2, randBytes(rng, 32))
+	m3, err := NewEntryMetadata(mediaType, 1, nil, 2, RandBytes(rng, 32))
 	assert.NotNil(t, err)
 	assert.Nil(t, m3)
 
-	m4, err := NewEntryMetadata(mediaType, 1, randBytes(rng, 32), 0, randBytes(rng, 32))
+	m4, err := NewEntryMetadata(mediaType, 1, RandBytes(rng, 32), 0, RandBytes(rng, 32))
 	assert.Equal(t, UnexpectedZeroErr, err)
 	assert.Nil(t, m4)
 
-	m5, err := NewEntryMetadata(mediaType, 1, randBytes(rng, 32), 2, nil)
+	m5, err := NewEntryMetadata(mediaType, 1, RandBytes(rng, 32), 2, nil)
 	assert.NotNil(t, err)
 	assert.Nil(t, m5)
 }
@@ -42,7 +42,7 @@ func TestValidateMetadata_err(t *testing.T) {
 func TestMetadata_GetMediaType(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	mediaType := "application/x-pdf"
-	m, err := NewEntryMetadata(mediaType, 1, randBytes(rng, 32), 2, randBytes(rng, 32))
+	m, err := NewEntryMetadata(mediaType, 1, RandBytes(rng, 32), 2, RandBytes(rng, 32))
 	assert.Nil(t, err)
 	value, in := m.GetMediaType()
 	assert.Equal(t, mediaType, value)
@@ -52,7 +52,7 @@ func TestMetadata_GetMediaType(t *testing.T) {
 func TestMetadata_GetCiphertextSize(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	mediaType := "application/x-pdf"
-	m, err := NewEntryMetadata(mediaType, 1, randBytes(rng, 32), 2, randBytes(rng, 32))
+	m, err := NewEntryMetadata(mediaType, 1, RandBytes(rng, 32), 2, RandBytes(rng, 32))
 	assert.Nil(t, err)
 	value, in := m.GetCiphertextSize()
 	assert.Equal(t, uint64(1), value)
@@ -61,8 +61,8 @@ func TestMetadata_GetCiphertextSize(t *testing.T) {
 
 func TestMetadata_GetCiphertextMAC(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	mediaType, ciphertextMAC := "application/x-pdf", randBytes(rng, 32)
-	m, err := NewEntryMetadata(mediaType, 1, ciphertextMAC, 2, randBytes(rng, 32))
+	mediaType, ciphertextMAC := "application/x-pdf", RandBytes(rng, 32)
+	m, err := NewEntryMetadata(mediaType, 1, ciphertextMAC, 2, RandBytes(rng, 32))
 	assert.Nil(t, err)
 	value, in := m.GetCiphertextMAC()
 	assert.Equal(t, ciphertextMAC, value)
@@ -72,7 +72,7 @@ func TestMetadata_GetCiphertextMAC(t *testing.T) {
 func TestMetadata_GetUncompressedSize(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	mediaType := "application/x-pdf"
-	m, err := NewEntryMetadata(mediaType, 1, randBytes(rng, 32), 2, randBytes(rng, 32))
+	m, err := NewEntryMetadata(mediaType, 1, RandBytes(rng, 32), 2, RandBytes(rng, 32))
 	assert.Nil(t, err)
 	value, in := m.GetUncompressedSize()
 	assert.Equal(t, uint64(2), value)
@@ -81,8 +81,8 @@ func TestMetadata_GetUncompressedSize(t *testing.T) {
 
 func TestMetadata_GetUncompressedMAC(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	mediaType, uncompressedMAC := "application/x-pdf", randBytes(rng, 32)
-	m, err := NewEntryMetadata(mediaType, 1, randBytes(rng, 32), 2, uncompressedMAC)
+	mediaType, uncompressedMAC := "application/x-pdf", RandBytes(rng, 32)
+	m, err := NewEntryMetadata(mediaType, 1, RandBytes(rng, 32), 2, uncompressedMAC)
 	assert.Nil(t, err)
 	value, in := m.GetUncompressedMAC()
 	assert.Equal(t, uncompressedMAC, value)
@@ -92,7 +92,7 @@ func TestMetadata_GetUncompressedMAC(t *testing.T) {
 func TestSetGetBytes(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	mediaType := "application/x-pdf"
-	m, err := NewEntryMetadata(mediaType, 1, randBytes(rng, 32), 2, randBytes(rng, 32))
+	m, err := NewEntryMetadata(mediaType, 1, RandBytes(rng, 32), 2, RandBytes(rng, 32))
 	assert.Nil(t, err)
 
 	key := "some key"
@@ -100,7 +100,7 @@ func TestSetGetBytes(t *testing.T) {
 	assert.Zero(t, value)
 	assert.False(t, in)
 
-	bytesValue := randBytes(rng, 16)
+	bytesValue := RandBytes(rng, 16)
 	m.SetBytes(key, bytesValue)
 
 	value, in = m.GetBytes(key)
@@ -111,7 +111,7 @@ func TestSetGetBytes(t *testing.T) {
 func TestSetGetString(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	mediaType := "application/x-pdf"
-	m, err := NewEntryMetadata(mediaType, 1, randBytes(rng, 32), 2, randBytes(rng, 32))
+	m, err := NewEntryMetadata(mediaType, 1, RandBytes(rng, 32), 2, RandBytes(rng, 32))
 	assert.Nil(t, err)
 
 	key := "some key"
@@ -130,7 +130,7 @@ func TestSetGetString(t *testing.T) {
 func TestSetGetUint64(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	mediaType := "application/x-pdf"
-	m, err := NewEntryMetadata(mediaType, 1, randBytes(rng, 32), 2, randBytes(rng, 32))
+	m, err := NewEntryMetadata(mediaType, 1, RandBytes(rng, 32), 2, RandBytes(rng, 32))
 	assert.Nil(t, err)
 
 	key := "some key"

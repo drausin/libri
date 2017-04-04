@@ -37,7 +37,7 @@ func TestValidateEnvelope_ok(t *testing.T) {
 
 func TestValidateEnvelope_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	badLen := randBytes(rng, 100)
+	badLen := RandBytes(rng, 100)
 	empty, zeros := []byte{}, []byte{0, 0, 0}
 
 	cases := []func(e *Envelope){
@@ -79,7 +79,7 @@ func TestValidateEntry_ok(t *testing.T) {
 
 func TestValidateEntry_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	badLen, diffPK := randBytes(rng, 100), fakePubKey(rng)
+	badLen, diffPK := RandBytes(rng, 100), fakePubKey(rng)
 	empty, zeros := []byte{}, []byte{0, 0, 0}
 
 	// each of the cases takes a valid *Entry and changes it in some way to make it invalid
@@ -115,7 +115,7 @@ func TestValidatePage_ok(t *testing.T) {
 
 func TestValidatePage_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	badLen := randBytes(rng, 100)
+	badLen := RandBytes(rng, 100)
 	empty, zeros := []byte{}, []byte{0, 0, 0}
 
 	// each of the cases takes a valid *Page and changes it in some way to make it invalid
@@ -165,8 +165,8 @@ func TestValidatePageKeys_err(t *testing.T) {
 
 func TestValidatePublicKey(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	assert.Nil(t, ValidatePublicKey(randBytes(rng, 65)))
-	assert.NotNil(t, ValidatePublicKey(randBytes(rng, 32)))
+	assert.Nil(t, ValidatePublicKey(RandBytes(rng, 65)))
+	assert.NotNil(t, ValidatePublicKey(RandBytes(rng, 32)))
 	assert.NotNil(t, ValidatePublicKey(make([]byte, 0)))
 	assert.NotNil(t, ValidatePublicKey(make([]byte, 65)))
 	assert.NotNil(t, ValidatePublicKey(nil))
@@ -174,8 +174,8 @@ func TestValidatePublicKey(t *testing.T) {
 
 func TestValidateAESKey(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	assert.Nil(t, ValidateAESKey(randBytes(rng, 32)))
-	assert.NotNil(t, ValidateAESKey(randBytes(rng, 16)))
+	assert.Nil(t, ValidateAESKey(RandBytes(rng, 32)))
+	assert.NotNil(t, ValidateAESKey(RandBytes(rng, 16)))
 	assert.NotNil(t, ValidateAESKey(make([]byte, 0)))
 	assert.NotNil(t, ValidateAESKey(make([]byte, 32)))
 	assert.NotNil(t, ValidateAESKey(nil))
@@ -183,8 +183,8 @@ func TestValidateAESKey(t *testing.T) {
 
 func TestValidateHMACKey(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	assert.Nil(t, ValidateHMACKey(randBytes(rng, 32)))
-	assert.NotNil(t, ValidateHMACKey(randBytes(rng, 16)))
+	assert.Nil(t, ValidateHMACKey(RandBytes(rng, 32)))
+	assert.NotNil(t, ValidateHMACKey(RandBytes(rng, 16)))
 	assert.NotNil(t, ValidateHMACKey(make([]byte, 0)))
 	assert.NotNil(t, ValidateHMACKey(make([]byte, 32)))
 	assert.NotNil(t, ValidateHMACKey(nil))
@@ -192,8 +192,8 @@ func TestValidateHMACKey(t *testing.T) {
 
 func TestValidatePageIVSeed(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	assert.Nil(t, ValidatePageIVSeed(randBytes(rng, 32)))
-	assert.NotNil(t, ValidatePageIVSeed(randBytes(rng, 16)))
+	assert.Nil(t, ValidatePageIVSeed(RandBytes(rng, 32)))
+	assert.NotNil(t, ValidatePageIVSeed(RandBytes(rng, 16)))
 	assert.NotNil(t, ValidatePageIVSeed(make([]byte, 0)))
 	assert.NotNil(t, ValidatePageIVSeed(make([]byte, 32)))
 	assert.NotNil(t, ValidatePageIVSeed(nil))
@@ -201,8 +201,8 @@ func TestValidatePageIVSeed(t *testing.T) {
 
 func TestValidateMetadataIV(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	assert.Nil(t, ValidateMetadataIV(randBytes(rng, 12)))
-	assert.NotNil(t, ValidateMetadataIV(randBytes(rng, 32)))
+	assert.Nil(t, ValidateMetadataIV(RandBytes(rng, 12)))
+	assert.NotNil(t, ValidateMetadataIV(RandBytes(rng, 32)))
 	assert.NotNil(t, ValidateMetadataIV(make([]byte, 0)))
 	assert.NotNil(t, ValidateMetadataIV(make([]byte, 12)))
 	assert.NotNil(t, ValidateMetadataIV(nil))
@@ -210,8 +210,8 @@ func TestValidateMetadataIV(t *testing.T) {
 
 func TestValidateHMAC256(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	assert.Nil(t, ValidateHMAC256(randBytes(rng, 32)))
-	assert.NotNil(t, ValidateHMAC256(randBytes(rng, 16)))
+	assert.Nil(t, ValidateHMAC256(RandBytes(rng, 32)))
+	assert.NotNil(t, ValidateHMAC256(RandBytes(rng, 16)))
 	assert.NotNil(t, ValidateHMAC256(make([]byte, 0)))
 	assert.NotNil(t, ValidateHMAC256(make([]byte, 32)))
 	assert.NotNil(t, ValidateHMAC256(nil))

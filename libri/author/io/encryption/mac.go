@@ -7,46 +7,55 @@ import (
 	"io"
 )
 
-type MACer interface {
+// MAC wraps a hash function to return a message authentication code (MAC) and the total number
+// of bytes it has digested.
+type MAC interface {
 	io.Writer
+
+	// Sum returns the MAC after writing the given bytes.
 	Sum(in []byte) []byte
+
+	// Reset resets the MAC.
 	Reset()
+
+	// MessageSize returns the total number of digested bytes.
 	MessageSize() uint64
 }
 
-type hmacer struct {
+type sizeHMAC struct {
 	inner hash.Hash
 	size  uint64
 }
 
-func NewHMACer(hmacKey []byte) MACer {
-	return &hmacer{
+// NewHMAC returns a MAC internally using an HMAC-256 with a a given key.
+func NewHMAC(hmacKey []byte) MAC {
+	return &sizeHMAC{
 		inner: hmac.New(sha256.New, hmacKey),
 	}
 }
 
-func (h *hmacer) Write(p []byte) (int, error) {
+func (h *sizeHMAC) Write(p []byte) (int, error) {
 	n, err := h.inner.Write(p)
 	h.size += uint64(n)
 	return n, err
 }
 
-func (h *hmacer) Sum(in []byte) []byte {
-	if in != nil {
-		h.size += uint64(len(in))
-	}
+func (h *sizeHMAC) Sum(in []byte) []byte {
 	return h.inner.Sum(in)
 }
 
-func (h *hmacer) Reset() {
+func (h *sizeHMAC) Reset() {
 	h.inner.Reset()
 }
 
-func (h *hmacer) MessageSize() uint64 {
+func (h *sizeHMAC) MessageSize() uint64 {
 	return h.size
 }
 
-func HMAC(in []byte, hmacKey []byte) []byte {
-	macer := NewHMACer(hmacKey)
-	return macer.Sum(in)
+func HMAC(p []byte, hmacKey []byte) ([]byte, error) {
+	macer := NewHMAC(hmacKey)
+	if _, err := macer.Write(p); err != nil {
+		return nil, err
+	}
+	return macer.Sum(nil), nil
 }

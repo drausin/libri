@@ -21,7 +21,7 @@ func NewTestEnvelope(rng *rand.Rand) *Envelope {
 	return &Envelope{
 		AuthorPublicKey:          fakePubKey(rng),
 		ReaderPublicKey:          fakePubKey(rng),
-		EntryKey:                 randBytes(rng, 32),
+		EntryKey:                 RandBytes(rng, 32),
 	}
 }
 
@@ -31,8 +31,8 @@ func NewTestPageEntry(rng *rand.Rand) *Entry {
 	return &Entry{
 		AuthorPublicKey:        page.AuthorPublicKey,
 		CreatedTime:            1,
-		MetadataCiphertextMac:  randBytes(rng, 32),
-		MetadataCiphertext:     randBytes(rng, 64),
+		MetadataCiphertextMac:  RandBytes(rng, 32),
+		MetadataCiphertext:     RandBytes(rng, 64),
 		Contents:               &Entry_Page{page},
 	}
 }
@@ -41,16 +41,13 @@ func NewTestPageEntry(rng *rand.Rand) *Entry {
 func NewTestPage(rng *rand.Rand) *Page {
 	return &Page{
 		AuthorPublicKey: fakePubKey(rng),
-		CiphertextMac:   randBytes(rng, 32),
-		Ciphertext:      randBytes(rng, 64),
+		CiphertextMac:   RandBytes(rng, 32),
+		Ciphertext:      RandBytes(rng, 64),
 	}
 }
 
-func fakePubKey(rng *rand.Rand) []byte {
-	return randBytes(rng, 65)
-}
-
-func randBytes(rng *rand.Rand, length int) []byte {
+// RandBytes generates a random bytes slice of a given length.
+func RandBytes(rng *rand.Rand, length int) []byte {
 	b := make([]byte, length)
 	_, err := rng.Read(b)
 	if err != nil {
@@ -58,3 +55,7 @@ func randBytes(rng *rand.Rand, length int) []byte {
 	}
 	return b
 }
+func fakePubKey(rng *rand.Rand) []byte {
+	return RandBytes(rng, 65)
+}
+

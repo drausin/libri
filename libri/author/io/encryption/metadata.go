@@ -4,16 +4,21 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/golang/protobuf/proto"
 	"bytes"
-	"github.com/pkg/errors"
+	"errors"
 )
 
+// UnexpectedMACErr occurs when the calculated MAC did not match the expected MAC.
 var UnexpectedMACErr = errors.New("unexpected MAC")
 
+// EncryptedMetadata contains both the ciphertext and ciphertext MAC involved in encrypting an
+// *api.Metadata instance.
 type EncryptedMetadata struct {
 	Ciphertext []byte
 	CiphertextMAC []byte
 }
 
+// NewEncryptedMetadata creates a new *EncryptedMetadata instance if the ciphertext and
+// ciphertextMAC are valid.
 func NewEncryptedMetadata(ciphertext, ciphertextMAC []byte) (*EncryptedMetadata, error) {
 	if err := api.ValidateNotEmpty(ciphertext, "MetadataCiphertext"); err != nil {
 		return nil, err
@@ -27,6 +32,8 @@ func NewEncryptedMetadata(ciphertext, ciphertextMAC []byte) (*EncryptedMetadata,
 	}, nil
 }
 
+// EncryptMetadata encrypts an *api.Metadata instance using the AES key and the MetadataIV key for
+// the MAC.
 func EncryptMetadata(m *api.Metadata, keys *Keys) (*EncryptedMetadata, error) {
 	mPlaintext, err := proto.Marshal(m)
 	if err != nil {
@@ -37,13 +44,22 @@ func EncryptMetadata(m *api.Metadata, keys *Keys) (*EncryptedMetadata, error) {
 		return nil, err
 	}
 	mCiphertext := cipher.Seal(nil, keys.MetadataIV, mPlaintext, nil)
-	macer := NewHMACer(keys.HMACKey)
-	return NewEncryptedMetadata(mCiphertext, macer.Sum(mCiphertext))
+	mac, err := HMAC(mCiphertext, keys.HMACKey)
+	if err != nil {
+		return nil, err
+	}
+	return NewEncryptedMetadata(mCiphertext, mac)
 }
 
+// DecryptMetadata decryptes an *EncryptedMetadata instance, using the AES key and the MetadataIV
+// key. It returns UnexpectedMACErr if the calculated ciphertext MAC does not match the expected
+// ciphertext MAC.
 func DecryptMetadata(em *EncryptedMetadata, keys *Keys) (*api.Metadata, error) {
-	macer := NewHMACer(keys.HMACKey)
-	if !bytes.Equal(em.CiphertextMAC, macer.Sum(em.Ciphertext)) {
+	mac, err := HMAC(em.Ciphertext, keys.HMACKey)
+	if err != nil {
+		return nil, err
+	}
+	if !bytes.Equal(em.CiphertextMAC, mac) {
 		return nil, UnexpectedMACErr
 	}
 	cipher, err := newGCMCipher(keys.AESKey)

@@ -18,7 +18,9 @@ const (
 
 type Paginator interface {
 	io.ReaderFrom
-	CiphertextMAC() encryption.MACer
+
+	// CiphertextMAC is the MAC for the entire ciphertext across all pages.
+	CiphertextMAC() encryption.MAC
 }
 
 // paginator is an io.ReaderFrom that reads compressed bytes and emits them in discrete pages.
@@ -27,8 +29,8 @@ type paginator struct {
 	encrypter     enc.Encrypter
 	pageSize      uint32
 	authorID      ecid.ID
-	pageMAC       encryption.MACer
-	ciphertextMAC encryption.MACer
+	pageMAC       encryption.MAC
+	ciphertextMAC encryption.MAC
 }
 
 // NewPaginator creates a new paginator that emits pages to the given channel.
@@ -47,8 +49,8 @@ func NewPaginator(
 		encrypter:     encrypter,
 		pageSize:      pageSize,
 		authorID:      authorID,
-		pageMAC:       encryption.NewHMACer(keys.HMACKey),
-		ciphertextMAC: encryption.NewHMACer(keys.HMACKey),
+		pageMAC:       encryption.NewHMAC(keys.HMACKey),
+		ciphertextMAC: encryption.NewHMAC(keys.HMACKey),
 	}, nil
 }
 
@@ -93,7 +95,7 @@ func (p *paginator) getPage(ciphertext []byte, index uint32) *api.Page {
 	}
 }
 
-func (p *paginator) CiphertextMAC() encryption.MACer {
+func (p *paginator) CiphertextMAC() encryption.MAC {
 	return p.ciphertextMAC
 }
 
@@ -102,15 +104,16 @@ type Unpaginator interface {
 	// WriteTo writes content from the underlying channel of pages to the decompressor.
 	WriteTo(decompressor comp.CloseWriter) (int64, error)
 
-	CiphertextMAC() encryption.MACer
+	// CiphertextMAC is the MAC for the entire ciphertext across all pages.
+	CiphertextMAC() encryption.MAC
 }
 
 type unpaginator struct {
 	pages         chan *api.Page
 	decrypter     enc.Decrypter
 	compressedBuf *bytes.Buffer
-	pageMAC       encryption.MACer
-	ciphertextMAC encryption.MACer
+	pageMAC       encryption.MAC
+	ciphertextMAC encryption.MAC
 }
 
 // NewUnpaginator creates a new Unpaginator from the channel of pages and decrypter.
@@ -125,8 +128,8 @@ func NewUnpaginator(
 	return &unpaginator{
 		pages:     pages,
 		decrypter: decrypter,
-		pageMAC: encryption.NewHMACer(keys.HMACKey),
-		ciphertextMAC: encryption.NewHMACer(keys.HMACKey),
+		pageMAC: encryption.NewHMAC(keys.HMACKey),
+		ciphertextMAC: encryption.NewHMAC(keys.HMACKey),
 	}, nil
 }
 
@@ -141,7 +144,6 @@ func (u *unpaginator) WriteTo(decompressor comp.CloseWriter) (int64, error) {
 		if err := u.checkCiphertextMAC(page); err != nil {
 			return n, err
 		}
-
 		if _, err := u.ciphertextMAC.Write(page.Ciphertext); err != nil {
 			return n, err
 		}
@@ -172,7 +174,7 @@ func (u *unpaginator) checkCiphertextMAC(page *api.Page) error {
 	return nil
 }
 
-func (u *unpaginator) CiphertextMAC() encryption.MACer {
+func (u *unpaginator) CiphertextMAC() encryption.MAC {
 	return u.ciphertextMAC
 }
 

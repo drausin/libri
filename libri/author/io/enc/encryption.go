@@ -17,7 +17,7 @@ type Encrypter interface {
 
 type encrypter struct {
 	gcmCipher   cipher.AEAD
-	pageIVMACer hash.Hash
+	pageIVMAC hash.Hash
 }
 
 // NewEncrypter creates a new Encrypter using the encryption keys.
@@ -28,7 +28,7 @@ func NewEncrypter(keys *Keys) (Encrypter, error) {
 	}
 	return &encrypter{
 		gcmCipher:   gcmCipher,
-		pageIVMACer: hmac.New(sha256.New, keys.PageIVSeed),
+		pageIVMAC: hmac.New(sha256.New, keys.PageIVSeed),
 	}, nil
 }
 
@@ -41,7 +41,7 @@ func newGCMCipher(aesKey []byte) (cipher.AEAD, error) {
 }
 
 func (e *encrypter) Encrypt(plaintext []byte, pageIndex uint32) ([]byte, error) {
-	pageIV := generatePageIV(pageIndex, e.pageIVMACer, e.gcmCipher.NonceSize())
+	pageIV := generatePageIV(pageIndex, e.pageIVMAC, e.gcmCipher.NonceSize())
 	ciphertext := e.gcmCipher.Seal(nil, pageIV, plaintext, nil)
 	return ciphertext, nil
 }
@@ -54,7 +54,7 @@ type Decrypter interface {
 
 type decrypter struct {
 	gcmCipher   cipher.AEAD
-	pageIVMACer hash.Hash
+	pageIVMAC hash.Hash
 }
 
 // NewDecrypter creates a new Decrypter instance using the encryption keys.
@@ -65,12 +65,12 @@ func NewDecrypter(keys *Keys) (Decrypter, error) {
 	}
 	return &decrypter{
 		gcmCipher:   gcmCipher,
-		pageIVMACer: hmac.New(sha256.New, keys.PageIVSeed),
+		pageIVMAC: hmac.New(sha256.New, keys.PageIVSeed),
 	}, nil
 }
 
 func (d *decrypter) Decrypt(ciphertext []byte, pageIndex uint32) ([]byte, error) {
-	pageIV := generatePageIV(pageIndex, d.pageIVMACer, d.gcmCipher.NonceSize())
+	pageIV := generatePageIV(pageIndex, d.pageIVMAC, d.gcmCipher.NonceSize())
 	return d.gcmCipher.Open(nil, pageIV, ciphertext, nil)
 }
 

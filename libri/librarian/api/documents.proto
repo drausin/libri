@@ -72,10 +72,11 @@ message Page {
     // index of Page within Entry contents
     uint32 index = 2;
 
-    // 32-byte MAC of ciphertext using the 32-byte Page ciphertext HMAC-256 key
-    bytes ciphertext_mac = 3;
-
     // ciphertext of Page contents, encrypted using the 32-byte AES-256 key with the block cipher
     // initialized by the first 12 bytes of HMAC-256(IV seed, page index)
-    bytes ciphertext = 4;
+    bytes ciphertext = 3;
+
+    // 32-byte MAC of ciphertext using the 32-byte Page ciphertext HMAC-256 key
+    bytes ciphertext_mac = 4;
+
 }
