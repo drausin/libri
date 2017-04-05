@@ -7,8 +7,8 @@ import (
 	"errors"
 )
 
-// UnexpectedMACErr occurs when the calculated MAC did not match the expected MAC.
-var UnexpectedMACErr = errors.New("unexpected MAC")
+// ErrUnexpectedMAC occurs when the calculated MAC did not match the expected MAC.
+var ErrUnexpectedMAC = errors.New("unexpected MAC")
 
 // EncryptedMetadata contains both the ciphertext and ciphertext MAC involved in encrypting an
 // *api.Metadata instance.
@@ -60,7 +60,7 @@ func DecryptMetadata(em *EncryptedMetadata, keys *Keys) (*api.Metadata, error) {
 		return nil, err
 	}
 	if !bytes.Equal(em.CiphertextMAC, mac) {
-		return nil, UnexpectedMACErr
+		return nil, ErrUnexpectedMAC
 	}
 	cipher, err := newGCMCipher(keys.AESKey)
 	if err != nil {

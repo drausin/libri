@@ -22,7 +22,9 @@ const (
 	DefaultPutQueryTimeout = 5 * time.Second
 )
 
-var UnexpectedMissingDocumentErr = errors.New("unexpected missing document")
+// ErrUnexpectedMissingDocument indicates when a document is unexpectely missing from the document
+// storer loader.
+var ErrUnexpectedMissingDocument = errors.New("unexpected missing document")
 
 type Author struct {
 	// selfID is ID of this author client
@@ -71,20 +73,15 @@ type Author struct {
 // - Share()
 
 func (a *Author) Upload(content io.Reader, mediaType string) error {
-	// create compressor
+	authorPub, readerPub, keys, err := a.sampleAuthorSelfReaderKeys()
+	if err != nil {
+		return err
+	}
 	codec, err := compression.GetCompressionCodec(mediaType)
 	if err != nil {
 		return err
 	}
-	compressor, err := compression.NewCompressor(content, codec,
-		compression.DefaultUncompressedBufferSize)
-	if err != nil {
-		return err
-	}
-
-	authorID, err := a.authorKeys.Sample()
-	selfReaderID, err := a.selfReaderKeys.Sample()
-	keys, err := encryption.NewKeys(authorID.Key(), &selfReaderID.Key().PublicKey)
+	compressor, err := compression.NewCompressor(content, codec, compression.DefaultBufferSize)
 	if err != nil {
 		return err
 	}
@@ -94,8 +91,11 @@ func (a *Author) Upload(content io.Reader, mediaType string) error {
 	}
 
 	pages := make(chan *api.Page, 3)  // TODO (drausin) configure this
-	paginator, err := pagination.NewPaginator(pages, encrypter, keys, a.clientID,
+	paginator, err := pagination.NewPaginator(pages, encrypter, keys, authorPub,
 		pagination.DefaultSize)
+	if err != nil {
+		return err
+	}
 
 	go func() {
 		_, err = paginator.ReadFrom(compressor)
@@ -109,7 +109,7 @@ func (a *Author) Upload(content io.Reader, mediaType string) error {
 	if err != nil {
 		return err
 	}
-	metadata := api.NewEntryMetadata(
+	metadata, err := api.NewEntryMetadata(
 		mediaType,
 		paginator.CiphertextMAC().MessageSize(),
 		paginator.CiphertextMAC().Sum(nil),
@@ -117,6 +117,9 @@ func (a *Author) Upload(content io.Reader, mediaType string) error {
 		0,
 		[]byte{},
 	)
+	if err != nil {
+		return err
+	}
 	encMetadata, err := encryption.EncryptMetadata(metadata, keys)
 	if err != nil {
 		return err
@@ -158,8 +161,8 @@ func (a *Author) Upload(content io.Reader, mediaType string) error {
 	}
 
 	envelope := api.Envelope{
-		AuthorPublicKey: ecid.ToPublicKeyBytes(authorID),
-		ReaderPublicKey: ecid.ToPublicKeyBytes(selfReaderID),
+		AuthorPublicKey: authorPub,
+		ReaderPublicKey: readerPub,
 		EntryKey: entryKey.Bytes(),
 	}
 	_, err = a.put(envelope, a.librarians.Next())
@@ -168,6 +171,25 @@ func (a *Author) Upload(content io.Reader, mediaType string) error {
 	}
 
 	return nil
+}
+
+// sampleKeys samples a random pair of keys (author and reader) for the author to use in creating
+// the document *Keys instance. The method returns the author and reader public keys along with the
+// *Keys object.
+func (a *Author) sampleAuthorSelfReaderKeys() ([]byte, []byte, *encryption.Keys, error) {
+	authorID, err := a.authorKeys.Sample()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	selfReaderID, err := a.selfReaderKeys.Sample()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	keys, err := encryption.NewKeys(authorID.Key(), &selfReaderID.Key().PublicKey)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return ecid.ToPublicKeyBytes(authorID), ecid.ToPublicKeyBytes(selfReaderID), keys, nil
 }
 
 func (a *Author) put(doc *api.Document, lClient api.LibrarianClient) (id.ID, error) {
@@ -196,7 +218,7 @@ func (a *Author) putPages(pageIDs chan id.ID) error {
 			return err
 		}
 		if pageDoc == nil {
-			return UnexpectedMissingDocumentErr
+			return ErrUnexpectedMissingDocument
 		}
 		if _, err := a.put(pageDoc, a.librarians.Next()); err != nil {
 			return err

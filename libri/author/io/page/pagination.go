@@ -6,16 +6,21 @@ import (
 	"io"
 	"github.com/drausin/libri/libri/author/io/comp"
 	"github.com/drausin/libri/libri/author/io/enc"
-	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/pkg/errors"
 	"github.com/drausin/libri/libri/author/io/encryption"
+	"errors"
 )
 
 const (
+	// DefaultSize is the default maximum number of bytes in a page.
 	DefaultSize = uint32(2 * 1024 * 1024) // 2 MB
 )
 
+// ErrUnexpectedCiphertextMAC indicates when the ciphertext MAC does not match the expected value.
+var ErrUnexpectedCiphertextMAC = errors.New("ciphertext mac does not match expected value")
+
+// Paginator is an io.ReaderFrom that reads from a compressor and writes encrypted pages to a
+// channel.
 type Paginator interface {
 	io.ReaderFrom
 
@@ -28,7 +33,7 @@ type paginator struct {
 	pages         chan *api.Page
 	encrypter     enc.Encrypter
 	pageSize      uint32
-	authorID      ecid.ID
+	authorPub     []byte
 	pageMAC       encryption.MAC
 	ciphertextMAC encryption.MAC
 }
@@ -38,17 +43,20 @@ func NewPaginator(
 	pages chan *api.Page,
 	encrypter enc.Encrypter,
 	keys *enc.Keys,
-	authorID ecid.ID,
+	authorPub []byte,
 	pageSize uint32,
 ) (Paginator, error) {
 	if err := api.ValidateHMACKey(keys.HMACKey); err != nil {
+		return nil, err
+	}
+	if err := api.ValidatePublicKey(authorPub); err != nil {
 		return nil, err
 	}
 	return &paginator{
 		pages:         pages,
 		encrypter:     encrypter,
 		pageSize:      pageSize,
-		authorID:      authorID,
+		authorPub:     authorPub,
 		pageMAC:       encryption.NewHMAC(keys.HMACKey),
 		ciphertextMAC: encryption.NewHMAC(keys.HMACKey),
 	}, nil
@@ -88,7 +96,7 @@ func (p *paginator) ReadFrom(compressor io.Reader) (int64, error) {
 func (p *paginator) getPage(ciphertext []byte, index uint32) *api.Page {
 	p.pageMAC.Reset()
 	return &api.Page{
-		AuthorPublicKey: ecid.ToPublicKeyBytes(p.authorID),
+		AuthorPublicKey: p.authorPub,
 		Index:           index,
 		Ciphertext:      ciphertext,
 		CiphertextMac:   p.pageMAC.Sum(ciphertext),
@@ -169,7 +177,7 @@ func (u *unpaginator) checkCiphertextMAC(page *api.Page) error {
 	u.pageMAC.Reset()
 	mac := u.pageMAC.Sum(page.Ciphertext)
 	if !bytes.Equal(mac, page.CiphertextMac) {
-		return errors.New("calculated ciphertext mac does not match supplied value")
+		return ErrUnexpectedCiphertextMAC
 	}
 	return nil
 }

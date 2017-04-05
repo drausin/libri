@@ -37,8 +37,8 @@ const (
 )
 
 var (
-	// UnexpectedZeroErr describes when an error is unexpectedly zero.
-	UnexpectedZeroErr = errors.New("unexpected zero value")
+	// ErrUnexpectedZero describes when an error is unexpectedly zero.
+	ErrUnexpectedZero = errors.New("unexpected zero value")
 )
 
 // NewEntryMetadata creates a new *Metadata instance with the given (required) fields.
@@ -67,16 +67,16 @@ func NewEntryMetadata(
 // ValidateMetadata checks that the metadata has all the required non-zero values.
 func ValidateMetadata(m *Metadata) error {
 	if value, _ := m.GetMediaType(); value == "" {
-		return UnexpectedZeroErr
+		return ErrUnexpectedZero
 	}
 	if value, _ := m.GetCiphertextSize(); value == 0 {
-		return UnexpectedZeroErr
+		return ErrUnexpectedZero
 	}
 	if value, _ := m.GetCiphertextMAC(); ValidateHMAC256(value) != nil {
 		return ValidateHMAC256(value)
 	}
 	if value, _ := m.GetUncompressedSize(); value == 0 {
-		return UnexpectedZeroErr
+		return ErrUnexpectedZero
 	}
 	if value, _ := m.GetUncompressedMAC(); ValidateHMAC256(value) != nil {
 		return ValidateHMAC256(value)
@@ -84,44 +84,54 @@ func ValidateMetadata(m *Metadata) error {
 	return nil
 }
 
+// GetMediaType returns the media type.
 func (m *Metadata) GetMediaType() (string, bool) {
 	return m.GetString(MetadataEntryMediaType)
 }
 
+// GetCiphertextSize returns the size of the ciphertext.
 func (m *Metadata) GetCiphertextSize() (uint64, bool) {
 	return m.GetUint64(MetadataEntryCiphertextSize)
 }
 
+// GetCiphertextMAC returns the ciphertext MAC.
 func (m *Metadata) GetCiphertextMAC() ([]byte, bool) {
 	return m.GetBytes(MetadataEntryCiphertextMAC)
 }
 
+// GetUncompressedSize returns the size of the uncompressed data.
 func (m *Metadata) GetUncompressedSize() (uint64, bool) {
 	return m.GetUint64(MetadataEntryUncompressedSize)
 }
 
+// GetUncompressedMAC returns the MAC of the uncompressed data.
 func (m *Metadata) GetUncompressedMAC() ([]byte, bool) {
 	return m.GetBytes(MetadataEntryUncompressedMAC)
 }
 
+// GetBytes returns the byte slice value for a given key.
 func (m *Metadata) GetBytes(key string) ([]byte, bool) {
 	value, in := m.Properties[key]
 	return value, in
 }
 
+// SetBytes sets the byte slice value for a given key.
 func (m *Metadata) SetBytes(key string, value []byte) {
 	m.Properties[key] = value
 }
 
+// GetString returns the string value for a given key.
 func (m *Metadata) GetString(key string) (string, bool) {
 	value, in := m.Properties[key]
 	return string(value), in
 }
 
+// SetString sets the string value for a given key.
 func (m *Metadata) SetString(key string, value string) {
 	m.Properties[key] = []byte(value)
 }
 
+// GetUint64 returns the uint64 value for a given key.
 func (m *Metadata) GetUint64(key string) (uint64, bool) {
 	value, in := m.Properties[key]
 	if !in {
@@ -130,6 +140,7 @@ func (m *Metadata) GetUint64(key string) (uint64, bool) {
 	return binary.BigEndian.Uint64(value), true
 }
 
+// SetUint64 sets the uint64 value for a given key.
 func (m *Metadata) SetUint64(key string, value uint64) {
 	m.Properties[key] = uint64Bytes(value)
 }

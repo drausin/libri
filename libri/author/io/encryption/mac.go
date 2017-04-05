@@ -52,6 +52,7 @@ func (h *sizeHMAC) MessageSize() uint64 {
 	return h.size
 }
 
+// HMAC returns the HMAC sum for the given input bytes and HMAC-256 key.
 func HMAC(p []byte, hmacKey []byte) ([]byte, error) {
 	macer := NewHMAC(hmacKey)
 	if _, err := macer.Write(p); err != nil {

@@ -6,7 +6,6 @@ import (
 	"math/rand"
 	"testing"
 	"github.com/drausin/libri/libri/author/io/enc"
-	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
 	"errors"
@@ -15,13 +14,20 @@ import (
 
 func TestNewPaginator_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	keys := enc.NewPseudoRandomKeys(rng)
-	keys.HMACKey = nil
+	keys1 := enc.NewPseudoRandomKeys(rng)
+	keys1.HMACKey = nil
 
 	// invalid HMACKey should bubble up
-	p, err := NewPaginator(nil, nil, keys, nil, 0)
+	p1, err := NewPaginator(nil, nil, keys1, api.RandBytes(rng, api.ECPubKeyLength), 0)
 	assert.NotNil(t, err)
-	assert.Nil(t, p)
+	assert.Nil(t, p1)
+
+	keys2 := enc.NewPseudoRandomKeys(rng)
+
+	// invalid author public key should bubble up
+	p2, err := NewPaginator(nil, nil, keys2, nil, 0)
+	assert.NotNil(t, err)
+	assert.Nil(t, p2)
 }
 
 type errReader struct {}
@@ -38,12 +44,13 @@ func (errEncrypter) Encrypt(plaintext []byte, pageIndex uint32) ([]byte, error) 
 
 func TestPaginator_ReadFrom_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	keys, authorID := enc.NewPseudoRandomKeys(rng), ecid.NewPseudoRandom(rng)
+	keys := enc.NewPseudoRandomKeys(rng)
+	authorPub := api.RandBytes(rng, api.ECPubKeyLength)
 	pages := make(chan *api.Page, 3)
 
 	encrypter, err := enc.NewEncrypter(keys)
 	assert.Nil(t, err)
-	paginator, err := NewPaginator(pages, encrypter, keys, authorID, 256)
+	paginator, err := NewPaginator(pages, encrypter, keys, authorPub, 256)
 	assert.Nil(t, err)
 
 	// check that compressed read error bubbles up
@@ -51,7 +58,7 @@ func TestPaginator_ReadFrom_err(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Zero(t, n)
 
-	paginator, err = NewPaginator(pages, errEncrypter{}, keys, authorID, 256)
+	paginator, err = NewPaginator(pages, errEncrypter{}, keys, authorPub, 256)
 	assert.Nil(t, err)
 
 	// check that encyption error bubbles up
@@ -85,7 +92,8 @@ func (e *errCloseWriter) Close() error {
 
 func TestUnpaginator_WriteTo_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	keys, authorID := enc.NewPseudoRandomKeys(rng), ecid.NewPseudoRandom(rng)
+	keys := enc.NewPseudoRandomKeys(rng)
+	authorPub := api.RandBytes(rng, api.ECPubKeyLength)
 	decrypter, err := enc.NewDecrypter(keys)
 	assert.Nil(t, err)
 	pages := make(chan *api.Page, 1)
@@ -110,7 +118,7 @@ func TestUnpaginator_WriteTo_err(t *testing.T) {
 	// create paginator for just making new pages
 	encrypter, err := enc.NewEncrypter(keys)
 	assert.Nil(t, err)
-	p, err := NewPaginator(pages, encrypter, keys, authorID, 256)
+	p, err := NewPaginator(pages, encrypter, keys, authorPub, 256)
 	assert.Nil(t, err)
 
 	// check that decompressor write error bubbles up
@@ -132,7 +140,8 @@ func TestUnpaginator_WriteTo_err(t *testing.T) {
 
 func TestPaginateUnpaginate(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	keys, authorID := enc.NewPseudoRandomKeys(rng), ecid.NewPseudoRandom(rng)
+	keys := enc.NewPseudoRandomKeys(rng)
+	authorPub := api.RandBytes(rng, api.ECPubKeyLength)
 
 	encrypter, err := enc.NewEncrypter(keys)
 	assert.Nil(t, err)
@@ -145,7 +154,7 @@ func TestPaginateUnpaginate(t *testing.T) {
 
 	for _, c := range caseCrossProduct(pageSizes, uncompressedSizes, codecs) {
 		pages := make(chan *api.Page, 3)
-		paginator, err := NewPaginator(pages, encrypter, keys, authorID, c.pageSize)
+		paginator, err := NewPaginator(pages, encrypter, keys, authorPub, c.pageSize)
 		assert.Nil(t, err)
 
 		uncompressed1 := newTestBytes(rng, c.uncompressedSize)

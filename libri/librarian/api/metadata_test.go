@@ -19,11 +19,11 @@ func TestValidateMetadata_err(t *testing.T) {
 	mediaType := "application/x-pdf"
 
 	m1, err := NewEntryMetadata("", 1, RandBytes(rng, 32), 2, RandBytes(rng, 32))
-	assert.Equal(t, UnexpectedZeroErr, err)
+	assert.Equal(t, ErrUnexpectedZero, err)
 	assert.Nil(t, m1)
 
 	m2, err := NewEntryMetadata(mediaType, 0, RandBytes(rng, 32), 2, RandBytes(rng, 32))
-	assert.Equal(t, UnexpectedZeroErr, err)
+	assert.Equal(t, ErrUnexpectedZero, err)
 	assert.Nil(t, m2)
 
 	m3, err := NewEntryMetadata(mediaType, 1, nil, 2, RandBytes(rng, 32))
@@ -31,7 +31,7 @@ func TestValidateMetadata_err(t *testing.T) {
 	assert.Nil(t, m3)
 
 	m4, err := NewEntryMetadata(mediaType, 1, RandBytes(rng, 32), 0, RandBytes(rng, 32))
-	assert.Equal(t, UnexpectedZeroErr, err)
+	assert.Equal(t, ErrUnexpectedZero, err)
 	assert.Nil(t, m4)
 
 	m5, err := NewEntryMetadata(mediaType, 1, RandBytes(rng, 32), 2, nil)

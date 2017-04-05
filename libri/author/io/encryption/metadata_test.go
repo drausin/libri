@@ -96,7 +96,7 @@ func TestDecryptMetadata_err(t *testing.T) {
 
 	// check different MAC triggers error;
 	m2, err := DecryptMetadata(em2, keys2)
-	assert.Equal(t, UnexpectedMACErr, err)
+	assert.Equal(t, ErrUnexpectedMAC, err)
 	assert.Nil(t, m2)
 
 	keys3 := NewPseudoRandomKeys(rng)  // valid, but not connected to ciphertext

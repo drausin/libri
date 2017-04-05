@@ -11,9 +11,15 @@ import (
 	"math/rand"
 )
 
-var AuthorOffCurveErr = errors.New("author public key point not on expected elliptic curve")
-var ReaderOffCurveErr = errors.New("reader public key point not on expected elliptic curve")
-var IncompleteKeyDefinitionErr = errors.New("incomplete key definition")
+// ErrAuthorOffCurve indicates that an author ECDSA private key is is not on the expected curve.
+var ErrAuthorOffCurve = errors.New("author public key point not on expected elliptic curve")
+
+// ErrAuthorOffCurve indicates that a reader ECDSA public key is is not on the expected curve.
+var ErrReaderOffCurve = errors.New("reader public key point not on expected elliptic curve")
+
+// ErrIncompleteKeyDefinition indicates that the key definition function was unable to generate
+// the required number of bytes for the encryption keys.
+var ErrIncompleteKeyDefinition = errors.New("incomplete key definition")
 
 // Keys are used to encrypt an Entry and its Pages.
 type Keys struct {
@@ -31,12 +37,13 @@ type Keys struct {
 	MetadataIV []byte
 }
 
+// NewKeys generates a *Keys instance using the private and public ECDSA keys.
 func NewKeys(priv *ecdsa.PrivateKey, pub *ecdsa.PublicKey) (*Keys, error) {
 	if !ecid.Curve.IsOnCurve(priv.X, priv.Y) {
-		return nil, AuthorOffCurveErr
+		return nil, ErrAuthorOffCurve
 	}
 	if !ecid.Curve.IsOnCurve(pub.X, pub.Y) {
-		return nil, ReaderOffCurveErr
+		return nil, ErrReaderOffCurve
 	}
 	secretX, _ := ecid.Curve.ScalarMult(pub.X, pub.Y, priv.D.Bytes())
 	kdf := hkdf.New(sha256.New, secretX.Bytes(), nil, nil)
@@ -46,11 +53,13 @@ func NewKeys(priv *ecdsa.PrivateKey, pub *ecdsa.PublicKey) (*Keys, error) {
 		return nil, err
 	}
 	if n != api.EncryptionKeysLength {
-		return nil, IncompleteKeyDefinitionErr
+		return nil, ErrIncompleteKeyDefinition
 	}
 	return Unmarshal(keyBytes)
 }
 
+// NewPseudoRandomKeys generates a new *Keys instance from the shared secret between a random
+// ECDSA private and separate ECDSA public key.
 func NewPseudoRandomKeys(rng *rand.Rand) *Keys {
 	authorPriv := ecid.NewPseudoRandom(rng)
 	readerPriv := ecid.NewPseudoRandom(rng)

@@ -27,9 +27,9 @@ const (
 	// compressor and decompressor.
 	MinUncompressedBufferSize = 64
 
-	// DefaultUncompressedBufferSize is the default size of the uncompressed buffer used by
+	// DefaultBufferSize is the default size of the uncompressed buffer used by
 	// the compressor and decompressor.
-	DefaultUncompressedBufferSize = 1024
+	DefaultBufferSize = 1024
 )
 
 // MediaToCompressionCodec maps MIME media types to what comp.codec should be used with

@@ -3,16 +3,14 @@ package keychain
 import (
 	"crypto/ecdsa"
 	"io/ioutil"
-
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/golang/protobuf/proto"
 	"math/rand"
-	"github.com/pkg/errors"
 )
 
-var EmptyKeychainErr = errors.New("empty keychain")
-
+// Sampler randomly selects a key (in the form of an ecid.ID) from a keychain.
 type Sampler interface {
+	// Sample randomly selects a key from the keychain.
 	Sample() (ecid.ID, error)
 }
 
@@ -39,6 +37,7 @@ func New(n int) *Keychain {
 	return FromPrivateKeys(privs)
 }
 
+// FromPrivateKeys creates a *Keychain instance from a map of ECDSA private keys.
 func FromPrivateKeys(privs map[string]*ecdsa.PrivateKey) *Keychain {
 	pubs, i := make([]string, len(privs)), 0
 	for pub := range privs {
