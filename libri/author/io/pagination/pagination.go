@@ -8,7 +8,7 @@ import (
 	"hash"
 	"io"
 
-	"github.com/drausin/libri/libri/author/io/compression"
+	"github.com/drausin/libri/libri/author/io/comp"
 	"github.com/drausin/libri/libri/author/io/encryption"
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -85,7 +85,7 @@ func (p *paginator) getPage(ciphertext []byte, index uint32) *api.Page {
 // Unpaginator writes content from discrete pages to a decompressed writer.
 type Unpaginator interface {
 	// WriteTo writes content from the underlying channel of pages to the decompressor.
-	WriteTo(decompressor compression.CloseWriter) (int64, error)
+	WriteTo(decompressor comp.CloseWriter) (int64, error)
 }
 
 type unpaginator struct {
@@ -111,7 +111,7 @@ func NewUnpaginator(
 	}, nil
 }
 
-func (u *unpaginator) WriteTo(decompressor compression.CloseWriter) (int64, error) {
+func (u *unpaginator) WriteTo(decompressor comp.CloseWriter) (int64, error) {
 	var n int64
 	var pageIndex uint32
 	for page := range u.pages {

@@ -6,12 +6,12 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/drausin/libri/libri/author/io/compression"
 	"github.com/drausin/libri/libri/author/io/encryption"
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
 	"errors"
+	"github.com/drausin/libri/libri/author/io/comp"
 )
 
 func TestNewPaginator_err(t *testing.T) {
@@ -142,7 +142,7 @@ func TestPaginateUnpaginate(t *testing.T) {
 
 	uncompressedSizes := []int{128, 192, 256, 384, 512, 768, 1024, 2048, 4096, 8192}
 	pageSizes := []uint32{128, 256, 512, 1024}
-	codecs := []compression.Codec{compression.GZIPCodec, compression.NoneCodec}
+	codecs := []comp.Codec{comp.GZIPCodec, comp.NoneCodec}
 
 	for _, c := range caseCrossProduct(pageSizes, uncompressedSizes, codecs) {
 		pages := make(chan *api.Page, 3)
@@ -153,13 +153,13 @@ func TestPaginateUnpaginate(t *testing.T) {
 		uncompressed1Bytes := uncompressed1.Bytes()
 
 		uncompressedBufferSize := int(c.pageSize) / 2
-		compressor, err := compression.NewCompressor(uncompressed1, c.codec,
+		compressor, err := comp.NewCompressor(uncompressed1, c.codec,
 			uncompressedBufferSize)
 		assert.Nil(t, err)
 		assert.NotNil(t, compressor)
 
 		uncompressed2 := new(bytes.Buffer)
-		decompressor, err := compression.NewDecompressor(uncompressed2, c.codec,
+		decompressor, err := comp.NewDecompressor(uncompressed2, c.codec,
 			uncompressedBufferSize)
 		assert.Nil(t, err)
 
@@ -183,7 +183,7 @@ func TestPaginateUnpaginate(t *testing.T) {
 type pageTestCase struct {
 	pageSize         uint32
 	uncompressedSize int
-	codec            compression.Codec
+	codec            comp.Codec
 }
 
 func (p pageTestCase) String() string {
@@ -192,7 +192,7 @@ func (p pageTestCase) String() string {
 }
 
 func caseCrossProduct(
-	pageSizes []uint32, uncompressedSizes []int, codecs []compression.Codec,
+	pageSizes []uint32, uncompressedSizes []int, codecs []comp.Codec,
 ) []*pageTestCase {
 	cases := make([]*pageTestCase, 0)
 	for _, pageSize := range pageSizes {
