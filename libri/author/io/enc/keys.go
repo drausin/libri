@@ -1,4 +1,4 @@
-package encryption
+package enc
 
 import (
 	"bytes"
@@ -15,7 +15,7 @@ type Keys struct {
 	AESKey []byte
 
 	// PageIVSeed is the 32-byte block cipher initialization vector (IV) seed for Page
-	// encryption.
+	// enc.
 	PageIVSeed []byte
 
 	// PageHMACKey is the 32-byte key used for Page HMAC-256 calculations.
