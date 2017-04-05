@@ -8,14 +8,14 @@ import (
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/author/keychain"
 	"io"
-	"github.com/drausin/libri/libri/author/io/encryption"
-	"github.com/drausin/libri/libri/author/io/compression"
+	"github.com/drausin/libri/libri/author/io/comp"
 	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/drausin/libri/libri/author/io/pagination"
 	"github.com/drausin/libri/libri/common/id"
 	"errors"
 	"time"
 	"sync"
+	"github.com/drausin/libri/libri/author/io/enc"
+	"github.com/drausin/libri/libri/author/io/page"
 )
 
 const (
@@ -50,7 +50,7 @@ type Author struct {
 	// SL for locally stored documents
 	documentSL storage.DocumentStorerLoader
 
-	pageSL     pagination.StorerLoader
+	pageSL     page.StorerLoader
 
 	// ensures keys are valid
 	kc         storage.Checker
@@ -77,22 +77,22 @@ func (a *Author) Upload(content io.Reader, mediaType string) error {
 	if err != nil {
 		return err
 	}
-	codec, err := compression.GetCompressionCodec(mediaType)
+	codec, err := comp.GetCompressionCodec(mediaType)
 	if err != nil {
 		return err
 	}
-	compressor, err := compression.NewCompressor(content, codec, compression.DefaultBufferSize)
+	compressor, err := comp.NewCompressor(content, codec, comp.DefaultBufferSize)
 	if err != nil {
 		return err
 	}
-	encrypter, err := encryption.NewEncrypter(keys)
+	encrypter, err := enc.NewEncrypter(keys)
 	if err != nil {
 		return err
 	}
 
 	pages := make(chan *api.Page, 3)  // TODO (drausin) configure this
-	paginator, err := pagination.NewPaginator(pages, encrypter, keys, authorPub,
-		pagination.DefaultSize)
+	paginator, err := page.NewPaginator(pages, encrypter, keys, authorPub,
+		page.DefaultSize)
 	if err != nil {
 		return err
 	}
@@ -120,7 +120,7 @@ func (a *Author) Upload(content io.Reader, mediaType string) error {
 	if err != nil {
 		return err
 	}
-	encMetadata, err := encryption.EncryptMetadata(metadata, keys)
+	encMetadata, err := enc.EncryptMetadata(metadata, keys)
 	if err != nil {
 		return err
 	}
@@ -176,7 +176,7 @@ func (a *Author) Upload(content io.Reader, mediaType string) error {
 // sampleKeys samples a random pair of keys (author and reader) for the author to use in creating
 // the document *Keys instance. The method returns the author and reader public keys along with the
 // *Keys object.
-func (a *Author) sampleAuthorSelfReaderKeys() ([]byte, []byte, *encryption.Keys, error) {
+func (a *Author) sampleAuthorSelfReaderKeys() ([]byte, []byte, *enc.Keys, error) {
 	authorID, err := a.authorKeys.Sample()
 	if err != nil {
 		return nil, nil, nil, err
@@ -185,7 +185,7 @@ func (a *Author) sampleAuthorSelfReaderKeys() ([]byte, []byte, *encryption.Keys,
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	keys, err := encryption.NewKeys(authorID.Key(), &selfReaderID.Key().PublicKey)
+	keys, err := enc.NewKeys(authorID.Key(), &selfReaderID.Key().PublicKey)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -228,7 +228,7 @@ func (a *Author) putPages(pageIDs chan id.ID) error {
 }
 
 func (a *Author) newEntry(
-	authorID ecid.ID, pageIDs []id.ID, encMetadata *encryption.EncryptedMetadata,
+	authorID ecid.ID, pageIDs []id.ID, encMetadata *enc.EncryptedMetadata,
 ) (*api.Entry, error) {
 	if len(pageIDs) == 1 {
 		return a.newSinglePageEntry(authorID, pageIDs[0], encMetadata)
@@ -237,7 +237,7 @@ func (a *Author) newEntry(
 }
 
 func (a *Author) newSinglePageEntry(
-	authorID ecid.ID, pageID id.ID, encMetadata *encryption.EncryptedMetadata,
+	authorID ecid.ID, pageID id.ID, encMetadata *enc.EncryptedMetadata,
 ) (*api.Entry, error) {
 	pageDoc, err := a.documentSL.Load(pageID)
 	if err != nil {
@@ -259,7 +259,7 @@ func (a *Author) newSinglePageEntry(
 }
 
 func (a *Author) newMultiPageEntry(
-	authorID ecid.ID, pageIDs []id.ID, encMetadata *encryption.EncryptedMetadata,
+	authorID ecid.ID, pageIDs []id.ID, encMetadata *enc.EncryptedMetadata,
 ) (*api.Entry, error) {
 
 	pageKeys := make([][]byte, len(pageIDs))

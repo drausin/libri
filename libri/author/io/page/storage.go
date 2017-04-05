@@ -1,4 +1,4 @@
-package pagination
+package page
 
 import (
 	cid "github.com/drausin/libri/libri/common/id"

@@ -7,7 +7,6 @@ import (
 	"github.com/drausin/libri/libri/author/io/comp"
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/drausin/libri/libri/author/io/encryption"
 	"errors"
 )
 
@@ -25,7 +24,7 @@ type Paginator interface {
 	io.ReaderFrom
 
 	// CiphertextMAC is the MAC for the entire ciphertext across all pages.
-	CiphertextMAC() encryption.MAC
+	CiphertextMAC() enc.MAC
 }
 
 // paginator is an io.ReaderFrom that reads compressed bytes and emits them in discrete pages.
@@ -34,8 +33,8 @@ type paginator struct {
 	encrypter     enc.Encrypter
 	pageSize      uint32
 	authorPub     []byte
-	pageMAC       encryption.MAC
-	ciphertextMAC encryption.MAC
+	pageMAC       enc.MAC
+	ciphertextMAC enc.MAC
 }
 
 // NewPaginator creates a new paginator that emits pages to the given channel.
@@ -57,8 +56,8 @@ func NewPaginator(
 		encrypter:     encrypter,
 		pageSize:      pageSize,
 		authorPub:     authorPub,
-		pageMAC:       encryption.NewHMAC(keys.HMACKey),
-		ciphertextMAC: encryption.NewHMAC(keys.HMACKey),
+		pageMAC:       enc.NewHMAC(keys.HMACKey),
+		ciphertextMAC: enc.NewHMAC(keys.HMACKey),
 	}, nil
 }
 
@@ -103,7 +102,7 @@ func (p *paginator) getPage(ciphertext []byte, index uint32) *api.Page {
 	}
 }
 
-func (p *paginator) CiphertextMAC() encryption.MAC {
+func (p *paginator) CiphertextMAC() enc.MAC {
 	return p.ciphertextMAC
 }
 
@@ -113,15 +112,15 @@ type Unpaginator interface {
 	WriteTo(decompressor comp.CloseWriter) (int64, error)
 
 	// CiphertextMAC is the MAC for the entire ciphertext across all pages.
-	CiphertextMAC() encryption.MAC
+	CiphertextMAC() enc.MAC
 }
 
 type unpaginator struct {
 	pages         chan *api.Page
 	decrypter     enc.Decrypter
 	compressedBuf *bytes.Buffer
-	pageMAC       encryption.MAC
-	ciphertextMAC encryption.MAC
+	pageMAC       enc.MAC
+	ciphertextMAC enc.MAC
 }
 
 // NewUnpaginator creates a new Unpaginator from the channel of pages and decrypter.
@@ -136,8 +135,8 @@ func NewUnpaginator(
 	return &unpaginator{
 		pages:     pages,
 		decrypter: decrypter,
-		pageMAC: encryption.NewHMAC(keys.HMACKey),
-		ciphertextMAC: encryption.NewHMAC(keys.HMACKey),
+		pageMAC: enc.NewHMAC(keys.HMACKey),
+		ciphertextMAC: enc.NewHMAC(keys.HMACKey),
 	}, nil
 }
 
@@ -182,7 +181,7 @@ func (u *unpaginator) checkCiphertextMAC(page *api.Page) error {
 	return nil
 }
 
-func (u *unpaginator) CiphertextMAC() encryption.MAC {
+func (u *unpaginator) CiphertextMAC() enc.MAC {
 	return u.ciphertextMAC
 }
 

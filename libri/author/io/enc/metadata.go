@@ -1,4 +1,4 @@
-package encryption
+package enc
 
 import (
 	"github.com/drausin/libri/libri/librarian/api"
