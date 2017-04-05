@@ -1,4 +1,4 @@
-package pagination
+package page
 
 import (
 	"bytes"
@@ -7,9 +7,8 @@ import (
 	"fmt"
 	"hash"
 	"io"
-
-	"github.com/drausin/libri/libri/author/io/compression"
-	"github.com/drausin/libri/libri/author/io/encryption"
+	"github.com/drausin/libri/libri/author/io/comp"
+	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/pkg/errors"
@@ -18,7 +17,7 @@ import (
 // paginator is an io.ReaderFrom that reads compressed bytes and emits them in discrete pages.
 type paginator struct {
 	pages     chan *api.Page
-	encrypter encryption.Encrypter
+	encrypter enc.Encrypter
 	pageSize  uint32
 	authorID  ecid.ID
 	pageMACer hash.Hash
@@ -27,8 +26,8 @@ type paginator struct {
 // NewPaginator creates a new paginator that emits pages to the given channel.
 func NewPaginator(
 	pages chan *api.Page,
-	encrypter encryption.Encrypter,
-	keys *encryption.Keys,
+	encrypter enc.Encrypter,
+	keys *enc.Keys,
 	authorID ecid.ID,
 	pageSize uint32,
 ) (io.ReaderFrom, error) {
@@ -85,12 +84,12 @@ func (p *paginator) getPage(ciphertext []byte, index uint32) *api.Page {
 // Unpaginator writes content from discrete pages to a decompressed writer.
 type Unpaginator interface {
 	// WriteTo writes content from the underlying channel of pages to the decompressor.
-	WriteTo(decompressor compression.CloseWriter) (int64, error)
+	WriteTo(decompressor comp.CloseWriter) (int64, error)
 }
 
 type unpaginator struct {
 	pages         chan *api.Page
-	decrypter     encryption.Decrypter
+	decrypter     enc.Decrypter
 	compressedBuf *bytes.Buffer
 	pageMACer     hash.Hash
 }
@@ -98,8 +97,8 @@ type unpaginator struct {
 // NewUnpaginator creates a new Unpaginator from the channel of pages and decrypter.
 func NewUnpaginator(
 	pages chan *api.Page,
-	decrypter encryption.Decrypter,
-	keys *encryption.Keys,
+	decrypter enc.Decrypter,
+	keys *enc.Keys,
 ) (Unpaginator, error) {
 	if err := api.ValidatePageHMACKey(keys.PageHMACKey); err != nil {
 		return nil, err
@@ -111,7 +110,7 @@ func NewUnpaginator(
 	}, nil
 }
 
-func (u *unpaginator) WriteTo(decompressor compression.CloseWriter) (int64, error) {
+func (u *unpaginator) WriteTo(decompressor comp.CloseWriter) (int64, error) {
 	var n int64
 	var pageIndex uint32
 	for page := range u.pages {

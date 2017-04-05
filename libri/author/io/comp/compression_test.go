@@ -1,4 +1,4 @@
-package compression
+package comp
 
 import (
 	"bytes"
@@ -6,7 +6,6 @@ import (
 	"io"
 	"math/rand"
 	"testing"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/pkg/errors"
 	"compress/gzip"
@@ -276,7 +275,7 @@ func TestCompressDecompress(t *testing.T) {
 		}
 
 		if !c.media.equalSize {
-			// make sure compression has actually happened
+			// make sure comp.has actually happened
 			assert.True(t, compressed.Len() < c.uncompressedSize, c.String())
 		}
 
@@ -326,14 +325,14 @@ type mediaTestCase struct {
 	equalSize bool
 }
 
-type compressionTestCase struct {
+type compTestCase struct {
 	uncompressedSize       int
 	uncompressedBufferSize int
 	compressedBufferSize   int
 	media                  mediaTestCase
 }
 
-func (c compressionTestCase) String() string {
+func (c compTestCase) String() string {
 	return fmt.Sprintf(
 		"uncompressedSize: %d, uncompressedBufferSize: %d, "+
 			"compressedBufferSize: %d, codec: %v, equalSize: %v",
@@ -350,13 +349,13 @@ func caseCrossProduct(
 	uncompressedBufferSizes []int,
 	compressedBufferSizes []int,
 	mediaCases []mediaTestCase,
-) []compressionTestCase {
-	cases := make([]compressionTestCase, 0)
+) []compTestCase {
+	cases := make([]compTestCase, 0)
 	for _, uncompressedSize := range uncompressedSizes {
 		for _, uncompressedBufferSize := range uncompressedBufferSizes {
 			for _, compressedBufferSize := range compressedBufferSizes {
 				for _, media := range mediaCases {
-					cases = append(cases, compressionTestCase{
+					cases = append(cases, compTestCase{
 						uncompressedSize:       uncompressedSize,
 						uncompressedBufferSize: uncompressedBufferSize,
 						compressedBufferSize:   compressedBufferSize,

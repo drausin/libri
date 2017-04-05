@@ -1,4 +1,4 @@
-package compression
+package comp
 
 import (
 	"bytes"
@@ -10,17 +10,17 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Codec is a compression codec.
+// Codec is a comp.codec.
 type Codec string
 
 const (
-	// NoneCodec indicates no compression.
+	// NoneCodec indicates no comp.
 	NoneCodec Codec = "none"
 
-	// GZIPCodec indicates gzip compression.
+	// GZIPCodec indicates gzip comp.
 	GZIPCodec Codec = "gzip"
 
-	// DefaultCodec defines the default compression scheme.
+	// DefaultCodec defines the default comp.scheme.
 	DefaultCodec = GZIPCodec
 
 	// MinUncompressedBufferSize is the minimum size of the uncompressed buffer used by
@@ -28,7 +28,7 @@ const (
 	MinUncompressedBufferSize = 64
 )
 
-// MediaToCompressionCodec maps MIME media types to what compression codec should be used with
+// MediaToCompressionCodec maps MIME media types to what comp.codec should be used with
 // them.
 var MediaToCompressionCodec = map[string]Codec{
 	// don't compress again since it's already compressed
@@ -38,7 +38,7 @@ var MediaToCompressionCodec = map[string]Codec{
 	"application/zip":              NoneCodec,
 }
 
-// GetCompressionCodec returns the compression codec to use given a MIME media type.
+// GetCompressionCodec returns the comp.codec to use given a MIME media type.
 func GetCompressionCodec(mediaType string) (Codec, error) {
 	if mediaType == "" {
 		return DefaultCodec, nil
@@ -91,7 +91,7 @@ func NewCompressor(uncompressed io.Reader, codec Codec, uncompressedBufferSize i
 
 	switch codec {
 	case GZIPCodec:
-		// optimize for best compression to reduce network transfer volume and time (at
+		// optimize for best comp.to reduce network transfer volume and time (at
 		// expense of more client CPU)
 		inner, err = gzip.NewWriterLevel(buf, gzip.BestCompression)
 	case NoneCodec:

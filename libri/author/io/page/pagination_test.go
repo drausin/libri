@@ -1,4 +1,4 @@
-package pagination
+package page
 
 import (
 	"bytes"
@@ -6,17 +6,17 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/drausin/libri/libri/author/io/compression"
-	"github.com/drausin/libri/libri/author/io/encryption"
+	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
 	"errors"
+	"github.com/drausin/libri/libri/author/io/comp"
 )
 
 func TestNewPaginator_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	keys := encryption.NewPseudoRandomKeys(rng)
+	keys := enc.NewPseudoRandomKeys(rng)
 	keys.PageHMACKey = nil
 
 	// invalid PageHMACKey should bubble up
@@ -39,10 +39,10 @@ func (errEncrypter) Encrypt(plaintext []byte, pageIndex uint32) ([]byte, error) 
 
 func TestPaginator_ReadFrom_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	keys, authorID := encryption.NewPseudoRandomKeys(rng), ecid.NewPseudoRandom(rng)
+	keys, authorID := enc.NewPseudoRandomKeys(rng), ecid.NewPseudoRandom(rng)
 	pages := make(chan *api.Page, 3)
 
-	encrypter, err := encryption.NewEncrypter(keys)
+	encrypter, err := enc.NewEncrypter(keys)
 	assert.Nil(t, err)
 	paginator, err := NewPaginator(pages, encrypter, keys, authorID, 256)
 	assert.Nil(t, err)
@@ -62,7 +62,7 @@ func TestPaginator_ReadFrom_err(t *testing.T) {
 
 func TestNewUnpaginator(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	keys := encryption.NewPseudoRandomKeys(rng)
+	keys := enc.NewPseudoRandomKeys(rng)
 	keys.PageHMACKey = nil
 
 	// invalid PageHMACKey should bubble up
@@ -86,8 +86,8 @@ func (e *errCloseWriter) Close() error {
 
 func TestUnpaginator_WriteTo_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	keys, authorID := encryption.NewPseudoRandomKeys(rng), ecid.NewPseudoRandom(rng)
-	decrypter, err := encryption.NewDecrypter(keys)
+	keys, authorID := enc.NewPseudoRandomKeys(rng), ecid.NewPseudoRandom(rng)
+	decrypter, err := enc.NewDecrypter(keys)
 	assert.Nil(t, err)
 	pages := make(chan *api.Page, 1)
 	u, err := NewUnpaginator(pages, decrypter, keys)
@@ -109,7 +109,7 @@ func TestUnpaginator_WriteTo_err(t *testing.T) {
 	assert.Zero(t, n)
 
 	// create paginator for just making new pages
-	encrypter, err := encryption.NewEncrypter(keys)
+	encrypter, err := enc.NewEncrypter(keys)
 	assert.Nil(t, err)
 	p, err := NewPaginator(pages, encrypter, keys, authorID, 256)
 	assert.Nil(t, err)
@@ -133,16 +133,16 @@ func TestUnpaginator_WriteTo_err(t *testing.T) {
 
 func TestPaginateUnpaginate(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	keys, authorID := encryption.NewPseudoRandomKeys(rng), ecid.NewPseudoRandom(rng)
+	keys, authorID := enc.NewPseudoRandomKeys(rng), ecid.NewPseudoRandom(rng)
 
-	encrypter, err := encryption.NewEncrypter(keys)
+	encrypter, err := enc.NewEncrypter(keys)
 	assert.Nil(t, err)
-	decrypter, err := encryption.NewDecrypter(keys)
+	decrypter, err := enc.NewDecrypter(keys)
 	assert.Nil(t, err)
 
 	uncompressedSizes := []int{128, 192, 256, 384, 512, 768, 1024, 2048, 4096, 8192}
 	pageSizes := []uint32{128, 256, 512, 1024}
-	codecs := []compression.Codec{compression.GZIPCodec, compression.NoneCodec}
+	codecs := []comp.Codec{comp.GZIPCodec, comp.NoneCodec}
 
 	for _, c := range caseCrossProduct(pageSizes, uncompressedSizes, codecs) {
 		pages := make(chan *api.Page, 3)
@@ -153,13 +153,13 @@ func TestPaginateUnpaginate(t *testing.T) {
 		uncompressed1Bytes := uncompressed1.Bytes()
 
 		uncompressedBufferSize := int(c.pageSize) / 2
-		compressor, err := compression.NewCompressor(uncompressed1, c.codec,
+		compressor, err := comp.NewCompressor(uncompressed1, c.codec,
 			uncompressedBufferSize)
 		assert.Nil(t, err)
 		assert.NotNil(t, compressor)
 
 		uncompressed2 := new(bytes.Buffer)
-		decompressor, err := compression.NewDecompressor(uncompressed2, c.codec,
+		decompressor, err := comp.NewDecompressor(uncompressed2, c.codec,
 			uncompressedBufferSize)
 		assert.Nil(t, err)
 
@@ -183,7 +183,7 @@ func TestPaginateUnpaginate(t *testing.T) {
 type pageTestCase struct {
 	pageSize         uint32
 	uncompressedSize int
-	codec            compression.Codec
+	codec            comp.Codec
 }
 
 func (p pageTestCase) String() string {
@@ -192,7 +192,7 @@ func (p pageTestCase) String() string {
 }
 
 func caseCrossProduct(
-	pageSizes []uint32, uncompressedSizes []int, codecs []compression.Codec,
+	pageSizes []uint32, uncompressedSizes []int, codecs []comp.Codec,
 ) []*pageTestCase {
 	cases := make([]*pageTestCase, 0)
 	for _, pageSize := range pageSizes {
