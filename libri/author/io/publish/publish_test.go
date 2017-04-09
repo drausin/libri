@@ -139,11 +139,6 @@ func TestSingleLoadPublisher_Publish_err(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestMultiLoadPublisher_Publish_ok(t *testing.T) {
-	slPub := &fixedSingleLoadPublisher{}
-
-}
-
 type fixedPutter struct {
 	request *api.PutRequest
 	err error
