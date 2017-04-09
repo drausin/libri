@@ -147,6 +147,7 @@ func TestUnpaginator_WriteTo_err(t *testing.T) {
 		CiphertextMac: ciphertextMac3,
 	}
 	u3, err := NewUnpaginator(pages, decrypter3, keys)
+	assert.Nil(t, err)
 
 	// check that Decrypt error bubbles up
 	n, err = u3.WriteTo(nil)
@@ -161,6 +162,7 @@ func TestUnpaginator_WriteTo_err(t *testing.T) {
 		CiphertextMac: ciphertextMac4,
 	}
 	u4, err := NewUnpaginator(pages, decrypter4, keys)
+	assert.Nil(t, err)
 
 	// check that decompressor write error bubbles up
 	n, err = u4.WriteTo(&errCloseWriter{
@@ -179,6 +181,7 @@ func TestUnpaginator_WriteTo_err(t *testing.T) {
 		CiphertextMac: ciphertextMac5,
 	}
 	u5, err := NewUnpaginator(pages, decrypter5, keys)
+	assert.Nil(t, err)
 
 	// check that decompressor close error bubbles up
 	n, err = u5.WriteTo(&errCloseWriter{
