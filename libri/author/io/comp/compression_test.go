@@ -167,8 +167,6 @@ func TestCompressor_Read_err(t *testing.T) {
 	}
 	assert.Nil(t, err)
 
-	// TODO check MAC error bubbles up
-
 	// check that flush error bubbles up
 	n, err = comp.Read(make([]byte, 32))
 	assert.NotNil(t, err)
@@ -247,8 +245,6 @@ func TestDecompressor_Write_err(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Equal(t, len(compressed), n)
 
-	// TODO check that MAC write error bubbles up
-
 	decomp, err = NewDecompressor(new(bytes.Buffer), GZIPCodec, keys, MinBufferSize)
 	assert.Nil(t, err)
 	decomp.(*decompressor).inner = errReader{}
@@ -319,6 +315,10 @@ func TestCompressDecompress(t *testing.T) {
 
 		assert.Equal(t, len(uncompressed1Bytes), uncompressed2.Len(), c.String())
 		assert.Equal(t, uncompressed1Bytes, uncompressed2.Bytes(), c.String())
+		assert.Equal(t, compressor.UncompressedMAC().MessageSize(),
+			decompressor.UncompressedMAC().MessageSize())
+		assert.Equal(t, compressor.UncompressedMAC().Sum(nil),
+			decompressor.UncompressedMAC().Sum(nil))
 	}
 }
 

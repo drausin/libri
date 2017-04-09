@@ -15,11 +15,11 @@ import (
 
 func TestNewPaginator_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	keys1, _, _ := enc.NewPseudoRandomKeys(rng)
+	keys1, authorPub1, _ := enc.NewPseudoRandomKeys(rng)
 	keys1.HMACKey = nil
 
 	// invalid HMACKey should bubble up
-	p1, err := NewPaginator(nil, nil, keys1, api.RandBytes(rng, api.ECPubKeyLength), MinSize)
+	p1, err := NewPaginator(nil, nil, keys1, authorPub1, MinSize)
 	assert.NotNil(t, err)
 	assert.Nil(t, p1)
 
@@ -30,10 +30,10 @@ func TestNewPaginator_err(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Nil(t, p2)
 
-	keys3, _, _ := enc.NewPseudoRandomKeys(rng)
+	keys3, authorPub3, _ := enc.NewPseudoRandomKeys(rng)
 
 	// too small page size should create error
-	p3, err := NewPaginator(nil, nil, keys3, nil, 0)
+	p3, err := NewPaginator(nil, nil, keys3, authorPub3, 0)
 	assert.NotNil(t, err)
 	assert.Nil(t, p3)
 }
@@ -98,48 +98,90 @@ func (e *errCloseWriter) Close() error {
 	return e.closeErr
 }
 
+type fixedDecrypter struct {
+	compressedPage []byte
+	err error
+}
+
+func (f *fixedDecrypter) Decrypt(ciphertext []byte, pageIndex uint32) ([]byte, error) {
+	return f.compressedPage, f.err
+}
+
 func TestUnpaginator_WriteTo_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	keys, _, _ := enc.NewPseudoRandomKeys(rng)
-	authorPub := api.RandBytes(rng, api.ECPubKeyLength)
 	decrypter, err := enc.NewDecrypter(keys)
 	assert.Nil(t, err)
 	pages := make(chan *api.Page, 1)
-	u, err := NewUnpaginator(pages, decrypter, keys)
+
+	u1, err := NewUnpaginator(pages, decrypter, keys)
 	assert.Nil(t, err)
 
 	// check that out of order page creates an error
 	pages <- &api.Page{Index: 1} // should start with 0
-	n, err := u.WriteTo(nil)
+	n, err := u1.WriteTo(nil)
 	assert.NotNil(t, err)
 	assert.Zero(t, n)
+
+	u2, err := NewUnpaginator(pages, decrypter, keys)
+	assert.Nil(t, err)
 
 	// check that bad ciphertext MAC creates error
 	pages <- &api.Page{
 		Ciphertext:    []byte("some secret stuff"),
 		CiphertextMac: []byte("not the right mac"),
 	}
-	n, err = u.WriteTo(nil)
+	n, err = u2.WriteTo(nil)
 	assert.NotNil(t, err)
 	assert.Zero(t, n)
 
-	// create paginator for just making new pages
-	encrypter, err := enc.NewEncrypter(keys)
+
+	decrypter3 := &fixedDecrypter{
+		err: errors.New("some Decrypt error"),
+	}
+	ciphertext3 := []byte("some secret stuff")
+	ciphertextMac3, err := enc.HMAC(ciphertext3, keys.HMACKey)
 	assert.Nil(t, err)
-	p, err := NewPaginator(pages, encrypter, keys, authorPub, MinSize)
+	pages <- &api.Page{
+		Ciphertext: ciphertext3,
+		CiphertextMac: ciphertextMac3,
+	}
+	u3, err := NewUnpaginator(pages, decrypter3, keys)
+
+	// check that Decrypt error bubbles up
+	n, err = u3.WriteTo(nil)
+
+
+	decrypter4 := &fixedDecrypter{}
+	ciphertext4 := []byte("some other secret stuff")
+	ciphertextMac4, err := enc.HMAC(ciphertext4, keys.HMACKey)
 	assert.Nil(t, err)
+	pages <- &api.Page{
+		Ciphertext: ciphertext4,
+		CiphertextMac: ciphertextMac4,
+	}
+	u4, err := NewUnpaginator(pages, decrypter4, keys)
 
 	// check that decompressor write error bubbles up
-	pages <- p.(*paginator).getPage([]byte("some fake ciphertext"), 0)
-	n, err = u.WriteTo(&errCloseWriter{
+	n, err = u4.WriteTo(&errCloseWriter{
 		writeErr: errors.New("some write error"),
 	})
 	assert.NotNil(t, err)
 	assert.Zero(t, n)
 
+
+	decrypter5 := &fixedDecrypter{}
+	ciphertext5 := []byte("some other other secret stuff")
+	ciphertextMac5, err := enc.HMAC(ciphertext5, keys.HMACKey)
+	assert.Nil(t, err)
+	pages <- &api.Page{
+		Ciphertext: ciphertext5,
+		CiphertextMac: ciphertextMac5,
+	}
+	u5, err := NewUnpaginator(pages, decrypter5, keys)
+
 	// check that decompressor close error bubbles up
-	pages <- p.(*paginator).getPage([]byte("some fake ciphertext"), 0)
-	n, err = u.WriteTo(&errCloseWriter{
+	n, err = u5.WriteTo(&errCloseWriter{
 		closeErr: errors.New("some close error"),
 	})
 	assert.NotNil(t, err)
@@ -194,6 +236,10 @@ func TestPaginateUnpaginate(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, c.uncompressedSize, uncompressed2.Len())
 		assert.Equal(t, uncompressed1Bytes, uncompressed2.Bytes(), c.String())
+		assert.Equal(t, paginator.CiphertextMAC().MessageSize(),
+			unpaginator.CiphertextMAC().MessageSize())
+		assert.Equal(t, paginator.CiphertextMAC().Sum(nil),
+			unpaginator.CiphertextMAC().Sum(nil))
 	}
 }
 
