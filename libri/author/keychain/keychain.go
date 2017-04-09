@@ -6,6 +6,7 @@ import (
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/golang/protobuf/proto"
 	"math/rand"
+	"sort"
 )
 
 // Sampler randomly selects a key (in the form of an ecid.ID) from a keychain.
@@ -44,6 +45,7 @@ func FromPrivateKeys(privs map[string]*ecdsa.PrivateKey) *Keychain {
 		pubs[i] = pub
 		i++
 	}
+	sort.Strings(pubs)
 	return &Keychain{
 		privs: privs,
 		pubs: pubs,
@@ -51,6 +53,7 @@ func FromPrivateKeys(privs map[string]*ecdsa.PrivateKey) *Keychain {
 	}
 }
 
+// Sample returns a uniformly random key from the keychain.
 func (kc *Keychain) Sample() ecid.ID {
 	i := kc.rng.Int31n(int32(len(kc.pubs)))
 	priv := kc.privs[kc.pubs[i]]

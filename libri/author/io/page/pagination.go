@@ -10,13 +10,19 @@ import (
 	"errors"
 )
 
-const (
+var (
+	// MinSize is the smallest maximum number of bytes in a page.
+	MinSize = uint32(64 * 1024) // 64 MB
+
 	// DefaultSize is the default maximum number of bytes in a page.
 	DefaultSize = uint32(2 * 1024 * 1024) // 2 MB
 )
 
 // ErrUnexpectedCiphertextMAC indicates when the ciphertext MAC does not match the expected value.
 var ErrUnexpectedCiphertextMAC = errors.New("ciphertext mac does not match expected value")
+
+// ErrPageSizeTooSmall indicates when the max page size is too small (often because it is zero).
+var ErrPageSizeTooSmall = fmt.Errorf("page size is below %d byte minimum", MinSize)
 
 // Paginator is an io.ReaderFrom that reads from a compressor and writes encrypted pages to a
 // channel.
@@ -50,6 +56,9 @@ func NewPaginator(
 	}
 	if err := api.ValidatePublicKey(authorPub); err != nil {
 		return nil, err
+	}
+	if pageSize < MinSize {
+		return nil, ErrPageSizeTooSmall
 	}
 	return &paginator{
 		pages:         pages,

@@ -22,7 +22,8 @@ func TestToFromStored_ok(t *testing.T) {
 
 	kc2, err := DecryptFromStored(stored1, auth2)
 	assert.Nil(t, err)
-	assert.Equal(t, kc1, kc2)
+	assert.Equal(t, kc1.privs, kc2.privs)
+	assert.Equal(t, kc1.pubs, kc2.pubs)
 
 	auth3 := "a different test passphrase"
 	stored2, err := EncryptToStored(kc1, auth3, veryLightScryptN, veryLightScryptP)
@@ -32,7 +33,8 @@ func TestToFromStored_ok(t *testing.T) {
 
 	kc3, err := DecryptFromStored(stored2, auth3)
 	assert.Nil(t, err)
-	assert.Equal(t, kc1, kc3)
+	assert.Equal(t, kc1.privs, kc3.privs)
+	assert.Equal(t, kc1.pubs, kc3.pubs)
 }
 
 func TestToFromStored_err(t *testing.T) {

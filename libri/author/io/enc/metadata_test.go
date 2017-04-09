@@ -34,7 +34,7 @@ func TestNewEncryptedMetadata_err(t *testing.T) {
 
 func TestEncryptDecryptMetadata(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	keys := NewPseudoRandomKeys(rng)
+	keys, _, _ := NewPseudoRandomKeys(rng)
 	mediaType := "application/x-pdf"
 	m1, err := api.NewEntryMetadata(
 		mediaType,
@@ -56,7 +56,7 @@ func TestEncryptDecryptMetadata(t *testing.T) {
 
 func TestEncryptMetadata_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	keys1 := NewPseudoRandomKeys(rng)
+	keys1, _, _ := NewPseudoRandomKeys(rng)
 
 	// check bad api.Metadata triggers error
 	em1, err := EncryptMetadata(nil, keys1)
@@ -92,14 +92,14 @@ func TestDecryptMetadata_err(t *testing.T) {
 
 	em2, err := NewEncryptedMetadata(api.RandBytes(rng, 64), api.RandBytes(rng, 32))
 	assert.Nil(t, err)
-	keys2 := NewPseudoRandomKeys(rng)
+	keys2, _, _ := NewPseudoRandomKeys(rng)
 
 	// check different MAC triggers error;
 	m2, err := DecryptMetadata(em2, keys2)
 	assert.Equal(t, ErrUnexpectedMAC, err)
 	assert.Nil(t, m2)
 
-	keys3 := NewPseudoRandomKeys(rng)  // valid, but not connected to ciphertext
+	keys3, _, _ := NewPseudoRandomKeys(rng)  // valid, but not connected to ciphertext
 	ciphertext3 := api.RandBytes(rng, 64)
 	ciphertextMAC3, err := HMAC(ciphertext3, keys3.HMACKey)
 	assert.Nil(t, err)
@@ -111,7 +111,7 @@ func TestDecryptMetadata_err(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Nil(t, m3)
 
-	keys4 := NewPseudoRandomKeys(rng)  // valid, but not connected to ciphertext
+	keys4, _, _ := NewPseudoRandomKeys(rng)  // valid, but not connected to ciphertext
 	ciphertext4 := api.RandBytes(rng, 64)
 	ciphertextMAC4, err := HMAC(ciphertext3, keys3.HMACKey)
 	assert.Nil(t, err)

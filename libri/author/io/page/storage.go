@@ -7,20 +7,32 @@ import (
 	"github.com/pkg/errors"
 )
 
-// ErrUnexpectedDocContent indicates that a document is not of the expected content type (e.g.,
-// an Entry when expecing a Page).
-var ErrUnexpectedDocContent = errors.New("unexpected document content")
+var (
 
-// ErrMissingPage indicates when a page was expected to be stored but was not found.
-var ErrMissingPage = errors.New("missing page")
+	// ErrUnexpectedDocContent indicates that a document is not of the expected content type
+	// (e.g., an Entry when expecing a Page).
+	ErrUnexpectedDocContent = errors.New("unexpected document content")
+
+	// ErrMissingPage indicates when a page was expected to be stored but was not found.
+	ErrMissingPage = errors.New("missing page")
+)
+
+// Storer stores pages from an inner storage.DocumentStorer.
+type Storer interface {
+	// Store writes pages to inner storage and returns a slice of their keys.
+	Store(pages chan *api.Page) ([]cid.ID, error)
+}
+
+// Loader loads pages from an inner storage.DocmentLoader.
+type Loader interface {
+	// Load reads pages from inner storage and sends them on the supplied pages channel.
+	Load(keys []cid.ID, pages chan *api.Page) error
+}
 
 // StorerLoader stores and loads pages from an inner storage.DocumentStorerLoader.
 type StorerLoader interface {
-	// Store writes pages to inner storage and returns a slice of their keys.
-	Store(pages chan *api.Page) ([]cid.ID, error)
-
-	// Load reads pages from inner storage and sends them on the supplied pages channel.
-	Load(keys []cid.ID, pages chan *api.Page) error
+	Storer
+	Loader
 }
 
 type storerLoader struct {

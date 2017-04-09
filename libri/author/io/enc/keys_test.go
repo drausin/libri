@@ -54,7 +54,7 @@ func TestNewKeys_err(t *testing.T) {
 
 func TestMarshallUnmarshall_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	k1 := NewPseudoRandomKeys(rng)
+	k1, _, _ := NewPseudoRandomKeys(rng)
 	k2, err := Unmarshal(Marshal(k1))
 	assert.Nil(t, err)
 	assert.Equal(t, k1, k2)

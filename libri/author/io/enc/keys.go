@@ -14,7 +14,7 @@ import (
 // ErrAuthorOffCurve indicates that an author ECDSA private key is is not on the expected curve.
 var ErrAuthorOffCurve = errors.New("author public key point not on expected elliptic curve")
 
-// ErrAuthorOffCurve indicates that a reader ECDSA public key is is not on the expected curve.
+// ErrReaderOffCurve indicates that a reader ECDSA public key is is not on the expected curve.
 var ErrReaderOffCurve = errors.New("reader public key point not on expected elliptic curve")
 
 // ErrIncompleteKeyDefinition indicates that the key definition function was unable to generate
@@ -59,15 +59,16 @@ func NewKeys(priv *ecdsa.PrivateKey, pub *ecdsa.PublicKey) (*Keys, error) {
 }
 
 // NewPseudoRandomKeys generates a new *Keys instance from the shared secret between a random
-// ECDSA private and separate ECDSA public key.
-func NewPseudoRandomKeys(rng *rand.Rand) *Keys {
+// ECDSA private and separate ECDSA public key. It also returns the author and reader public keys,
+// serialized to byte slices.
+func NewPseudoRandomKeys(rng *rand.Rand) (*Keys, []byte, []byte) {
 	authorPriv := ecid.NewPseudoRandom(rng)
 	readerPriv := ecid.NewPseudoRandom(rng)
 	keys, err := NewKeys(authorPriv.Key(), &readerPriv.Key().PublicKey)
 	if err != nil {
 		panic(err)
 	}
-	return keys
+	return keys, ecid.ToPublicKeyBytes(authorPriv), ecid.ToPublicKeyBytes(readerPriv)
 }
 
 // Marshal serializes the Keys to their byte representation.
