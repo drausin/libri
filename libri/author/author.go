@@ -70,7 +70,7 @@ type Author struct {
 
 // Upload compresses, encrypts, and splits the content into pages and then stores them in the
 // libri network. It returns the *api.Entry that was stored.
-func (a *Author) Upload(content io.Reader, mediaType string) (*api.Entry, error) {
+func (a *Author) Upload(content io.Reader, mediaType string) (*api.Document, error) {
 	authorPub, readerPub, keys, err := a.sampleSelfReaderKeys()
 	if err != nil {
 		return nil, err
