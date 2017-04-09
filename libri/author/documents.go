@@ -14,7 +14,7 @@ func newEntryDoc(
 	authorPub []byte,
 	pageIDs []id.ID,
 	encMeta *enc.EncryptedMetadata,
-	docSL storage.DocumentStorerLoader,
+	docL storage.DocumentLoader,
 ) (*api.Document, bool, error) {
 
 	var entry *api.Entry
@@ -22,7 +22,7 @@ func newEntryDoc(
 	isMultiPage := false
 	if len(pageIDs) == 1 {
 		isMultiPage = true
-		entry, err = newSinglePageEntry(authorPub, pageIDs[0], encMeta, docSL)
+		entry, err = newSinglePageEntry(authorPub, pageIDs[0], encMeta, docL)
 	} else {
 		entry, err = newMultiPageEntry(authorPub, pageIDs, encMeta)
 	}
@@ -39,10 +39,10 @@ func newSinglePageEntry(
 	authorPub []byte,
 	pageKey id.ID,
 	encMeta *enc.EncryptedMetadata,
-	docSL storage.DocumentStorerLoader,
+	docL storage.DocumentLoader,
 ) (*api.Entry, error) {
 
-	pageDoc, err := docSL.Load(pageKey)
+	pageDoc, err := docL.Load(pageKey)
 	if err != nil {
 		return nil, err
 	}

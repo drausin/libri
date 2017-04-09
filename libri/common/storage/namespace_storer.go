@@ -82,6 +82,7 @@ type DocumentLoader interface {
 	Load(key cid.ID) (*api.Document, error)
 }
 
+// DocumentStorerLoader stores and loads api.Document values.
 type DocumentStorerLoader interface {
 	DocumentStorer
 	DocumentLoader

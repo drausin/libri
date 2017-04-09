@@ -44,7 +44,7 @@ type Author struct {
 	mlPublisher publish.MultiLoadPublisher
 
 	// SL for locally stored documents
-	documentSL storage.DocumentStorerLoader
+	documentSL storage.DocumentLoader
 
 	// ensures keys are valid
 	pageSL page.StorerLoader

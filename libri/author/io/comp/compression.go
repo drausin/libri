@@ -220,11 +220,11 @@ type Decompressor interface {
 // uncompressed contents are read and written to the underlying uncompressed io.Writer.
 type decompressor struct {
 	uncompressed           io.Writer
+	uncompressedMAC        enc.MAC
 	inner                  io.Reader
 	codec                  Codec
 	buf                    *bytes.Buffer
 	closed                 bool
-	uncompressedMAC        enc.MAC
 	uncompressedBufferSize uint32
 }
 

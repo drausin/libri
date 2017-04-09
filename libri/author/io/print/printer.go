@@ -33,6 +33,7 @@ type Parameters struct {
 	Parallelism uint32
 }
 
+// NewParameters creates a new *Parameters instance.
 func NewParameters(
 	compressionBufferSize uint32, pageSize uint32, parallelism uint32,
 ) (*Parameters, error) {

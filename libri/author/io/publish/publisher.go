@@ -140,7 +140,6 @@ func (p *multiLoadPublisher) Publish(docKeys []cid.ID, cb api.ClientBalancer) er
 					return
 				}
 			}
-
 		}()
 	}
 	close(putErrs)

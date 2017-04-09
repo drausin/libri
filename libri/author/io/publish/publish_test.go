@@ -139,6 +139,11 @@ func TestSingleLoadPublisher_Publish_err(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func TestMultiLoadPublisher_Publish_ok(t *testing.T) {
+	slPub := &fixedSingleLoadPublisher{}
+
+}
+
 type fixedPutter struct {
 	request *api.PutRequest
 	err error
@@ -204,5 +209,13 @@ type fixedPublisher struct {
 func (p *fixedPublisher) Publish(doc *api.Document, lc api.Putter) (id.ID, error) {
 	p.doc = doc
 	return p.publishID, p.publishErr
+}
+
+type fixedSingleLoadPublisher struct {
+	err error
+}
+
+func (f *fixedSingleLoadPublisher) Publish(docKey id.ID, lc api.Putter) error {
+	return f.err
 }
 
