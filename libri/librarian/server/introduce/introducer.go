@@ -123,8 +123,7 @@ func (i *introducer) query(pConn peer.Connector, intro *Introduction) (*api.Intr
 		return nil, err
 	}
 	if !bytes.Equal(rp.Metadata.RequestId, rq.Metadata.RequestId) {
-		return nil, fmt.Errorf("unexpected response request ID received: %v, "+
-			"expected %v", rp.Metadata.RequestId, rq.Metadata.RequestId)
+		return nil, client.ErrUnexpectedRequestID
 	}
 
 	return rp, nil

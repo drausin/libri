@@ -10,18 +10,36 @@ import (
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
+	"bytes"
+)
+
+const (
+	// DefaultPutTimeout is the default timeout duration for a Publisher's Put() call to a
+	// librarian.
+	DefaultPutTimeout = 3 * time.Second
+
+	// DefaultPutParallelism is the default parallelism a MultiLoadPublisher uses when
+	// making multiple Put calls to librarians.
+	DefaultPutParallelism = 3
 )
 
 // ErrUnexpectedMissingDocument indicates when a document is unexpectely missing from the document
 // storer loader.
 var ErrUnexpectedMissingDocument = errors.New("unexpected missing document")
 
+// Publisher Puts a document into the libri network using a librarian client.
 type Publisher interface {
+	// Publish Puts a document using a librarian client and returns the ID of the document.
 	Publish(doc *api.Document, lc api.Putter) (cid.ID, error)
 }
 
+// Parameters define configuration used by a Publisher.
 type Parameters struct {
+	// PutTimeout is the timeout duration used for Put requests.
 	PutTimeout     time.Duration
+
+	// PutParallelism is the number of simultaneous Put requests (for different documents) that
+	// can occur.
 	PutParallelism uint32
 }
 
@@ -31,6 +49,7 @@ type publisher struct {
 	params   *Parameters
 }
 
+// NewPublisher creates a new Publisher with a given client ID, signer, and params.
 func NewPublisher(clientID ecid.ID, signer client.Signer, params *Parameters) Publisher {
 	return &publisher{
 		clientID: clientID,
@@ -49,25 +68,40 @@ func (p *publisher) Publish(doc *api.Document, lc api.Putter) (cid.ID, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, err = lc.Put(ctx, rq)
+	rp, err := lc.Put(ctx, rq)
 	cancel()
 	if err != nil {
 		return nil, err
 	}
+	if !bytes.Equal(rq.Metadata.RequestId, rp.Metadata.RequestId) {
+		return nil, client.ErrUnexpectedRequestID
+	}
 	return docKey, nil
 }
 
+// SingleLoadPublisher publishes documents from internal storage.
 type SingleLoadPublisher interface {
-	Publish(docKey cid.ID, lc api.LibrarianClient) error
+	// Publish loads a document with the given key and publishes them using the given
+	// librarian client.
+	Publish(docKey cid.ID, lc api.Putter) error
 }
 
-type loadPublisher struct {
+type singleLoadPublisher struct {
 	inner Publisher
-	docSL storage.DocumentStorerLoader
+	docL storage.DocumentLoader
 }
 
-func (p *loadPublisher) Publish(docKey cid.ID, lc api.LibrarianClient) error {
-	pageDoc, err := p.docSL.Load(docKey)
+// NewSingleLoadPublisher creates a new SingleLoadPublisher from an inner Publisher and a
+// storage.DocumentLoader (from which it loads the documents to publish).
+func NewSingleLoadPublisher(inner Publisher, docL storage.DocumentLoader) SingleLoadPublisher {
+	return &singleLoadPublisher{
+		inner: inner,
+		docL: docL,
+	}
+}
+
+func (p *singleLoadPublisher) Publish(docKey cid.ID, lc api.Putter) error {
+	pageDoc, err := p.docL.Load(docKey)
 	if err != nil {
 		return err
 	}
@@ -80,7 +114,10 @@ func (p *loadPublisher) Publish(docKey cid.ID, lc api.LibrarianClient) error {
 	return nil
 }
 
+// MultiLoadPublisher loads and publishes a collection of documents from internal storage.
 type MultiLoadPublisher interface {
+	// Publish in parallel loads and publishes the documents with the given keys. It balances
+	// between librarian clients for its Put requests.
 	Publish(docKeys []cid.ID, cb api.ClientBalancer) error
 }
 

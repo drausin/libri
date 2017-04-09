@@ -131,8 +131,7 @@ func (s *searcher) query(pConn peer.Connector, search *Search) (*api.FindRespons
 		return nil, err
 	}
 	if !bytes.Equal(rp.Metadata.RequestId, search.Request.Metadata.RequestId) {
-		return nil, fmt.Errorf("unexpected response request ID received: %v, "+
-			"expected %v", rp.Metadata.RequestId, search.Request.Metadata.RequestId)
+		return nil, client.ErrUnexpectedRequestID
 	}
 
 	return rp, nil

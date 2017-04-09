@@ -70,13 +70,21 @@ func (nsl *namespaceStorerLoader) Load(key []byte) ([]byte, error) {
 	return nsl.sl.Load(nsl.ns.Bytes(), key)
 }
 
-// DocumentStorerLoader both stores and loads api.Document values.
-type DocumentStorerLoader interface {
+// DocumentStorer stores api.Document values.
+type DocumentStorer interface {
 	// Store an api.Document value under the given key.
 	Store(key cid.ID, value *api.Document) error
+}
 
+// DocumentLoader loads api.Document values.
+type DocumentLoader interface {
 	// Load an api.Document value with the given key.
 	Load(key cid.ID) (*api.Document, error)
+}
+
+type DocumentStorerLoader interface {
+	DocumentStorer
+	DocumentLoader
 }
 
 // keyHashNamespaceStorerLoader checks that the key equals the hash of the value before storing it.
