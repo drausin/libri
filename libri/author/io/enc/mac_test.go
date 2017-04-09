@@ -2,9 +2,11 @@ package enc
 
 import (
 	"testing"
-	"github.com/stretchr/testify/assert"
+
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/stretchr/testify/assert"
 )
+
 func TestSizeHMAC_Write(t *testing.T) {
 	hmac1 := NewHMAC([]byte{1, 2, 3})
 	hmac2 := NewHMAC([]byte{4, 5, 6})
@@ -37,7 +39,6 @@ func TestSizeHMAC_Sum(t *testing.T) {
 	_, err = hmac3.Write(stuff)
 	assert.Nil(t, err)
 
-
 	mac1 := hmac1.Sum(nil)
 	mac2 := []byte{0, 0, 0}
 	mac2 = hmac2.Sum(mac2)
@@ -59,7 +60,7 @@ func TestSizeHMAC_MessageSize(t *testing.T) {
 	moreStuff := []byte{10, 11, 12, 14}
 	_, err = hmac1.Write(moreStuff)
 	assert.Nil(t, err)
-	assert.Equal(t, uint64(len(stuff) + len(moreStuff)), hmac1.MessageSize())
+	assert.Equal(t, uint64(len(stuff)+len(moreStuff)), hmac1.MessageSize())
 }
 
 func TestHMAC(t *testing.T) {

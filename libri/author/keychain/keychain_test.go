@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-
 func TestKeychain_Sample(t *testing.T) {
 	kc := New(3)
 	id := kc.Sample()

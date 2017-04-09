@@ -1,10 +1,11 @@
 package enc
 
 import (
-	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/golang/protobuf/proto"
 	"bytes"
 	"errors"
+
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/golang/protobuf/proto"
 )
 
 // ErrUnexpectedMAC occurs when the calculated MAC did not match the expected MAC.
@@ -13,7 +14,7 @@ var ErrUnexpectedMAC = errors.New("unexpected MAC")
 // EncryptedMetadata contains both the ciphertext and ciphertext MAC involved in encrypting an
 // *api.Metadata instance.
 type EncryptedMetadata struct {
-	Ciphertext []byte
+	Ciphertext    []byte
 	CiphertextMAC []byte
 }
 
@@ -27,7 +28,7 @@ func NewEncryptedMetadata(ciphertext, ciphertextMAC []byte) (*EncryptedMetadata,
 		return nil, err
 	}
 	return &EncryptedMetadata{
-		Ciphertext: ciphertext,
+		Ciphertext:    ciphertext,
 		CiphertextMAC: ciphertextMAC,
 	}, nil
 }

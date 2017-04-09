@@ -5,8 +5,8 @@ import (
 	"math/rand"
 	"testing"
 
-	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/db"
+	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/stretchr/testify/assert"
 )
 

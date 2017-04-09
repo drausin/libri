@@ -1,8 +1,9 @@
 package api
 
 import (
-	"testing"
 	"math/rand"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 )
 

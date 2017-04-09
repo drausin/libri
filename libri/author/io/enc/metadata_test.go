@@ -1,9 +1,10 @@
 package enc
 
 import (
-	"testing"
-	"github.com/drausin/libri/libri/librarian/api"
 	"math/rand"
+	"testing"
+
+	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -99,7 +100,7 @@ func TestDecryptMetadata_err(t *testing.T) {
 	assert.Equal(t, ErrUnexpectedMAC, err)
 	assert.Nil(t, m2)
 
-	keys3, _, _ := NewPseudoRandomKeys(rng)  // valid, but not connected to ciphertext
+	keys3, _, _ := NewPseudoRandomKeys(rng) // valid, but not connected to ciphertext
 	ciphertext3 := api.RandBytes(rng, 64)
 	ciphertextMAC3, err := HMAC(ciphertext3, keys3.HMACKey)
 	assert.Nil(t, err)
@@ -111,7 +112,7 @@ func TestDecryptMetadata_err(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Nil(t, m3)
 
-	keys4, _, _ := NewPseudoRandomKeys(rng)  // valid, but not connected to ciphertext
+	keys4, _, _ := NewPseudoRandomKeys(rng) // valid, but not connected to ciphertext
 	ciphertext4 := api.RandBytes(rng, 64)
 	ciphertextMAC4, err := HMAC(ciphertext3, keys3.HMACKey)
 	assert.Nil(t, err)

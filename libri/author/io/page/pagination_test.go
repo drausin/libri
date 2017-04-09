@@ -2,14 +2,15 @@ package page
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"math/rand"
 	"testing"
+
+	"github.com/drausin/libri/libri/author/io/comp"
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
-	"errors"
-	"github.com/drausin/libri/libri/author/io/comp"
 )
 
 func TestNewPaginator_err(t *testing.T) {
@@ -37,13 +38,13 @@ func TestNewPaginator_err(t *testing.T) {
 	assert.Nil(t, p3)
 }
 
-type errReader struct {}
+type errReader struct{}
 
 func (errReader) Read(p []byte) (int, error) {
 	return 0, errors.New("some read error")
 }
 
-type errEncrypter struct {}
+type errEncrypter struct{}
 
 func (errEncrypter) Encrypt(plaintext []byte, pageIndex uint32) ([]byte, error) {
 	return nil, errors.New("some encrypt error")
@@ -115,7 +116,7 @@ func TestUnpaginator_WriteTo_err(t *testing.T) {
 
 	// check that bad ciphertext MAC creates error
 	pages <- &api.Page{
-		Ciphertext: []byte("some secret stuff"),
+		Ciphertext:    []byte("some secret stuff"),
 		CiphertextMac: []byte("not the right mac"),
 	}
 	n, err = u.WriteTo(nil)
@@ -155,7 +156,7 @@ func TestPaginateUnpaginate(t *testing.T) {
 	decrypter, err := enc.NewDecrypter(keys)
 	assert.Nil(t, err)
 
-	MinSize = 64  // just for testing
+	MinSize = 64 // just for testing
 	uncompressedSizes := []int{128, 192, 256, 384, 512, 768, 1024, 2048, 4096, 8192}
 	pageSizes := []uint32{128, 256, 512, 1024}
 	codecs := []comp.Codec{comp.GZIPCodec, comp.NoneCodec}

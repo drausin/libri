@@ -2,12 +2,13 @@ package page
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
+
 	"github.com/drausin/libri/libri/author/io/comp"
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/librarian/api"
-	"errors"
 )
 
 var (
@@ -142,9 +143,9 @@ func NewUnpaginator(
 		return nil, err
 	}
 	return &unpaginator{
-		pages:     pages,
-		decrypter: decrypter,
-		pageMAC: enc.NewHMAC(keys.HMACKey),
+		pages:         pages,
+		decrypter:     decrypter,
+		pageMAC:       enc.NewHMAC(keys.HMACKey),
 		ciphertextMAC: enc.NewHMAC(keys.HMACKey),
 	}, nil
 }
@@ -193,4 +194,3 @@ func (u *unpaginator) checkCiphertextMAC(page *api.Page) error {
 func (u *unpaginator) CiphertextMAC() enc.MAC {
 	return u.ciphertextMAC
 }
-

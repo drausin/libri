@@ -3,12 +3,13 @@ package enc
 import (
 	"bytes"
 	"crypto/ecdsa"
-	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/drausin/libri/libri/common/ecid"
-	"github.com/pkg/errors"
-	"golang.org/x/crypto/hkdf"
 	"crypto/sha256"
 	"math/rand"
+
+	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/pkg/errors"
+	"golang.org/x/crypto/hkdf"
 )
 
 // ErrAuthorOffCurve indicates that an author ECDSA private key is is not on the expected curve.

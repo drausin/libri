@@ -2,13 +2,14 @@ package author
 
 import (
 	"net"
-	"go.uber.org/zap/zapcore"
+
 	"github.com/drausin/libri/libri/author/io/print"
+	"go.uber.org/zap/zapcore"
 )
 
 // Config is used to configure an Author.
 type Config struct {
-	Print          *print.Parameters
+	Print *print.Parameters
 
 	// DataDir is the directory on the local machine where the state and output of all the
 	// peers running on that machine are stored. For example,
@@ -21,10 +22,10 @@ type Config struct {
 	//	└── peer-765079fb
 	//	    └── db
 	//
-	DataDir        string
+	DataDir string
 
 	// DbDir is the local directory where this node's DB state is stored.
-	DbDir          string
+	DbDir string
 
 	// LibrarianAddrs is a list of public addresses of Librarian servers to issue request to.
 	LibrarianAddrs []*net.TCPAddr
@@ -32,4 +33,3 @@ type Config struct {
 	// LogLevel is the log level
 	LogLevel zapcore.Level
 }
-

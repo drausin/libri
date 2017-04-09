@@ -1,12 +1,13 @@
 package author
 
 import (
-	"github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/author/io/enc"
-	"time"
-	"github.com/drausin/libri/libri/librarian/api"
 	"errors"
+	"time"
+
+	"github.com/drausin/libri/libri/author/io/enc"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
+	"github.com/drausin/libri/libri/librarian/api"
 )
 
 func newEntryDoc(

@@ -1,9 +1,12 @@
 package author
 
 import (
-	"github.com/drausin/libri/libri/author/io/print"
+	"io"
+
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/page"
+	"github.com/drausin/libri/libri/author/io/print"
+	"github.com/drausin/libri/libri/author/io/publish"
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/common/ecid"
@@ -11,8 +14,6 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"go.uber.org/zap"
-	"io"
-	"github.com/drausin/libri/libri/author/io/publish"
 )
 
 // Author is the main client of the libri network. It can upload, download, and share documents with
@@ -128,4 +129,3 @@ func (a *Author) sampleSelfReaderKeys() ([]byte, []byte, *enc.Keys, error) {
 	}
 	return ecid.ToPublicKeyBytes(authorID), ecid.ToPublicKeyBytes(selfReaderID), keys, nil
 }
-

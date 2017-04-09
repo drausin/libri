@@ -16,7 +16,7 @@ type Encrypter interface {
 }
 
 type encrypter struct {
-	gcmCipher   cipher.AEAD
+	gcmCipher cipher.AEAD
 	pageIVMAC hash.Hash
 }
 
@@ -27,7 +27,7 @@ func NewEncrypter(keys *Keys) (Encrypter, error) {
 		return nil, err
 	}
 	return &encrypter{
-		gcmCipher:   gcmCipher,
+		gcmCipher: gcmCipher,
 		pageIVMAC: hmac.New(sha256.New, keys.PageIVSeed),
 	}, nil
 }
@@ -53,7 +53,7 @@ type Decrypter interface {
 }
 
 type decrypter struct {
-	gcmCipher   cipher.AEAD
+	gcmCipher cipher.AEAD
 	pageIVMAC hash.Hash
 }
 
@@ -64,7 +64,7 @@ func NewDecrypter(keys *Keys) (Decrypter, error) {
 		return nil, err
 	}
 	return &decrypter{
-		gcmCipher:   gcmCipher,
+		gcmCipher: gcmCipher,
 		pageIVMAC: hmac.New(sha256.New, keys.PageIVSeed),
 	}, nil
 }

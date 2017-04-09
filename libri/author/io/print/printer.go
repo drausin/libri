@@ -1,13 +1,14 @@
 package print
 
 import (
+	"errors"
 	"io"
+
+	"github.com/drausin/libri/libri/author/io/comp"
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/page"
-	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/drausin/libri/libri/author/io/comp"
 	"github.com/drausin/libri/libri/common/id"
-	"errors"
+	"github.com/drausin/libri/libri/librarian/api"
 )
 
 const (
@@ -25,11 +26,11 @@ type Parameters struct {
 	CompressionBufferSize uint32
 
 	// PageSize is the maximum size (in bytes) of an api.Page ciphertext.
-	PageSize              uint32
+	PageSize uint32
 
 	// Parallelism is the parallelism used by Printers and Scanners when storing and loading
 	// pages.
-	Parallelism           uint32
+	Parallelism uint32
 }
 
 func NewParameters(
@@ -40,8 +41,8 @@ func NewParameters(
 	}
 	return &Parameters{
 		CompressionBufferSize: compressionBufferSize,
-		PageSize: pageSize,
-		Parallelism: parallelism,
+		PageSize:              pageSize,
+		Parallelism:           parallelism,
 	}, nil
 }
 
@@ -52,12 +53,11 @@ type Printer interface {
 }
 
 type printer struct {
-	params *Parameters
-	keys *enc.Keys
+	params    *Parameters
+	keys      *enc.Keys
 	authorPub []byte
-	pageS page.Storer
-	init printInitializer
-
+	pageS     page.Storer
+	init      printInitializer
 }
 
 // NewPrinter returns a new Printer instance.
@@ -68,14 +68,14 @@ func NewPrinter(
 	pageS page.Storer,
 ) Printer {
 	return &printer{
-		params: params,
-		keys: keys,
+		params:    params,
+		keys:      keys,
 		authorPub: authorPub,
-		pageS: pageS,
+		pageS:     pageS,
 		init: &printInitializerImpl{
-			keys: keys,
+			keys:      keys,
 			authorPub: authorPub,
-			params: params,
+			params:    params,
 		},
 	}
 }
@@ -101,7 +101,7 @@ func (p *printer) Print(content io.Reader, mediaType string) ([]id.ID, *api.Meta
 	}
 
 	select {
-	case err = <- errs:
+	case err = <-errs:
 		return nil, nil, err
 	default:
 	}
@@ -121,14 +121,14 @@ func (p *printer) Print(content io.Reader, mediaType string) ([]id.ID, *api.Meta
 }
 
 type printInitializer interface {
-	Initialize(content io.Reader, mediaType string, pages chan *api.Page, ) (comp.Compressor,
+	Initialize(content io.Reader, mediaType string, pages chan *api.Page) (comp.Compressor,
 		page.Paginator, error)
 }
 
 type printInitializerImpl struct {
-	keys *enc.Keys
+	keys      *enc.Keys
 	authorPub []byte
-	params *Parameters
+	params    *Parameters
 }
 
 func (pi *printInitializerImpl) Initialize(
@@ -155,4 +155,3 @@ func (pi *printInitializerImpl) Initialize(
 	}
 	return compressor, paginator, nil
 }
-

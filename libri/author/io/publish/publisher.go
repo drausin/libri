@@ -1,14 +1,15 @@
 package publish
 
 import (
+	"errors"
+	"sync"
+	"time"
+
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
-	"sync"
-	"time"
-	"errors"
 )
 
 // ErrUnexpectedMissingDocument indicates when a document is unexpectely missing from the document
@@ -33,8 +34,8 @@ type publisher struct {
 func NewPublisher(clientID ecid.ID, signer client.Signer, params *Parameters) Publisher {
 	return &publisher{
 		clientID: clientID,
-		signer: signer,
-		params: params,
+		signer:   signer,
+		params:   params,
 	}
 }
 
@@ -84,8 +85,8 @@ type MultiLoadPublisher interface {
 }
 
 type multiLoadPublisher struct {
-	inner SingleLoadPublisher
-	params   *Parameters
+	inner  SingleLoadPublisher
+	params *Parameters
 }
 
 func (p *multiLoadPublisher) Publish(docKeys []cid.ID, cb api.ClientBalancer) error {
@@ -122,4 +123,3 @@ func loadChan(idSlice []cid.ID, idChan chan cid.ID) {
 		idChan <- id
 	}
 }
-

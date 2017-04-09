@@ -4,4 +4,3 @@ package api
 type ClientBalancer interface {
 	Next() LibrarianClient
 }
-

@@ -1,9 +1,9 @@
 package enc
 
 import (
-	"hash"
 	"crypto/hmac"
 	"crypto/sha256"
+	"hash"
 	"io"
 )
 

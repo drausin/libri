@@ -4,10 +4,11 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/drausin/libri/libri/common/ecid"
-	"crypto/elliptic"
 	"crypto/ecdsa"
+	"crypto/elliptic"
+
+	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewKeys_ok(t *testing.T) {

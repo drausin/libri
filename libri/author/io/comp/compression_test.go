@@ -2,14 +2,15 @@ package comp
 
 import (
 	"bytes"
+	"compress/gzip"
 	"fmt"
 	"io"
 	"math/rand"
 	"testing"
-	"github.com/stretchr/testify/assert"
-	"github.com/pkg/errors"
-	"compress/gzip"
+
 	"github.com/drausin/libri/libri/author/io/enc"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetCompressionCodec(t *testing.T) {
@@ -80,7 +81,7 @@ func TestNewDecompressor_ok(t *testing.T) {
 	assert.Equal(t, minUncompressedBufferSize, comp.(*decompressor).uncompressedBufferSize)
 }
 
-type errReader struct {}
+type errReader struct{}
 
 func (errReader) Read(p []byte) (int, error) {
 	return 0, errors.New("some read error")
@@ -187,7 +188,7 @@ func TestCompressor_Read_err(t *testing.T) {
 
 	buf = bytes.NewReader([]byte("some data"))
 	comp, err = NewCompressor(buf, GZIPCodec, keys, MinBufferSize)
-	comp.(*compressor).buf = new(bytes.Buffer)  // will case buf.Read() to return io.EOF error
+	comp.(*compressor).buf = new(bytes.Buffer) // will case buf.Read() to return io.EOF error
 	assert.Nil(t, err)
 
 	// check that buf.Read() error bubbles up
@@ -231,7 +232,7 @@ func TestDecompressor_Write_err(t *testing.T) {
 	decomp, err := NewDecompressor(nil, GZIPCodec, keys, MinBufferSize)
 	assert.Nil(t, err)
 	decomp.(*decompressor).closed = true
-	compressed := make([]byte, MinBufferSize * 2)
+	compressed := make([]byte, MinBufferSize*2)
 
 	// check that Write when decomp is closed produces errors
 	n, err := decomp.Write(compressed)

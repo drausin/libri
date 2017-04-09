@@ -3,10 +3,11 @@ package keychain
 import (
 	"crypto/ecdsa"
 	"io/ioutil"
-	"github.com/drausin/libri/libri/common/ecid"
-	"github.com/golang/protobuf/proto"
 	"math/rand"
 	"sort"
+
+	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/golang/protobuf/proto"
 )
 
 // Sampler randomly selects a key (in the form of an ecid.ID) from a keychain.
@@ -25,7 +26,7 @@ type Keychain struct {
 	pubs []string
 
 	// random number generator for sampling keys
-	rng   *rand.Rand
+	rng *rand.Rand
 }
 
 // New creates a new (plaintext) Keychain with n individual keys.
@@ -48,8 +49,8 @@ func FromPrivateKeys(privs map[string]*ecdsa.PrivateKey) *Keychain {
 	sort.Strings(pubs)
 	return &Keychain{
 		privs: privs,
-		pubs: pubs,
-		rng: rand.New(rand.NewSource(int64(len(privs)))),
+		pubs:  pubs,
+		rng:   rand.New(rand.NewSource(int64(len(privs)))),
 	}
 }
 

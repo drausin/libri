@@ -1,12 +1,13 @@
 package page
 
 import (
-	"testing"
-	"github.com/drausin/libri/libri/librarian/api"
-	cid "github.com/drausin/libri/libri/common/id"
 	"math/rand"
-	"github.com/stretchr/testify/assert"
+	"testing"
+
+	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestStorerLoader_Store_ok(t *testing.T) {
@@ -142,7 +143,7 @@ func TestStorerLoader_StoreLoad(t *testing.T) {
 
 	loadedPages := make([]*api.Page, nPages)
 	for i := 0; i < nPages; i++ {
-		loadedPages[i] = <- pagesToLoad
+		loadedPages[i] = <-pagesToLoad
 	}
 
 	// check original and loaded pags are in the same order and are equal
@@ -162,7 +163,7 @@ func (m *memDocumentStorerLoader) Load(key cid.ID) (*api.Document, error) {
 	return m.stored[key.String()], nil
 }
 
-type errDocumentStorerLoader struct {}
+type errDocumentStorerLoader struct{}
 
 func (m *errDocumentStorerLoader) Store(key cid.ID, value *api.Document) error {
 	return errors.New("some store error")

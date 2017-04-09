@@ -1,8 +1,8 @@
 package api
 
 import (
-	"google.golang.org/grpc"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc"
 )
 
 // These interfaces split up the methods of LibrarianClient, mostly for simplifying testing.
@@ -44,4 +44,3 @@ type Putter interface {
 	// Put stores a value.
 	Put(ctx context.Context, in *PutRequest, opts ...grpc.CallOption) (*PutResponse, error)
 }
-

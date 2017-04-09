@@ -1,17 +1,18 @@
 package print
 
 import (
+	"bytes"
+	"io"
+	"math/rand"
 	"testing"
+
 	"github.com/drausin/libri/libri/author/io/comp"
+	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/page"
-	"github.com/stretchr/testify/assert"
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
-	"math/rand"
-	"github.com/drausin/libri/libri/author/io/enc"
-	"io"
 	"github.com/pkg/errors"
-	"bytes"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewPrinter_ok(t *testing.T) {
@@ -25,7 +26,6 @@ func TestNewPrinter_err(t *testing.T) {
 	assert.Equal(t, ErrZeroParallelism, err)
 	assert.Nil(t, params)
 }
-
 
 type fixedStorer struct {
 	storeErr error
@@ -48,10 +48,10 @@ func (f *fixedStorer) Store(pages chan *api.Page) ([]cid.ID, error) {
 }
 
 type fixedPaginator struct {
-	readN int64
-	readErr error
-	pages chan *api.Page
-	fixedPages []*api.Page
+	readN         int64
+	readErr       error
+	pages         chan *api.Page
+	fixedPages    []*api.Page
 	ciphertextMAC enc.MAC
 }
 
@@ -67,8 +67,8 @@ func (f *fixedPaginator) CiphertextMAC() enc.MAC {
 }
 
 type fixedCompressor struct {
-	readN int
-	readErr error
+	readN           int
+	readErr         error
 	uncompressedMAC enc.MAC
 }
 
@@ -83,7 +83,7 @@ func (f *fixedCompressor) UncompressedMAC() enc.MAC {
 type fixedPrintInitializer struct {
 	initCompressor comp.Compressor
 	initPaginator  *fixedPaginator
-	initErr error
+	initErr        error
 }
 
 func (f *fixedPrintInitializer) Initialize(
@@ -96,7 +96,7 @@ func (f *fixedPrintInitializer) Initialize(
 
 type fixedMAC struct {
 	messageSize uint64
-	sum []byte
+	sum         []byte
 }
 
 func (f *fixedMAC) MessageSize() uint64 {
@@ -125,28 +125,28 @@ func TestPrinter_Print_ok(t *testing.T) {
 	readCiphertextN, ciphertextSum := readUncompressedN, api.RandBytes(rng, api.HMAC256Length)
 
 	compressor := &fixedCompressor{
-		readN: readUncompressedN,
+		readN:   readUncompressedN,
 		readErr: nil,
 		uncompressedMAC: &fixedMAC{
 			messageSize: uint64(readUncompressedN),
-			sum: uncompressedSum,
+			sum:         uncompressedSum,
 		},
 	}
 	paginator := &fixedPaginator{
-		readN: int64(readCiphertextN),
-		readErr: nil,
+		readN:      int64(readCiphertextN),
+		readErr:    nil,
 		fixedPages: fixedPages,
 		ciphertextMAC: &fixedMAC{
 			messageSize: uint64(readCiphertextN),
-			sum: ciphertextSum,
+			sum:         ciphertextSum,
 		},
 	}
 
 	printer1 := NewPrinter(params, keys, authorPub, &fixedStorer{})
 	printer1.(*printer).init = &fixedPrintInitializer{
 		initCompressor: compressor,
-		initPaginator: paginator,
-		initErr: nil,
+		initPaginator:  paginator,
+		initErr:        nil,
 	}
 
 	pageKeys, entryMetadata, err := printer1.Print(nil, "application/x-pdf")
@@ -169,8 +169,8 @@ func TestPrinter_Print_err(t *testing.T) {
 	printer1 := NewPrinter(params, keys, authorPub, &fixedStorer{})
 	printer1.(*printer).init = &fixedPrintInitializer{
 		initCompressor: nil,
-		initPaginator: &fixedPaginator{},
-		initErr: errors.New("some Initialize error"),
+		initPaginator:  &fixedPaginator{},
+		initErr:        errors.New("some Initialize error"),
 	}
 
 	// check that init error bubbles up
@@ -179,15 +179,14 @@ func TestPrinter_Print_err(t *testing.T) {
 	assert.Nil(t, pageKeys)
 	assert.Nil(t, entryMetadata)
 
-
 	storer2 := &fixedStorer{
 		storeErr: errors.New("some Store error"),
 	}
 	printer2 := NewPrinter(params, keys, authorPub, storer2)
 	printer2.(*printer).init = &fixedPrintInitializer{
 		initCompressor: nil,
-		initPaginator: &fixedPaginator{},
-		initErr: nil,
+		initPaginator:  &fixedPaginator{},
+		initErr:        nil,
 	}
 
 	// check that store error bubbles up
@@ -196,17 +195,16 @@ func TestPrinter_Print_err(t *testing.T) {
 	assert.Nil(t, pageKeys)
 	assert.Nil(t, entryMetadata)
 
-
 	paginator3 := &fixedPaginator{
-		readN: 0,
+		readN:   0,
 		readErr: errors.New("some ReadFrom error"),
 	}
 
 	printer3 := NewPrinter(params, keys, authorPub, &fixedStorer{})
 	printer3.(*printer).init = &fixedPrintInitializer{
 		initCompressor: nil,
-		initPaginator: paginator3,
-		initErr: nil,
+		initPaginator:  paginator3,
+		initErr:        nil,
 	}
 
 	// check that paginator.ReadFrom error bubbles up
@@ -215,25 +213,23 @@ func TestPrinter_Print_err(t *testing.T) {
 	assert.Nil(t, pageKeys)
 	assert.Nil(t, entryMetadata)
 
-
-
 	compressor := &fixedCompressor{
 		uncompressedMAC: &fixedMAC{
 			messageSize: 0,
-			sum: []byte{},
+			sum:         []byte{},
 		},
 	}
 	paginator := &fixedPaginator{
 		ciphertextMAC: &fixedMAC{
 			messageSize: 0,
-			sum: []byte{},
+			sum:         []byte{},
 		},
 	}
 	printer4 := NewPrinter(params, keys, authorPub, &fixedStorer{})
 	printer4.(*printer).init = &fixedPrintInitializer{
 		initCompressor: compressor,
-		initPaginator: paginator,
-		initErr: nil,
+		initPaginator:  paginator,
+		initErr:        nil,
 	}
 
 	// check that api.NewEntryMetadata error bubbles up
@@ -252,9 +248,9 @@ func TestPrintInitializerImpl_Initialize_ok(t *testing.T) {
 	pages := make(chan *api.Page)
 
 	printInit := &printInitializerImpl{
-		keys: keys,
+		keys:      keys,
 		authorPub: authorPub,
-		params: params,
+		params:    params,
 	}
 	compressor, paginator, err := printInit.Initialize(content, mediaType, pages)
 	assert.Nil(t, err)
@@ -271,9 +267,9 @@ func TestPrintInitializerImpl_Initialize_err(t *testing.T) {
 	pages := make(chan *api.Page)
 
 	printInit1 := &printInitializerImpl{
-		keys: keys,
+		keys:      keys,
 		authorPub: authorPub,
-		params: params,
+		params:    params,
 	}
 
 	// check that bad media type triggers error
@@ -282,14 +278,13 @@ func TestPrintInitializerImpl_Initialize_err(t *testing.T) {
 	assert.Nil(t, compressor)
 	assert.Nil(t, paginator)
 
-
 	printInit2 := &printInitializerImpl{
-		keys: keys,
+		keys:      keys,
 		authorPub: authorPub,
 		params: &Parameters{
-			CompressionBufferSize: 0,  // will trigger error when creating compressor
-			PageSize: page.MinSize,
-			Parallelism: DefaultParallelism,
+			CompressionBufferSize: 0, // will trigger error when creating compressor
+			PageSize:              page.MinSize,
+			Parallelism:           DefaultParallelism,
 		},
 	}
 
@@ -302,9 +297,9 @@ func TestPrintInitializerImpl_Initialize_err(t *testing.T) {
 	keys3, _, _ := enc.NewPseudoRandomKeys(rng)
 	keys3.AESKey = []byte{} // will trigger error when creating encrypter
 	printInit3 := &printInitializerImpl{
-		keys: keys3,
+		keys:      keys3,
 		authorPub: authorPub,
-		params: params,
+		params:    params,
 	}
 
 	// check that error creating new encrypter triggers error
@@ -316,9 +311,9 @@ func TestPrintInitializerImpl_Initialize_err(t *testing.T) {
 	keys4, _, _ := enc.NewPseudoRandomKeys(rng)
 	keys4.HMACKey = []byte{} // will trigger error when creating paginator
 	printInit4 := &printInitializerImpl{
-		keys: keys4,
+		keys:      keys4,
 		authorPub: authorPub,
-		params: params,
+		params:    params,
 	}
 
 	// check that error creating new encrypter triggers error
@@ -327,8 +322,6 @@ func TestPrintInitializerImpl_Initialize_err(t *testing.T) {
 	assert.Nil(t, compressor)
 	assert.Nil(t, paginator)
 }
-
-
 
 func randPages(t *testing.T, rng *rand.Rand, n int) ([]cid.ID, []*api.Page) {
 	pages := make([]*api.Page, n)
