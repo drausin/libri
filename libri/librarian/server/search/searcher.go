@@ -3,7 +3,6 @@ package search
 import (
 	"bytes"
 	"container/heap"
-	"fmt"
 	"sync"
 
 	cid "github.com/drausin/libri/libri/common/id"

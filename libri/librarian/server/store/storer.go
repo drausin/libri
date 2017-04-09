@@ -2,7 +2,6 @@ package store
 
 import (
 	"bytes"
-	"fmt"
 	"sync"
 
 	"github.com/drausin/libri/libri/common/ecid"
