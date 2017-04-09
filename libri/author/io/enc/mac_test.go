@@ -49,6 +49,27 @@ func TestSizeHMAC_Sum(t *testing.T) {
 	assert.NotEqual(t, mac1, mac3)
 }
 
+func TestSizeHMAC_Reset(t *testing.T) {
+	hmac1 := NewHMAC([]byte{1, 2, 3})
+	hmac2 := NewHMAC([]byte{1, 2, 3})
+
+	stuff1 := []byte{4, 5, 6}
+	_, err := hmac1.Write(stuff1)
+	assert.Nil(t, err)
+
+	// check that hmac1 and hmac2 currently have different MACs
+	assert.NotEqual(t, hmac2.Sum(nil), hmac1.Sum(nil))
+
+	// check that Reset() results in same MAC as fresh
+	stuff2 := []byte{7, 8, 9}
+	hmac1.Reset()
+	_, err = hmac1.Write(stuff2)
+	assert.Nil(t, err)
+	_, err = hmac2.Write(stuff2)
+	assert.Nil(t, err)
+	assert.Equal(t, hmac2.Sum(nil), hmac1.Sum(nil))
+}
+
 func TestSizeHMAC_MessageSize(t *testing.T) {
 	hmac1 := NewHMAC([]byte{1, 2, 3})
 

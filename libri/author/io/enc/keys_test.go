@@ -60,3 +60,8 @@ func TestMarshallUnmarshall_ok(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, k1, k2)
 }
+
+func TestUnmarshal_err(t *testing.T) {
+	_, err := Unmarshal([]byte{})
+	assert.NotNil(t, err)
+}

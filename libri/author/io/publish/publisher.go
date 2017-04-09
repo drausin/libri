@@ -4,7 +4,6 @@ import (
 	"errors"
 	"sync"
 	"time"
-
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
@@ -23,15 +22,18 @@ const (
 	DefaultPutParallelism = 3
 )
 
-// ErrUnexpectedMissingDocument indicates when a document is unexpectely missing from the document
-// storer loader.
-var ErrUnexpectedMissingDocument = errors.New("unexpected missing document")
+var (
+	// ErrUnexpectedMissingDocument indicates when a document is unexpectely missing from the
+	// document storer loader.
+	ErrUnexpectedMissingDocument = errors.New("unexpected missing document")
 
-// Publisher Puts a document into the libri network using a librarian client.
-type Publisher interface {
-	// Publish Puts a document using a librarian client and returns the ID of the document.
-	Publish(doc *api.Document, lc api.Putter) (cid.ID, error)
-}
+	// ErrPutTimeoutZeroValue indicates when the PutTimeout parameter has the zero value.
+	ErrPutTimeoutZeroValue = errors.New("PutTimeout must be greater than zero")
+
+	// ErrPutParallelismZeroValue indicates when the PutParallelism parameter has the zero
+	// value.
+	ErrPutParallelismZeroValue = errors.New("PutParallelism must be greater than zero")
+)
 
 // Parameters define configuration used by a Publisher.
 type Parameters struct {
@@ -41,6 +43,26 @@ type Parameters struct {
 	// PutParallelism is the number of simultaneous Put requests (for different documents) that
 	// can occur.
 	PutParallelism uint32
+}
+
+// NewParameters validates the parameters and returns a new *Parameters instance.
+func NewParameters(putTimeout time.Duration, putParallelism uint32) (*Parameters, error) {
+	if putTimeout == 0 {
+		return nil, ErrPutTimeoutZeroValue
+	}
+	if putParallelism == 0 {
+		return nil, ErrPutParallelismZeroValue
+	}
+	return &Parameters{
+		PutTimeout: putTimeout,
+		PutParallelism: putParallelism,
+	}, nil
+}
+
+// Publisher Puts a document into the libri network using a librarian client.
+type Publisher interface {
+	// Publish Puts a document using a librarian client and returns the ID of the document.
+	Publish(doc *api.Document, lc api.Putter) (cid.ID, error)
 }
 
 type publisher struct {
@@ -126,25 +148,33 @@ type multiLoadPublisher struct {
 	params *Parameters
 }
 
+// NewMultiLoadPublisher creates a new MultiLoadPublisher.
+func NewMultiLoadPublisher(inner SingleLoadPublisher, params *Parameters) MultiLoadPublisher {
+	return &multiLoadPublisher{
+		inner: inner,
+		params: params,
+	}
+}
+
 func (p *multiLoadPublisher) Publish(docKeys []cid.ID, cb api.ClientBalancer) error {
 	docKeysChan := make(chan cid.ID, p.params.PutParallelism)
 	go loadChan(docKeys, docKeysChan)
 	wg := new(sync.WaitGroup)
-	putErrs := make(chan error, 1)
+	putErrs := make(chan error, p.params.PutParallelism)
 	for c := uint32(0); c < p.params.PutParallelism; c++ {
 		wg.Add(1)
 		go func() {
 			for docKey := range docKeysChan {
 				if err := p.inner.Publish(docKey, cb.Next()); err != nil {
 					putErrs <- err
-					return
+					break
 				}
 			}
+			wg.Done()
 		}()
 	}
-	close(putErrs)
-	close(docKeysChan)
 	wg.Wait()
+	close(putErrs)
 
 	select {
 	case err := <-putErrs:
@@ -158,4 +188,5 @@ func loadChan(idSlice []cid.ID, idChan chan cid.ID) {
 	for _, id := range idSlice {
 		idChan <- id
 	}
+	close(idChan)
 }

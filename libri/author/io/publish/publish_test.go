@@ -12,7 +12,25 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
 	"github.com/drausin/libri/libri/common/id"
+	"sync"
+	"time"
 )
+
+func TestNewParameters_ok(t *testing.T) {
+	params, err := NewParameters(DefaultPutTimeout, DefaultPutParallelism)
+	assert.Nil(t, err)
+	assert.NotNil(t, params)
+}
+
+func TestNewParameters_err(t *testing.T) {
+	params, err := NewParameters(0 * time.Second, DefaultPutParallelism)
+	assert.Equal(t, ErrPutTimeoutZeroValue, err)
+	assert.Nil(t, params)
+
+	params, err = NewParameters(DefaultPutTimeout, 0)
+	assert.Equal(t, ErrPutParallelismZeroValue, err)
+	assert.Nil(t, params)
+}
 
 func TestLoadPublisher_Publish_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
@@ -139,6 +157,56 @@ func TestSingleLoadPublisher_Publish_err(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func TestMultiLoadPublisher_Publish_ok(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	cb := &nilClientBalancer{}
+	for _, nDocs := range []int{1, 2, 4, 8, 16} {
+		docKeys := make([]id.ID, nDocs)
+		for i := 0; i < nDocs; i++ {
+			docKeys[i] = id.NewPseudoRandom(rng)
+		}
+		for _, putParallelism := range []uint32{1, 2, 3} {
+			slPub := &fixedSingleLoadPublisher{
+				publishedKeys: make(map[string]struct{}),
+			}
+			params, err := NewParameters(DefaultPutTimeout, putParallelism)
+			assert.Nil(t, err)
+			mlPub := NewMultiLoadPublisher(slPub, params)
+
+			err = mlPub.Publish(docKeys, cb)
+			assert.Nil(t, err)
+
+			// check all keys have been "published"
+			for _, docKey := range docKeys {
+				_, in := slPub.publishedKeys[docKey.String()]
+				assert.True(t, in)
+			}
+		}
+	}
+}
+
+func TestMultiLoadPublisher_Publish_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	cb := &nilClientBalancer{}
+	for _, nDocs := range []int{1, 2, 4, 8, 16} {
+		docKeys := make([]id.ID, nDocs)
+		for i := 0; i < nDocs; i++ {
+			docKeys[i] = id.NewPseudoRandom(rng)
+		}
+		for _, putParallelism := range []uint32{1, 2, 3} {
+			slPub := &fixedSingleLoadPublisher{
+				err: errors.New("some Publish error"),
+			}
+			params, err := NewParameters(DefaultPutTimeout, putParallelism)
+			assert.Nil(t, err)
+			mlPub := NewMultiLoadPublisher(slPub, params)
+
+			err = mlPub.Publish(docKeys, cb)
+			assert.NotNil(t, err)
+		}
+	}
+}
+
 type fixedPutter struct {
 	request *api.PutRequest
 	err error
@@ -207,10 +275,23 @@ func (p *fixedPublisher) Publish(doc *api.Document, lc api.Putter) (id.ID, error
 }
 
 type fixedSingleLoadPublisher struct {
+	mu sync.Mutex
+	publishedKeys map[string]struct{}
 	err error
 }
 
 func (f *fixedSingleLoadPublisher) Publish(docKey id.ID, lc api.Putter) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.err == nil {
+		f.publishedKeys[docKey.String()] = struct{}{}
+	}
 	return f.err
+}
+
+type nilClientBalancer struct {}
+
+func (*nilClientBalancer) Next() api.LibrarianClient {
+	return nil
 }
 

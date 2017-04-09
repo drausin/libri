@@ -75,7 +75,9 @@ func TestEncryptMetadata_err(t *testing.T) {
 	assert.Nil(t, err)
 
 	// check missing AES key triggers error
-	em2, err := EncryptMetadata(m, &Keys{})
+	keys2, _, _ := NewPseudoRandomKeys(rng)
+	keys2.AESKey = nil
+	em2, err := EncryptMetadata(m, keys2)
 	assert.NotNil(t, err)
 	assert.Nil(t, em2)
 }
@@ -85,29 +87,32 @@ func TestDecryptMetadata_err(t *testing.T) {
 
 	em1, err := NewEncryptedMetadata(api.RandBytes(rng, 64), api.RandBytes(rng, 32))
 	assert.Nil(t, err)
+	keys1, _, _ := NewPseudoRandomKeys(rng)
+	keys1.HMACKey = nil
 
 	// check bad HMAC key triggers error
-	m1, err := DecryptMetadata(em1, &Keys{})
+	m1, err := DecryptMetadata(em1, keys1)
 	assert.NotNil(t, err)
 	assert.Nil(t, m1)
 
 	em2, err := NewEncryptedMetadata(api.RandBytes(rng, 64), api.RandBytes(rng, 32))
 	assert.Nil(t, err)
-	keys2, _, _ := NewPseudoRandomKeys(rng)
+	keys2, _, _ := NewPseudoRandomKeys(rng)  // valid, but not connected to ciphertext
 
 	// check different MAC triggers error;
 	m2, err := DecryptMetadata(em2, keys2)
 	assert.Equal(t, ErrUnexpectedMAC, err)
 	assert.Nil(t, m2)
 
-	keys3, _, _ := NewPseudoRandomKeys(rng) // valid, but not connected to ciphertext
+	keys3, _, _ := NewPseudoRandomKeys(rng)
+	keys3.AESKey = nil
 	ciphertext3 := api.RandBytes(rng, 64)
 	ciphertextMAC3, err := HMAC(ciphertext3, keys3.HMACKey)
 	assert.Nil(t, err)
 	em3, err := NewEncryptedMetadata(ciphertext3, ciphertextMAC3)
 	assert.Nil(t, err)
 
-	// check bad HMAC key triggers error
+	// check bad AES key triggers error
 	m3, err := DecryptMetadata(em3, keys3)
 	assert.NotNil(t, err)
 	assert.Nil(t, m3)
