@@ -151,6 +151,8 @@ func TestUnpaginator_WriteTo_err(t *testing.T) {
 
 	// check that Decrypt error bubbles up
 	n, err = u3.WriteTo(nil)
+	assert.NotNil(t, err)
+	assert.Zero(t, n)
 
 
 	decrypter4 := &fixedDecrypter{}
