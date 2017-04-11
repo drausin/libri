@@ -23,9 +23,10 @@ func TestServerStorerLoader_StoreLoad_ok(t *testing.T) {
 		{cid.NewPseudoRandom(rng).Bytes(), []byte("test value")},
 	}
 
-	kvdb, err := db.NewTempDirRocksDB()
-	assert.Nil(t, err)
+	kvdb, cleanup, err := db.NewTempDirRocksDB()
+	defer cleanup()
 	defer kvdb.Close()
+	assert.Nil(t, err)
 	ssl := NewServerKVDBStorerLoader(kvdb)
 
 	for _, c := range cases {
@@ -38,7 +39,7 @@ func TestServerStorerLoader_StoreLoad_ok(t *testing.T) {
 	}
 }
 
-func TestServerStorerLoader_Store_err(t *testing.T) {
+func TestServerClientStorerLoader_Store_err(t *testing.T) {
 	cases := []struct {
 		key   []byte
 		value []byte
@@ -50,18 +51,22 @@ func TestServerStorerLoader_Store_err(t *testing.T) {
 		{[]byte("test key"), []byte("")},                       // empty value
 	}
 
-	kvdb, err := db.NewTempDirRocksDB()
-	assert.Nil(t, err)
+	kvdb, cleanup, err := db.NewTempDirRocksDB()
+	defer cleanup()
 	defer kvdb.Close()
+	assert.Nil(t, err)
 	ssl := NewServerKVDBStorerLoader(kvdb)
+	csl := NewServerKVDBStorerLoader(kvdb)
 
 	for _, c := range cases {
 		err := ssl.Store(c.key, c.value)
 		assert.NotNil(t, err)
+		err = csl.Store(c.key, c.value)
+		assert.NotNil(t, err)
 	}
 }
 
-func TestServerStorerLoader_Load_err(t *testing.T) {
+func TestServerClientStorerLoader_Load_err(t *testing.T) {
 	cases := []struct {
 		key   []byte
 		value []byte
@@ -71,21 +76,26 @@ func TestServerStorerLoader_Load_err(t *testing.T) {
 		{bytes.Repeat([]byte{255}, 257), []byte("test value")}, // too long key
 	}
 
-	kvdb, err := db.NewTempDirRocksDB()
-	assert.Nil(t, err)
+	kvdb, cleanup, err := db.NewTempDirRocksDB()
+	defer cleanup()
 	defer kvdb.Close()
+	assert.Nil(t, err)
 	ssl := NewServerKVDBStorerLoader(kvdb)
+	csl := NewServerKVDBStorerLoader(kvdb)
 
 	for _, c := range cases {
 		_, err = ssl.Load(c.key)
+		assert.NotNil(t, err)
+		_, err = csl.Load(c.key)
 		assert.NotNil(t, err)
 	}
 }
 
 func TestDocumentNamespaceStorerLoader_StoreLoad_ok(t *testing.T) {
-	kvdb, err := db.NewTempDirRocksDB()
-	assert.Nil(t, err)
+	kvdb, cleanup, err := db.NewTempDirRocksDB()
+	defer cleanup()
 	defer kvdb.Close()
+	assert.Nil(t, err)
 	dsl := NewDocumentKVDBStorerLoader(kvdb)
 
 	rng := rand.New(rand.NewSource(0))
@@ -102,9 +112,10 @@ func TestDocumentNamespaceStorerLoader_StoreLoad_ok(t *testing.T) {
 func TestDocumentNamespaceStorerLoader_Store_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 
-	kvdb, err := db.NewTempDirRocksDB()
-	assert.Nil(t, err)
+	kvdb, cleanup, err := db.NewTempDirRocksDB()
+	defer cleanup()
 	defer kvdb.Close()
+	assert.Nil(t, err)
 	dsl := NewDocumentKVDBStorerLoader(kvdb)
 
 	// check invalid document returns error
@@ -165,9 +176,10 @@ func TestDocumentStorerLoader_Load_checkErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	value, _ := api.NewTestDocument(rng)
 	key := cid.NewPseudoRandom(rng)
-	kvdb, err := db.NewTempDirRocksDB()
-	assert.Nil(t, err)
+	kvdb, cleanup, err := db.NewTempDirRocksDB()
+	defer cleanup()
 	defer kvdb.Close()
+	assert.Nil(t, err)
 	dsl := NewDocumentKVDBStorerLoader(kvdb)
 
 	// hackily put a value with a non-hash key; should never happen in the wild
@@ -186,9 +198,10 @@ func TestDocumentStorerLoader_Load_validateDocumentErr(t *testing.T) {
 	value, _ := api.NewTestDocument(rng)
 	value.Contents.(*api.Document_Entry).Entry.AuthorPublicKey = nil
 	key := cid.NewPseudoRandom(rng)
-	kvdb, err := db.NewTempDirRocksDB()
-	assert.Nil(t, err)
+	kvdb, cleanup, err := db.NewTempDirRocksDB()
+	defer cleanup()
 	defer kvdb.Close()
+	assert.Nil(t, err)
 	dsl := NewDocumentKVDBStorerLoader(kvdb)
 
 	// hackily put a value with a non-hash key; should never happen in the wild

@@ -3,6 +3,6 @@ syntax = "proto3";
 package keychain;
 
 message StoredKeychain {
-    map<string, bytes> privateKeys = 1;
+    repeated bytes privateKeys = 1;
 }
 

@@ -2,34 +2,35 @@ package keychain
 
 import (
 	"crypto/ecdsa"
-	"fmt"
 	"sync"
 
 	ethkeystore "github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/drausin/libri/libri/common/ecid"
 )
 
-// EncryptToStored encrypts the contents of Keychain using the authentication passphrase and scrypt
+// encryptToStored encrypts the contents of Keychain using the authentication passphrase and scrypt
 // difficulty parameters.
-func EncryptToStored(kc *Keychain, auth string, scryptN, scryptP int) (*StoredKeychain, error) {
-	storedPrivateKeys := make(map[string][]byte)
+func encryptToStored(kc Keychain, auth string, scryptN, scryptP int) (*StoredKeychain, error) {
+	storedPrivateKeys := make([][]byte, 0)
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	errs, done := make(chan error, 1), make(chan struct{}, 1)
 
 	// encrypt all keys in parallel b/c each can be intensive, thanks to scrypt
-	for s1, key1 := range kc.privs {
+	for _, key1 := range kc.(*keychain).privs {
 		wg.Add(1)
-		go func(s2 string, key2 *ecdsa.PrivateKey) {
+		go func(key2 ecid.ID) {
 			var err error
 			defer wg.Done()
-			mu.Lock()
-			storedPrivateKeys[s2], err = encryptKey(key2, auth, scryptN, scryptP)
-			mu.Unlock()
+			encryptedKeyBytes, err := encryptKey(key2.Key(), auth, scryptN, scryptP)
 			if err != nil {
 				errs <- err
 			}
-		}(s1, key1)
+			mu.Lock()
+			storedPrivateKeys = append(storedPrivateKeys, encryptedKeyBytes)
+			mu.Unlock()
+		}(key1)
 	}
 
 	go func() {
@@ -47,9 +48,9 @@ func EncryptToStored(kc *Keychain, auth string, scryptN, scryptP int) (*StoredKe
 	}
 }
 
-// DecryptFromStored decrypts the contents of a StoredKeychain using the authentication passphrase.
-func DecryptFromStored(stored *StoredKeychain, auth string) (*Keychain, error) {
-	privs := make(map[string]*ecdsa.PrivateKey)
+// decryptFromStored decrypts the contents of a StoredKeychain using the authentication passphrase.
+func decryptFromStored(stored *StoredKeychain, auth string) (Keychain, error) {
+	ecids := make([]ecid.ID, 0)
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	errs, done := make(chan error, 1), make(chan struct{}, 1)
@@ -65,7 +66,7 @@ func DecryptFromStored(stored *StoredKeychain, auth string) (*Keychain, error) {
 				return
 			}
 			mu.Lock()
-			privs[pubKeyString(priv)] = priv
+			ecids = append(ecids, ecid.FromPrivateKey(priv))
 			mu.Unlock()
 		}(keyJSON1)
 	}
@@ -77,7 +78,7 @@ func DecryptFromStored(stored *StoredKeychain, auth string) (*Keychain, error) {
 
 	select {
 	case <-done:
-		return FromPrivateKeys(privs), nil
+		return FromECIDs(ecids), nil
 	case err := <-errs:
 		return nil, err
 	}
@@ -98,8 +99,4 @@ func decryptKey(keyJSON []byte, auth string) (*ecdsa.PrivateKey, error) {
 		return nil, err
 	}
 	return ethKey.PrivateKey, nil
-}
-
-func pubKeyString(privKey *ecdsa.PrivateKey) string {
-	return fmt.Sprintf("%064x", privKey.X.Bytes())
 }

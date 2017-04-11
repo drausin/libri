@@ -8,11 +8,11 @@ import (
 )
 
 const (
-	// MaxServerKeyLength is the max key length (in bytes) for the "server" namespace.
-	MaxServerKeyLength = 32
+	// MaxNamespaceKeyLength is the max key length (in bytes) for a NamespaceStorerLoader.
+	MaxNamespaceKeyLength = 32
 
-	// MaxServerValueLength is the max value length for the "value" namespace.
-	MaxServerValueLength = 2 * 1024 * 1024 // 2 MB
+	// MaxNamespaceValueLength is the max value length for a NamespaceStorerLoader.
+	MaxNamespaceValueLength = 2 * 1024 * 1024 // 2 MB
 
 	// EntriesKeyLength is the fixed length (in bytes) of all entry keys.
 	EntriesKeyLength = 32
@@ -20,12 +20,15 @@ const (
 	// MaxEntriesValueLength is the maximum length of all entry values. We add a little buffer
 	// on top of the value to account for Entry values other than the actual ciphertext (which
 	// we want to be <= 2MB).
-	MaxEntriesValueLength = 2*1024*1024 + 1024
+	MaxEntriesValueLength = 2 * 1024 * 1024 + 1024
 )
 
 var (
-	// Server namespace contains values relevant to the server itself.
+	// Server namespace contains values relevant to a server.
 	Server Namespace = []byte("server")
+
+	// Client namespace contains values relevant to a client.
+	Client Namespace = []byte("client")
 
 	// Documents namespace contains all libri p2p stored values.
 	Documents Namespace = []byte("documents")
@@ -148,8 +151,28 @@ func NewServerKVDBStorerLoader(kvdb db.KVDB) NamespaceStorerLoader {
 	return NewServerStorerLoader(
 		NewKVDBStorerLoader(
 			kvdb,
-			NewMaxLengthChecker(MaxServerKeyLength),
-			NewMaxLengthChecker(MaxServerValueLength),
+			NewMaxLengthChecker(MaxNamespaceKeyLength),
+			NewMaxLengthChecker(MaxNamespaceValueLength),
+		),
+	)
+}
+
+// NewClientStorerLoader creates a new NamespaceStorerLoader for the "client" namespace.
+func NewClientStorerLoader(sl StorerLoader) NamespaceStorerLoader {
+	return &namespaceStorerLoader{
+		ns: Client,
+		sl: sl,
+	}
+}
+
+// NewClientKVDBStorerLoader creates a new NamespaceStorerLoader for the "client" namespace backed
+// by a db.KVDB instance.
+func NewClientKVDBStorerLoader(kvdb db.KVDB) NamespaceStorerLoader {
+	return NewClientStorerLoader(
+		NewKVDBStorerLoader(
+			kvdb,
+			NewMaxLengthChecker(MaxNamespaceKeyLength),
+			NewMaxLengthChecker(MaxNamespaceValueLength),
 		),
 	)
 }

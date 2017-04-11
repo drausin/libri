@@ -89,9 +89,6 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err = savePeerID(serverSL, peerID); err != nil {
-		return nil, err
-	}
 
 	rt, err := loadOrCreateRoutingTable(logger, serverSL, peerID, config.Routing)
 	if err != nil {

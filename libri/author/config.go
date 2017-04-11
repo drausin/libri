@@ -5,27 +5,32 @@ import (
 
 	"github.com/drausin/libri/libri/author/io/print"
 	"go.uber.org/zap/zapcore"
+	"github.com/drausin/libri/libri/author/io/publish"
 )
 
 // Config is used to configure an Author.
 type Config struct {
 	Print *print.Parameters
 
+	Publish *publish.Parameters
+
 	// DataDir is the directory on the local machine where the state and output of all the
-	// peers running on that machine are stored. For example,
+	// clients running on that machine are stored. For example,
 	//
 	//	data
-	//	└── peer-fc593d11
+	//	└── client-fc593d11
 	//	    └── db
-	//	└── peer-f829ef46
+	//	└── client-f829ef46
 	//	    └── db
-	//	└── peer-765079fb
+	//	└── client-765079fb
 	//	    └── db
 	//
 	DataDir string
 
 	// DbDir is the local directory where this node's DB state is stored.
 	DbDir string
+
+	KeychainDir string
 
 	// LibrarianAddrs is a list of public addresses of Librarian servers to issue request to.
 	LibrarianAddrs []*net.TCPAddr

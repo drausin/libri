@@ -27,9 +27,10 @@ func TestToRoutingTable(t *testing.T) {
 
 func TestRoutingTable_SaveLoad(t *testing.T) {
 	rt1, _, _ := NewTestWithPeers(rand.New(rand.NewSource(0)), 8)
-	kvdb, err := db.NewTempDirRocksDB()
-	assert.Nil(t, err)
+	kvdb, cleanup, err := db.NewTempDirRocksDB()
+	defer cleanup()
 	defer kvdb.Close()
+	assert.Nil(t, err)
 	ssl := storage.NewServerKVDBStorerLoader(kvdb)
 
 	err = rt1.Save(ssl)

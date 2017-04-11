@@ -22,37 +22,37 @@ type Author struct {
 	// selfID is ID of this author client
 	clientID ecid.ID
 
+	// Config holds the configuration parameters of the server
+	config *Config
+
 	// collection of keys for encrypting Envelope documents; these can be used as either the
 	// author or reader keys
-	authorKeys keychain.Sampler
+	authorKeys keychain.Keychain
 
 	// collection of reader keys used with sending Envelope documents to oneself; these are
 	// never used as the author key
-	selfReaderKeys keychain.Sampler
-
-	// Config holds the configuration parameters of the server
-	config *Config
+	selfReaderKeys keychain.Keychain
 
 	// key-value store DB used for all external storage
 	db db.KVDB
 
-	// load balancer for librarian clients
-	librarians api.ClientBalancer
-
-	publisher publish.Publisher
-
-	mlPublisher publish.MultiLoadPublisher
+	// SL for client data
+	clientSL storage.NamespaceStorerLoader
 
 	// SL for locally stored documents
 	documentSL storage.DocumentLoader
 
-	// ensures keys are valid
+	// load balancer for librarian clients
+	librarians api.ClientBalancer
+
+	// publishes documents to libri network
+	publisher publish.Publisher
+
+	// loads and publishes documents in parallel to libri network
+	mlPublisher publish.MultiLoadPublisher
+
+	// stores Pages in chan to local storage
 	pageSL page.StorerLoader
-
-	kc storage.Checker
-
-	// ensures keys and values are valid
-	kvc storage.KeyValueChecker
 
 	// signs requests
 	signer client.Signer
@@ -64,6 +64,53 @@ type Author struct {
 	stop chan struct{}
 }
 
+func NewAuthor(config *Config, keychainAuth string, logger *zap.Logger) (*Author, error) {
+	rdb, err := db.NewRocksDB(config.DbDir)
+	if err != nil {
+		logger.Error("unable to init RocksDB", zap.Error(err))
+		return nil, err
+	}
+	clientSL := storage.NewClientKVDBStorerLoader(rdb)
+	documentSL := storage.NewDocumentKVDBStorerLoader(rdb)
+
+	// get client ID and immediately save it so subsequent restarts have it
+	clientID, err := loadOrCreateClientID(logger, clientSL)
+	if err != nil {
+		return nil, err
+	}
+
+	authorKeys, selfReaderKeys, err := loadKeychains(config.KeychainDir, keychainAuth)
+	keychainAuth = ""  // limit time in which keychain auth exists in memory
+	if err != nil {
+		return nil, err
+	}
+	librarians, err := createClientBalancer(config.LibrarianAddrs)
+	if err != nil {
+		return nil, err
+	}
+
+	signer := client.NewSigner(clientID.Key())
+	publisher := publish.NewPublisher(clientID, signer, config.Publish)
+	slPublisher := publish.NewSingleLoadPublisher(publisher, documentSL)
+
+	return &Author{
+		clientID: clientID,
+		config: config,
+		authorKeys: authorKeys,
+		selfReaderKeys: selfReaderKeys,
+		db: rdb,
+		clientSL: clientSL,
+		documentSL: documentSL,
+		librarians: librarians,
+		publisher: publish.NewPublisher(clientID, signer, config.Publish),
+		mlPublisher: publish.NewMultiLoadPublisher(slPublisher, config.Publish),
+		pageSL: page.NewStorerLoader(documentSL),
+		signer: signer,
+		logger: logger,
+		stop: make(chan struct{}),
+	}, nil
+}
+
 // TODO (drausin) Author methods
 // - Download()
 // - Share()
@@ -71,7 +118,7 @@ type Author struct {
 // Upload compresses, encrypts, and splits the content into pages and then stores them in the
 // libri network. It returns the *api.Entry that was stored.
 func (a *Author) Upload(content io.Reader, mediaType string) (*api.Document, error) {
-	authorPub, readerPub, keys, err := a.sampleSelfReaderKeys()
+	authorPub, readerPub, keys, err := sampleSelfReaderKeys(a.authorKeys, a.selfReaderKeys)
 	if err != nil {
 		return nil, err
 	}
@@ -106,26 +153,10 @@ func (a *Author) Upload(content io.Reader, mediaType string) (*api.Document, err
 		return nil, err
 	}
 
-	// TODO (drausin) store envelope in local storage by entry key
+	// TODO (drausin)
+	// - store envelope in local storage by entry key
+	// - delete pages from local storage
 
 	return entry, nil
 }
 
-// sampleSelfReaderKeys samples a random pair of keys (author and reader) for the author to use
-// in creating the document *Keys instance. The method returns the author and reader public keys
-// along with the *Keys object.
-func (a *Author) sampleSelfReaderKeys() ([]byte, []byte, *enc.Keys, error) {
-	authorID, err := a.authorKeys.Sample()
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	selfReaderID, err := a.selfReaderKeys.Sample()
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	keys, err := enc.NewKeys(authorID.Key(), &selfReaderID.Key().PublicKey)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	return ecid.ToPublicKeyBytes(authorID), ecid.ToPublicKeyBytes(selfReaderID), keys, nil
-}
