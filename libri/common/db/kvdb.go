@@ -59,7 +59,12 @@ func NewRocksDB(dbDir string) (*RocksDB, error) {
 // temporary directory.
 func NewTempDirRocksDB() (*RocksDB, func(), error) {
 	dir, err := ioutil.TempDir("", "kvdb-test-rocksdb")
-	cleanup := func() { os.RemoveAll(dir) }
+	cleanup := func() {
+		rmErr := os.RemoveAll(dir)
+		if rmErr != nil {
+			panic(rmErr)
+		}
+	}
 	if err != nil {
 		return nil, cleanup, err
 	}

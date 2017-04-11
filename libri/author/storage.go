@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// ErrKeychainExists indicates when a keychain file already exists.
 var ErrKeychainExists = errors.New("keychain already exists")
 
 // logger keys

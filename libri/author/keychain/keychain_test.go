@@ -30,6 +30,7 @@ func TestKeychain_Get(t *testing.T) {
 
 	k1, in := kc.Get(ecid.ToPublicKeyBytes(k1))
 	assert.True(t, in)
+	assert.NotNil(t, k1)
 }
 
 func TestKeychain_Len(t *testing.T) {

@@ -7,6 +7,7 @@ import (
 
 // ClientBalancer load balances between a collection of LibrarianClients.
 type ClientBalancer interface {
+	// Next() selects the next LibrarianClient.
 	Next() LibrarianClient
 }
 
@@ -16,13 +17,16 @@ type uniformRandBalancer struct {
 	lcs []LibrarianClient
 }
 
-func NewClientBalancer(lcs []LibrarianClient) ClientBalancer {
+// NewUniformRandomClientBalancer creates a new ClientBalancer that selects the next client
+// uniformly at random.
+func NewUniformRandomClientBalancer(lcs []LibrarianClient) ClientBalancer {
 	return &uniformRandBalancer{
 		rng: rand.New(rand.NewSource(int64(len(lcs)))),
 		lcs: lcs,
 	}
 }
 
+// Next selects the next librarian client uniformly at random.
 func (b *uniformRandBalancer) Next() LibrarianClient {
 	b.mu.Lock()
 	defer b.mu.Unlock()

@@ -58,7 +58,7 @@ func TestSaveClientID(t *testing.T) {
 
 func TestLoadKeychains(t *testing.T) {
 	testKeychainDir, err := ioutil.TempDir("", "author-test-keychains")
-	defer os.RemoveAll(testKeychainDir)
+	defer rmDir(testKeychainDir)
 	assert.Nil(t, err)
 	auth := "some secret passphrase"
 
@@ -73,7 +73,8 @@ func TestLoadKeychains(t *testing.T) {
 	assert.Equal(t, nInitialKeys, selfReaderKeys.Len())
 
 	// delete self reader keychain to trigger error
-	os.Remove(path.Join(testKeychainDir, selfReaderKeychainFilename))
+	err = os.Remove(path.Join(testKeychainDir, selfReaderKeychainFilename))
+	assert.Nil(t, err)
 
 	// check missing self reader keychain file triggers error
 	authorKeys, selfReaderKeys, err = loadKeychains(testKeychainDir, auth)
@@ -82,7 +83,8 @@ func TestLoadKeychains(t *testing.T) {
 	assert.Nil(t, selfReaderKeys)
 
 	// delete author keychain to trigger error
-	os.Remove(path.Join(testKeychainDir, authorKeychainFilename))
+	err = os.Remove(path.Join(testKeychainDir, authorKeychainFilename))
+	assert.Nil(t, err)
 
 	// check missing author keychain file triggers error
 	authorKeys, selfReaderKeys, err = loadKeychains(testKeychainDir, auth)
@@ -93,7 +95,7 @@ func TestLoadKeychains(t *testing.T) {
 
 func TestCreateKeychains_ok(t *testing.T) {
 	testKeychainDir, err := ioutil.TempDir("", "author-test-keychains")
-	defer os.RemoveAll(testKeychainDir)
+	defer rmDir(testKeychainDir)
 	assert.Nil(t, err)
 	auth := "some secret passphrase"
 
@@ -111,7 +113,7 @@ func TestCreateKeychains_ok(t *testing.T) {
 
 func TestCreateKeychains_err(t *testing.T) {
 	testKeychainDir, err := ioutil.TempDir("", "author-test-keychains")
-	defer os.RemoveAll(testKeychainDir)
+	defer rmDir(testKeychainDir)
 	assert.Nil(t, err)
 	auth := "some secret passphrase"
 
@@ -132,7 +134,7 @@ func TestCreateKeychains_err(t *testing.T) {
 
 func TestCreateKeychain(t *testing.T) {
 	testKeychainDir, err := ioutil.TempDir("", "author-test-keychains")
-	defer os.RemoveAll(testKeychainDir)
+	defer rmDir(testKeychainDir)
 	assert.Nil(t, err)
 	authorKeychainFP := path.Join(testKeychainDir, authorKeychainFilename)
 	auth := "some secret passphrase"
@@ -155,6 +157,13 @@ func TestCreateKeychain(t *testing.T) {
 	otherAuthorKeychainFP := path.Join(testKeychainDir, "other-author.keys")
 	err = createKeychain(clogging.NewDevInfoLogger(), otherAuthorKeychainFP, auth, -1, -1)
 	assert.NotNil(t, err)
+}
+
+func rmDir(dir string) {
+	err := os.RemoveAll(dir)
+	if err != nil {
+		panic(err)
+	}
 }
 
 type fixedStorerLoader struct {

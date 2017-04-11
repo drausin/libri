@@ -64,6 +64,8 @@ type Author struct {
 	stop chan struct{}
 }
 
+// NewAuthor creates a new *Author from the Config, decrypting the keychains with the supplied
+// auth string.
 func NewAuthor(config *Config, keychainAuth string, logger *zap.Logger) (*Author, error) {
 	rdb, err := db.NewRocksDB(config.DbDir)
 	if err != nil {
@@ -80,7 +82,6 @@ func NewAuthor(config *Config, keychainAuth string, logger *zap.Logger) (*Author
 	}
 
 	authorKeys, selfReaderKeys, err := loadKeychains(config.KeychainDir, keychainAuth)
-	keychainAuth = ""  // limit time in which keychain auth exists in memory
 	if err != nil {
 		return nil, err
 	}

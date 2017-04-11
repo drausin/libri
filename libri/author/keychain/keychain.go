@@ -68,7 +68,7 @@ func New(n int) Keychain {
 	return FromECIDs(ecids)
 }
 
-// FromPrivateKeys creates a Keychain instance from a map of ECDSA private keys.
+// FromECIDs creates a Keychain instance from a map of ECDSA private keys.
 func FromECIDs(ecids []ecid.ID) Keychain {
 	pubs := make([]string, len(ecids))
 	privs := make(map[string]ecid.ID)

@@ -41,5 +41,5 @@ func createClientBalancer(librarianAddrs []*net.TCPAddr) (api.ClientBalancer, er
 		}
 		lcs[i] = api.NewLibrarianClient(conn)
 	}
-	return api.NewClientBalancer(lcs), nil
+	return api.NewUniformRandomClientBalancer(lcs), nil
 }
