@@ -79,6 +79,10 @@ func saveClientID(ns storage.NamespaceStorer, clientID ecid.ID) error {
 	return ns.Store(clientIDKey, bytes)
 }
 
+type keychainLoader interface {
+
+}
+
 func loadKeychains(keychainDir, auth string) (keychain.Keychain, keychain.Keychain, error) {
 	authorKeychainFilepath := path.Join(keychainDir, authorKeychainFilename)
 	authorKeys, err := keychain.Load(authorKeychainFilepath, auth)

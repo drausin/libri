@@ -97,7 +97,10 @@ func TestPeer_Merge_ok(t *testing.T) {
 	assert.Equal(t, uint64(0), p1.Recorder().(*queryRecorder).responses.nQueries)
 
 	p2Name := "p2"
-	p2 = New(p1.ID(), p2Name, p1.Connector())
+	p2 = New(p1.ID(), p2Name, api.NewConnector(&net.TCPAddr{
+		IP:   net.ParseIP("192.168.1.1"),
+		Port: 11000,
+	}))
 	p2.Recorder().Record(Request, Success)
 	p2.Recorder().Record(Response, Success)
 	assert.Equal(t, uint64(1), p2.Recorder().(*queryRecorder).requests.nQueries)

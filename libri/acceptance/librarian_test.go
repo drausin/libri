@@ -81,12 +81,12 @@ func testIntroduce(t *testing.T, rng *rand.Rand, client *testClient, peerConfigs
 			search.DefaultQueryTimeout)
 		assert.Nil(t, err)
 		client.logger.Debug("issuing Introduce request",
-			zap.String("to_peer", conn.String()),
+			zap.String("to_peer", conn.Address().String()),
 		)
 		rp, err := q.Query(ctx, conn, rq)
 		cancel()
 		client.logger.Debug("received Introduce response",
-			zap.String("from_peer", conn.String()),
+			zap.String("from_peer", conn.Address().String()),
 			zap.Int("num_peers", len(rp.Peers)),
 		)
 
@@ -117,13 +117,13 @@ func testPut(t *testing.T, rng *rand.Rand, client *testClient, peerConfigs []*se
 			store.DefaultQueryTimeout)
 		assert.Nil(t, err)
 		client.logger.Debug("issuing Put request",
-			zap.String("to_peer", conn.String()),
+			zap.String("to_peer", conn.Address().String()),
 			zap.String("key", key.String()),
 		)
 		rp, err := q.Query(ctx, conn, rq)
 		cancel()
 		client.logger.Debug("received Put response",
-			zap.String("from_peer", conn.String()),
+			zap.String("from_peer", conn.Address().String()),
 			zap.String("operation", rp.Operation.String()),
 			zap.Int("n_replicas", int(rp.NReplicas)),
 		)
@@ -158,13 +158,13 @@ func testGet(t *testing.T, rng *rand.Rand, client *testClient, peerConfigs []*se
 			store.DefaultQueryTimeout)
 		assert.Nil(t, err)
 		client.logger.Debug("issuing Get request",
-			zap.String("to_peer", conn.String()),
+			zap.String("to_peer", conn.Address().String()),
 			zap.String("key", key.String()),
 		)
 		rp, err := q.Query(ctx, conn, rq)
 		cancel()
 		client.logger.Debug("received Get response",
-			zap.String("from_peer", conn.String()),
+			zap.String("from_peer", conn.Address().String()),
 		)
 
 		// check everything went fine
