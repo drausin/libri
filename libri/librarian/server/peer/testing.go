@@ -110,7 +110,7 @@ func (c *TestConnector) Disconnect() error {
 	return nil
 }
 
-// Equals is a stub that always returns false.
+// Address is a stub that always returns false.
 func (c *TestConnector) Address() *net.TCPAddr{
 	return nil
 }
@@ -130,7 +130,7 @@ func (ec *TestErrConnector) Disconnect() error {
 	return nil
 }
 
-// Equals is a stub that always returns false.
+// Address is a stub that always returns false.
 func (ec *TestErrConnector) Address() *net.TCPAddr {
 	return nil
 }

@@ -12,10 +12,10 @@ import (
 )
 
 const (
-	// DefaultPort is the default port of the librarian server.
+	// DefaultLibrarianPort is the default port of the librarian server.
 	DefaultLibrarianPort = 11000
 
-	// DefaultIP is the default IP of of the librarian server.
+	// DefaultLibrarianIP is the default IP of of the librarian server.
 	DefaultLibrarianIP = "localhost"
 
 	// DefaultLogLevel is the default log level to use.
@@ -107,7 +107,8 @@ func (c *Config) WithDefaultDBDir() *Config {
 	return c
 }
 
-// WithDBDir sets the DB dir to the given value or the default if the given value is empty.
+// WithKeychainDir sets the keychain dir to the given value or the default if the given value is
+// empty.
 func (c *Config) WithKeychainDir(keychainDir string) *Config {
 	if keychainDir == "" {
 		return c.WithDefaultKeychainDir()
@@ -116,7 +117,7 @@ func (c *Config) WithKeychainDir(keychainDir string) *Config {
 	return c
 }
 
-// WithDefaultDBDir sets the DB dir to a local name subdir of the data dir.
+// WithDefaultKeychainDir sets the keychain dir to a local name subdir of the data dir.
 func (c *Config) WithDefaultKeychainDir() *Config {
 	c.KeychainDir = filepath.Join(c.DataDir, KeychainSubDir)
 	return c
