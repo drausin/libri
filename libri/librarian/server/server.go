@@ -4,16 +4,16 @@ import (
 	"encoding/binary"
 	"math/rand"
 
+	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/common/db"
+	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/search"
-	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/server/store"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -87,9 +87,6 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 	// get peer ID and immediately save it so subsequent restarts have it
 	peerID, err := loadOrCreatePeerID(logger, serverSL)
 	if err != nil {
-		return nil, err
-	}
-	if err = savePeerID(serverSL, peerID); err != nil {
 		return nil, err
 	}
 

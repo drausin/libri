@@ -6,11 +6,12 @@ import (
 
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
+	"github.com/drausin/libri/libri/librarian/api"
 )
 
 // FromStored creates a new peer.Peer instance from a storage.Peer instance.
 func FromStored(stored *storage.Peer) Peer {
-	conn := NewConnector(fromStoredAddress(stored.PublicAddress))
+	conn := api.NewConnector(fromStoredAddress(stored.PublicAddress))
 	return New(id.FromBytes(stored.Id), stored.Name, conn).(*peer).
 		WithQueryRecorder(fromStoredQueryOutcomes(stored.QueryOutcomes))
 }

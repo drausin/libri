@@ -172,7 +172,7 @@ func newTestSearch() (Searcher, *Search, []int, []peer.Peer) {
 
 type noOpQuerier struct{}
 
-func (f *noOpQuerier) Query(ctx context.Context, pConn peer.Connector, fr *api.FindRequest,
+func (f *noOpQuerier) Query(ctx context.Context, pConn api.Connector, fr *api.FindRequest,
 	opts ...grpc.CallOption) (*api.FindResponse, error) {
 	return &api.FindResponse{
 		Metadata: &api.ResponseMetadata{
@@ -190,7 +190,7 @@ func TestSearcher_query_ok(t *testing.T) {
 		querier: &noOpQuerier{},
 		rp:      nil,
 	}
-	connClient := peer.NewConnector(nil) // won't actually be uses since we're mocking the finder
+	connClient := api.NewConnector(nil) // won't actually be uses since we're mocking the finder
 
 	rp, err := s.query(connClient, search)
 	assert.Nil(t, err)
@@ -201,7 +201,7 @@ func TestSearcher_query_ok(t *testing.T) {
 // timeoutQuerier returns an error simulating a request timeout
 type timeoutQuerier struct{}
 
-func (f *timeoutQuerier) Query(ctx context.Context, pConn peer.Connector, fr *api.FindRequest,
+func (f *timeoutQuerier) Query(ctx context.Context, pConn api.Connector, fr *api.FindRequest,
 	opts ...grpc.CallOption) (*api.FindResponse, error) {
 	return nil, errors.New("simulated timeout error")
 }
@@ -211,7 +211,7 @@ type diffRequestIDQuerier struct {
 	rng *rand.Rand
 }
 
-func (f *diffRequestIDQuerier) Query(ctx context.Context, pConn peer.Connector,
+func (f *diffRequestIDQuerier) Query(ctx context.Context, pConn api.Connector,
 	fr *api.FindRequest, opts ...grpc.CallOption) (*api.FindResponse, error) {
 	return &api.FindResponse{
 		Metadata: &api.ResponseMetadata{
@@ -222,7 +222,7 @@ func (f *diffRequestIDQuerier) Query(ctx context.Context, pConn peer.Connector,
 
 func TestSearcher_query_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	connClient := peer.NewConnector(nil) // won't actually be used since we're mocking the finder
+	connClient := api.NewConnector(nil) // won't actually be used since we're mocking the finder
 	peerID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
 	search := NewSearch(peerID, key, &Parameters{})
 

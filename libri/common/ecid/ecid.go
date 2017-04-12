@@ -57,10 +57,7 @@ func newRandom(reader io.Reader) ID {
 	if err != nil {
 		panic(err)
 	}
-	return &ecid{
-		key: key,
-		id:  cid.FromInt(key.X),
-	}
+	return FromPrivateKey(key)
 }
 
 func (x *ecid) String() string {
@@ -89,6 +86,14 @@ func (x *ecid) Key() *ecdsa.PrivateKey {
 
 func (x *ecid) ID() cid.ID {
 	return x.id
+}
+
+// FromPrivateKey creates a new ID from an ECDSA private key.
+func FromPrivateKey(priv *ecdsa.PrivateKey) ID {
+	return &ecid{
+		key: priv,
+		id:  cid.FromInt(priv.X),
+	}
 }
 
 // FromPublicKeyBytes creates a new ecdsa.PublicKey from the marshaled byte representation.

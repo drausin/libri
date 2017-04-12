@@ -75,7 +75,7 @@ func testIntroduce(t *testing.T, rng *rand.Rand, client *testClient, peerConfigs
 
 		// issue Introduce query to random peer
 		i := rng.Int31n(int32(nPeers))
-		conn := peer.NewConnector(peerConfigs[i].PublicAddr)
+		conn := api.NewConnector(peerConfigs[i].PublicAddr)
 		rq := lclient.NewIntroduceRequest(client.selfID, client.selfAPI, 8)
 		ctx, cancel, err := lclient.NewSignedTimeoutContext(client.signer, rq,
 			search.DefaultQueryTimeout)
@@ -112,7 +112,7 @@ func testPut(t *testing.T, rng *rand.Rand, client *testClient, peerConfigs []*se
 
 		// issue Put query to random peer
 		i := rng.Int31n(int32(nPeers))
-		conn := peer.NewConnector(peerConfigs[i].PublicAddr)
+		conn := api.NewConnector(peerConfigs[i].PublicAddr)
 		ctx, cancel, err := lclient.NewSignedTimeoutContext(client.signer, rq,
 			store.DefaultQueryTimeout)
 		assert.Nil(t, err)
@@ -153,7 +153,7 @@ func testGet(t *testing.T, rng *rand.Rand, client *testClient, peerConfigs []*se
 
 		// issue Get query to random peer
 		i := rng.Int31n(int32(nPeers))
-		conn := peer.NewConnector(peerConfigs[i].PublicAddr)
+		conn := api.NewConnector(peerConfigs[i].PublicAddr)
 		ctx, cancel, err := lclient.NewSignedTimeoutContext(client.signer, rq,
 			store.DefaultQueryTimeout)
 		assert.Nil(t, err)
@@ -222,7 +222,7 @@ func setUp(rng *rand.Rand, nSeeds, nPeers int, logLevel zapcore.Level) (*testCli
 	// create client that will issue requests to network
 	selfID := ecid.NewPseudoRandom(rng)
 	publicAddr := peer.NewTestPublicAddr(nSeeds + nPeers + 1)
-	selfPeer := peer.New(selfID.ID(), "test client", peer.NewConnector(publicAddr))
+	selfPeer := peer.New(selfID.ID(), "test client", api.NewConnector(publicAddr))
 	signer := client.NewSigner(selfID.Key())
 	clientImpl := &testClient{
 		selfID:  selfID,

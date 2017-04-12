@@ -2,25 +2,46 @@ package page
 
 import (
 	"bytes"
-	"crypto/hmac"
-	"crypto/sha256"
+	"errors"
 	"fmt"
-	"hash"
 	"io"
+
 	"github.com/drausin/libri/libri/author/io/comp"
 	"github.com/drausin/libri/libri/author/io/enc"
-	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/pkg/errors"
 )
+
+var (
+	// MinSize is the smallest maximum number of bytes in a page.
+	MinSize = uint32(64 * 1024) // 64 MB
+
+	// DefaultSize is the default maximum number of bytes in a page.
+	DefaultSize = uint32(2 * 1024 * 1024) // 2 MB
+)
+
+// ErrUnexpectedCiphertextMAC indicates when the ciphertext MAC does not match the expected value.
+var ErrUnexpectedCiphertextMAC = errors.New("ciphertext mac does not match expected value")
+
+// ErrPageSizeTooSmall indicates when the max page size is too small (often because it is zero).
+var ErrPageSizeTooSmall = fmt.Errorf("page size is below %d byte minimum", MinSize)
+
+// Paginator is an io.ReaderFrom that reads from a compressor and writes encrypted pages to a
+// channel.
+type Paginator interface {
+	io.ReaderFrom
+
+	// CiphertextMAC is the MAC for the entire ciphertext across all pages.
+	CiphertextMAC() enc.MAC
+}
 
 // paginator is an io.ReaderFrom that reads compressed bytes and emits them in discrete pages.
 type paginator struct {
-	pages     chan *api.Page
-	encrypter enc.Encrypter
-	pageSize  uint32
-	authorID  ecid.ID
-	pageMACer hash.Hash
+	pages         chan *api.Page
+	encrypter     enc.Encrypter
+	pageSize      uint32
+	authorPub     []byte
+	pageMAC       enc.MAC
+	ciphertextMAC enc.MAC
 }
 
 // NewPaginator creates a new paginator that emits pages to the given channel.
@@ -28,18 +49,25 @@ func NewPaginator(
 	pages chan *api.Page,
 	encrypter enc.Encrypter,
 	keys *enc.Keys,
-	authorID ecid.ID,
+	authorPub []byte,
 	pageSize uint32,
-) (io.ReaderFrom, error) {
-	if err := api.ValidatePageHMACKey(keys.PageHMACKey); err != nil {
+) (Paginator, error) {
+	if err := api.ValidateHMACKey(keys.HMACKey); err != nil {
 		return nil, err
 	}
+	if err := api.ValidatePublicKey(authorPub); err != nil {
+		return nil, err
+	}
+	if pageSize < MinSize {
+		return nil, ErrPageSizeTooSmall
+	}
 	return &paginator{
-		pages:     pages,
-		encrypter: encrypter,
-		pageSize:  pageSize,
-		authorID:  authorID,
-		pageMACer: hmac.New(sha256.New, keys.PageHMACKey),
+		pages:         pages,
+		encrypter:     encrypter,
+		pageSize:      pageSize,
+		authorPub:     authorPub,
+		pageMAC:       enc.NewHMAC(keys.HMACKey),
+		ciphertextMAC: enc.NewHMAC(keys.HMACKey),
 	}, nil
 }
 
@@ -64,6 +92,9 @@ func (p *paginator) ReadFrom(compressor io.Reader) (int64, error) {
 		if err != nil {
 			return n, err
 		}
+		if _, err := p.ciphertextMAC.Write(pageCiphertext); err != nil {
+			return n, err
+		}
 
 		p.pages <- p.getPage(pageCiphertext, i)
 	}
@@ -72,26 +103,34 @@ func (p *paginator) ReadFrom(compressor io.Reader) (int64, error) {
 
 // getPage constructs a page from a given ciphertext.
 func (p *paginator) getPage(ciphertext []byte, index uint32) *api.Page {
-	p.pageMACer.Reset()
+	p.pageMAC.Reset()
 	return &api.Page{
-		AuthorPublicKey: p.authorID.Bytes(),
+		AuthorPublicKey: p.authorPub,
 		Index:           index,
 		Ciphertext:      ciphertext,
-		CiphertextMac:   p.pageMACer.Sum(ciphertext),
+		CiphertextMac:   p.pageMAC.Sum(ciphertext),
 	}
+}
+
+func (p *paginator) CiphertextMAC() enc.MAC {
+	return p.ciphertextMAC
 }
 
 // Unpaginator writes content from discrete pages to a decompressed writer.
 type Unpaginator interface {
 	// WriteTo writes content from the underlying channel of pages to the decompressor.
 	WriteTo(decompressor comp.CloseWriter) (int64, error)
+
+	// CiphertextMAC is the MAC for the entire ciphertext across all pages.
+	CiphertextMAC() enc.MAC
 }
 
 type unpaginator struct {
 	pages         chan *api.Page
 	decrypter     enc.Decrypter
 	compressedBuf *bytes.Buffer
-	pageMACer     hash.Hash
+	pageMAC       enc.MAC
+	ciphertextMAC enc.MAC
 }
 
 // NewUnpaginator creates a new Unpaginator from the channel of pages and decrypter.
@@ -100,13 +139,14 @@ func NewUnpaginator(
 	decrypter enc.Decrypter,
 	keys *enc.Keys,
 ) (Unpaginator, error) {
-	if err := api.ValidatePageHMACKey(keys.PageHMACKey); err != nil {
+	if err := api.ValidateHMACKey(keys.HMACKey); err != nil {
 		return nil, err
 	}
 	return &unpaginator{
-		pages:     pages,
-		decrypter: decrypter,
-		pageMACer: hmac.New(sha256.New, keys.PageHMACKey),
+		pages:         pages,
+		decrypter:     decrypter,
+		pageMAC:       enc.NewHMAC(keys.HMACKey),
+		ciphertextMAC: enc.NewHMAC(keys.HMACKey),
 	}, nil
 }
 
@@ -121,7 +161,9 @@ func (u *unpaginator) WriteTo(decompressor comp.CloseWriter) (int64, error) {
 		if err := u.checkCiphertextMAC(page); err != nil {
 			return n, err
 		}
-
+		if _, err := u.ciphertextMAC.Write(page.Ciphertext); err != nil {
+			return n, err
+		}
 		compressedPage, err := u.decrypter.Decrypt(page.Ciphertext, page.Index)
 		if err != nil {
 			return n, err
@@ -141,10 +183,14 @@ func (u *unpaginator) WriteTo(decompressor comp.CloseWriter) (int64, error) {
 // checkCiphertextMac checks that a given page's message authentication code (MAC) matches the
 // supplied value.
 func (u *unpaginator) checkCiphertextMAC(page *api.Page) error {
-	u.pageMACer.Reset()
-	mac := u.pageMACer.Sum(page.Ciphertext)
+	u.pageMAC.Reset()
+	mac := u.pageMAC.Sum(page.Ciphertext)
 	if !bytes.Equal(mac, page.CiphertextMac) {
-		return errors.New("calculated ciphertext mac does not match supplied value")
+		return ErrUnexpectedCiphertextMAC
 	}
 	return nil
+}
+
+func (u *unpaginator) CiphertextMAC() enc.MAC {
+	return u.ciphertextMAC
 }

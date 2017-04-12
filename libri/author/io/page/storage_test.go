@@ -1,0 +1,174 @@
+package page
+
+import (
+	"math/rand"
+	"testing"
+
+	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestStorerLoader_Store_ok(t *testing.T) {
+	sl := NewStorerLoader(
+		&memDocumentStorerLoader{
+			stored: make(map[string]*api.Document),
+		},
+	)
+	rng := rand.New(rand.NewSource(0))
+	nPages := 4
+	pages := make(chan *api.Page, nPages)
+	for c := 0; c < nPages; c++ {
+		pages <- api.NewTestPage(rng)
+	}
+	close(pages)
+
+	// check we have expected number of page IDs
+	pageIDs, err := sl.Store(pages)
+	assert.Nil(t, err)
+	assert.Equal(t, nPages, len(pageIDs))
+}
+
+func TestStorerLoader_Store_err(t *testing.T) {
+	sl := NewStorerLoader(&errDocumentStorerLoader{})
+	rng := rand.New(rand.NewSource(0))
+	pages := make(chan *api.Page, 1)
+	pages <- api.NewTestPage(rng)
+	close(pages)
+
+	// check inner store error bubbles up
+	pageIDs, err := sl.Store(pages)
+	assert.NotNil(t, err)
+	assert.Nil(t, pageIDs)
+}
+
+func TestStorerLoader_Load_ok(t *testing.T) {
+	stored := make(map[string]*api.Document)
+	rng := rand.New(rand.NewSource(0))
+	nPages := 4
+	pageIDs := make([]cid.ID, nPages)
+	for c := 0; c < nPages; c++ {
+		page := api.NewTestPage(rng)
+		pageID, err := api.GetKey(page)
+		assert.Nil(t, err)
+		pageIDs[c] = pageID
+		stored[pageID.String()] = &api.Document{
+			Contents: &api.Document_Page{Page: page},
+		}
+	}
+
+	sl := NewStorerLoader(
+		&memDocumentStorerLoader{
+			stored: stored,
+		},
+	)
+
+	pages := make(chan *api.Page, nPages)
+	err := sl.Load(pageIDs, pages)
+	assert.Nil(t, err)
+	close(pages)
+
+	// check we get the right number of pages and that their order is same as key order
+	i := 0
+	for page := range pages {
+		pageID, err := api.GetKey(page)
+		assert.Nil(t, err)
+		assert.Equal(t, pageIDs[i], pageID)
+		i++
+	}
+	assert.Equal(t, nPages, i)
+}
+
+func TestStorerLoader_Load_err(t *testing.T) {
+	sl1 := NewStorerLoader(&errDocumentStorerLoader{})
+	rng := rand.New(rand.NewSource(0))
+	pageIDs1 := []cid.ID{cid.NewPseudoRandom(rng)}
+
+	// check inner load error bubbles up
+	err := sl1.Load(pageIDs1, nil)
+	assert.NotNil(t, err)
+
+	sl2 := NewStorerLoader(
+		&memDocumentStorerLoader{
+			stored: make(map[string]*api.Document),
+		},
+	)
+	pageIDs2 := []cid.ID{cid.NewPseudoRandom(rng)}
+
+	// check error on missing doc
+	err = sl2.Load(pageIDs2, nil)
+	assert.NotNil(t, err)
+
+	stored := make(map[string]*api.Document)
+	notPage, pageID := api.NewTestDocument(rng)
+	stored[pageID.String()] = notPage
+	pageIDs3 := []cid.ID{pageID}
+
+	sl3 := NewStorerLoader(
+		&memDocumentStorerLoader{
+			stored: stored,
+		},
+	)
+
+	// check error returned from non-Page document
+	err = sl3.Load(pageIDs3, nil)
+	assert.NotNil(t, err)
+}
+
+func TestStorerLoader_StoreLoad(t *testing.T) {
+	sl := NewStorerLoader(
+		&memDocumentStorerLoader{
+			stored: make(map[string]*api.Document),
+		},
+	)
+	rng := rand.New(rand.NewSource(0))
+	nPages := 4
+	originalPages := make([]*api.Page, nPages)
+	pagesToStore := make(chan *api.Page, nPages)
+	for i := 0; i < nPages; i++ {
+		originalPages[i] = api.NewTestPage(rng)
+		pagesToStore <- originalPages[i]
+	}
+	close(pagesToStore)
+
+	pageIDs, err := sl.Store(pagesToStore)
+	assert.Nil(t, err)
+	assert.Equal(t, nPages, len(pageIDs))
+
+	pagesToLoad := make(chan *api.Page, nPages)
+	err = sl.Load(pageIDs, pagesToLoad)
+	assert.Nil(t, err)
+	close(pagesToLoad)
+
+	loadedPages := make([]*api.Page, nPages)
+	for i := 0; i < nPages; i++ {
+		loadedPages[i] = <-pagesToLoad
+	}
+
+	// check original and loaded pags are in the same order and are equal
+	assert.Equal(t, originalPages, loadedPages)
+}
+
+type memDocumentStorerLoader struct {
+	stored map[string]*api.Document
+}
+
+func (m *memDocumentStorerLoader) Store(key cid.ID, value *api.Document) error {
+	m.stored[key.String()] = value
+	return nil
+}
+
+func (m *memDocumentStorerLoader) Load(key cid.ID) (*api.Document, error) {
+	return m.stored[key.String()], nil
+}
+
+type errDocumentStorerLoader struct{}
+
+func (m *errDocumentStorerLoader) Store(key cid.ID, value *api.Document) error {
+	return errors.New("some store error")
+}
+
+func (m *errDocumentStorerLoader) Load(key cid.ID) (*api.Document, error) {
+	return nil, errors.New("some store error")
+}

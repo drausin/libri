@@ -5,8 +5,8 @@ import (
 	"math/rand"
 	"testing"
 
-	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/db"
+	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -23,9 +23,10 @@ func TestKvdbStorerLoader_StoreLoad(t *testing.T) {
 		{[]byte("test namespace"), cid.NewPseudoRandom(rng).Bytes(), []byte("test value")},
 	}
 
-	kvdb, err := db.NewTempDirRocksDB()
-	assert.Nil(t, err)
+	kvdb, cleanup, err := db.NewTempDirRocksDB()
+	defer cleanup()
 	defer kvdb.Close()
+	assert.Nil(t, err)
 	sl := NewKVDBStorerLoader(kvdb, NewMaxLengthChecker(256), NewMaxLengthChecker(1024))
 
 	for _, c := range cases {

@@ -19,10 +19,9 @@ func NewTestDocument(rng *rand.Rand) (*Document, cid.ID) {
 // NewTestEnvelope generates a dummy Envelope document for use in testing.
 func NewTestEnvelope(rng *rand.Rand) *Envelope {
 	return &Envelope{
-		AuthorPublicKey:          fakePubKey(rng),
-		ReaderPublicKey:          fakePubKey(rng),
-		EntryKey:                 randBytes(rng, 32),
-		EncryptionKeysCiphertext: randBytes(rng, 108),
+		AuthorPublicKey: fakePubKey(rng),
+		ReaderPublicKey: fakePubKey(rng),
+		EntryKey:        RandBytes(rng, 32),
 	}
 }
 
@@ -30,13 +29,11 @@ func NewTestEnvelope(rng *rand.Rand) *Envelope {
 func NewTestPageEntry(rng *rand.Rand) *Entry {
 	page := NewTestPage(rng)
 	return &Entry{
-		AuthorPublicKey:        page.AuthorPublicKey,
-		CreatedTime:            1,
-		MetadataCiphertextMac:  randBytes(rng, 32),
-		MetadataCiphertext:     randBytes(rng, 64),
-		ContentsCiphertextMac:  randBytes(rng, 32),
-		ContentsCiphertextSize: 100,
-		Contents:               &Entry_Page{page},
+		AuthorPublicKey:       page.AuthorPublicKey,
+		CreatedTime:           1,
+		MetadataCiphertextMac: RandBytes(rng, 32),
+		MetadataCiphertext:    RandBytes(rng, 64),
+		Contents:              &Entry_Page{page},
 	}
 }
 
@@ -44,20 +41,20 @@ func NewTestPageEntry(rng *rand.Rand) *Entry {
 func NewTestPage(rng *rand.Rand) *Page {
 	return &Page{
 		AuthorPublicKey: fakePubKey(rng),
-		CiphertextMac:   randBytes(rng, 32),
-		Ciphertext:      randBytes(rng, 64),
+		CiphertextMac:   RandBytes(rng, 32),
+		Ciphertext:      RandBytes(rng, 64),
 	}
 }
 
-func fakePubKey(rng *rand.Rand) []byte {
-	return randBytes(rng, 65)
-}
-
-func randBytes(rng *rand.Rand, length int) []byte {
+// RandBytes generates a random bytes slice of a given length.
+func RandBytes(rng *rand.Rand, length int) []byte {
 	b := make([]byte, length)
 	_, err := rng.Read(b)
 	if err != nil {
 		panic(err)
 	}
 	return b
+}
+func fakePubKey(rng *rand.Rand) []byte {
+	return RandBytes(rng, 65)
 }

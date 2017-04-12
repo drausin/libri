@@ -4,7 +4,12 @@ import (
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
+	"errors"
 )
+
+// ErrUnexpectedRequestID indicates when the RequestID in a response is different than that in the
+// request.
+var ErrUnexpectedRequestID = errors.New("response contains unexpected RequestID")
 
 // NewRequestMetadata creates a RequestMetadata object from the peer ID and a random request ID.
 func NewRequestMetadata(peerID ecid.ID) *api.RequestMetadata {
