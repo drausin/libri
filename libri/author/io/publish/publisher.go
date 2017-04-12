@@ -59,6 +59,16 @@ func NewParameters(putTimeout time.Duration, putParallelism uint32) (*Parameters
 	}, nil
 }
 
+// NewDefaultParameters creates a default *Parameters instance.
+func NewDefaultParameters() *Parameters {
+	params, err := NewParameters(DefaultPutTimeout, DefaultPutParallelism)
+	if err != nil {
+		// should never happen; if does, it's programmer error
+		panic(err)
+	}
+	return params
+}
+
 // Publisher Puts a document into the libri network using a librarian client.
 type Publisher interface {
 	// Publish Puts a document using a librarian client and returns the ID of the document.

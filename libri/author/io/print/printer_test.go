@@ -15,6 +15,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestNewDefaultParameters(t *testing.T) {
+	params := NewDefaultParameters()
+	assert.NotNil(t, params)
+}
+
 func TestNewPrinter_ok(t *testing.T) {
 	params, err := NewParameters(comp.MinBufferSize, page.MinSize, DefaultParallelism)
 	assert.Nil(t, err)

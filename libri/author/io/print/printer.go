@@ -47,6 +47,16 @@ func NewParameters(
 	}, nil
 }
 
+// NewDefaultParameters creates a default *Parameters instance.
+func NewDefaultParameters() *Parameters {
+	params, err := NewParameters(comp.DefaultBufferSize, page.DefaultSize, DefaultParallelism)
+	if err != nil {
+		// should never happen; if does, it's programmer error
+		panic(err)
+	}
+	return params
+}
+
 // Printer stores pages created from (uncompressed) content.
 type Printer interface {
 	// Print creates pages from the given content and stores them via an internal page.Storer.
