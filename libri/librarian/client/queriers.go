@@ -2,7 +2,6 @@ package client
 
 import (
 	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/drausin/libri/libri/librarian/server/peer"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -10,7 +9,7 @@ import (
 // IntroduceQuerier issues Introduce queries to a peer.
 type IntroduceQuerier interface {
 	// Query uses a peer connection to make an Introduce query and returns its response.
-	Query(ctx context.Context, pConn peer.Connector, rq *api.IntroduceRequest,
+	Query(ctx context.Context, pConn api.Connector, rq *api.IntroduceRequest,
 		opts ...grpc.CallOption) (*api.IntroduceResponse, error)
 }
 
@@ -21,7 +20,7 @@ func NewIntroduceQuerier() IntroduceQuerier {
 	return &introQuerier{}
 }
 
-func (q *introQuerier) Query(ctx context.Context, pConn peer.Connector, rq *api.IntroduceRequest,
+func (q *introQuerier) Query(ctx context.Context, pConn api.Connector, rq *api.IntroduceRequest,
 	opts ...grpc.CallOption) (*api.IntroduceResponse, error) {
 	client, err := pConn.Connect() // *should* be already connected, but do here just in case
 	if err != nil {
@@ -34,7 +33,7 @@ func (q *introQuerier) Query(ctx context.Context, pConn peer.Connector, rq *api.
 type FindQuerier interface {
 	// Query uses a peer connection to query for a particular key with an api.FindRequest and
 	// returns its response.
-	Query(ctx context.Context, pConn peer.Connector, rq *api.FindRequest,
+	Query(ctx context.Context, pConn api.Connector, rq *api.FindRequest,
 		opts ...grpc.CallOption) (*api.FindResponse, error)
 }
 
@@ -45,7 +44,7 @@ func NewFindQuerier() FindQuerier {
 	return &findQuerier{}
 }
 
-func (q *findQuerier) Query(ctx context.Context, pConn peer.Connector, rq *api.FindRequest,
+func (q *findQuerier) Query(ctx context.Context, pConn api.Connector, rq *api.FindRequest,
 	opts ...grpc.CallOption) (*api.FindResponse, error) {
 	client, err := pConn.Connect() // *should* be already connected, but do here just in case
 	if err != nil {
@@ -57,7 +56,7 @@ func (q *findQuerier) Query(ctx context.Context, pConn peer.Connector, rq *api.F
 // StoreQuerier issues Store queries to a peer.
 type StoreQuerier interface {
 	// Query uses a peer connection to make a Store request.
-	Query(ctx context.Context, pConn peer.Connector, rq *api.StoreRequest,
+	Query(ctx context.Context, pConn api.Connector, rq *api.StoreRequest,
 		opts ...grpc.CallOption) (*api.StoreResponse, error)
 }
 
@@ -68,7 +67,7 @@ func NewStoreQuerier() StoreQuerier {
 	return &storeQuerier{}
 }
 
-func (q *storeQuerier) Query(ctx context.Context, pConn peer.Connector, rq *api.StoreRequest,
+func (q *storeQuerier) Query(ctx context.Context, pConn api.Connector, rq *api.StoreRequest,
 	opts ...grpc.CallOption) (*api.StoreResponse, error) {
 	client, err := pConn.Connect() // *should* be already connected, but do here just in case
 	if err != nil {
@@ -80,7 +79,7 @@ func (q *storeQuerier) Query(ctx context.Context, pConn peer.Connector, rq *api.
 // GetQuerier issues Get queries to a peer.
 type GetQuerier interface {
 	// Query uses a peer connection to make a Get request.
-	Query(ctx context.Context, pConn peer.Connector, rq *api.GetRequest,
+	Query(ctx context.Context, pConn api.Connector, rq *api.GetRequest,
 		opts ...grpc.CallOption) (*api.GetResponse, error)
 }
 
@@ -91,7 +90,7 @@ func NewGetQuerier() GetQuerier {
 	return &getQuerier{}
 }
 
-func (q *getQuerier) Query(ctx context.Context, pConn peer.Connector, rq *api.GetRequest,
+func (q *getQuerier) Query(ctx context.Context, pConn api.Connector, rq *api.GetRequest,
 	opts ...grpc.CallOption) (*api.GetResponse, error) {
 	client, err := pConn.Connect() // *should* be already connected, but do here just in case
 	if err != nil {
@@ -103,7 +102,7 @@ func (q *getQuerier) Query(ctx context.Context, pConn peer.Connector, rq *api.Ge
 // PutQuerier issues Get queries to a peer.
 type PutQuerier interface {
 	// Query uses a peer connection to make a Put request.
-	Query(ctx context.Context, pConn peer.Connector, rq *api.PutRequest,
+	Query(ctx context.Context, pConn api.Connector, rq *api.PutRequest,
 		opts ...grpc.CallOption) (*api.PutResponse, error)
 }
 
@@ -114,7 +113,7 @@ func NewPutQuerier() PutQuerier {
 	return &putQuerier{}
 }
 
-func (q *putQuerier) Query(ctx context.Context, pConn peer.Connector, rq *api.PutRequest,
+func (q *putQuerier) Query(ctx context.Context, pConn api.Connector, rq *api.PutRequest,
 	opts ...grpc.CallOption) (*api.PutResponse, error) {
 	client, err := pConn.Connect() // *should* be already connected, but do here just in case
 	if err != nil {

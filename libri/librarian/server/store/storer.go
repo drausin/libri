@@ -105,7 +105,7 @@ func (s *storer) storeWork(store *Store, wg *sync.WaitGroup) {
 	}
 }
 
-func (s *storer) query(pConn peer.Connector, store *Store) (*api.StoreResponse, error) {
+func (s *storer) query(pConn api.Connector, store *Store) (*api.StoreResponse, error) {
 	ctx, cancel, err := client.NewSignedTimeoutContext(s.signer, store.Request,
 		store.Params.Timeout)
 	defer cancel()

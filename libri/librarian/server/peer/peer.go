@@ -20,7 +20,7 @@ type Peer interface {
 	ID() cid.ID
 
 	// Connector returns the Connector instance for connecting to the peer.
-	Connector() Connector
+	Connector() api.Connector
 
 	// Recorder returns the Recorder instance for recording query outcomes.
 	Recorder() Recorder
@@ -48,14 +48,14 @@ type peer struct {
 	name string
 
 	// Connector instance for the peer
-	conn Connector
+	conn api.Connector
 
 	// tracks query outcomes from the peer
 	recorder Recorder
 }
 
 // New creates a new Peer instance with empty response stats.
-func New(id cid.ID, name string, conn Connector) Peer {
+func New(id cid.ID, name string, conn api.Connector) Peer {
 	return &peer{
 		id:       id,
 		name:     name,
@@ -92,7 +92,7 @@ func (p *peer) Merge(other Peer) error {
 	if other.(*peer).name != "" {
 		p.name = other.(*peer).name
 	}
-	if other.Connector() != nil && !p.conn.Equals(other.Connector()) {
+	if other.Connector() != nil && p.conn.Address() != other.Connector().Address() {
 		return fmt.Errorf("unable to merge public addresses for peer %v: existing (%s)"+
 			" conflicts with new (%v)", p.id, p.conn, other.Connector())
 	}
@@ -100,7 +100,7 @@ func (p *peer) Merge(other Peer) error {
 	return nil
 }
 
-func (p *peer) Connector() Connector {
+func (p *peer) Connector() api.Connector {
 	return p.conn
 }
 
@@ -112,7 +112,7 @@ func (p *peer) ToStored() *storage.Peer {
 	return &storage.Peer{
 		Id:            p.id.Bytes(),
 		Name:          p.name,
-		PublicAddress: toStoredAddress(p.conn.(*connector).publicAddress),
+		PublicAddress: toStoredAddress(p.conn.Address()),
 		QueryOutcomes: p.recorder.ToStored(),
 	}
 }
@@ -121,8 +121,8 @@ func (p *peer) ToAPI() *api.PeerAddress {
 	return &api.PeerAddress{
 		PeerId:   p.id.Bytes(),
 		PeerName: p.name,
-		Ip:       p.conn.(*connector).publicAddress.IP.String(),
-		Port:     uint32(p.conn.(*connector).publicAddress.Port),
+		Ip:       p.conn.Address().IP.String(),
+		Port:     uint32(p.conn.Address().Port),
 	}
 }
 
@@ -152,6 +152,6 @@ func (f *fromer) FromAPI(apiAddress *api.PeerAddress) Peer {
 	return New(
 		cid.FromBytes(apiAddress.PeerId),
 		apiAddress.PeerName,
-		NewConnector(api.ToAddress(apiAddress)),
+		api.NewConnector(api.ToAddress(apiAddress)),
 	)
 }

@@ -109,7 +109,7 @@ func (i *introducer) introduceWork(intro *Introduction, wg *sync.WaitGroup) {
 	}
 }
 
-func (i *introducer) query(pConn peer.Connector, intro *Introduction) (*api.IntroduceResponse,
+func (i *introducer) query(pConn api.Connector, intro *Introduction) (*api.IntroduceResponse,
 	error) {
 	rq := intro.NewRequest()
 	ctx, cancel, err := client.NewSignedTimeoutContext(i.signer, rq, intro.Params.Timeout)

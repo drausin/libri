@@ -4,9 +4,6 @@ import (
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/author/keychain"
-	"net"
-	"github.com/drausin/libri/libri/librarian/api"
-	"google.golang.org/grpc"
 )
 
 
@@ -30,16 +27,4 @@ func sampleSelfReaderKeys(
 		return nil, nil, nil, err
 	}
 	return ecid.ToPublicKeyBytes(authorID), ecid.ToPublicKeyBytes(selfReaderID), keys, nil
-}
-
-func createClientBalancer(librarianAddrs []*net.TCPAddr) (api.ClientBalancer, error) {
-	lcs := make([]api.LibrarianClient, len(librarianAddrs))
-	for i, addr := range librarianAddrs {
-		conn, err := grpc.Dial(addr.String(), grpc.WithInsecure())
-		if err != nil {
-			return nil, err
-		}
-		lcs[i] = api.NewLibrarianClient(conn)
-	}
-	return api.NewUniformRandomClientBalancer(lcs), nil
 }

@@ -19,8 +19,8 @@ import (
 type TestFindQuerier struct{}
 
 // Query mocks a real query to a peer, returning a fixed list of addresses stored in the
-// TestConnector mock of the pConn peer.Connector.
-func (c *TestFindQuerier) Query(ctx context.Context, pConn peer.Connector, rq *api.FindRequest,
+// TestConnector mock of the pConn api.Connector.
+func (c *TestFindQuerier) Query(ctx context.Context, pConn api.Connector, rq *api.FindRequest,
 	opts ...grpc.CallOption) (*api.FindResponse, error) {
 	return &api.FindResponse{
 		Metadata: &api.ResponseMetadata{
@@ -31,8 +31,8 @@ func (c *TestFindQuerier) Query(ctx context.Context, pConn peer.Connector, rq *a
 }
 
 // TestFromer mocks the Fromer interface. The FromAPI() method returns a pre-stored peer for that
-// ID, allowing us to circumvent the creation of new peer.Peer and peer.Connector objects and use
-// existing test peers with their testConnector (mocking peer.Connector) values instead.
+// ID, allowing us to circumvent the creation of new peer.Peer and api.Connector objects and use
+// existing test peers with their testConnector (mocking api.Connector) values instead.
 type TestFromer struct {
 	Peers map[string]peer.Peer
 }

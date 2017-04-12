@@ -3,7 +3,6 @@ package api
 import (
 	"math/rand"
 	"sync"
-	"github.com/drausin/libri/libri/librarian/server/peer"
 	"net"
 )
 
@@ -12,21 +11,22 @@ type ClientBalancer interface {
 	// Next selects the next LibrarianClient.
 	Next() (LibrarianClient, error)
 
+	// CloseAll closes all LibrarianClient connections.
 	CloseAll() error
 }
 
 type uniformRandBalancer struct {
 	rng *rand.Rand
 	mu sync.Mutex
-	conns []peer.Connector  // TODO (drausin) move this to api package
+	conns []Connector
 }
 
 // NewUniformRandomClientBalancer creates a new ClientBalancer that selects the next client
 // uniformly at random.
 func NewUniformRandomClientBalancer(libAddrs []*net.TCPAddr) ClientBalancer {
-	conns := make([]peer.Connector, len(libAddrs))
+	conns := make([]Connector, len(libAddrs))
 	for i, la := range libAddrs {
-		conns[i] = peer.NewConnector(la)
+		conns[i] = NewConnector(la)
 	}
 	return &uniformRandBalancer{
 		rng: rand.New(rand.NewSource(int64(len(conns)))),
@@ -49,4 +49,5 @@ func (b *uniformRandBalancer) CloseAll() error {
 			return err
 		}
 	}
+	return nil
 }

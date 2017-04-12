@@ -291,7 +291,11 @@ func (f *fixedSingleLoadPublisher) Publish(docKey id.ID, lc api.Putter) error {
 
 type nilClientBalancer struct {}
 
-func (*nilClientBalancer) Next() api.LibrarianClient {
+func (*nilClientBalancer) Next() (api.LibrarianClient, error) {
+	return nil, nil
+}
+
+func (*nilClientBalancer) CloseAll() error {
 	return nil
 }
 

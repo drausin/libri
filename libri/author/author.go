@@ -85,10 +85,6 @@ func NewAuthor(config *Config, keychainAuth string, logger *zap.Logger) (*Author
 	if err != nil {
 		return nil, err
 	}
-	librarians, err := createClientBalancer(config.LibrarianAddrs)
-	if err != nil {
-		return nil, err
-	}
 
 	signer := client.NewSigner(clientID.Key())
 	publisher := publish.NewPublisher(clientID, signer, config.Publish)
@@ -102,7 +98,7 @@ func NewAuthor(config *Config, keychainAuth string, logger *zap.Logger) (*Author
 		db: rdb,
 		clientSL: clientSL,
 		documentSL: documentSL,
-		librarians: librarians,
+		librarians: api.NewUniformRandomClientBalancer(config.LibrarianAddrs),
 		publisher: publish.NewPublisher(clientID, signer, config.Publish),
 		mlPublisher: publish.NewMultiLoadPublisher(slPublisher, config.Publish),
 		pageSL: page.NewStorerLoader(documentSL),
@@ -145,12 +141,16 @@ func (a *Author) Upload(content io.Reader, mediaType string) (*api.Document, err
 			return nil, err
 		}
 	}
-	entryKey, err := a.publisher.Publish(entry, a.librarians.Next())
+	lc, err := a.librarians.Next()
+	if err != nil {
+		return nil, err
+	}
+	entryKey, err := a.publisher.Publish(entry, lc)
 	if err != nil {
 		return nil, err
 	}
 	envelope := newEnvelopeDoc(authorPub, readerPub, entryKey)
-	if _, err = a.publisher.Publish(envelope, a.librarians.Next()); err != nil {
+	if _, err = a.publisher.Publish(envelope, lc); err != nil {
 		return nil, err
 	}
 

@@ -19,14 +19,9 @@ func TestTestConnector_Disconnect(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestTestConnector_Equals(t *testing.T) {
-	c1, c2 := &TestConnector{}, &TestConnector{}
-	assert.False(t, c1.Equals(c2))
-}
-
-func TestTestConnector_String(t *testing.T) {
-	c := &TestConnector{}
-	assert.True(t, len(c.String()) > 0)
+func TestTestConnector_Address(t *testing.T) {
+	c1 := &TestConnector{}
+	assert.Nil(t, c1.Address())
 }
 
 func TestTestErrConnector_Connect(t *testing.T) {
@@ -41,12 +36,8 @@ func TestTestErrConnector_Disconnect(t *testing.T) {
 	err := c.Disconnect()
 	assert.Nil(t, err)
 }
-func TestTestErrConnector_Equals(t *testing.T) {
-	c1, c2 := &TestErrConnector{}, &TestErrConnector{}
-	assert.False(t, c1.Equals(c2))
-}
 
-func TestTestErrConnector_String(t *testing.T) {
-	c := &TestErrConnector{}
-	assert.True(t, len(c.String()) > 0)
+func TestTestErrConnector_Address(t *testing.T) {
+	c1 := &TestErrConnector{}
+	assert.Nil(t, c1.Address())
 }

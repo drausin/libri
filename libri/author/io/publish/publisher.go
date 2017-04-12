@@ -165,7 +165,12 @@ func (p *multiLoadPublisher) Publish(docKeys []cid.ID, cb api.ClientBalancer) er
 		wg.Add(1)
 		go func() {
 			for docKey := range docKeysChan {
-				if err := p.inner.Publish(docKey, cb.Next()); err != nil {
+				lc, err := cb.Next()
+				if err != nil {
+					putErrs <- err
+					return
+				}
+				if err := p.inner.Publish(docKey, lc); err != nil {
 					putErrs <- err
 					break
 				}
