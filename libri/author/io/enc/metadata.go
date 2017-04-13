@@ -33,9 +33,34 @@ func NewEncryptedMetadata(ciphertext, ciphertextMAC []byte) (*EncryptedMetadata,
 	}, nil
 }
 
-// EncryptMetadata encrypts an *api.Metadata instance using the AES key and the MetadataIV key for
-// the MAC.
-func EncryptMetadata(m *api.Metadata, keys *Keys) (*EncryptedMetadata, error) {
+// MetadataEncrypter encrypts *api.Metadata.
+type MetadataEncrypter interface {
+	// EncryptMetadata encrypts an *api.Metadata instance using the AES key and the MetadataIV
+	// key for the MAC.
+	Encrypt(m *api.Metadata, keys *Keys) (*EncryptedMetadata, error)
+}
+
+// MetadataDecrypter decrypts *EncryptedMetadata.
+type MetadataDecrypter interface {
+	// Decrypt decrypts an *EncryptedMetadata instance, using the AES key and the MetadataIV
+	// key. It returns UnexpectedMACErr if the calculated ciphertext MAC does not match the
+	// expected ciphertext MAC.
+	Decrypt(em *EncryptedMetadata, keys *Keys) (*api.Metadata, error)
+}
+
+// MetadataEncrypterDecrypter encrypts *api.Metadata and decrypts *EncryptedMetadata.
+type MetadataEncrypterDecrypter interface {
+	MetadataEncrypter
+	MetadataDecrypter
+}
+
+type metadataEncDec struct {}
+
+func NewMetadataEncrypterDecrypter() MetadataEncrypterDecrypter {
+	return metadataEncDec{}
+}
+
+func (metadataEncDec) Encrypt(m *api.Metadata, keys *Keys) (*EncryptedMetadata, error) {
 	mPlaintext, err := proto.Marshal(m)
 	if err != nil {
 		return nil, err
@@ -52,10 +77,7 @@ func EncryptMetadata(m *api.Metadata, keys *Keys) (*EncryptedMetadata, error) {
 	return NewEncryptedMetadata(mCiphertext, mac)
 }
 
-// DecryptMetadata decryptes an *EncryptedMetadata instance, using the AES key and the MetadataIV
-// key. It returns UnexpectedMACErr if the calculated ciphertext MAC does not match the expected
-// ciphertext MAC.
-func DecryptMetadata(em *EncryptedMetadata, keys *Keys) (*api.Metadata, error) {
+func (metadataEncDec) Decrypt(em *EncryptedMetadata, keys *Keys) (*api.Metadata, error) {
 	mac, err := HMAC(em.Ciphertext, keys.HMACKey)
 	if err != nil {
 		return nil, err

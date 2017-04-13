@@ -33,7 +33,7 @@ func TestNewEncryptedMetadata_err(t *testing.T) {
 	assert.Nil(t, m2)
 }
 
-func TestEncryptDecryptMetadata(t *testing.T) {
+func TestMetadataEncDec_EncryptDecrypt(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	keys, _, _ := NewPseudoRandomKeys(rng)
 	mediaType := "application/x-pdf"
@@ -46,21 +46,24 @@ func TestEncryptDecryptMetadata(t *testing.T) {
 	)
 	assert.Nil(t, err)
 
-	em, err := EncryptMetadata(m1, keys)
+	me := metadataEncDec{}
+	em, err := me.Encrypt(m1, keys)
 	assert.Nil(t, err)
 
-	m2, err := DecryptMetadata(em, keys)
+	md := metadataEncDec{}
+	m2, err := md.Decrypt(em, keys)
 	assert.Nil(t, err)
 
 	assert.Equal(t, m1, m2)
 }
 
-func TestEncryptMetadata_err(t *testing.T) {
+func TestMetadataEncDec_Encrypt_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	keys1, _, _ := NewPseudoRandomKeys(rng)
+	med := NewMetadataEncrypterDecrypter()
 
 	// check bad api.Metadata triggers error
-	em1, err := EncryptMetadata(nil, keys1)
+	em1, err := med.Encrypt(nil, keys1)
 	assert.NotNil(t, err)
 	assert.Nil(t, em1)
 
@@ -77,13 +80,14 @@ func TestEncryptMetadata_err(t *testing.T) {
 	// check missing AES key triggers error
 	keys2, _, _ := NewPseudoRandomKeys(rng)
 	keys2.AESKey = nil
-	em2, err := EncryptMetadata(m, keys2)
+	em2, err := med.Encrypt(m, keys2)
 	assert.NotNil(t, err)
 	assert.Nil(t, em2)
 }
 
-func TestDecryptMetadata_err(t *testing.T) {
+func TestMetadataEncDec_Decrypt_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
+	med := NewMetadataEncrypterDecrypter()
 
 	em1, err := NewEncryptedMetadata(api.RandBytes(rng, 64), api.RandBytes(rng, 32))
 	assert.Nil(t, err)
@@ -91,7 +95,7 @@ func TestDecryptMetadata_err(t *testing.T) {
 	keys1.HMACKey = nil
 
 	// check bad HMAC key triggers error
-	m1, err := DecryptMetadata(em1, keys1)
+	m1, err := med.Decrypt(em1, keys1)
 	assert.NotNil(t, err)
 	assert.Nil(t, m1)
 
@@ -100,7 +104,7 @@ func TestDecryptMetadata_err(t *testing.T) {
 	keys2, _, _ := NewPseudoRandomKeys(rng)  // valid, but not connected to ciphertext
 
 	// check different MAC triggers error;
-	m2, err := DecryptMetadata(em2, keys2)
+	m2, err := med.Decrypt(em2, keys2)
 	assert.Equal(t, ErrUnexpectedMAC, err)
 	assert.Nil(t, m2)
 
@@ -113,7 +117,7 @@ func TestDecryptMetadata_err(t *testing.T) {
 	assert.Nil(t, err)
 
 	// check bad AES key triggers error
-	m3, err := DecryptMetadata(em3, keys3)
+	m3, err := med.Decrypt(em3, keys3)
 	assert.NotNil(t, err)
 	assert.Nil(t, m3)
 
@@ -125,7 +129,7 @@ func TestDecryptMetadata_err(t *testing.T) {
 	assert.Nil(t, err)
 
 	// check bad MetadataIV triggers error
-	m4, err := DecryptMetadata(em4, keys4)
+	m4, err := med.Decrypt(em4, keys4)
 	assert.NotNil(t, err)
 	assert.Nil(t, m4)
 }

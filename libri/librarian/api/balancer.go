@@ -4,7 +4,11 @@ import (
 	"math/rand"
 	"sync"
 	"net"
+	"github.com/pkg/errors"
 )
+
+// ErrEmptyLibrarianAddresses indicates that the librarian addresses is empty.
+var ErrEmptyLibrarianAddresses = errors.New("empty librarian addresses")
 
 // ClientBalancer load balances between a collection of LibrarianClients.
 type ClientBalancer interface {
@@ -23,15 +27,18 @@ type uniformRandBalancer struct {
 
 // NewUniformRandomClientBalancer creates a new ClientBalancer that selects the next client
 // uniformly at random.
-func NewUniformRandomClientBalancer(libAddrs []*net.TCPAddr) ClientBalancer {
+func NewUniformRandomClientBalancer(libAddrs []*net.TCPAddr) (ClientBalancer, error) {
 	conns := make([]Connector, len(libAddrs))
+	if libAddrs == nil || len(libAddrs) == 0 {
+		return nil, ErrEmptyLibrarianAddresses
+	}
 	for i, la := range libAddrs {
 		conns[i] = NewConnector(la)
 	}
 	return &uniformRandBalancer{
 		rng: rand.New(rand.NewSource(int64(len(conns)))),
 		conns: conns,
-	}
+	}, nil
 }
 
 // Next selects the next librarian client uniformly at random.

@@ -1,30 +1,79 @@
-package author
+package pack
 
 import (
-	"errors"
-	"time"
-
+	"io"
 	"github.com/drausin/libri/libri/author/io/enc"
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/author/io/print"
+	"github.com/drausin/libri/libri/author/io/page"
+	"time"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
-	"github.com/drausin/libri/libri/librarian/api"
+	"errors"
 )
+
+// EntryPacker creates entry documents from raw content.
+type EntryPacker interface {
+	// Pack prints pages from the content, encrypts their metadata, and binds them together
+	// into an entry *api.Document.
+	Pack(content io.Reader, mediaType string, keys *enc.Keys, authorPub []byte) (
+		*api.Document, []id.ID, error)
+}
+
+// NewEntryPacker creates a new Packer instance.
+func NewEntryPacker(
+	params *print.Parameters,
+	metadataEnc enc.MetadataEncrypter,
+	docSL storage.DocumentStorerLoader,
+) EntryPacker {
+	return &ePacker{
+		params: params,
+		metadataEnc: metadataEnc,
+		pageS: page.NewStorerLoader(docSL),
+		docL: docSL,
+	}
+}
+
+type ePacker struct {
+	params *print.Parameters
+	metadataEnc enc.MetadataEncrypter
+	pageS page.Storer
+	docL storage.DocumentLoader
+}
+
+func (p *ePacker) Pack(content io.Reader, mediaType string, keys *enc.Keys, authorPub []byte) (
+	*api.Document, []id.ID, error) {
+
+	printer := print.NewPrinter(p.params, keys, authorPub, p.pageS)
+	pageKeys, metadata, err := printer.Print(content, mediaType)
+	if err != nil {
+		return nil, nil, err
+	}
+	encMetadata, err := p.metadataEnc.Encrypt(metadata, keys)
+	if err != nil {
+		return nil, nil, err
+	}
+	doc, err := newEntryDoc(authorPub, pageKeys, encMetadata, p.docL)
+	return doc, pageKeys, err
+}
+
 
 func newEntryDoc(
 	authorPub []byte,
 	pageIDs []id.ID,
 	encMeta *enc.EncryptedMetadata,
 	docL storage.DocumentLoader,
-) (*api.Document, bool, error) {
+) (*api.Document, error) {
 
 	var entry *api.Entry
 	var err error
-	isMultiPage := false
 	if len(pageIDs) == 1 {
-		isMultiPage = true
 		entry, err = newSinglePageEntry(authorPub, pageIDs[0], encMeta, docL)
 	} else {
 		entry, err = newMultiPageEntry(authorPub, pageIDs, encMeta)
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	doc := &api.Document{
@@ -32,7 +81,7 @@ func newEntryDoc(
 			Entry: entry,
 		},
 	}
-	return doc, isMultiPage, err
+	return doc, nil
 }
 
 func newSinglePageEntry(
@@ -79,17 +128,4 @@ func newMultiPageEntry(
 		MetadataCiphertext:    encMeta.Ciphertext,
 		MetadataCiphertextMac: encMeta.CiphertextMAC,
 	}, nil
-}
-
-func newEnvelopeDoc(authorPub []byte, readerPub []byte, entryKey id.ID) *api.Document {
-	envelope := &api.Envelope{
-		AuthorPublicKey: authorPub,
-		ReaderPublicKey: readerPub,
-		EntryKey:        entryKey.Bytes(),
-	}
-	return &api.Document{
-		Contents: &api.Document_Envelope{
-			Envelope: envelope,
-		},
-	}
 }

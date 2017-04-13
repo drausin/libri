@@ -7,18 +7,24 @@ import (
 )
 
 
-// sampleSelfReaderKeys samples a random pair of keys (author and reader) for the author to use
+type envelopeKeySampler interface {
+	sample() ([]byte, []byte, *enc.Keys, error)
+}
+
+type envelopeKeySamplerImpl struct {
+	authorKeys keychain.Keychain
+	selfReaderKeys keychain.Keychain
+}
+
+// sample samples a random pair of keys (author and reader) for the author to use
 // in creating the document *Keys instance. The method returns the author and reader public keys
 // along with the *Keys object.
-func sampleSelfReaderKeys(
-	authorKeys keychain.Keychain, selfReaderKeys keychain.Keychain,
-) ([]byte, []byte, *enc.Keys, error) {
-
-	authorID, err := authorKeys.Sample()
+func (s *envelopeKeySamplerImpl) sample() ([]byte, []byte, *enc.Keys, error) {
+	authorID, err := s.authorKeys.Sample()
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	selfReaderID, err := selfReaderKeys.Sample()
+	selfReaderID, err := s.selfReaderKeys.Sample()
 	if err != nil {
 		return nil, nil, nil, err
 	}

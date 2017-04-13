@@ -17,7 +17,7 @@ var (
 	ErrMissingPage = errors.New("missing page")
 )
 
-// Storer stores pages from an inner storage.DocumentStorer.
+// Storer stores pages to an inner storage.DocumentStorer.
 type Storer interface {
 	// Store writes pages to inner storage and returns a slice of their keys.
 	Store(pages chan *api.Page) ([]cid.ID, error)

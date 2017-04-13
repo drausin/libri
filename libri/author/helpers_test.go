@@ -12,9 +12,13 @@ import (
 	"math/rand"
 )
 
-func TestSampleSelfReaderKeys_ok(t *testing.T) {
+func TestEnvelopeKeySampler_Sample_ok(t *testing.T) {
 	authorKeys, selfReaderKeys := keychain.New(3), keychain.New(3)
-	authPubBytes, srPubBytes, encKeys1, err := sampleSelfReaderKeys(authorKeys, selfReaderKeys)
+	s := &envelopeKeySamplerImpl{
+		authorKeys: authorKeys,
+		selfReaderKeys: selfReaderKeys,
+	}
+	authPubBytes, srPubBytes, encKeys1, err := s.sample()
 	assert.Nil(t, err)
 	assert.NotNil(t, authPubBytes)
 	assert.NotNil(t, srPubBytes)
@@ -34,20 +38,24 @@ func TestSampleSelfReaderKeys_ok(t *testing.T) {
 }
 
 
-func TestSampleSelfReaderKeys_err(t *testing.T) {
+func TestEnvelopeKeySampler_Sample_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 
-	authorKeys1 := &fixedKeychain{sampleErr: errors.New("some Sample error")}
-	selfReaderKeys1 := keychain.New(3)
-	aPB, srPB, eK, err := sampleSelfReaderKeys(authorKeys1, selfReaderKeys1)
+	s1 := &envelopeKeySamplerImpl{
+		authorKeys: &fixedKeychain{sampleErr: errors.New("some Sample error")},
+		selfReaderKeys: keychain.New(3),
+	}
+	aPB, srPB, eK, err := s1.sample()
 	assert.NotNil(t, err)
 	assert.Nil(t, aPB)
 	assert.Nil(t, srPB)
 	assert.Nil(t, eK)
 
-	authorKeys2 := keychain.New(3)
-	selfReaderKeys2 := &fixedKeychain{sampleErr: errors.New("some Sample error")}
-	aPB, srPB, eK, err = sampleSelfReaderKeys(authorKeys2, selfReaderKeys2)
+	s2 := &envelopeKeySamplerImpl{
+		authorKeys: keychain.New(3),
+		selfReaderKeys: &fixedKeychain{sampleErr: errors.New("some Sample error")},
+	}
+	aPB, srPB, eK, err = s2.sample()
 	assert.NotNil(t, err)
 	assert.Nil(t, aPB)
 	assert.Nil(t, srPB)
@@ -55,9 +63,11 @@ func TestSampleSelfReaderKeys_err(t *testing.T) {
 
 	offCurvePriv, err := ecdsa.GenerateKey(elliptic.P256(), rng)
 	assert.Nil(t, err)
-	authorKeys3 := &fixedKeychain{sampleID: ecid.FromPrivateKey(offCurvePriv)}
-	selfReaderKeys3 := keychain.New(3)
-	aPB, srPB, eK, err = sampleSelfReaderKeys(authorKeys3, selfReaderKeys3)
+	s3 := &envelopeKeySamplerImpl{
+		authorKeys: &fixedKeychain{sampleID: ecid.FromPrivateKey(offCurvePriv)},
+		selfReaderKeys: keychain.New(3),
+	}
+	aPB, srPB, eK, err = s3.sample()
 	assert.NotNil(t, err)
 	assert.Nil(t, aPB)
 	assert.Nil(t, srPB)

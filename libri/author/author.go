@@ -4,8 +4,8 @@ import (
 	"io"
 
 	"github.com/drausin/libri/libri/author/io/enc"
+	"github.com/drausin/libri/libri/author/io/pack"
 	"github.com/drausin/libri/libri/author/io/page"
-	"github.com/drausin/libri/libri/author/io/print"
 	"github.com/drausin/libri/libri/author/io/publish"
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/db"
@@ -33,6 +33,9 @@ type Author struct {
 	// never used as the author key
 	selfReaderKeys keychain.Keychain
 
+	// samples a pair of author and selfReader keys for encrypting an entry
+	envelopeKeys envelopeKeySampler
+
 	// key-value store DB used for all external storage
 	db db.KVDB
 
@@ -50,6 +53,9 @@ type Author struct {
 
 	// loads and publishes documents in parallel to libri network
 	mlPublisher publish.MultiLoadPublisher
+
+	// creates entry documents from raw content
+	entryPacker pack.EntryPacker
 
 	// stores Pages in chan to local storage
 	pageSL page.StorerLoader
@@ -85,26 +91,40 @@ func NewAuthor(config *Config, keychainAuth string, logger *zap.Logger) (*Author
 	if err != nil {
 		return nil, err
 	}
-
+	envelopeKeys := &envelopeKeySamplerImpl{
+		authorKeys:     authorKeys,
+		selfReaderKeys: selfReaderKeys,
+	}
+	librarians, err := api.NewUniformRandomClientBalancer(config.LibrarianAddrs)
+	if err != nil {
+		return nil, err
+	}
 	signer := client.NewSigner(clientID.Key())
 	publisher := publish.NewPublisher(clientID, signer, config.Publish)
 	slPublisher := publish.NewSingleLoadPublisher(publisher, documentSL)
+	entryPacker := pack.NewEntryPacker(
+		config.Print,
+		enc.NewMetadataEncrypterDecrypter(),
+		documentSL,
+	)
 
 	return &Author{
-		clientID: clientID,
-		config: config,
-		authorKeys: authorKeys,
+		clientID:       clientID,
+		config:         config,
+		authorKeys:     authorKeys,
 		selfReaderKeys: selfReaderKeys,
-		db: rdb,
-		clientSL: clientSL,
-		documentSL: documentSL,
-		librarians: api.NewUniformRandomClientBalancer(config.LibrarianAddrs),
-		publisher: publish.NewPublisher(clientID, signer, config.Publish),
-		mlPublisher: publish.NewMultiLoadPublisher(slPublisher, config.Publish),
-		pageSL: page.NewStorerLoader(documentSL),
-		signer: signer,
-		logger: logger,
-		stop: make(chan struct{}),
+		envelopeKeys:   envelopeKeys,
+		db:             rdb,
+		clientSL:       clientSL,
+		documentSL:     documentSL,
+		librarians:     librarians,
+		publisher:      publish.NewPublisher(clientID, signer, config.Publish),
+		mlPublisher:    publish.NewMultiLoadPublisher(slPublisher, config.Publish),
+		entryPacker:    entryPacker,
+		pageSL:         page.NewStorerLoader(documentSL),
+		signer:         signer,
+		logger:         logger,
+		stop:           make(chan struct{}),
 	}, nil
 }
 
@@ -115,28 +135,17 @@ func NewAuthor(config *Config, keychainAuth string, logger *zap.Logger) (*Author
 // Upload compresses, encrypts, and splits the content into pages and then stores them in the
 // libri network. It returns the *api.Entry that was stored.
 func (a *Author) Upload(content io.Reader, mediaType string) (*api.Document, error) {
-	authorPub, readerPub, keys, err := sampleSelfReaderKeys(a.authorKeys, a.selfReaderKeys)
+	authorPub, readerPub, keys, err := a.envelopeKeys.sample()
 	if err != nil {
 		return nil, err
 	}
-	printer := print.NewPrinter(a.config.Print, keys, authorPub, a.pageSL)
-
-	// create entry
-	pageKeys, metadata, err := printer.Print(content, mediaType)
-	if err != nil {
-		return nil, err
-	}
-	encMetadata, err := enc.EncryptMetadata(metadata, keys)
-	if err != nil {
-		return nil, err
-	}
-	entry, multiPage, err := newEntryDoc(authorPub, pageKeys, encMetadata, a.documentSL)
+	entry, pageKeys, err := a.entryPacker.Pack(content, mediaType, keys, authorPub)
 	if err != nil {
 		return nil, err
 	}
 
 	// publish separate pages (if more than one), entry, and envelope
-	if multiPage {
+	if len(pageKeys) > 1 {
 		if err := a.mlPublisher.Publish(pageKeys, a.librarians); err != nil {
 			return nil, err
 		}
@@ -149,7 +158,7 @@ func (a *Author) Upload(content io.Reader, mediaType string) (*api.Document, err
 	if err != nil {
 		return nil, err
 	}
-	envelope := newEnvelopeDoc(authorPub, readerPub, entryKey)
+	envelope := pack.NewEnvelopeDoc(authorPub, readerPub, entryKey)
 	if _, err = a.publisher.Publish(envelope, lc); err != nil {
 		return nil, err
 	}
@@ -160,4 +169,3 @@ func (a *Author) Upload(content io.Reader, mediaType string) (*api.Document, err
 
 	return entry, nil
 }
-
