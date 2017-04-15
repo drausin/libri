@@ -34,12 +34,12 @@ fix:
 
 lint:
 	@echo "--> Running gometalinter"
-	@gometalinter ./... --config=.gometalinter.json --deadline=8m
+	@gometalinter ./... --config=.gometalinter.json --deadline=10m
 
 lint-diff:
 	@echo "--> Running gometalinter on packages with uncommitted changes"
 	@echo $(CHANGED_PKGS) | tr " " "\n"
-	@echo $(CHANGED_PKGS) | xargs gometalinter --config=.gometalinter.json --deadline=8m
+	@echo $(CHANGED_PKGS) | xargs gometalinter --config=.gometalinter.json --deadline=10m
 
 lint-optional:
 	@echo "--> Running gometalinter with optional linters"
