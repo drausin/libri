@@ -42,6 +42,8 @@ const (
 	HMAC256Length = sha256.Size
 )
 
+var errUnknownDocumentType = errors.New("unknown document type")
+
 // GetKey calculates the key from the has of the proto.Message.
 func GetKey(value proto.Message) (cid.ID, error) {
 	valueBytes, err := proto.Marshal(value)
@@ -52,22 +54,34 @@ func GetKey(value proto.Message) (cid.ID, error) {
 	return cid.FromBytes(hash[:]), nil
 }
 
+// GetAuthorPub returns the author public key for a given document.
+func GetAuthorPub(d *Document) []byte {
+	switch c := d.Contents.(type) {
+	case *Document_Entry:
+		return c.Entry.AuthorPublicKey
+	case *Document_Page:
+		return c.Page.AuthorPublicKey
+	case *Document_Envelope:
+		return c.Envelope.AuthorPublicKey
+	}
+	panic(errUnknownDocumentType)
+}
+
 // ValidateDocument checks that all fields of a Document are populated and have the expected
 // lengths.
 func ValidateDocument(d *Document) error {
 	if d == nil {
 		return errors.New("Document may not be nil")
 	}
-	switch x := d.Contents.(type) {
+	switch c := d.Contents.(type) {
 	case *Document_Envelope:
-		return ValidateEnvelope(x.Envelope)
+		return ValidateEnvelope(c.Envelope)
 	case *Document_Entry:
-		return ValidateEntry(x.Entry)
+		return ValidateEntry(c.Entry)
 	case *Document_Page:
-		return ValidatePage(x.Page)
-	default:
-		return errors.New("unknown document type")
+		return ValidatePage(c.Page)
 	}
+	return errUnknownDocumentType
 }
 
 // ValidateEnvelope checks that all fields of an Envelope are populated and have the expected

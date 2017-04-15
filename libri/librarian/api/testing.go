@@ -4,11 +4,12 @@ import (
 	"math/rand"
 
 	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/ecid"
 )
 
 // NewTestDocument generates a dummy Entry document for use in testing.
 func NewTestDocument(rng *rand.Rand) (*Document, cid.ID) {
-	doc := &Document{&Document_Entry{NewTestPageEntry(rng)}}
+	doc := &Document{&Document_Entry{NewTestSinglePageEntry(rng)}}
 	key, err := GetKey(doc)
 	if err != nil {
 		panic(err)
@@ -25,8 +26,8 @@ func NewTestEnvelope(rng *rand.Rand) *Envelope {
 	}
 }
 
-// NewTestPageEntry generates a dummy Entry document with a single Page for use in testing.
-func NewTestPageEntry(rng *rand.Rand) *Entry {
+// NewTestSinglePageEntry generates a dummy Entry document with a single Page for use in testing.
+func NewTestSinglePageEntry(rng *rand.Rand) *Entry {
 	page := NewTestPage(rng)
 	return &Entry{
 		AuthorPublicKey:       page.AuthorPublicKey,
@@ -34,6 +35,21 @@ func NewTestPageEntry(rng *rand.Rand) *Entry {
 		MetadataCiphertextMac: RandBytes(rng, 32),
 		MetadataCiphertext:    RandBytes(rng, 64),
 		Contents:              &Entry_Page{page},
+	}
+}
+
+// NewTestMultiPageEntry generates a dummy Entry document with two page keys for use in testing.
+func NewTestMultiPageEntry(rng *rand.Rand) *Entry {
+	pageKeys := [][]byte{
+		cid.NewPseudoRandom(rng).Bytes(),
+		cid.NewPseudoRandom(rng).Bytes(),
+	}
+	return &Entry{
+		AuthorPublicKey:       ecid.ToPublicKeyBytes(ecid.NewPseudoRandom(rng)),
+		CreatedTime:           1,
+		MetadataCiphertextMac: RandBytes(rng, 32),
+		MetadataCiphertext:    RandBytes(rng, 64),
+		Contents:              &Entry_PageKeys{PageKeys: &PageKeys{Keys: pageKeys}},
 	}
 }
 

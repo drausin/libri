@@ -14,6 +14,8 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"go.uber.org/zap"
+	"github.com/drausin/libri/libri/author/io/ship"
+	"github.com/drausin/libri/libri/common/id"
 )
 
 // Author is the main client of the libri network. It can upload, download, and share documents with
@@ -48,14 +50,11 @@ type Author struct {
 	// load balancer for librarian clients
 	librarians api.ClientBalancer
 
-	// publishes documents to libri network
-	publisher publish.Publisher
-
-	// loads and publishes documents in parallel to libri network
-	mlPublisher publish.MultiLoadPublisher
-
 	// creates entry documents from raw content
 	entryPacker pack.EntryPacker
+
+	// publishes documents to libri
+	shipper ship.Shipper
 
 	// stores Pages in chan to local storage
 	pageSL page.StorerLoader
@@ -102,6 +101,8 @@ func NewAuthor(config *Config, keychainAuth string, logger *zap.Logger) (*Author
 	signer := client.NewSigner(clientID.Key())
 	publisher := publish.NewPublisher(clientID, signer, config.Publish)
 	slPublisher := publish.NewSingleLoadPublisher(publisher, documentSL)
+	mlPublisher := publish.NewMultiLoadPublisher(slPublisher, config.Publish)
+	shipper := ship.NewShipper(librarians, publisher, mlPublisher)
 	entryPacker := pack.NewEntryPacker(
 		config.Print,
 		enc.NewMetadataEncrypterDecrypter(),
@@ -118,9 +119,8 @@ func NewAuthor(config *Config, keychainAuth string, logger *zap.Logger) (*Author
 		clientSL:       clientSL,
 		documentSL:     documentSL,
 		librarians:     librarians,
-		publisher:      publish.NewPublisher(clientID, signer, config.Publish),
-		mlPublisher:    publish.NewMultiLoadPublisher(slPublisher, config.Publish),
 		entryPacker:    entryPacker,
+		shipper: shipper,
 		pageSL:         page.NewStorerLoader(documentSL),
 		signer:         signer,
 		logger:         logger,
@@ -133,33 +133,20 @@ func NewAuthor(config *Config, keychainAuth string, logger *zap.Logger) (*Author
 // - Share()
 
 // Upload compresses, encrypts, and splits the content into pages and then stores them in the
-// libri network. It returns the *api.Entry that was stored.
-func (a *Author) Upload(content io.Reader, mediaType string) (*api.Document, error) {
+// libri network. It returns the key for the *api.Entry that was stored.
+func (a *Author) Upload(content io.Reader, mediaType string) (id.ID, error) {
 	authorPub, readerPub, keys, err := a.envelopeKeys.sample()
 	if err != nil {
 		return nil, err
 	}
+
 	entry, pageKeys, err := a.entryPacker.Pack(content, mediaType, keys, authorPub)
 	if err != nil {
 		return nil, err
 	}
 
-	// publish separate pages (if more than one), entry, and envelope
-	if len(pageKeys) > 1 {
-		if err := a.mlPublisher.Publish(pageKeys, a.librarians); err != nil {
-			return nil, err
-		}
-	}
-	lc, err := a.librarians.Next()
+	_, entryKey, err := a.shipper.Ship(entry, pageKeys, authorPub, readerPub)
 	if err != nil {
-		return nil, err
-	}
-	entryKey, err := a.publisher.Publish(entry, lc)
-	if err != nil {
-		return nil, err
-	}
-	envelope := pack.NewEnvelopeDoc(authorPub, readerPub, entryKey)
-	if _, err = a.publisher.Publish(envelope, lc); err != nil {
 		return nil, err
 	}
 
@@ -167,5 +154,5 @@ func (a *Author) Upload(content io.Reader, mediaType string) (*api.Document, err
 	// - store envelope in local storage by entry key
 	// - delete pages from local storage
 
-	return entry, nil
+	return entryKey, nil
 }

@@ -32,7 +32,7 @@ func TestNewParameters_err(t *testing.T) {
 	assert.Nil(t, params)
 }
 
-func TestLoadPublisher_Publish_ok(t *testing.T) {
+func TestPublisher_Publish_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	clientID := ecid.NewPseudoRandom(rng)
 	signer := client.NewSigner(clientID.Key())
@@ -46,13 +46,13 @@ func TestLoadPublisher_Publish_ok(t *testing.T) {
 	pub := NewPublisher(clientID, signer, params)
 
 	doc, expectedDocKey := api.NewTestDocument(rng)
-	actualDocKey, err := pub.Publish(doc, lc)
+	actualDocKey, err := pub.Publish(doc, api.GetAuthorPub(doc), lc)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedDocKey, actualDocKey)
 	assert.Equal(t, doc, lc.request.Value)
 }
 
-func TestLoadPublisher_Publish_err(t *testing.T) {
+func TestPublisher_Publish_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	clientID := ecid.NewPseudoRandom(rng)
 	signer := client.NewSigner(clientID.Key())
@@ -65,22 +65,27 @@ func TestLoadPublisher_Publish_err(t *testing.T) {
 	}
 	doc, _ := api.NewTestDocument(rng)
 
-	pub1 := NewPublisher(clientID, signer, params)
+	pub := NewPublisher(clientID, signer, params)
 
 	// check that error from bad document bubbles up
-	docKey, err := pub1.Publish(nil, lc)
+	diffAuthorPub := ecid.ToPublicKeyBytes(ecid.NewPseudoRandom(rng))
+	docKey, err := pub.Publish(nil, diffAuthorPub, lc)
 	assert.NotNil(t, err)
 	assert.Nil(t, docKey)
 
+	// check that different author pub key creates error
+	docKey, err = pub.Publish(doc, diffAuthorPub, lc)
+	assert.NotNil(t, err)
+	assert.Nil(t, docKey)
 
 	signer2 := &fixedSigner{ // causes client.NewSignedTimeoutContext to error
 		signature: "",
 		err: errors.New("some Sign error"),
 	}
-	pub2 := NewPublisher(clientID, signer2, params)
+	pub = NewPublisher(clientID, signer2, params)
 
 	// check that error from client.NewSignedTimeoutContext error bubbles up
-	docKey, err = pub2.Publish(doc, lc)
+	docKey, err = pub.Publish(doc, api.GetAuthorPub(doc), lc)
 	assert.NotNil(t, err)
 	assert.Nil(t, docKey)
 
@@ -88,19 +93,19 @@ func TestLoadPublisher_Publish_err(t *testing.T) {
 	lc3 := &fixedPutter{
 		err: errors.New("some Put error"),
 	}
-	pub3 := NewPublisher(clientID, signer, params)
+	pub = NewPublisher(clientID, signer, params)
 
 	// check that Put error bubbles up
-	docKey, err = pub3.Publish(doc, lc3)
+	docKey, err = pub.Publish(doc, api.GetAuthorPub(doc), lc3)
 	assert.NotNil(t, err)
 	assert.Nil(t, docKey)
 
 
 	lc4 := &diffRequestIDPutter{rng}
-	pub4 := NewPublisher(clientID, signer, params)
+	pub = NewPublisher(clientID, signer, params)
 
 	// check that different request ID causes error
-	docKey, err = pub4.Publish(doc, lc4)
+	docKey, err = pub.Publish(doc, api.GetAuthorPub(doc), lc4)
 	assert.NotNil(t, err)
 	assert.Nil(t, docKey)
 }
@@ -118,7 +123,7 @@ func TestSingleLoadPublisher_Publish_ok(t *testing.T) {
 	// add document to memDocLoader so that it's present for docL.Load()
 	docL.docs[docKey.String()] = doc
 
-	err := slPub.Publish(docKey, lc)
+	err := slPub.Publish(docKey, api.GetAuthorPub(doc), lc)
 	assert.Nil(t, err)
 }
 
@@ -131,29 +136,24 @@ func TestSingleLoadPublisher_Publish_err(t *testing.T) {
 	lc := &fixedPutter{}
 	doc, docKey := api.NewTestDocument(rng)
 
-
-	slPub1 := NewSingleLoadPublisher(pub, &errDocLoader{})
-
 	// check docL.Load error bubbles up
-	err := slPub1.Publish(docKey, lc)
+	slPub := NewSingleLoadPublisher(pub, &errDocLoader{})
+	err := slPub.Publish(docKey, api.GetAuthorPub(doc), lc)
 	assert.NotNil(t, err)
 
-
-	slPub2 := NewSingleLoadPublisher(pub, docL)
-
 	// check that missing doc triggers error
-	err = slPub2.Publish(docKey, lc)
+	slPub = NewSingleLoadPublisher(pub, docL)
+	err = slPub.Publish(docKey, api.GetAuthorPub(doc), lc)
 	assert.Equal(t, ErrUnexpectedMissingDocument, err)
-
 
 	pub3 := &fixedPublisher{
 		publishErr: errors.New("some Publish error"),
 	}
-	slPub3 := NewSingleLoadPublisher(pub3, docL)
+	slPub = NewSingleLoadPublisher(pub3, docL)
 	docL.docs[docKey.String()] = doc
 
 	// check that missing doc triggers error
-	err = slPub3.Publish(docKey, lc)
+	err = slPub.Publish(docKey, api.GetAuthorPub(doc), lc)
 	assert.NotNil(t, err)
 }
 
@@ -165,6 +165,7 @@ func TestMultiLoadPublisher_Publish_ok(t *testing.T) {
 		for i := 0; i < nDocs; i++ {
 			docKeys[i] = id.NewPseudoRandom(rng)
 		}
+		authorKey := ecid.ToPublicKeyBytes(ecid.NewPseudoRandom(rng))
 		for _, putParallelism := range []uint32{1, 2, 3} {
 			slPub := &fixedSingleLoadPublisher{
 				publishedKeys: make(map[string]struct{}),
@@ -173,7 +174,7 @@ func TestMultiLoadPublisher_Publish_ok(t *testing.T) {
 			assert.Nil(t, err)
 			mlPub := NewMultiLoadPublisher(slPub, params)
 
-			err = mlPub.Publish(docKeys, cb)
+			err = mlPub.Publish(docKeys, authorKey, cb)
 			assert.Nil(t, err)
 
 			// check all keys have been "published"
@@ -193,6 +194,7 @@ func TestMultiLoadPublisher_Publish_err(t *testing.T) {
 		for i := 0; i < nDocs; i++ {
 			docKeys[i] = id.NewPseudoRandom(rng)
 		}
+		authorKey := ecid.ToPublicKeyBytes(ecid.NewPseudoRandom(rng))
 		for _, putParallelism := range []uint32{1, 2, 3} {
 			slPub := &fixedSingleLoadPublisher{
 				err: errors.New("some Publish error"),
@@ -201,7 +203,7 @@ func TestMultiLoadPublisher_Publish_err(t *testing.T) {
 			assert.Nil(t, err)
 			mlPub := NewMultiLoadPublisher(slPub, params)
 
-			err = mlPub.Publish(docKeys, cb)
+			err = mlPub.Publish(docKeys, authorKey, cb)
 			assert.NotNil(t, err)
 		}
 	}
@@ -269,7 +271,8 @@ type fixedPublisher struct {
 	publishErr error
 }
 
-func (p *fixedPublisher) Publish(doc *api.Document, lc api.Putter) (id.ID, error) {
+func (p *fixedPublisher) Publish(doc *api.Document, authorPub []byte, lc api.Putter) (
+	id.ID, error) {
 	p.doc = doc
 	return p.publishID, p.publishErr
 }
@@ -280,7 +283,7 @@ type fixedSingleLoadPublisher struct {
 	err error
 }
 
-func (f *fixedSingleLoadPublisher) Publish(docKey id.ID, lc api.Putter) error {
+func (f *fixedSingleLoadPublisher) Publish(docKey id.ID, authorPub []byte, lc api.Putter) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.err == nil {

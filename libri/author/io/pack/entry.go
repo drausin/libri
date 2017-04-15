@@ -26,7 +26,7 @@ func NewEntryPacker(
 	metadataEnc enc.MetadataEncrypter,
 	docSL storage.DocumentStorerLoader,
 ) EntryPacker {
-	return &ePacker{
+	return &entryPacker{
 		params: params,
 		metadataEnc: metadataEnc,
 		pageS: page.NewStorerLoader(docSL),
@@ -34,14 +34,14 @@ func NewEntryPacker(
 	}
 }
 
-type ePacker struct {
+type entryPacker struct {
 	params *print.Parameters
 	metadataEnc enc.MetadataEncrypter
 	pageS page.Storer
 	docL storage.DocumentLoader
 }
 
-func (p *ePacker) Pack(content io.Reader, mediaType string, keys *enc.Keys, authorPub []byte) (
+func (p *entryPacker) Pack(content io.Reader, mediaType string, keys *enc.Keys, authorPub []byte) (
 	*api.Document, []id.ID, error) {
 
 	printer := print.NewPrinter(p.params, keys, authorPub, p.pageS)

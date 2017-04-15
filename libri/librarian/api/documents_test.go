@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/drausin/libri/libri/common/ecid"
 )
 
 func TestGetKey(t *testing.T) {
@@ -14,6 +15,27 @@ func TestGetKey(t *testing.T) {
 	key, err := GetKey(value)
 	assert.Nil(t, err)
 	assert.Nil(t, ValidateBytes(key.Bytes(), DocumentKeyLength, "key"))
+}
+
+func TestGetAuthorPub(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	expected := ecid.ToPublicKeyBytes(ecid.NewPseudoRandom(rng))
+
+	entry := NewTestSinglePageEntry(rng)
+	entry.AuthorPublicKey = expected
+	assert.Equal(t, expected, GetAuthorPub(&Document{&Document_Entry{Entry: entry}}))
+
+	entry = NewTestMultiPageEntry(rng)
+	entry.AuthorPublicKey = expected
+	assert.Equal(t, expected, GetAuthorPub(&Document{&Document_Entry{Entry: entry}}))
+
+	page := NewTestPage(rng)
+	page.AuthorPublicKey = expected
+	assert.Equal(t, expected, GetAuthorPub(&Document{&Document_Page{Page: page}}))
+
+	envelope := NewTestEnvelope(rng)
+	envelope.AuthorPublicKey = expected
+	assert.Equal(t, expected, GetAuthorPub(&Document{&Document_Envelope{Envelope: envelope}}))
 }
 
 func TestValidateDocument_ok(t *testing.T) {
@@ -65,10 +87,10 @@ func TestValidateEnvelope_err(t *testing.T) {
 
 func TestValidateEntry_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	e1 := NewTestPageEntry(rng)
+	e1 := NewTestSinglePageEntry(rng)
 	assert.Nil(t, ValidateEntry(e1))
 
-	e2 := NewTestPageEntry(rng)
+	e2 := NewTestSinglePageEntry(rng)
 	e2.Contents = &Entry_PageKeys{
 		&PageKeys{
 			Keys: [][]byte{[]byte{0, 1, 2}, []byte{1, 2, 3}},
@@ -101,7 +123,7 @@ func TestValidateEntry_err(t *testing.T) {
 
 	assert.NotNil(t, ValidateEntry(nil))
 	for i, c := range cases {
-		badEntry := NewTestPageEntry(rng)
+		badEntry := NewTestSinglePageEntry(rng)
 		c(badEntry)
 		assert.NotNil(t, ValidateEntry(badEntry), fmt.Sprintf("case %d", i))
 	}

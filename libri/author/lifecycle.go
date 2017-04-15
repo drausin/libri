@@ -2,6 +2,7 @@ package author
 
 import "os"
 
+// Close disconnects the author from its librarians and closes the DB.
 func (a *Author) Close() error {
 	// send stop signal to listener
 	a.stop <- struct{}{}
@@ -17,6 +18,7 @@ func (a *Author) Close() error {
 	return nil
 }
 
+// CloseAndRemove closes the author and removes all local state.
 func (a *Author) CloseAndRemove() error {
 	err := a.Close()
 	if err != nil {

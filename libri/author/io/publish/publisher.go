@@ -33,6 +33,11 @@ var (
 	// ErrPutParallelismZeroValue indicates when the PutParallelism parameter has the zero
 	// value.
 	ErrPutParallelismZeroValue = errors.New("PutParallelism must be greater than zero")
+
+	// ErrInconsistentAuthorPubKey indicates when the document author public key is different
+	// from the expected value.
+	ErrInconsistentAuthorPubKey = errors.New("inconsistent author public key")
+
 )
 
 // Parameters define configuration used by a Publisher.
@@ -72,7 +77,7 @@ func NewDefaultParameters() *Parameters {
 // Publisher Puts a document into the libri network using a librarian client.
 type Publisher interface {
 	// Publish Puts a document using a librarian client and returns the ID of the document.
-	Publish(doc *api.Document, lc api.Putter) (cid.ID, error)
+	Publish(doc *api.Document, authorPub []byte, lc api.Putter) (cid.ID, error)
 }
 
 type publisher struct {
@@ -90,10 +95,13 @@ func NewPublisher(clientID ecid.ID, signer client.Signer, params *Parameters) Pu
 	}
 }
 
-func (p *publisher) Publish(doc *api.Document, lc api.Putter) (cid.ID, error) {
+func (p *publisher) Publish(doc *api.Document, authorPub []byte, lc api.Putter) (cid.ID, error) {
 	docKey, err := api.GetKey(doc)
 	if err != nil {
 		return nil, err
+	}
+	if !bytes.Equal(authorPub, api.GetAuthorPub(doc)) {
+		return nil, ErrInconsistentAuthorPubKey
 	}
 	rq := client.NewPutRequest(p.clientID, docKey, doc)
 	ctx, cancel, err := client.NewSignedTimeoutContext(p.signer, rq, p.params.PutTimeout)
@@ -115,7 +123,7 @@ func (p *publisher) Publish(doc *api.Document, lc api.Putter) (cid.ID, error) {
 type SingleLoadPublisher interface {
 	// Publish loads a document with the given key and publishes them using the given
 	// librarian client.
-	Publish(docKey cid.ID, lc api.Putter) error
+	Publish(docKey cid.ID, authorPub []byte, lc api.Putter) error
 }
 
 type singleLoadPublisher struct {
@@ -132,7 +140,7 @@ func NewSingleLoadPublisher(inner Publisher, docL storage.DocumentLoader) Single
 	}
 }
 
-func (p *singleLoadPublisher) Publish(docKey cid.ID, lc api.Putter) error {
+func (p *singleLoadPublisher) Publish(docKey cid.ID, authorPub []byte, lc api.Putter) error {
 	pageDoc, err := p.docL.Load(docKey)
 	if err != nil {
 		return err
@@ -140,7 +148,7 @@ func (p *singleLoadPublisher) Publish(docKey cid.ID, lc api.Putter) error {
 	if pageDoc == nil {
 		return ErrUnexpectedMissingDocument
 	}
-	if _, err := p.inner.Publish(pageDoc, lc); err != nil {
+	if _, err := p.inner.Publish(pageDoc, authorPub, lc); err != nil {
 		return err
 	}
 	return nil
@@ -150,7 +158,7 @@ func (p *singleLoadPublisher) Publish(docKey cid.ID, lc api.Putter) error {
 type MultiLoadPublisher interface {
 	// Publish in parallel loads and publishes the documents with the given keys. It balances
 	// between librarian clients for its Put requests.
-	Publish(docKeys []cid.ID, cb api.ClientBalancer) error
+	Publish(docKeys []cid.ID, authorPub []byte, cb api.ClientBalancer) error
 }
 
 type multiLoadPublisher struct {
@@ -166,7 +174,8 @@ func NewMultiLoadPublisher(inner SingleLoadPublisher, params *Parameters) MultiL
 	}
 }
 
-func (p *multiLoadPublisher) Publish(docKeys []cid.ID, cb api.ClientBalancer) error {
+func (p *multiLoadPublisher) Publish(docKeys []cid.ID, authorPub []byte, cb api.ClientBalancer) (
+	error) {
 	docKeysChan := make(chan cid.ID, p.params.PutParallelism)
 	go loadChan(docKeys, docKeysChan)
 	wg := new(sync.WaitGroup)
@@ -180,7 +189,7 @@ func (p *multiLoadPublisher) Publish(docKeys []cid.ID, cb api.ClientBalancer) er
 					putErrs <- err
 					return
 				}
-				if err := p.inner.Publish(docKey, lc); err != nil {
+				if err := p.inner.Publish(docKey, authorPub, lc); err != nil {
 					putErrs <- err
 					break
 				}
