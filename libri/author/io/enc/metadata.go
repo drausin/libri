@@ -71,18 +71,11 @@ func (metadataEncDec) Encrypt(m *api.Metadata, keys *Keys) (*EncryptedMetadata, 
 		return nil, err
 	}
 	mCiphertext := cipher.Seal(nil, keys.MetadataIV, mPlaintext, nil)
-	mac, err := HMAC(mCiphertext, keys.HMACKey)
-	if err != nil {
-		return nil, err
-	}
-	return NewEncryptedMetadata(mCiphertext, mac)
+	return NewEncryptedMetadata(mCiphertext, HMAC(mCiphertext, keys.HMACKey))
 }
 
 func (metadataEncDec) Decrypt(em *EncryptedMetadata, keys *Keys) (*api.Metadata, error) {
-	mac, err := HMAC(em.Ciphertext, keys.HMACKey)
-	if err != nil {
-		return nil, err
-	}
+	mac := HMAC(em.Ciphertext, keys.HMACKey)
 	if !bytes.Equal(em.CiphertextMAC, mac) {
 		return nil, ErrUnexpectedMAC
 	}

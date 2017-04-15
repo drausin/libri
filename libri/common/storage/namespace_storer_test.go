@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestServerStorerLoader_StoreLoad_ok(t *testing.T) {
+func TestServerClientStorerLoader_StoreLoad_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	cases := []struct {
 		key   []byte
@@ -28,12 +28,19 @@ func TestServerStorerLoader_StoreLoad_ok(t *testing.T) {
 	defer kvdb.Close()
 	assert.Nil(t, err)
 	ssl := NewServerKVDBStorerLoader(kvdb)
+	csl := NewClientKVDBStorerLoader(kvdb)
 
 	for _, c := range cases {
 		err := ssl.Store(c.key, c.value)
 		assert.Nil(t, err)
+		err = csl.Store(c.key, c.value)
+		assert.Nil(t, err)
 
 		loaded, err := ssl.Load(c.key)
+		assert.Nil(t, err)
+		assert.Equal(t, c.value, loaded)
+
+		loaded, err = csl.Load(c.key)
 		assert.Nil(t, err)
 		assert.Equal(t, c.value, loaded)
 	}
@@ -56,7 +63,7 @@ func TestServerClientStorerLoader_Store_err(t *testing.T) {
 	defer kvdb.Close()
 	assert.Nil(t, err)
 	ssl := NewServerKVDBStorerLoader(kvdb)
-	csl := NewServerKVDBStorerLoader(kvdb)
+	csl := NewClientKVDBStorerLoader(kvdb)
 
 	for _, c := range cases {
 		err := ssl.Store(c.key, c.value)

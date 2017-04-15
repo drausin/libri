@@ -85,7 +85,6 @@ func TestSizeHMAC_MessageSize(t *testing.T) {
 }
 
 func TestHMAC(t *testing.T) {
-	mac, err := HMAC([]byte{1, 2, 3}, []byte{4, 5, 6})
-	assert.Nil(t, err)
+	mac := HMAC([]byte{1, 2, 3}, []byte{4, 5, 6})
 	assert.Nil(t, api.ValidateHMAC256(mac))
 }

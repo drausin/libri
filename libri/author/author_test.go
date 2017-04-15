@@ -7,6 +7,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
+	"io"
+	"github.com/drausin/libri/libri/author/io/enc"
+	"math/rand"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -30,13 +34,46 @@ func TestNewAuthor(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestAuthor_Upload(t *testing.T) {
-	// test
-	// - mlPublisher gets called for pages
-	// - publisher gets called for entry & envelope
+func TestAuthor_Upload_ok(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
 	a := newTestAuthor()
+	a.entryPacker = &fixedEntryPacker{}
+	expectedEntryKey := id.NewPseudoRandom(rng)
+	a.shipper = &fixedShipper{
+		entryKey: expectedEntryKey,
+	}
 	go func() { <- a.stop }() // dummy stop signal acceptor
 
+	// since everything is mocked, inputs don't really matter
+	actualEntryKey, err := a.Upload(nil, "")
+	assert.Nil(t, err)
+	assert.Equal(t, expectedEntryKey, actualEntryKey)
+
+	err = a.CloseAndRemove()
+	assert.Nil(t, err)
+}
+
+func TestAuthor_Upload_err(t *testing.T) {
+	a := newTestAuthor()
+	go func() { <- a.stop }() // dummy stop signal acceptor
+	a.entryPacker = &fixedEntryPacker{err: errors.New("some Pack error")}
+	a.shipper = &fixedShipper{}
+
+	// check pack error bubbles up
+	actualEntryKey, err := a.Upload(nil, "")
+	assert.NotNil(t, err)
+	assert.Nil(t, actualEntryKey)
+
+	a.entryPacker = &fixedEntryPacker{}
+	a.shipper = &fixedShipper{err: errors.New("some Ship error")}
+
+	// check pack error bubbles up
+	actualEntryKey, err = a.Upload(nil, "")
+	assert.NotNil(t, err)
+	assert.Nil(t, actualEntryKey)
+
+	err = a.CloseAndRemove()
+	assert.Nil(t, err)
 }
 
 type fixedPublisher struct {
@@ -62,6 +99,29 @@ func (f *fixedMLPublisher) Publish(docKeys []id.ID, cb api.ClientBalancer) error
 	return f.publishErr
 }
 
+type fixedEntryPacker struct {
+	entry    *api.Document
+	pageKeys []id.ID
+	err      error
+}
+
+func (f *fixedEntryPacker) Pack(
+	content io.Reader, mediaType string, keys *enc.Keys, authorPub []byte,
+) (*api.Document, []id.ID, error) {
+	return f.entry, f.pageKeys, f.err
+}
+
+type fixedShipper struct {
+	envelope *api.Document
+	entryKey id.ID
+	err error
+}
+
+func (f *fixedShipper) Ship(
+	entry *api.Document, pageKeys []id.ID, authorPub []byte, readerPub []byte,
+) (*api.Document, id.ID, error) {
+	return f.envelope, f.entryKey, f.err
+}
 
 func newTestAuthor() *Author {
 	config := newTestConfig()

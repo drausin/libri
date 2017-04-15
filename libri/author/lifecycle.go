@@ -20,8 +20,7 @@ func (a *Author) Close() error {
 
 // CloseAndRemove closes the author and removes all local state.
 func (a *Author) CloseAndRemove() error {
-	err := a.Close()
-	if err != nil {
+	if err := a.Close(); err != nil {
 		return err
 	}
 	return os.RemoveAll(a.config.DataDir)

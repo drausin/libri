@@ -111,8 +111,7 @@ func TestMetadataEncDec_Decrypt_err(t *testing.T) {
 	keys3, _, _ := NewPseudoRandomKeys(rng)
 	keys3.AESKey = nil
 	ciphertext3 := api.RandBytes(rng, 64)
-	ciphertextMAC3, err := HMAC(ciphertext3, keys3.HMACKey)
-	assert.Nil(t, err)
+	ciphertextMAC3 := HMAC(ciphertext3, keys3.HMACKey)
 	em3, err := NewEncryptedMetadata(ciphertext3, ciphertextMAC3)
 	assert.Nil(t, err)
 
@@ -123,8 +122,7 @@ func TestMetadataEncDec_Decrypt_err(t *testing.T) {
 
 	keys4, _, _ := NewPseudoRandomKeys(rng) // valid, but not connected to ciphertext
 	ciphertext4 := api.RandBytes(rng, 64)
-	ciphertextMAC4, err := HMAC(ciphertext3, keys3.HMACKey)
-	assert.Nil(t, err)
+	ciphertextMAC4 := HMAC(ciphertext4, keys3.HMACKey)
 	em4, err := NewEncryptedMetadata(ciphertext4, ciphertextMAC4)
 	assert.Nil(t, err)
 

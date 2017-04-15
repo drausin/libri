@@ -140,8 +140,7 @@ func TestUnpaginator_WriteTo_err(t *testing.T) {
 		err: errors.New("some Decrypt error"),
 	}
 	ciphertext3 := []byte("some secret stuff")
-	ciphertextMac3, err := enc.HMAC(ciphertext3, keys.HMACKey)
-	assert.Nil(t, err)
+	ciphertextMac3 := enc.HMAC(ciphertext3, keys.HMACKey)
 	pages <- &api.Page{
 		Ciphertext: ciphertext3,
 		CiphertextMac: ciphertextMac3,
@@ -157,8 +156,7 @@ func TestUnpaginator_WriteTo_err(t *testing.T) {
 
 	decrypter4 := &fixedDecrypter{}
 	ciphertext4 := []byte("some other secret stuff")
-	ciphertextMac4, err := enc.HMAC(ciphertext4, keys.HMACKey)
-	assert.Nil(t, err)
+	ciphertextMac4 := enc.HMAC(ciphertext4, keys.HMACKey)
 	pages <- &api.Page{
 		Ciphertext: ciphertext4,
 		CiphertextMac: ciphertextMac4,
@@ -176,8 +174,7 @@ func TestUnpaginator_WriteTo_err(t *testing.T) {
 
 	decrypter5 := &fixedDecrypter{}
 	ciphertext5 := []byte("some other other secret stuff")
-	ciphertextMac5, err := enc.HMAC(ciphertext5, keys.HMACKey)
-	assert.Nil(t, err)
+	ciphertextMac5 := enc.HMAC(ciphertext5, keys.HMACKey)
 	pages <- &api.Page{
 		Ciphertext: ciphertext5,
 		CiphertextMac: ciphertextMac5,
