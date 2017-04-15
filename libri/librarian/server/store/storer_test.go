@@ -30,7 +30,7 @@ type TestStoreQuerier struct {
 	peerID ecid.ID
 }
 
-func (c *TestStoreQuerier) Query(ctx context.Context, pConn peer.Connector, rq *api.StoreRequest,
+func (c *TestStoreQuerier) Query(ctx context.Context, pConn api.Connector, rq *api.StoreRequest,
 	opts ...grpc.CallOption) (*api.StoreResponse, error) {
 	return &api.StoreResponse{
 		Metadata: &api.ResponseMetadata{
@@ -200,7 +200,7 @@ func TestStorer_Store_err(t *testing.T) {
 // timeoutQuerier returns an error simulating a request timeout
 type timeoutQuerier struct{}
 
-func (f *timeoutQuerier) Query(ctx context.Context, pConn peer.Connector, fr *api.StoreRequest,
+func (f *timeoutQuerier) Query(ctx context.Context, pConn api.Connector, fr *api.StoreRequest,
 	opts ...grpc.CallOption) (*api.StoreResponse, error) {
 	return nil, errors.New("simulated timeout error")
 }
@@ -211,7 +211,7 @@ type diffRequestIDQuerier struct {
 	peerID ecid.ID
 }
 
-func (f *diffRequestIDQuerier) Query(ctx context.Context, pConn peer.Connector,
+func (f *diffRequestIDQuerier) Query(ctx context.Context, pConn api.Connector,
 	fr *api.StoreRequest, opts ...grpc.CallOption) (*api.StoreResponse, error) {
 	return &api.StoreResponse{
 		Metadata: &api.ResponseMetadata{
@@ -223,7 +223,7 @@ func (f *diffRequestIDQuerier) Query(ctx context.Context, pConn peer.Connector,
 
 func TestStorer_query_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	clientConn := peer.NewConnector(nil) // won't actually be used since we're mocking the finder
+	clientConn := api.NewConnector(nil) // won't actually be used since we're mocking the finder
 	value, key := api.NewTestDocument(rng)
 	selfID := ecid.NewPseudoRandom(rng)
 	search := ssearch.NewSearch(selfID, key, &ssearch.Parameters{

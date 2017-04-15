@@ -5,10 +5,10 @@ import (
 	"math/rand"
 	"testing"
 
-	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/db"
-	"github.com/drausin/libri/libri/librarian/server/peer"
+	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
+	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
@@ -27,9 +27,10 @@ func TestToRoutingTable(t *testing.T) {
 
 func TestRoutingTable_SaveLoad(t *testing.T) {
 	rt1, _, _ := NewTestWithPeers(rand.New(rand.NewSource(0)), 8)
-	kvdb, err := db.NewTempDirRocksDB()
-	assert.Nil(t, err)
+	kvdb, cleanup, err := db.NewTempDirRocksDB()
+	defer cleanup()
 	defer kvdb.Close()
+	assert.Nil(t, err)
 	ssl := storage.NewServerKVDBStorerLoader(kvdb)
 
 	err = rt1.Save(ssl)

@@ -2,7 +2,6 @@ package store
 
 import (
 	"bytes"
-	"fmt"
 	"sync"
 
 	"github.com/drausin/libri/libri/common/ecid"
@@ -106,7 +105,7 @@ func (s *storer) storeWork(store *Store, wg *sync.WaitGroup) {
 	}
 }
 
-func (s *storer) query(pConn peer.Connector, store *Store) (*api.StoreResponse, error) {
+func (s *storer) query(pConn api.Connector, store *Store) (*api.StoreResponse, error) {
 	ctx, cancel, err := client.NewSignedTimeoutContext(s.signer, store.Request,
 		store.Params.Timeout)
 	defer cancel()
@@ -119,8 +118,7 @@ func (s *storer) query(pConn peer.Connector, store *Store) (*api.StoreResponse, 
 		return nil, err
 	}
 	if !bytes.Equal(rp.Metadata.RequestId, store.Request.Metadata.RequestId) {
-		return nil, fmt.Errorf("unexpected response request ID received: %v, "+
-			"expected %v", rp.Metadata.RequestId, store.Request.Metadata.RequestId)
+		return nil, client.ErrUnexpectedRequestID
 	}
 
 	return rp, nil

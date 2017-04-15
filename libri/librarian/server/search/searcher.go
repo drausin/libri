@@ -3,7 +3,6 @@ package search
 import (
 	"bytes"
 	"container/heap"
-	"fmt"
 	"sync"
 
 	cid "github.com/drausin/libri/libri/common/id"
@@ -118,7 +117,7 @@ func (s *searcher) searchWork(search *Search, wg *sync.WaitGroup) {
 	}
 }
 
-func (s *searcher) query(pConn peer.Connector, search *Search) (*api.FindResponse, error) {
+func (s *searcher) query(pConn api.Connector, search *Search) (*api.FindResponse, error) {
 	ctx, cancel, err := client.NewSignedTimeoutContext(s.signer, search.Request,
 		search.Params.Timeout)
 	defer cancel()
@@ -131,8 +130,7 @@ func (s *searcher) query(pConn peer.Connector, search *Search) (*api.FindRespons
 		return nil, err
 	}
 	if !bytes.Equal(rp.Metadata.RequestId, search.Request.Metadata.RequestId) {
-		return nil, fmt.Errorf("unexpected response request ID received: %v, "+
-			"expected %v", rp.Metadata.RequestId, search.Request.Metadata.RequestId)
+		return nil, client.ErrUnexpectedRequestID
 	}
 
 	return rp, nil

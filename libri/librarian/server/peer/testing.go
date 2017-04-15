@@ -10,8 +10,8 @@ import (
 	"errors"
 
 	cid "github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/common/storage"
+	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -42,8 +42,8 @@ func NewTestPublicAddr(idx int) *net.TCPAddr {
 }
 
 // NewTestConnector creates a new Connector instance for a particular peer index.
-func NewTestConnector(idx int) Connector {
-	return NewConnector(NewTestPublicAddr(idx))
+func NewTestConnector(idx int) api.Connector {
+	return api.NewConnector(NewTestPublicAddr(idx))
 }
 
 // NewTestPeers generates n new peers suitable for testing use with random IDs and incrementing
@@ -82,7 +82,7 @@ func NewTestStoredPeer(rng *rand.Rand, idx int) *storage.Peer {
 // AssertPeersEqual checks that the stored and non-stored representations of a peer are equal.
 func AssertPeersEqual(t *testing.T, sp *storage.Peer, p Peer) {
 	assert.Equal(t, sp.Id, p.ID().Bytes())
-	publicAddres := p.(*peer).conn.(*connector).publicAddress
+	publicAddres := p.(*peer).conn.Address()
 	assert.Equal(t, sp.PublicAddress.Ip, publicAddres.IP.String())
 	assert.Equal(t, sp.PublicAddress.Port, uint32(publicAddres.Port))
 
@@ -110,15 +110,11 @@ func (c *TestConnector) Disconnect() error {
 	return nil
 }
 
-// Equals is a stub that always returns false.
-func (c *TestConnector) Equals(other Connector) bool {
-	return false
+// Address is a stub that always returns false.
+func (c *TestConnector) Address() *net.TCPAddr{
+	return nil
 }
 
-// String is a stub that always returns a dummy value.
-func (c *TestConnector) String() string {
-	return "dummy string"
-}
 
 // TestErrConnector mocks the peer.Connector interface. The Connect() methods always returns an
 // error.
@@ -134,12 +130,7 @@ func (ec *TestErrConnector) Disconnect() error {
 	return nil
 }
 
-// Equals is a stub that always returns false.
-func (ec *TestErrConnector) Equals(other Connector) bool {
-	return false
-}
-
-// String is a stub that always returns a dummy value.
-func (ec *TestErrConnector) String() string {
-	return "dummy string"
+// Address is a stub that always returns false.
+func (ec *TestErrConnector) Address() *net.TCPAddr {
+	return nil
 }

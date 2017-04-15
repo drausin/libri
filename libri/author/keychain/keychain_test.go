@@ -6,7 +6,37 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/drausin/libri/libri/common/ecid"
 )
+
+func TestKeychain_Sample_ok(t *testing.T) {
+	kc := New(3)
+	k1, err := kc.Sample()
+	assert.Nil(t, err)
+	assert.NotNil(t, k1)
+}
+
+func TestKeychain_Sample_err(t *testing.T) {
+	kc := New(0)
+	k1, err := kc.Sample()
+	assert.NotNil(t, err)
+	assert.Nil(t, k1)
+}
+
+func TestKeychain_Get(t *testing.T) {
+	kc := New(3)
+	k1, _ := kc.Sample()
+	assert.NotNil(t, k1)
+
+	k1, in := kc.Get(ecid.ToPublicKeyBytes(k1))
+	assert.True(t, in)
+	assert.NotNil(t, k1)
+}
+
+func TestKeychain_Len(t *testing.T) {
+	kc := New(3)
+	assert.Equal(t, 3, kc.Len())
+}
 
 func TestSave_err(t *testing.T) {
 	file, err := ioutil.TempFile("", "kechain-test")

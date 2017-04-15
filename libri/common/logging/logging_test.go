@@ -2,8 +2,9 @@ package server
 
 import (
 	"testing"
-	"go.uber.org/zap"
+
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
 
 func TestNewDevLogger(t *testing.T) {

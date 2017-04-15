@@ -8,12 +8,13 @@ import (
 
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/stretchr/testify/assert"
+	"github.com/drausin/libri/libri/librarian/api"
 )
 
 func TestNew(t *testing.T) {
 	id, name := cid.FromInt64(1), "test name"
 	addr := &net.TCPAddr{IP: net.ParseIP("192.168.1.1"), Port: 1000}
-	p := New(id, name, NewConnector(addr))
+	p := New(id, name, api.NewConnector(addr))
 	assert.Equal(t, 0, id.Cmp(p.ID()))
 	assert.Equal(t, name, p.(*peer).name)
 	assert.Equal(t, addr, addr)
@@ -87,7 +88,7 @@ func TestPeer_Merge_ok(t *testing.T) {
 
 	// p2's name should replace p1's, and response counts should sum
 	p1ID := cid.NewPseudoRandom(rng)
-	p1 = New(p1ID, "p1", NewConnector(&net.TCPAddr{
+	p1 = New(p1ID, "p1", api.NewConnector(&net.TCPAddr{
 		IP:   net.ParseIP("192.168.1.1"),
 		Port: 11000,
 	}))
@@ -96,7 +97,10 @@ func TestPeer_Merge_ok(t *testing.T) {
 	assert.Equal(t, uint64(0), p1.Recorder().(*queryRecorder).responses.nQueries)
 
 	p2Name := "p2"
-	p2 = New(p1.ID(), p2Name, p1.Connector())
+	p2 = New(p1.ID(), p2Name, api.NewConnector(&net.TCPAddr{
+		IP:   net.ParseIP("192.168.1.1"),
+		Port: 11000,
+	}))
 	p2.Recorder().Record(Request, Success)
 	p2.Recorder().Record(Response, Success)
 	assert.Equal(t, uint64(1), p2.Recorder().(*queryRecorder).requests.nQueries)
@@ -128,11 +132,11 @@ func TestPeer_Merge_err(t *testing.T) {
 
 	// can't merge p2 into p1 b/c p2's connector has different address
 	p1ID := cid.NewPseudoRandom(rng)
-	p1 = New(p1ID, "p1", NewConnector(&net.TCPAddr{
+	p1 = New(p1ID, "p1", api.NewConnector(&net.TCPAddr{
 		IP:   net.ParseIP("192.168.1.1"),
 		Port: 11000,
 	}))
-	p2 = New(p1ID, "", NewConnector(&net.TCPAddr{
+	p2 = New(p1ID, "", api.NewConnector(&net.TCPAddr{
 		IP:   net.ParseIP("192.168.1.1"),
 		Port: 11001,
 	}))
@@ -147,8 +151,8 @@ func TestPeer_ToAPI(t *testing.T) {
 	apiP := p.ToAPI()
 
 	assert.Equal(t, p.ID().Bytes(), apiP.PeerId)
-	assert.Equal(t, p.Connector().(*connector).publicAddress.IP.String(), apiP.Ip)
-	assert.Equal(t, uint32(p.Connector().(*connector).publicAddress.Port), apiP.Port)
+	assert.Equal(t, p.Connector().Address().IP.String(), apiP.Ip)
+	assert.Equal(t, uint32(p.Connector().Address().Port), apiP.Port)
 }
 
 func TestFromer_FromAPI(t *testing.T) {
@@ -159,8 +163,7 @@ func TestFromer_FromAPI(t *testing.T) {
 	p2 := f.FromAPI(apiP)
 
 	assert.Equal(t, p1.ID(), p2.ID())
-	assert.Equal(t, p1.Connector().(*connector).publicAddress,
-		p2.Connector().(*connector).publicAddress)
+	assert.Equal(t, p1.Connector().Address(), p2.Connector().Address())
 }
 
 func TestToAPIs(t *testing.T) {

@@ -57,12 +57,19 @@ func NewRocksDB(dbDir string) (*RocksDB, error) {
 
 // NewTempDirRocksDB creates a new RocksDB instance (used mostly for local testing) in a local
 // temporary directory.
-func NewTempDirRocksDB() (*RocksDB, error) {
+func NewTempDirRocksDB() (*RocksDB, func(), error) {
 	dir, err := ioutil.TempDir("", "kvdb-test-rocksdb")
-	if err != nil {
-		return nil, err
+	cleanup := func() {
+		rmErr := os.RemoveAll(dir)
+		if rmErr != nil {
+			panic(rmErr)
+		}
 	}
-	return NewRocksDB(dir)
+	if err != nil {
+		return nil, cleanup, err
+	}
+	rdb, err := NewRocksDB(dir)
+	return rdb, cleanup, err
 }
 
 // Get returns the value for a key.

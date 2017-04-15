@@ -5,8 +5,8 @@ import (
 
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/common/storage"
+	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -28,8 +28,8 @@ var (
 	peerIDKey = []byte("PeerID")
 )
 
-func loadOrCreatePeerID(logger *zap.Logger, nl storage.NamespaceLoader) (ecid.ID, error) {
-	bytes, err := nl.Load(peerIDKey)
+func loadOrCreatePeerID(logger *zap.Logger, nsl storage.NamespaceStorerLoader) (ecid.ID, error) {
+	bytes, err := nsl.Load(peerIDKey)
 	if err != nil {
 		logger.Error("error loading peer ID", zap.Error(err))
 		return nil, err
@@ -53,8 +53,7 @@ func loadOrCreatePeerID(logger *zap.Logger, nl storage.NamespaceLoader) (ecid.ID
 	// return new PeerID
 	peerID := ecid.NewRandom()
 	logger.Info("created new peer ID", zap.String(LoggerPeerID, peerID.String()))
-	return peerID, nil
-
+	return peerID, savePeerID(nsl, peerID)
 }
 
 func savePeerID(ns storage.NamespaceStorer, peerID ecid.ID) error {

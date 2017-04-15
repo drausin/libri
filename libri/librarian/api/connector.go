@@ -1,9 +1,8 @@
-package peer
+package api
 
 import (
 	"net"
 
-	"github.com/drausin/libri/libri/librarian/api"
 	"google.golang.org/grpc"
 )
 
@@ -11,16 +10,13 @@ import (
 type Connector interface {
 	// Connect establishes the TCP connection with the peer if it doesn't already exist
 	// and returns an api.LibrarianClient.
-	Connect() (api.LibrarianClient, error)
+	Connect() (LibrarianClient, error)
 
 	// Disconnect closes the connection with the peer.
 	Disconnect() error
 
-	// Equals determines whether the Connector has the same underlying address as the other.
-	Equals(other Connector) bool
-
-	// String returns a string representation of the public address.
-	String() string
+	// Address returns the TCP address used by the Connector.
+	Address() *net.TCPAddr
 }
 
 type connector struct {
@@ -29,26 +25,32 @@ type connector struct {
 	publicAddress *net.TCPAddr
 
 	// Librarian client to peer
-	client api.LibrarianClient
+	client        LibrarianClient
 
 	// client connection to the peer
-	clientConn *grpc.ClientConn
+	clientConn    *grpc.ClientConn
+
+	// dials a particular address
+	dialer        dialer
 }
 
 // NewConnector creates a Connector instance from an address.
 func NewConnector(address *net.TCPAddr) Connector {
-	return &connector{publicAddress: address}
+	return &connector{
+		publicAddress: address,
+		dialer: insecureDialer{},
+	}
 }
 
 // Connect establishes the TCP connection with the peer and establishes the Librarian client with
 // it.
-func (c *connector) Connect() (api.LibrarianClient, error) {
+func (c *connector) Connect() (LibrarianClient, error) {
 	if c.client == nil {
-		conn, err := grpc.Dial(c.publicAddress.String(), grpc.WithInsecure())
+		conn, err := c.dialer.Dial(c.publicAddress)
 		if err != nil {
 			return nil, err
 		}
-		c.client = api.NewLibrarianClient(conn)
+		c.client = NewLibrarianClient(conn)
 		c.clientConn = conn
 	}
 	return c.client, nil
@@ -63,10 +65,17 @@ func (c *connector) Disconnect() error {
 	return nil
 }
 
-func (c *connector) Equals(other Connector) bool {
-	return c.publicAddress.String() == other.(*connector).publicAddress.String()
+func (c *connector) Address() *net.TCPAddr {
+	return c.publicAddress
 }
 
-func (c *connector) String() string {
-	return c.publicAddress.String()
+
+type dialer interface {
+	Dial(addr *net.TCPAddr) (*grpc.ClientConn, error)
+}
+
+type insecureDialer struct {}
+
+func (insecureDialer) Dial(addr *net.TCPAddr) (*grpc.ClientConn, error) {
+	return grpc.Dial(addr.String(), grpc.WithInsecure())
 }

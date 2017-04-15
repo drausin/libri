@@ -2,13 +2,15 @@ package comp
 
 import (
 	"bytes"
+	"compress/gzip"
 	"fmt"
 	"io"
 	"math/rand"
 	"testing"
-	"github.com/stretchr/testify/assert"
+
+	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/pkg/errors"
-	"compress/gzip"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetCompressionCodec(t *testing.T) {
@@ -35,8 +37,10 @@ func TestGetCompressionCodec(t *testing.T) {
 }
 
 func TestNewCompressor_ok(t *testing.T) {
-	uncompressed, codec, minUncompressedBufferSize := new(bytes.Buffer), GZIPCodec, 256
-	comp, err := NewCompressor(uncompressed, codec, minUncompressedBufferSize)
+	rng := rand.New(rand.NewSource(0))
+	keys, _, _ := enc.NewPseudoRandomKeys(rng)
+	uncompressed, codec, minUncompressedBufferSize := new(bytes.Buffer), GZIPCodec, uint32(256)
+	comp, err := NewCompressor(uncompressed, codec, keys, minUncompressedBufferSize)
 	assert.Nil(t, err)
 	assert.Equal(t, uncompressed, comp.(*compressor).uncompressed)
 	assert.NotNil(t, comp.(*compressor).inner)
@@ -45,25 +49,31 @@ func TestNewCompressor_ok(t *testing.T) {
 }
 
 func TestNewCompressor_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	keys, _, _ := enc.NewPseudoRandomKeys(rng)
+
 	// unexpected codec
 	assert.Panics(t, func() {
 		_, err := NewCompressor(
 			new(bytes.Buffer),
 			Codec("unexpected"),
-			MinUncompressedBufferSize,
+			keys,
+			MinBufferSize,
 		)
 		assert.Nil(t, err)
 	})
 
 	// too small uncompressed buffer
-	comp, err := NewCompressor(new(bytes.Buffer), GZIPCodec, 0)
+	comp, err := NewCompressor(new(bytes.Buffer), GZIPCodec, keys, 0)
 	assert.NotNil(t, err)
 	assert.Nil(t, comp)
 }
 
 func TestNewDecompressor_ok(t *testing.T) {
-	uncompressed, codec, minUncompressedBufferSize := new(bytes.Buffer), GZIPCodec, 256
-	comp, err := NewDecompressor(uncompressed, codec, minUncompressedBufferSize)
+	rng := rand.New(rand.NewSource(0))
+	keys, _, _ := enc.NewPseudoRandomKeys(rng)
+	uncompressed, codec, minUncompressedBufferSize := new(bytes.Buffer), GZIPCodec, uint32(256)
+	comp, err := NewDecompressor(uncompressed, codec, keys, minUncompressedBufferSize)
 	assert.Nil(t, err)
 	assert.Equal(t, uncompressed, comp.(*decompressor).uncompressed)
 	assert.Nil(t, comp.(*decompressor).inner)
@@ -71,7 +81,7 @@ func TestNewDecompressor_ok(t *testing.T) {
 	assert.Equal(t, minUncompressedBufferSize, comp.(*decompressor).uncompressedBufferSize)
 }
 
-type errReader struct {}
+type errReader struct{}
 
 func (errReader) Read(p []byte) (int, error) {
 	return 0, errors.New("some read error")
@@ -97,13 +107,15 @@ func (w errFlushCloseWriter) Close() error {
 
 func TestCompressor_Read_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
+	keys, _, _ := enc.NewPseudoRandomKeys(rng)
 	uncompressed1 := newTestBytes(rng, 256)
 	uncompressed1Bytes := uncompressed1.Bytes()
 
 	comp, err := NewCompressor(
 		uncompressed1,
 		GZIPCodec,
-		MinUncompressedBufferSize,
+		keys,
+		MinBufferSize,
 	)
 	assert.Nil(t, err)
 
@@ -115,15 +127,20 @@ func TestCompressor_Read_ok(t *testing.T) {
 	reader, err := gzip.NewReader(bytes.NewReader(compressed[:n1]))
 	assert.Nil(t, err)
 
+	// check Compressor and raw GZIP compressor return same compressed bytes
 	uncompressed2 := new(bytes.Buffer)
 	n2, err := uncompressed2.ReadFrom(reader)
 	assert.Nil(t, err)
 	assert.Equal(t, len(uncompressed1Bytes), int(n2))
 	assert.Equal(t, uncompressed1Bytes, uncompressed2.Bytes())
+
+	// TODO check uncompressedMAC
 }
 
 func TestCompressor_Read_err(t *testing.T) {
-	comp, err := NewCompressor(errReader{}, GZIPCodec, MinUncompressedBufferSize)
+	rng := rand.New(rand.NewSource(0))
+	keys, _, _ := enc.NewPseudoRandomKeys(rng)
+	comp, err := NewCompressor(errReader{}, GZIPCodec, keys, MinBufferSize)
 	assert.Nil(t, err)
 
 	// check that error from errReader bubbles up
@@ -132,7 +149,7 @@ func TestCompressor_Read_err(t *testing.T) {
 	assert.Zero(t, n)
 
 	buf := bytes.NewReader([]byte("some data"))
-	comp, err = NewCompressor(buf, GZIPCodec, MinUncompressedBufferSize)
+	comp, err = NewCompressor(buf, GZIPCodec, keys, MinBufferSize)
 	comp.(*compressor).inner = errFlushCloseWriter{
 		writeErr: errors.New("some write error"),
 	}
@@ -144,7 +161,7 @@ func TestCompressor_Read_err(t *testing.T) {
 	assert.Zero(t, n)
 
 	buf = bytes.NewReader([]byte("some data"))
-	comp, err = NewCompressor(buf, GZIPCodec, MinUncompressedBufferSize)
+	comp, err = NewCompressor(buf, GZIPCodec, keys, MinBufferSize)
 	comp.(*compressor).inner = errFlushCloseWriter{
 		flushErr: errors.New("some flush error"),
 	}
@@ -156,7 +173,7 @@ func TestCompressor_Read_err(t *testing.T) {
 	assert.Zero(t, n)
 
 	buf = bytes.NewReader([]byte("some data"))
-	comp, err = NewCompressor(buf, GZIPCodec, MinUncompressedBufferSize)
+	comp, err = NewCompressor(buf, GZIPCodec, keys, MinBufferSize)
 	comp.(*compressor).inner = errFlushCloseWriter{
 		closeErr: errors.New("some close error"),
 	}
@@ -168,8 +185,8 @@ func TestCompressor_Read_err(t *testing.T) {
 	assert.Zero(t, n)
 
 	buf = bytes.NewReader([]byte("some data"))
-	comp, err = NewCompressor(buf, GZIPCodec, MinUncompressedBufferSize)
-	comp.(*compressor).buf = new(bytes.Buffer)  // will case buf.Read() to return io.EOF error
+	comp, err = NewCompressor(buf, GZIPCodec, keys, MinBufferSize)
+	comp.(*compressor).buf = new(bytes.Buffer) // will case buf.Read() to return io.EOF error
 	assert.Nil(t, err)
 
 	// check that buf.Read() error bubbles up
@@ -180,6 +197,7 @@ func TestCompressor_Read_err(t *testing.T) {
 
 func TestDecompressor_Write_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
+	keys, _, _ := enc.NewPseudoRandomKeys(rng)
 	uncompressed1 := newTestBytes(rng, 256).Bytes()
 
 	compressed := new(bytes.Buffer)
@@ -193,7 +211,7 @@ func TestDecompressor_Write_ok(t *testing.T) {
 	assert.NotZero(t, compressed.Len())
 
 	uncompressed2 := new(bytes.Buffer)
-	decomp, err := NewDecompressor(uncompressed2, GZIPCodec, MinUncompressedBufferSize)
+	decomp, err := NewDecompressor(uncompressed2, GZIPCodec, keys, MinBufferSize)
 	assert.Nil(t, err)
 
 	n, err = decomp.Write(compressed.Bytes())
@@ -207,17 +225,19 @@ func TestDecompressor_Write_ok(t *testing.T) {
 }
 
 func TestDecompressor_Write_err(t *testing.T) {
-	decomp, err := NewDecompressor(nil, GZIPCodec, MinUncompressedBufferSize)
+	rng := rand.New(rand.NewSource(0))
+	keys, _, _ := enc.NewPseudoRandomKeys(rng)
+	decomp, err := NewDecompressor(nil, GZIPCodec, keys, MinBufferSize)
 	assert.Nil(t, err)
 	decomp.(*decompressor).closed = true
-	compressed := make([]byte, MinUncompressedBufferSize * 2)
+	compressed := make([]byte, MinBufferSize*2)
 
 	// check that Write when decomp is closed produces errors
 	n, err := decomp.Write(compressed)
 	assert.NotNil(t, err)
 	assert.Zero(t, n)
 
-	decomp, err = NewDecompressor(new(bytes.Buffer), GZIPCodec, MinUncompressedBufferSize)
+	decomp, err = NewDecompressor(new(bytes.Buffer), GZIPCodec, keys, MinBufferSize)
 	assert.Nil(t, err)
 
 	// check that failure to create inner decompressor bubbles up
@@ -225,7 +245,7 @@ func TestDecompressor_Write_err(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Equal(t, len(compressed), n)
 
-	decomp, err = NewDecompressor(new(bytes.Buffer), GZIPCodec, MinUncompressedBufferSize)
+	decomp, err = NewDecompressor(new(bytes.Buffer), GZIPCodec, keys, MinBufferSize)
 	assert.Nil(t, err)
 	decomp.(*decompressor).inner = errReader{}
 
@@ -245,7 +265,7 @@ func TestCompressDecompress(t *testing.T) {
 		{NoneCodec, true}, // equalSize since we're not compressing twice
 	}
 	uncompressedSizes := []int{128, 192, 256, 384, 512, 1024}
-	uncompressedBufferSizes := []int{128, 192, 256, 384, 512, 1024}
+	uncompressedBufferSizes := []uint32{128, 192, 256, 384, 512, 1024}
 	compressedBufferSizes := []int{128, 192, 256, 384, 512, 1024}
 	cases := caseCrossProduct(
 		uncompressedSizes,
@@ -255,13 +275,14 @@ func TestCompressDecompress(t *testing.T) {
 	)
 
 	rng := rand.New(rand.NewSource(0))
+	keys, _, _ := enc.NewPseudoRandomKeys(rng)
 	for _, c := range cases {
 		uncompressed1 := newTestBytes(rng, c.uncompressedSize)
 		uncompressed1Bytes := uncompressed1.Bytes()
 		assert.Equal(t, c.uncompressedSize, uncompressed1.Len())
 
 		compressor, err := NewCompressor(uncompressed1, c.media.codec,
-			c.uncompressedBufferSize)
+			keys, c.uncompressedBufferSize)
 		assert.Nil(t, err, c.String())
 
 		// get the compressed bytes
@@ -281,7 +302,7 @@ func TestCompressDecompress(t *testing.T) {
 
 		uncompressed2 := new(bytes.Buffer)
 		decompressor, err := NewDecompressor(uncompressed2, c.media.codec,
-			c.uncompressedBufferSize)
+			keys, c.uncompressedBufferSize)
 		assert.Nil(t, err, c.String())
 
 		compressedLen := compressed.Len()
@@ -294,6 +315,10 @@ func TestCompressDecompress(t *testing.T) {
 
 		assert.Equal(t, len(uncompressed1Bytes), uncompressed2.Len(), c.String())
 		assert.Equal(t, uncompressed1Bytes, uncompressed2.Bytes(), c.String())
+		assert.Equal(t, compressor.UncompressedMAC().MessageSize(),
+			decompressor.UncompressedMAC().MessageSize())
+		assert.Equal(t, compressor.UncompressedMAC().Sum(nil),
+			decompressor.UncompressedMAC().Sum(nil))
 	}
 }
 
@@ -327,7 +352,7 @@ type mediaTestCase struct {
 
 type compTestCase struct {
 	uncompressedSize       int
-	uncompressedBufferSize int
+	uncompressedBufferSize uint32
 	compressedBufferSize   int
 	media                  mediaTestCase
 }
@@ -346,7 +371,7 @@ func (c compTestCase) String() string {
 
 func caseCrossProduct(
 	uncompressedSizes []int,
-	uncompressedBufferSizes []int,
+	uncompressedBufferSizes []uint32,
 	compressedBufferSizes []int,
 	mediaCases []mediaTestCase,
 ) []compTestCase {

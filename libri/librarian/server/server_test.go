@@ -5,16 +5,16 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
-	"github.com/drausin/libri/libri/common/db"
+	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/search"
-	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/server/store"
 	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
@@ -164,7 +164,9 @@ func TestLibrarian_Introduce_peerIDErr(t *testing.T) {
 }
 
 func TestLibrarian_Find(t *testing.T) {
-	kvdb, err := db.NewTempDirRocksDB()
+	kvdb, cleanup, err := db.NewTempDirRocksDB()
+	defer cleanup()
+	defer kvdb.Close()
 	assert.Nil(t, err)
 	for n := 8; n <= 128; n *= 2 {
 		// for different numbers of total active peers
@@ -221,7 +223,9 @@ func checkPeersResponse(t *testing.T, rq *api.FindRequest, rp *api.FindResponse,
 func TestLibrarian_Find_present(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	rt, peerID, _ := routing.NewTestWithPeers(rng, 64)
-	kvdb, err := db.NewTempDirRocksDB()
+	kvdb, cleanup, err := db.NewTempDirRocksDB()
+	defer cleanup()
+	defer kvdb.Close()
 	assert.Nil(t, err)
 
 	l := &Librarian{
@@ -260,7 +264,9 @@ func TestLibrarian_Find_present(t *testing.T) {
 func TestLibrarian_Find_missing(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	rt, peerID, nAdded := routing.NewTestWithPeers(rng, 64)
-	kvdb, err := db.NewTempDirRocksDB()
+	kvdb, cleanup, err := db.NewTempDirRocksDB()
+	defer cleanup()
+	defer kvdb.Close()
 	assert.Nil(t, err)
 
 	l := &Librarian{
@@ -302,7 +308,9 @@ func TestLibrarian_Find_checkRequestError(t *testing.T) {
 func TestLibrarian_Store_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	rt, peerID, _ := routing.NewTestWithPeers(rng, 64)
-	kvdb, err := db.NewTempDirRocksDB()
+	kvdb, cleanup, err := db.NewTempDirRocksDB()
+	defer cleanup()
+	defer kvdb.Close()
 	assert.Nil(t, err)
 
 	l := &Librarian{

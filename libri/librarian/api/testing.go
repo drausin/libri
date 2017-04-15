@@ -4,11 +4,12 @@ import (
 	"math/rand"
 
 	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/ecid"
 )
 
 // NewTestDocument generates a dummy Entry document for use in testing.
 func NewTestDocument(rng *rand.Rand) (*Document, cid.ID) {
-	doc := &Document{&Document_Entry{NewTestPageEntry(rng)}}
+	doc := &Document{&Document_Entry{NewTestSinglePageEntry(rng)}}
 	key, err := GetKey(doc)
 	if err != nil {
 		panic(err)
@@ -19,24 +20,36 @@ func NewTestDocument(rng *rand.Rand) (*Document, cid.ID) {
 // NewTestEnvelope generates a dummy Envelope document for use in testing.
 func NewTestEnvelope(rng *rand.Rand) *Envelope {
 	return &Envelope{
-		AuthorPublicKey:          fakePubKey(rng),
-		ReaderPublicKey:          fakePubKey(rng),
-		EntryKey:                 randBytes(rng, 32),
-		EncryptionKeysCiphertext: randBytes(rng, 108),
+		AuthorPublicKey: fakePubKey(rng),
+		ReaderPublicKey: fakePubKey(rng),
+		EntryKey:        RandBytes(rng, 32),
 	}
 }
 
-// NewTestPageEntry generates a dummy Entry document with a single Page for use in testing.
-func NewTestPageEntry(rng *rand.Rand) *Entry {
+// NewTestSinglePageEntry generates a dummy Entry document with a single Page for use in testing.
+func NewTestSinglePageEntry(rng *rand.Rand) *Entry {
 	page := NewTestPage(rng)
 	return &Entry{
-		AuthorPublicKey:        page.AuthorPublicKey,
-		CreatedTime:            1,
-		MetadataCiphertextMac:  randBytes(rng, 32),
-		MetadataCiphertext:     randBytes(rng, 64),
-		ContentsCiphertextMac:  randBytes(rng, 32),
-		ContentsCiphertextSize: 100,
-		Contents:               &Entry_Page{page},
+		AuthorPublicKey:       page.AuthorPublicKey,
+		CreatedTime:           1,
+		MetadataCiphertextMac: RandBytes(rng, 32),
+		MetadataCiphertext:    RandBytes(rng, 64),
+		Contents:              &Entry_Page{page},
+	}
+}
+
+// NewTestMultiPageEntry generates a dummy Entry document with two page keys for use in testing.
+func NewTestMultiPageEntry(rng *rand.Rand) *Entry {
+	pageKeys := [][]byte{
+		cid.NewPseudoRandom(rng).Bytes(),
+		cid.NewPseudoRandom(rng).Bytes(),
+	}
+	return &Entry{
+		AuthorPublicKey:       ecid.ToPublicKeyBytes(ecid.NewPseudoRandom(rng)),
+		CreatedTime:           1,
+		MetadataCiphertextMac: RandBytes(rng, 32),
+		MetadataCiphertext:    RandBytes(rng, 64),
+		Contents:              &Entry_PageKeys{PageKeys: &PageKeys{Keys: pageKeys}},
 	}
 }
 
@@ -44,20 +57,20 @@ func NewTestPageEntry(rng *rand.Rand) *Entry {
 func NewTestPage(rng *rand.Rand) *Page {
 	return &Page{
 		AuthorPublicKey: fakePubKey(rng),
-		CiphertextMac:   randBytes(rng, 32),
-		Ciphertext:      randBytes(rng, 64),
+		CiphertextMac:   RandBytes(rng, 32),
+		Ciphertext:      RandBytes(rng, 64),
 	}
 }
 
-func fakePubKey(rng *rand.Rand) []byte {
-	return randBytes(rng, 65)
-}
-
-func randBytes(rng *rand.Rand, length int) []byte {
+// RandBytes generates a random bytes slice of a given length.
+func RandBytes(rng *rand.Rand, length int) []byte {
 	b := make([]byte, length)
 	_, err := rng.Read(b)
 	if err != nil {
 		panic(err)
 	}
 	return b
+}
+func fakePubKey(rng *rand.Rand) []byte {
+	return RandBytes(rng, 65)
 }

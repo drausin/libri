@@ -1,18 +1,18 @@
 package storage
 
 import (
-	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/db"
+	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/golang/protobuf/proto"
 )
 
 const (
-	// MaxServerKeyLength is the max key length (in bytes) for the "server" namespace.
-	MaxServerKeyLength = 32
+	// MaxNamespaceKeyLength is the max key length (in bytes) for a NamespaceStorerLoader.
+	MaxNamespaceKeyLength = 32
 
-	// MaxServerValueLength is the max value length for the "value" namespace.
-	MaxServerValueLength = 2 * 1024 * 1024 // 2 MB
+	// MaxNamespaceValueLength is the max value length for a NamespaceStorerLoader.
+	MaxNamespaceValueLength = 2 * 1024 * 1024 // 2 MB
 
 	// EntriesKeyLength is the fixed length (in bytes) of all entry keys.
 	EntriesKeyLength = 32
@@ -20,12 +20,15 @@ const (
 	// MaxEntriesValueLength is the maximum length of all entry values. We add a little buffer
 	// on top of the value to account for Entry values other than the actual ciphertext (which
 	// we want to be <= 2MB).
-	MaxEntriesValueLength = 2*1024*1024 + 1024
+	MaxEntriesValueLength = 2 * 1024 * 1024 + 1024
 )
 
 var (
-	// Server namespace contains values relevant to the server itself.
+	// Server namespace contains values relevant to a server.
 	Server Namespace = []byte("server")
+
+	// Client namespace contains values relevant to a client.
+	Client Namespace = []byte("client")
 
 	// Documents namespace contains all libri p2p stored values.
 	Documents Namespace = []byte("documents")
@@ -70,13 +73,22 @@ func (nsl *namespaceStorerLoader) Load(key []byte) ([]byte, error) {
 	return nsl.sl.Load(nsl.ns.Bytes(), key)
 }
 
-// DocumentStorerLoader both stores and loads api.Document values.
-type DocumentStorerLoader interface {
+// DocumentStorer stores api.Document values.
+type DocumentStorer interface {
 	// Store an api.Document value under the given key.
 	Store(key cid.ID, value *api.Document) error
+}
 
+// DocumentLoader loads api.Document values.
+type DocumentLoader interface {
 	// Load an api.Document value with the given key.
 	Load(key cid.ID) (*api.Document, error)
+}
+
+// DocumentStorerLoader stores and loads api.Document values.
+type DocumentStorerLoader interface {
+	DocumentStorer
+	DocumentLoader
 }
 
 // keyHashNamespaceStorerLoader checks that the key equals the hash of the value before storing it.
@@ -87,6 +99,9 @@ type documentStorerLoader struct {
 
 // Store checks that the key equals the SHA256 hash of the value before storing it.
 func (dnsl *documentStorerLoader) Store(key cid.ID, value *api.Document) error {
+	if err := api.ValidateDocument(value); err != nil {
+		return err
+	}
 	valueBytes, err := proto.Marshal(value)
 	if err != nil {
 		return err
@@ -115,6 +130,10 @@ func (dnsl *documentStorerLoader) Load(key cid.ID) (*api.Document, error) {
 	if err := proto.Unmarshal(valueBytes, doc); err != nil {
 		return nil, err
 	}
+	if err := api.ValidateDocument(doc); err != nil {
+		// should never happen b/c we check on Store, but being defensive just in case
+		return nil, err
+	}
 	return doc, nil
 }
 
@@ -132,8 +151,28 @@ func NewServerKVDBStorerLoader(kvdb db.KVDB) NamespaceStorerLoader {
 	return NewServerStorerLoader(
 		NewKVDBStorerLoader(
 			kvdb,
-			NewMaxLengthChecker(MaxServerKeyLength),
-			NewMaxLengthChecker(MaxServerValueLength),
+			NewMaxLengthChecker(MaxNamespaceKeyLength),
+			NewMaxLengthChecker(MaxNamespaceValueLength),
+		),
+	)
+}
+
+// NewClientStorerLoader creates a new NamespaceStorerLoader for the "client" namespace.
+func NewClientStorerLoader(sl StorerLoader) NamespaceStorerLoader {
+	return &namespaceStorerLoader{
+		ns: Client,
+		sl: sl,
+	}
+}
+
+// NewClientKVDBStorerLoader creates a new NamespaceStorerLoader for the "client" namespace backed
+// by a db.KVDB instance.
+func NewClientKVDBStorerLoader(kvdb db.KVDB) NamespaceStorerLoader {
+	return NewClientStorerLoader(
+		NewKVDBStorerLoader(
+			kvdb,
+			NewMaxLengthChecker(MaxNamespaceKeyLength),
+			NewMaxLengthChecker(MaxNamespaceValueLength),
 		),
 	)
 }

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/drausin/libri/libri/common/ecid"
 )
 
 func TestGetKey(t *testing.T) {
@@ -14,6 +15,27 @@ func TestGetKey(t *testing.T) {
 	key, err := GetKey(value)
 	assert.Nil(t, err)
 	assert.Nil(t, ValidateBytes(key.Bytes(), DocumentKeyLength, "key"))
+}
+
+func TestGetAuthorPub(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	expected := ecid.ToPublicKeyBytes(ecid.NewPseudoRandom(rng))
+
+	entry := NewTestSinglePageEntry(rng)
+	entry.AuthorPublicKey = expected
+	assert.Equal(t, expected, GetAuthorPub(&Document{&Document_Entry{Entry: entry}}))
+
+	entry = NewTestMultiPageEntry(rng)
+	entry.AuthorPublicKey = expected
+	assert.Equal(t, expected, GetAuthorPub(&Document{&Document_Entry{Entry: entry}}))
+
+	page := NewTestPage(rng)
+	page.AuthorPublicKey = expected
+	assert.Equal(t, expected, GetAuthorPub(&Document{&Document_Page{Page: page}}))
+
+	envelope := NewTestEnvelope(rng)
+	envelope.AuthorPublicKey = expected
+	assert.Equal(t, expected, GetAuthorPub(&Document{&Document_Envelope{Envelope: envelope}}))
 }
 
 func TestValidateDocument_ok(t *testing.T) {
@@ -37,26 +59,22 @@ func TestValidateEnvelope_ok(t *testing.T) {
 
 func TestValidateEnvelope_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	badLen := randBytes(rng, 100)
+	badLen := RandBytes(rng, 100)
 	empty, zeros := []byte{}, []byte{0, 0, 0}
 
 	cases := []func(e *Envelope){
-		func(e *Envelope) { e.AuthorPublicKey = nil },             // 0) can't be nil
-		func(e *Envelope) { e.AuthorPublicKey = empty },           // 1) can't be 0-length
-		func(e *Envelope) { e.AuthorPublicKey = zeros },           // 2) can't be all zeros
-		func(e *Envelope) { e.AuthorPublicKey = badLen },          // 3) length must be 65
-		func(e *Envelope) { e.ReaderPublicKey = nil },             // 4) can't be nil
-		func(e *Envelope) { e.ReaderPublicKey = empty },           // 5) can't be 0-length
-		func(e *Envelope) { e.ReaderPublicKey = zeros },           // 6) can't be all zeros
-		func(e *Envelope) { e.ReaderPublicKey = badLen },          // 7) length must be 65
-		func(e *Envelope) { e.EntryKey = nil },                    // 8) can't be nil
-		func(e *Envelope) { e.EntryKey = empty },                  // 9) can't be 0-length
-		func(e *Envelope) { e.EntryKey = zeros },                  // 10) can't be all zeros
-		func(e *Envelope) { e.EntryKey = badLen },                 // 11) length must be 65
-		func(e *Envelope) { e.EncryptionKeysCiphertext = nil },    // 12) can't be nil
-		func(e *Envelope) { e.EncryptionKeysCiphertext = empty },  // 13) can't be 0-length
-		func(e *Envelope) { e.EncryptionKeysCiphertext = zeros },  // 14) can't be all zeros
-		func(e *Envelope) { e.EncryptionKeysCiphertext = badLen }, // 15) length must be 65
+		func(e *Envelope) { e.AuthorPublicKey = nil },    // 0) can't be nil
+		func(e *Envelope) { e.AuthorPublicKey = empty },  // 1) can't be 0-length
+		func(e *Envelope) { e.AuthorPublicKey = zeros },  // 2) can't be all zeros
+		func(e *Envelope) { e.AuthorPublicKey = badLen }, // 3) length must be 65
+		func(e *Envelope) { e.ReaderPublicKey = nil },    // 4) can't be nil
+		func(e *Envelope) { e.ReaderPublicKey = empty },  // 5) can't be 0-length
+		func(e *Envelope) { e.ReaderPublicKey = zeros },  // 6) can't be all zeros
+		func(e *Envelope) { e.ReaderPublicKey = badLen }, // 7) length must be 65
+		func(e *Envelope) { e.EntryKey = nil },           // 8) can't be nil
+		func(e *Envelope) { e.EntryKey = empty },         // 9) can't be 0-length
+		func(e *Envelope) { e.EntryKey = zeros },         // 10) can't be all zeros
+		func(e *Envelope) { e.EntryKey = badLen },        // 11) length must be 65
 	}
 
 	assert.NotNil(t, ValidateEnvelope(nil))
@@ -69,10 +87,10 @@ func TestValidateEnvelope_err(t *testing.T) {
 
 func TestValidateEntry_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	e1 := NewTestPageEntry(rng)
+	e1 := NewTestSinglePageEntry(rng)
 	assert.Nil(t, ValidateEntry(e1))
 
-	e2 := NewTestPageEntry(rng)
+	e2 := NewTestSinglePageEntry(rng)
 	e2.Contents = &Entry_PageKeys{
 		&PageKeys{
 			Keys: [][]byte{[]byte{0, 1, 2}, []byte{1, 2, 3}},
@@ -83,7 +101,7 @@ func TestValidateEntry_ok(t *testing.T) {
 
 func TestValidateEntry_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	badLen, diffPK := randBytes(rng, 100), fakePubKey(rng)
+	badLen, diffPK := RandBytes(rng, 100), fakePubKey(rng)
 	empty, zeros := []byte{}, []byte{0, 0, 0}
 
 	// each of the cases takes a valid *Entry and changes it in some way to make it invalid
@@ -100,18 +118,12 @@ func TestValidateEntry_err(t *testing.T) {
 		func(e *Entry) { e.MetadataCiphertext = nil },       // 9) can't be nil
 		func(e *Entry) { e.MetadataCiphertext = empty },     // 10) can't be zero-length
 		func(e *Entry) { e.MetadataCiphertext = zeros },     // 11) can't be all zeros
-		func(e *Entry) { e.ContentsCiphertextMac = nil },    // 12) can't be nil
-		func(e *Entry) { e.ContentsCiphertextMac = empty },  // 13) can't be zero-length
-		func(e *Entry) { e.ContentsCiphertextMac = zeros },  // 14) can't be all zeros
-		func(e *Entry) { e.ContentsCiphertextMac = badLen }, // 15) length must be 65
-		func(e *Entry) { e.ContentsCiphertextSize = 0 },     // 16) must be non-zero
-		func(e *Entry) { e.AuthorPublicKey = diffPK },       // 17) different PK from Page
-
+		func(e *Entry) { e.AuthorPublicKey = diffPK },       // 12) different PK from Page
 	}
 
 	assert.NotNil(t, ValidateEntry(nil))
 	for i, c := range cases {
-		badEntry := NewTestPageEntry(rng)
+		badEntry := NewTestSinglePageEntry(rng)
 		c(badEntry)
 		assert.NotNil(t, ValidateEntry(badEntry), fmt.Sprintf("case %d", i))
 	}
@@ -125,7 +137,7 @@ func TestValidatePage_ok(t *testing.T) {
 
 func TestValidatePage_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	badLen := randBytes(rng, 100)
+	badLen := RandBytes(rng, 100)
 	empty, zeros := []byte{}, []byte{0, 0, 0}
 
 	// each of the cases takes a valid *Page and changes it in some way to make it invalid
@@ -175,8 +187,8 @@ func TestValidatePageKeys_err(t *testing.T) {
 
 func TestValidatePublicKey(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	assert.Nil(t, ValidatePublicKey(randBytes(rng, 65)))
-	assert.NotNil(t, ValidatePublicKey(randBytes(rng, 32)))
+	assert.Nil(t, ValidatePublicKey(RandBytes(rng, 65)))
+	assert.NotNil(t, ValidatePublicKey(RandBytes(rng, 32)))
 	assert.NotNil(t, ValidatePublicKey(make([]byte, 0)))
 	assert.NotNil(t, ValidatePublicKey(make([]byte, 65)))
 	assert.NotNil(t, ValidatePublicKey(nil))
@@ -184,26 +196,26 @@ func TestValidatePublicKey(t *testing.T) {
 
 func TestValidateAESKey(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	assert.Nil(t, ValidateAESKey(randBytes(rng, 32)))
-	assert.NotNil(t, ValidateAESKey(randBytes(rng, 16)))
+	assert.Nil(t, ValidateAESKey(RandBytes(rng, 32)))
+	assert.NotNil(t, ValidateAESKey(RandBytes(rng, 16)))
 	assert.NotNil(t, ValidateAESKey(make([]byte, 0)))
 	assert.NotNil(t, ValidateAESKey(make([]byte, 32)))
 	assert.NotNil(t, ValidateAESKey(nil))
 }
 
-func TestValidatePageHMACKey(t *testing.T) {
+func TestValidateHMACKey(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	assert.Nil(t, ValidatePageHMACKey(randBytes(rng, 32)))
-	assert.NotNil(t, ValidatePageHMACKey(randBytes(rng, 16)))
-	assert.NotNil(t, ValidatePageHMACKey(make([]byte, 0)))
-	assert.NotNil(t, ValidatePageHMACKey(make([]byte, 32)))
-	assert.NotNil(t, ValidatePageHMACKey(nil))
+	assert.Nil(t, ValidateHMACKey(RandBytes(rng, 32)))
+	assert.NotNil(t, ValidateHMACKey(RandBytes(rng, 16)))
+	assert.NotNil(t, ValidateHMACKey(make([]byte, 0)))
+	assert.NotNil(t, ValidateHMACKey(make([]byte, 32)))
+	assert.NotNil(t, ValidateHMACKey(nil))
 }
 
 func TestValidatePageIVSeed(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	assert.Nil(t, ValidatePageIVSeed(randBytes(rng, 32)))
-	assert.NotNil(t, ValidatePageIVSeed(randBytes(rng, 16)))
+	assert.Nil(t, ValidatePageIVSeed(RandBytes(rng, 32)))
+	assert.NotNil(t, ValidatePageIVSeed(RandBytes(rng, 16)))
 	assert.NotNil(t, ValidatePageIVSeed(make([]byte, 0)))
 	assert.NotNil(t, ValidatePageIVSeed(make([]byte, 32)))
 	assert.NotNil(t, ValidatePageIVSeed(nil))
@@ -211,8 +223,8 @@ func TestValidatePageIVSeed(t *testing.T) {
 
 func TestValidateMetadataIV(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	assert.Nil(t, ValidateMetadataIV(randBytes(rng, 12)))
-	assert.NotNil(t, ValidateMetadataIV(randBytes(rng, 32)))
+	assert.Nil(t, ValidateMetadataIV(RandBytes(rng, 12)))
+	assert.NotNil(t, ValidateMetadataIV(RandBytes(rng, 32)))
 	assert.NotNil(t, ValidateMetadataIV(make([]byte, 0)))
 	assert.NotNil(t, ValidateMetadataIV(make([]byte, 12)))
 	assert.NotNil(t, ValidateMetadataIV(nil))
@@ -220,8 +232,8 @@ func TestValidateMetadataIV(t *testing.T) {
 
 func TestValidateHMAC256(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	assert.Nil(t, ValidateHMAC256(randBytes(rng, 32)))
-	assert.NotNil(t, ValidateHMAC256(randBytes(rng, 16)))
+	assert.Nil(t, ValidateHMAC256(RandBytes(rng, 32)))
+	assert.NotNil(t, ValidateHMAC256(RandBytes(rng, 16)))
 	assert.NotNil(t, ValidateHMAC256(make([]byte, 0)))
 	assert.NotNil(t, ValidateHMAC256(make([]byte, 32)))
 	assert.NotNil(t, ValidateHMAC256(nil))

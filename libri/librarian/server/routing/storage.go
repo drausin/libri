@@ -2,8 +2,8 @@ package routing
 
 import (
 	"github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/common/storage"
+	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/golang/protobuf/proto"
 )
 

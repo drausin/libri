@@ -75,18 +75,18 @@ func testIntroduce(t *testing.T, rng *rand.Rand, client *testClient, peerConfigs
 
 		// issue Introduce query to random peer
 		i := rng.Int31n(int32(nPeers))
-		conn := peer.NewConnector(peerConfigs[i].PublicAddr)
+		conn := api.NewConnector(peerConfigs[i].PublicAddr)
 		rq := lclient.NewIntroduceRequest(client.selfID, client.selfAPI, 8)
 		ctx, cancel, err := lclient.NewSignedTimeoutContext(client.signer, rq,
 			search.DefaultQueryTimeout)
 		assert.Nil(t, err)
 		client.logger.Debug("issuing Introduce request",
-			zap.String("to_peer", conn.String()),
+			zap.String("to_peer", conn.Address().String()),
 		)
 		rp, err := q.Query(ctx, conn, rq)
 		cancel()
 		client.logger.Debug("received Introduce response",
-			zap.String("from_peer", conn.String()),
+			zap.String("from_peer", conn.Address().String()),
 			zap.Int("num_peers", len(rp.Peers)),
 		)
 
@@ -112,18 +112,18 @@ func testPut(t *testing.T, rng *rand.Rand, client *testClient, peerConfigs []*se
 
 		// issue Put query to random peer
 		i := rng.Int31n(int32(nPeers))
-		conn := peer.NewConnector(peerConfigs[i].PublicAddr)
+		conn := api.NewConnector(peerConfigs[i].PublicAddr)
 		ctx, cancel, err := lclient.NewSignedTimeoutContext(client.signer, rq,
 			store.DefaultQueryTimeout)
 		assert.Nil(t, err)
 		client.logger.Debug("issuing Put request",
-			zap.String("to_peer", conn.String()),
+			zap.String("to_peer", conn.Address().String()),
 			zap.String("key", key.String()),
 		)
 		rp, err := q.Query(ctx, conn, rq)
 		cancel()
 		client.logger.Debug("received Put response",
-			zap.String("from_peer", conn.String()),
+			zap.String("from_peer", conn.Address().String()),
 			zap.String("operation", rp.Operation.String()),
 			zap.Int("n_replicas", int(rp.NReplicas)),
 		)
@@ -153,18 +153,18 @@ func testGet(t *testing.T, rng *rand.Rand, client *testClient, peerConfigs []*se
 
 		// issue Get query to random peer
 		i := rng.Int31n(int32(nPeers))
-		conn := peer.NewConnector(peerConfigs[i].PublicAddr)
+		conn := api.NewConnector(peerConfigs[i].PublicAddr)
 		ctx, cancel, err := lclient.NewSignedTimeoutContext(client.signer, rq,
 			store.DefaultQueryTimeout)
 		assert.Nil(t, err)
 		client.logger.Debug("issuing Get request",
-			zap.String("to_peer", conn.String()),
+			zap.String("to_peer", conn.Address().String()),
 			zap.String("key", key.String()),
 		)
 		rp, err := q.Query(ctx, conn, rq)
 		cancel()
 		client.logger.Debug("received Get response",
-			zap.String("from_peer", conn.String()),
+			zap.String("from_peer", conn.Address().String()),
 		)
 
 		// check everything went fine
@@ -222,7 +222,7 @@ func setUp(rng *rand.Rand, nSeeds, nPeers int, logLevel zapcore.Level) (*testCli
 	// create client that will issue requests to network
 	selfID := ecid.NewPseudoRandom(rng)
 	publicAddr := peer.NewTestPublicAddr(nSeeds + nPeers + 1)
-	selfPeer := peer.New(selfID.ID(), "test client", peer.NewConnector(publicAddr))
+	selfPeer := peer.New(selfID.ID(), "test client", api.NewConnector(publicAddr))
 	signer := client.NewSigner(selfID.Key())
 	clientImpl := &testClient{
 		selfID:  selfID,

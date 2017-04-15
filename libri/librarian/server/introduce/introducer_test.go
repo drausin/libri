@@ -30,7 +30,7 @@ func TestNewDefaultIntroducer(t *testing.T) {
 
 type fixedIntroQuerier struct{}
 
-func (q *fixedIntroQuerier) Query(ctx context.Context, pConn peer.Connector,
+func (q *fixedIntroQuerier) Query(ctx context.Context, pConn api.Connector,
 	rq *api.IntroduceRequest, opts ...grpc.CallOption) (*api.IntroduceResponse, error) {
 	return &api.IntroduceResponse{
 		Metadata: &api.ResponseMetadata{
@@ -140,7 +140,7 @@ func TestIntroducer_query_ok(t *testing.T) {
 		querier: &noOpQuerier{},
 	}
 
-	client := peer.NewConnector(nil) // won't actually be uses since we're mocking the finder
+	client := api.NewConnector(nil) // won't actually be uses since we're mocking the finder
 	rp, err := introducerImpl.query(client, intro)
 
 	assert.Nil(t, err)
@@ -154,7 +154,7 @@ func TestIntroducer_query_timeoutErr(t *testing.T) {
 		querier: &timeoutQuerier{},
 	}
 
-	client := peer.NewConnector(nil) // won't actually be uses since we're mocking the finder
+	client := api.NewConnector(nil) // won't actually be uses since we're mocking the finder
 	rp, err := introducerImpl.query(client, intro)
 
 	assert.NotNil(t, err)
@@ -170,7 +170,7 @@ func TestIntroducer_query_diffRequestIdErr(t *testing.T) {
 		},
 	}
 
-	client := peer.NewConnector(nil) // won't actually be uses since we're mocking the finder
+	client := api.NewConnector(nil) // won't actually be uses since we're mocking the finder
 	rp, err := introducerImpl.query(client, intro)
 
 	assert.NotNil(t, err)
@@ -242,7 +242,7 @@ func newQueryTestIntroduction() *Introduction {
 
 type noOpQuerier struct{}
 
-func (f *noOpQuerier) Query(ctx context.Context, pConn peer.Connector, fr *api.IntroduceRequest,
+func (f *noOpQuerier) Query(ctx context.Context, pConn api.Connector, fr *api.IntroduceRequest,
 	opts ...grpc.CallOption) (*api.IntroduceResponse, error) {
 	return &api.IntroduceResponse{
 		Metadata: &api.ResponseMetadata{
@@ -254,7 +254,7 @@ func (f *noOpQuerier) Query(ctx context.Context, pConn peer.Connector, fr *api.I
 // timeoutQuerier returns an error simulating a request timeout
 type timeoutQuerier struct{}
 
-func (f *timeoutQuerier) Query(ctx context.Context, pConn peer.Connector, fr *api.IntroduceRequest,
+func (f *timeoutQuerier) Query(ctx context.Context, pConn api.Connector, fr *api.IntroduceRequest,
 	opts ...grpc.CallOption) (*api.IntroduceResponse, error) {
 	return nil, errors.New("simulated timeout error")
 }
@@ -263,7 +263,7 @@ type diffRequestIDQuerier struct {
 	rng *rand.Rand
 }
 
-func (f *diffRequestIDQuerier) Query(ctx context.Context, pConn peer.Connector,
+func (f *diffRequestIDQuerier) Query(ctx context.Context, pConn api.Connector,
 	fr *api.IntroduceRequest, opts ...grpc.CallOption) (*api.IntroduceResponse, error) {
 	return &api.IntroduceResponse{
 		Metadata: &api.ResponseMetadata{
