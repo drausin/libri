@@ -156,16 +156,3 @@ func (a *Author) Upload(content io.Reader, mediaType string) (id.ID, error) {
 
 	return entryKey, nil
 }
-
-func (a *Author) Download(entryKey id.ID, content io.Writer) error {
-
-	// look up envelope key
-
-	// get envelope
-
-	// receive entry
-
-	// unpack entry
-
-	return nil
-}
