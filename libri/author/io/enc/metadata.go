@@ -56,6 +56,7 @@ type MetadataEncrypterDecrypter interface {
 
 type metadataEncDec struct {}
 
+// NewMetadataEncrypterDecrypter creates a new MetadataEncrypterDecrypter.
 func NewMetadataEncrypterDecrypter() MetadataEncrypterDecrypter {
 	return metadataEncDec{}
 }
