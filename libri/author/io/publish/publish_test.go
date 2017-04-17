@@ -17,17 +17,21 @@ import (
 )
 
 func TestNewParameters_ok(t *testing.T) {
-	params, err := NewParameters(DefaultPutTimeout, DefaultPutParallelism)
+	params, err := NewParameters(DefaultPutTimeout, DefaultGetTimeout, DefaultPutParallelism)
 	assert.Nil(t, err)
 	assert.NotNil(t, params)
 }
 
 func TestNewParameters_err(t *testing.T) {
-	params, err := NewParameters(0 * time.Second, DefaultPutParallelism)
+	params, err := NewParameters(0 * time.Second, DefaultGetTimeout, DefaultPutParallelism)
 	assert.Equal(t, ErrPutTimeoutZeroValue, err)
 	assert.Nil(t, params)
 
-	params, err = NewParameters(DefaultPutTimeout, 0)
+	params, err = NewParameters(DefaultPutTimeout, 0 * time.Second, DefaultPutParallelism)
+	assert.Equal(t, ErrPutTimeoutZeroValue, err)
+	assert.Nil(t, params)
+
+	params, err = NewParameters(DefaultPutTimeout, DefaultGetTimeout, 0)
 	assert.Equal(t, ErrPutParallelismZeroValue, err)
 	assert.Nil(t, params)
 }
@@ -36,10 +40,7 @@ func TestPublisher_Publish_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	clientID := ecid.NewPseudoRandom(rng)
 	signer := client.NewSigner(clientID.Key())
-	params := &Parameters{
-		PutTimeout: DefaultPutTimeout,
-		PutParallelism: DefaultPutParallelism,
-	}
+	params := NewDefaultParameters()
 	lc := &fixedPutter{
 		err: nil,
 	}
@@ -56,13 +57,8 @@ func TestPublisher_Publish_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	clientID := ecid.NewPseudoRandom(rng)
 	signer := client.NewSigner(clientID.Key())
-	params := &Parameters{
-		PutTimeout: DefaultPutTimeout,
-		PutParallelism: DefaultPutParallelism,
-	}
-	lc := &fixedPutter{
-		err: nil,
-	}
+	params := NewDefaultParameters()
+	lc := &fixedPutter{}
 	doc, _ := api.NewTestDocument(rng)
 
 	pub := NewPublisher(clientID, signer, params)
@@ -170,7 +166,8 @@ func TestMultiLoadPublisher_Publish_ok(t *testing.T) {
 			slPub := &fixedSingleLoadPublisher{
 				publishedKeys: make(map[string]struct{}),
 			}
-			params, err := NewParameters(DefaultPutTimeout, putParallelism)
+			params, err := NewParameters(DefaultPutTimeout, DefaultGetTimeout,
+				putParallelism)
 			assert.Nil(t, err)
 			mlPub := NewMultiLoadPublisher(slPub, params)
 
@@ -199,7 +196,8 @@ func TestMultiLoadPublisher_Publish_err(t *testing.T) {
 			slPub := &fixedSingleLoadPublisher{
 				err: errors.New("some Publish error"),
 			}
-			params, err := NewParameters(DefaultPutTimeout, putParallelism)
+			params, err := NewParameters(DefaultPutTimeout, DefaultGetTimeout,
+				putParallelism)
 			assert.Nil(t, err)
 			mlPub := NewMultiLoadPublisher(slPub, params)
 

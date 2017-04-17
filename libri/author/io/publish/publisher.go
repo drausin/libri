@@ -17,6 +17,10 @@ const (
 	// librarian.
 	DefaultPutTimeout = 3 * time.Second
 
+	// DefaultGetTimeout is the default timeout duration for an Acquirer's Get() call to a
+	// librarian.
+	DefaultGetTimeout = 3 * time.Second
+
 	// DefaultPutParallelism is the default parallelism a MultiLoadPublisher uses when
 	// making multiple Put calls to librarians.
 	DefaultPutParallelism = 3
@@ -29,6 +33,9 @@ var (
 
 	// ErrPutTimeoutZeroValue indicates when the PutTimeout parameter has the zero value.
 	ErrPutTimeoutZeroValue = errors.New("PutTimeout must be greater than zero")
+
+	// ErrGetTimeoutZeroValue indicates when the GetTimeout parameter has the zero value.
+	ErrGetTimeoutZeroValue = errors.New("GetTimeout must be greater than zero")
 
 	// ErrPutParallelismZeroValue indicates when the PutParallelism parameter has the zero
 	// value.
@@ -45,14 +52,22 @@ type Parameters struct {
 	// PutTimeout is the timeout duration used for Put requests.
 	PutTimeout     time.Duration
 
+	// GetTimeout is the timeout duration used for Get requests.
+	GetTimeout     time.Duration
+
 	// PutParallelism is the number of simultaneous Put requests (for different documents) that
 	// can occur.
 	PutParallelism uint32
 }
 
 // NewParameters validates the parameters and returns a new *Parameters instance.
-func NewParameters(putTimeout time.Duration, putParallelism uint32) (*Parameters, error) {
+func NewParameters(
+	putTimeout time.Duration, getTimeout time.Duration, putParallelism uint32,
+) (*Parameters, error) {
 	if putTimeout == 0 {
+		return nil, ErrPutTimeoutZeroValue
+	}
+	if getTimeout == 0 {
 		return nil, ErrPutTimeoutZeroValue
 	}
 	if putParallelism == 0 {
@@ -60,13 +75,14 @@ func NewParameters(putTimeout time.Duration, putParallelism uint32) (*Parameters
 	}
 	return &Parameters{
 		PutTimeout: putTimeout,
+		GetTimeout: getTimeout,
 		PutParallelism: putParallelism,
 	}, nil
 }
 
 // NewDefaultParameters creates a default *Parameters instance.
 func NewDefaultParameters() *Parameters {
-	params, err := NewParameters(DefaultPutTimeout, DefaultPutParallelism)
+	params, err := NewParameters(DefaultPutTimeout, DefaultGetTimeout, DefaultPutParallelism)
 	if err != nil {
 		// should never happen; if does, it's programmer error
 		panic(err)

@@ -232,6 +232,9 @@ type decompressor struct {
 func NewDecompressor(
 	uncompressed io.Writer, codec Codec, keys *enc.Keys, uncompressedBufferSize uint32,
 ) (Decompressor, error) {
+	if uncompressedBufferSize < MinBufferSize {
+		return nil, ErrBufferSizeTooSmall
+	}
 	return &decompressor{
 		uncompressed:           uncompressed,
 		inner:                  nil,

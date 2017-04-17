@@ -15,7 +15,7 @@ import (
 // EntryPacker creates entry documents from raw content.
 type EntryPacker interface {
 	// Pack prints pages from the content, encrypts their metadata, and binds them together
-	// into an entry *api.Document.
+	// into an entry *api.Document and list of page keys.
 	Pack(content io.Reader, mediaType string, keys *enc.Keys, authorPub []byte) (
 		*api.Document, []id.ID, error)
 }
@@ -56,6 +56,11 @@ func (p *entryPacker) Pack(content io.Reader, mediaType string, keys *enc.Keys, 
 	doc, err := newEntryDoc(authorPub, pageKeys, encMetadata, p.docL)
 	return doc, pageKeys, err
 }
+
+type EntryUnpacker interface {
+	Unpack(entry *api.Document, pageKeys []id.ID, keys *enc.Keys, content io.Writer) error
+}
+
 
 
 func newEntryDoc(

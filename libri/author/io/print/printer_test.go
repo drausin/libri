@@ -32,92 +32,6 @@ func TestNewPrinter_err(t *testing.T) {
 	assert.Nil(t, params)
 }
 
-type fixedStorer struct {
-	storeErr error
-}
-
-func (f *fixedStorer) Store(pages chan *api.Page) ([]cid.ID, error) {
-	if f.storeErr != nil {
-		return nil, f.storeErr
-	}
-
-	pageKeys := make([]cid.ID, 0)
-	for chanPage := range pages {
-		pageKey, err := api.GetKey(chanPage)
-		if err != nil {
-			return nil, err
-		}
-		pageKeys = append(pageKeys, pageKey)
-	}
-	return pageKeys, nil
-}
-
-type fixedPaginator struct {
-	readN         int64
-	readErr       error
-	pages         chan *api.Page
-	fixedPages    []*api.Page
-	ciphertextMAC enc.MAC
-}
-
-func (f *fixedPaginator) ReadFrom(r io.Reader) (int64, error) {
-	for _, fixedPage := range f.fixedPages {
-		f.pages <- fixedPage
-	}
-	return f.readN, f.readErr
-}
-
-func (f *fixedPaginator) CiphertextMAC() enc.MAC {
-	return f.ciphertextMAC
-}
-
-type fixedCompressor struct {
-	readN           int
-	readErr         error
-	uncompressedMAC enc.MAC
-}
-
-func (f *fixedCompressor) Read(p []byte) (int, error) {
-	return f.readN, f.readErr
-}
-
-func (f *fixedCompressor) UncompressedMAC() enc.MAC {
-	return f.uncompressedMAC
-}
-
-type fixedPrintInitializer struct {
-	initCompressor comp.Compressor
-	initPaginator  *fixedPaginator
-	initErr        error
-}
-
-func (f *fixedPrintInitializer) Initialize(
-	content io.Reader, mediaType string, pages chan *api.Page,
-) (comp.Compressor, page.Paginator, error) {
-
-	f.initPaginator.pages = pages
-	return f.initCompressor, f.initPaginator, f.initErr
-}
-
-type fixedMAC struct {
-	messageSize uint64
-	sum         []byte
-}
-
-func (f *fixedMAC) MessageSize() uint64 {
-	return f.messageSize
-}
-
-func (f *fixedMAC) Sum(p []byte) []byte {
-	return f.sum
-}
-
-func (f *fixedMAC) Reset() {}
-
-func (f *fixedMAC) Write(p []byte) (int, error) {
-	return int(f.messageSize), nil
-}
-
 func TestPrinter_Print_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	params, err := NewParameters(comp.MinBufferSize, page.MinSize, DefaultParallelism)
@@ -326,6 +240,92 @@ func TestPrintInitializerImpl_Initialize_err(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Nil(t, compressor)
 	assert.Nil(t, paginator)
+}
+
+type fixedStorer struct {
+	storeErr error
+}
+
+func (f *fixedStorer) Store(pages chan *api.Page) ([]cid.ID, error) {
+	if f.storeErr != nil {
+		return nil, f.storeErr
+	}
+
+	pageKeys := make([]cid.ID, 0)
+	for chanPage := range pages {
+		pageKey, err := api.GetKey(chanPage)
+		if err != nil {
+			return nil, err
+		}
+		pageKeys = append(pageKeys, pageKey)
+	}
+	return pageKeys, nil
+}
+
+type fixedPaginator struct {
+	readN         int64
+	readErr       error
+	pages         chan *api.Page
+	fixedPages    []*api.Page
+	ciphertextMAC enc.MAC
+}
+
+func (f *fixedPaginator) ReadFrom(r io.Reader) (int64, error) {
+	for _, fixedPage := range f.fixedPages {
+		f.pages <- fixedPage
+	}
+	return f.readN, f.readErr
+}
+
+func (f *fixedPaginator) CiphertextMAC() enc.MAC {
+	return f.ciphertextMAC
+}
+
+type fixedCompressor struct {
+	readN           int
+	readErr         error
+	uncompressedMAC enc.MAC
+}
+
+func (f *fixedCompressor) Read(p []byte) (int, error) {
+	return f.readN, f.readErr
+}
+
+func (f *fixedCompressor) UncompressedMAC() enc.MAC {
+	return f.uncompressedMAC
+}
+
+type fixedPrintInitializer struct {
+	initCompressor comp.Compressor
+	initPaginator  *fixedPaginator
+	initErr        error
+}
+
+func (f *fixedPrintInitializer) Initialize(
+	content io.Reader, mediaType string, pages chan *api.Page,
+) (comp.Compressor, page.Paginator, error) {
+
+	f.initPaginator.pages = pages
+	return f.initCompressor, f.initPaginator, f.initErr
+}
+
+type fixedMAC struct {
+	messageSize uint64
+	sum         []byte
+}
+
+func (f *fixedMAC) MessageSize() uint64 {
+	return f.messageSize
+}
+
+func (f *fixedMAC) Sum(p []byte) []byte {
+	return f.sum
+}
+
+func (f *fixedMAC) Reset() {}
+
+func (f *fixedMAC) Write(p []byte) (int, error) {
+	return int(f.messageSize), nil
 }
 
 func randPages(t *testing.T, rng *rand.Rand, n int) ([]cid.ID, []*api.Page) {

@@ -81,6 +81,13 @@ func TestNewDecompressor_ok(t *testing.T) {
 	assert.Equal(t, minUncompressedBufferSize, comp.(*decompressor).uncompressedBufferSize)
 }
 
+func TestNewDecompressor_err(t *testing.T) {
+	// too small uncompressed buffer
+	comp, err := NewDecompressor(new(bytes.Buffer), GZIPCodec, nil, 0)
+	assert.NotNil(t, err)
+	assert.Nil(t, comp)
+}
+
 type errReader struct{}
 
 func (errReader) Read(p []byte) (int, error) {
