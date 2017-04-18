@@ -17,22 +17,33 @@ import (
 )
 
 func TestNewParameters_ok(t *testing.T) {
-	params, err := NewParameters(DefaultPutTimeout, DefaultGetTimeout, DefaultPutParallelism)
+	params, err := NewParameters(DefaultPutTimeout, DefaultGetTimeout, DefaultPutParallelism,
+		DefaultGetParallelism)
 	assert.Nil(t, err)
 	assert.NotNil(t, params)
 }
 
 func TestNewParameters_err(t *testing.T) {
-	params, err := NewParameters(0 * time.Second, DefaultGetTimeout, DefaultPutParallelism)
+	params, err := NewParameters(0 * time.Second, DefaultGetTimeout, DefaultPutParallelism,
+		DefaultGetParallelism)
 	assert.Equal(t, ErrPutTimeoutZeroValue, err)
 	assert.Nil(t, params)
 
-	params, err = NewParameters(DefaultPutTimeout, 0 * time.Second, DefaultPutParallelism)
-	assert.Equal(t, ErrPutTimeoutZeroValue, err)
+	params, err = NewParameters(
+		DefaultPutTimeout,
+		0 * time.Second,
+		DefaultPutParallelism,
+		DefaultGetParallelism,
+	)
+	assert.Equal(t, ErrGetTimeoutZeroValue, err)
 	assert.Nil(t, params)
 
-	params, err = NewParameters(DefaultPutTimeout, DefaultGetTimeout, 0)
+	params, err = NewParameters(DefaultPutTimeout, DefaultGetTimeout, 0, DefaultGetParallelism)
 	assert.Equal(t, ErrPutParallelismZeroValue, err)
+	assert.Nil(t, params)
+
+	params, err = NewParameters(DefaultPutTimeout, DefaultGetTimeout, DefaultPutParallelism, 0)
+	assert.Equal(t, ErrGetParallelismZeroValue, err)
 	assert.Nil(t, params)
 }
 
@@ -167,7 +178,7 @@ func TestMultiLoadPublisher_Publish_ok(t *testing.T) {
 				publishedKeys: make(map[string]struct{}),
 			}
 			params, err := NewParameters(DefaultPutTimeout, DefaultGetTimeout,
-				putParallelism)
+				putParallelism, DefaultGetParallelism)
 			assert.Nil(t, err)
 			mlPub := NewMultiLoadPublisher(slPub, params)
 
@@ -197,7 +208,7 @@ func TestMultiLoadPublisher_Publish_err(t *testing.T) {
 				err: errors.New("some Publish error"),
 			}
 			params, err := NewParameters(DefaultPutTimeout, DefaultGetTimeout,
-				putParallelism)
+				putParallelism, DefaultGetParallelism)
 			assert.Nil(t, err)
 			mlPub := NewMultiLoadPublisher(slPub, params)
 

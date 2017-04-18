@@ -61,6 +61,12 @@ type EntryUnpacker interface {
 	Unpack(entry *api.Document, pageKeys []id.ID, keys *enc.Keys, content io.Writer) error
 }
 
+type entryUnpacker struct {
+	params *print.Parameters
+	metadataDec enc.MetadataDecrypter
+	pageL page.Loader
+	docS storage.DocumentStorer
+}
 
 
 func newEntryDoc(

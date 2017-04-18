@@ -24,6 +24,10 @@ const (
 	// DefaultPutParallelism is the default parallelism a MultiLoadPublisher uses when
 	// making multiple Put calls to librarians.
 	DefaultPutParallelism = 3
+
+	// DefaultGetParallelism is the default parallelism a MultiStoreAcquirer uses when
+	// making multiple Get calls to librarians.
+	DefaultGetParallelism = 3
 )
 
 var (
@@ -40,6 +44,10 @@ var (
 	// ErrPutParallelismZeroValue indicates when the PutParallelism parameter has the zero
 	// value.
 	ErrPutParallelismZeroValue = errors.New("PutParallelism must be greater than zero")
+
+	// ErrGetParallelismZeroValue indicates when the GetParallelism parameter has the zero
+	// value.
+	ErrGetParallelismZeroValue = errors.New("GetParallelism must be greater than zero")
 
 	// ErrInconsistentAuthorPubKey indicates when the document author public key is different
 	// from the expected value.
@@ -58,31 +66,44 @@ type Parameters struct {
 	// PutParallelism is the number of simultaneous Put requests (for different documents) that
 	// can occur.
 	PutParallelism uint32
+
+	// GetParallelism is the number of simultaneous Ge requests (for different documents) that
+	// can occur.
+	GetParallelism uint32
 }
 
 // NewParameters validates the parameters and returns a new *Parameters instance.
 func NewParameters(
-	putTimeout time.Duration, getTimeout time.Duration, putParallelism uint32,
+	putTimeout time.Duration,
+	getTimeout time.Duration,
+	putParallelism uint32,
+	getParallelism uint32,
 ) (*Parameters, error) {
+
 	if putTimeout == 0 {
 		return nil, ErrPutTimeoutZeroValue
 	}
 	if getTimeout == 0 {
-		return nil, ErrPutTimeoutZeroValue
+		return nil, ErrGetTimeoutZeroValue
 	}
 	if putParallelism == 0 {
 		return nil, ErrPutParallelismZeroValue
+	}
+	if getParallelism == 0 {
+		return nil, ErrGetParallelismZeroValue
 	}
 	return &Parameters{
 		PutTimeout: putTimeout,
 		GetTimeout: getTimeout,
 		PutParallelism: putParallelism,
+		GetParallelism: getParallelism,
 	}, nil
 }
 
 // NewDefaultParameters creates a default *Parameters instance.
 func NewDefaultParameters() *Parameters {
-	params, err := NewParameters(DefaultPutTimeout, DefaultGetTimeout, DefaultPutParallelism)
+	params, err := NewParameters(DefaultPutTimeout, DefaultGetTimeout, DefaultPutParallelism,
+		DefaultGetParallelism)
 	if err != nil {
 		// should never happen; if does, it's programmer error
 		panic(err)

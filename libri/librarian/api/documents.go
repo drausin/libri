@@ -42,7 +42,13 @@ const (
 	HMAC256Length = sha256.Size
 )
 
-var errUnknownDocumentType = errors.New("unknown document type")
+var (
+	// ErrUnexpectedDocumentType indicates when a document type is not expected (e.g., a Page
+	// when expecting an Entry).
+	ErrUnexpectedDocumentType = errors.New("unexpected document type")
+
+	errUnknownDocumentType = errors.New("unknown document type")
+)
 
 // GetKey calculates the key from the has of the proto.Message.
 func GetKey(value proto.Message) (cid.ID, error) {
