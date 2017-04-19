@@ -140,12 +140,12 @@ func (a *Author) Upload(content io.Reader, mediaType string) (id.ID, error) {
 		return nil, err
 	}
 
-	entry, pageKeys, err := a.entryPacker.Pack(content, mediaType, keys, authorPub)
+	entry, err := a.entryPacker.Pack(content, mediaType, keys, authorPub)
 	if err != nil {
 		return nil, err
 	}
 
-	_, entryKey, err := a.shipper.Ship(entry, pageKeys, authorPub, readerPub)
+	_, entryKey, err := a.shipper.Ship(entry, authorPub, readerPub)
 	if err != nil {
 		return nil, err
 	}

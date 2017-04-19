@@ -10,7 +10,11 @@ import (
 	"math/rand"
 	"github.com/stretchr/testify/assert"
 	"github.com/drausin/libri/libri/author/io/page"
-	"github.com/pkg/errors"
+	"errors"
+	"io"
+	"github.com/drausin/libri/libri/author/io/common"
+	"fmt"
+	"github.com/drausin/libri/libri/author/io/comp"
 )
 
 func TestEntryPacker_Pack_ok(t *testing.T) {
@@ -23,28 +27,22 @@ func TestEntryPacker_Pack_ok(t *testing.T) {
 	}
 	p := NewEntryPacker(params, enc.NewMetadataEncrypterDecrypter(), docSL)
 	keys, authorPub, _ := enc.NewPseudoRandomKeys(rng)
+	mediaType := "application/x-pdf"
 
 	// test works with single-page content
-	content, mediaType := newTestBytes(rng, int(params.PageSize  / 2)), "application/x-pdf"
-	doc, pageKeys, err := p.Pack(content, mediaType, keys, authorPub)
+	content1 := common.NewCompressableBytes(rng, int(params.PageSize  / 2))
+	doc, err := p.Pack(content1, mediaType, keys, authorPub)
 	assert.Nil(t, err)
 	assert.NotNil(t, doc)
-	assert.Equal(t, 1, len(pageKeys))
 
 	// test works with multi-page content
-	content, mediaType = newTestBytes(rng, int(params.PageSize  * 5)), "application/x-pdf"
-	doc, pageKeys, err = p.Pack(content, mediaType, keys, authorPub)
+	content2 := common.NewCompressableBytes(rng, int(params.PageSize  * 5))
+	doc, err = p.Pack(content2, mediaType, keys, authorPub)
 	assert.Nil(t, err)
 	assert.NotNil(t, doc)
+	pageKeys, err := api.GetEntryPageKeys(doc)
+	assert.Nil(t, err)
 	assert.True(t, len(pageKeys) > 1)
-
-	// check doc page keys line up with those returned by Pack
-	docPageKeys := doc.Contents.(*api.Document_Entry).Entry.Contents.
-		(*api.Entry_PageKeys).PageKeys.Keys
-	assert.Equal(t, len(docPageKeys), len(pageKeys))
-	for i, pageKey := range pageKeys {
-		assert.Equal(t, pageKey.Bytes(), docPageKeys[i])
-	}
 }
 
 func TestEntryPacker_Pack_err(t *testing.T) {
@@ -54,20 +52,19 @@ func TestEntryPacker_Pack_err(t *testing.T) {
 		stored: make(map[string]*api.Document),
 	}
 	p := NewEntryPacker(params, enc.NewMetadataEncrypterDecrypter(), docSL)
-	content, mediaType := newTestBytes(rng, int(params.PageSize  / 2)), "application/x-pdf"
+	mediaType := "application/x-pdf"
+	content := common.NewCompressableBytes(rng, int(params.PageSize  / 2))
 	keys, authorPub, _ := enc.NewPseudoRandomKeys(rng)
 
 	// check error from bad mediaType bubbles up
-	doc, pageKeys, err := p.Pack(content, "application x-pdf", keys, authorPub)
+	doc, err := p.Pack(content, "application x-pdf", keys, authorPub)
 	assert.NotNil(t, err)
 	assert.Nil(t, doc)
-	assert.Nil(t, pageKeys)
 
 	// check Encrypt error from bad author key bubbles up
-	doc, pageKeys, err = p.Pack(content, mediaType, keys, []byte{})
+	doc, err = p.Pack(content, mediaType, keys, []byte{})
 	assert.NotNil(t, err)
 	assert.Nil(t, doc)
-	assert.Nil(t, pageKeys)
 
 	errDocSL := &fixedDocStorerLoader{
 		stored: make(map[string]*api.Document),
@@ -76,11 +73,93 @@ func TestEntryPacker_Pack_err(t *testing.T) {
 	p2 := NewEntryPacker(params, enc.NewMetadataEncrypterDecrypter(), errDocSL)
 
 	// check error from missing page bubbles up
-	doc, pageKeys, err = p2.Pack(content, mediaType, keys, []byte{})
+	doc, err = p2.Pack(content, mediaType, keys, []byte{})
 	assert.NotNil(t, err)
 	assert.Nil(t, doc)
-	assert.Nil(t, pageKeys)
 
+}
+
+func TestEntryUnpacker_Unpack_ok(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	params := print.NewDefaultParameters()
+	docSL := &fixedDocStorerLoader{
+		stored: make(map[string]*api.Document),
+	}
+	content := new(bytes.Buffer)
+	doc, _ := api.NewTestDocument(rng)
+	keys, _, _ := enc.NewPseudoRandomKeys(rng)
+
+	u := NewEntryUnpacker(params, &fixedMetadataDecrypter{}, docSL)
+	u.(*entryUnpacker).scanner = &fixedScanner{}
+	err := u.Unpack(content, doc, keys)
+	assert.Nil(t, err)
+}
+
+func TestEntryUnpacker_Unpack_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	params := print.NewDefaultParameters()
+	docSL := &fixedDocStorerLoader{
+		stored: make(map[string]*api.Document),
+	}
+	content := new(bytes.Buffer)
+	doc, _ := api.NewTestDocument(rng)
+	keys, _, _ := enc.NewPseudoRandomKeys(rng)
+
+	// check bad ciphertext/ciphertext MAC trigger error
+	u1 := NewEntryUnpacker(params, &fixedMetadataDecrypter{}, docSL)
+	doc1, _ := api.NewTestDocument(rng)
+	doc1.Contents.(*api.Document_Entry).Entry.MetadataCiphertextMac = nil
+	err := u1.Unpack(content, doc1, keys)
+	assert.NotNil(t, err)
+
+	// check decryption error bubbles up
+	u2 := NewEntryUnpacker(
+		params,
+		&fixedMetadataDecrypter{err: errors.New("some Decrypt error")},
+		docSL,
+	)
+	err = u2.Unpack(content, doc, keys)
+	assert.NotNil(t, err)
+
+	// check scanner error bubbles up
+	u3 := NewEntryUnpacker(params, &fixedMetadataDecrypter{}, docSL)
+	u3.(*entryUnpacker).scanner = &fixedScanner{
+		err: errors.New("some Scan error"),
+	}
+	err = u3.Unpack(content, doc, keys)
+	assert.NotNil(t, err)
+}
+
+func TestEntryPackUnpack(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	page.MinSize = 64  // just for testing
+	keys, authorPub, _ := enc.NewPseudoRandomKeys(rng)
+	metadataEncDec := enc.NewMetadataEncrypterDecrypter()
+
+	pageSizes := []uint32{128, 256, 512, 1024}
+	uncompressedSizes := []int{128, 192, 256, 384, 512, 768, 1024, 2048, 4096, 8192}
+	mediaTypes := []string{"application/x-pdf", "application/x-gzip"}
+	parallelisms := []uint32{1, 2, 3}
+
+	for _, c := range caseCrossProduct(pageSizes, uncompressedSizes, mediaTypes, parallelisms) {
+		content1 := common.NewCompressableBytes(rng, c.uncompressedSize)
+		content1Bytes := content1.Bytes()
+		docSL := &fixedDocStorerLoader{
+			stored: make(map[string]*api.Document),
+		}
+		params, err := print.NewParameters(comp.MinBufferSize, c.pageSize, c.parallelism)
+		p := NewEntryPacker(params, metadataEncDec, docSL)
+		u := NewEntryUnpacker(params, metadataEncDec, docSL)
+
+		doc, err := p.Pack(content1, c.mediaType, keys, authorPub)
+		assert.Nil(t, err)
+		assert.NotNil(t, doc)
+
+		content2 := new(bytes.Buffer)
+		err = u.Unpack(content2, doc, keys)
+		assert.Nil(t, err)
+		assert.Equal(t, content1Bytes, content2.Bytes())
+	}
 }
 
 type fixedDocStorerLoader struct {
@@ -99,20 +178,55 @@ func (f *fixedDocStorerLoader) Load(key id.ID) (*api.Document, error) {
 	return value, f.loadErr
 }
 
-func newTestBytes(rng *rand.Rand, size int) *bytes.Buffer {
-	dict := []string{
-		"these", "are", "some", "test", "words", "that", "will", "be", "compressed",
-	}
-	words := new(bytes.Buffer)
-	for {
-		word := dict[int(rng.Int31n(int32(len(dict))))] + " "
-		if words.Len()+len(word) > size {
-			// pad words to exact length
-			words.Write(make([]byte, size-words.Len()))
-			break
-		}
-		words.WriteString(word)
-	}
+type fixedMetadataDecrypter struct {
+	metadata *api.Metadata
+	err error
+}
 
-	return words
+func (f *fixedMetadataDecrypter) Decrypt(em *enc.EncryptedMetadata, keys *enc.Keys) (
+	*api.Metadata, error) {
+	return f.metadata, f.err
+}
+
+type fixedScanner struct {
+	err error
+}
+
+func (f *fixedScanner) Scan(
+	content io.Writer, pageKeys []id.ID, keys *enc.Keys, metatdata *api.Metadata,
+) error {
+	return f.err
+}
+
+type packTestCase struct {
+	pageSize         uint32
+	uncompressedSize int
+	mediaType            string
+	parallelism uint32
+}
+
+func (p packTestCase) String() string {
+	return fmt.Sprintf("pageSize: %d, uncompressedSize: %d, mediaType: %s", p.pageSize,
+		p.uncompressedSize, p.mediaType)
+}
+
+func caseCrossProduct(
+	pageSizes []uint32, uncompressedSizes []int, mediaTypes []string, parallelisms []uint32,
+) []*packTestCase {
+	cases := make([]*packTestCase, 0)
+	for _, pageSize := range pageSizes {
+		for _, uncompressedSize := range uncompressedSizes {
+			for _, mediaType := range mediaTypes {
+				for _, parallelism := range parallelisms {
+					cases = append(cases, &packTestCase{
+						pageSize:         pageSize,
+						uncompressedSize: uncompressedSize,
+						mediaType:            mediaType,
+						parallelism: parallelism,
+					})
+				}
+			}
+		}
+	}
+	return cases
 }

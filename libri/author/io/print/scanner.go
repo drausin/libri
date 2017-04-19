@@ -14,7 +14,7 @@ import (
 type Scanner interface {
 	// Scan loads pages with the given keys and metadata from an internal page.Loader and
 	// writes their concatenated output to the content io.Writer.
-	Scan(content io.Writer, pageKeys []id.ID, metatdata *api.Metadata) error
+	Scan(content io.Writer, pageKeys []id.ID, keys *enc.Keys, metatdata *api.Metadata) error
 }
 
 type scanner struct {
@@ -26,29 +26,25 @@ type scanner struct {
 
 // NewScanner creates a new Scanner object with the given parameters, encryption keys, and page
 // loader.
-func NewScanner (
-	params *Parameters,
-	keys *enc.Keys,
-	pageL page.Loader,
-) Scanner {
+func NewScanner (params *Parameters, pageL page.Loader) Scanner {
 	return &scanner {
 		params:    params,
-		keys:      keys,
 		pageL:     pageL,
 		init: &scanInitializerImpl{
-			keys:      keys,
 			params:    params,
 		},
 	}
 }
 
-func (s *scanner) Scan(content io.Writer, pageKeys []id.ID, md *api.Metadata) error {
+func (s *scanner) Scan(content io.Writer, pageKeys []id.ID, keys *enc.Keys, md *api.Metadata) (
+	error) {
+
 	pages := make(chan *api.Page, int(s.params.Parallelism))
 	if err := api.ValidateMetadata(md); err != nil {
 		return err
 	}
 	mediaType, _ := md.GetMediaType()
-	decompressor, unpaginator, err := s.init.Initialize(content, mediaType, pages)
+	decompressor, unpaginator, err := s.init.Initialize(content, mediaType, keys, pages)
 	if err != nil {
 		return err
 	}
@@ -86,33 +82,32 @@ func (s *scanner) Scan(content io.Writer, pageKeys []id.ID, md *api.Metadata) er
 }
 
 type scanInitializer interface {
-	Initialize(content io.Writer, mediaType string, pages chan *api.Page) (
+	Initialize(content io.Writer, mediaType string, keys *enc.Keys, pages chan *api.Page) (
 		comp.Decompressor, page.Unpaginator, error)
 }
 
 type scanInitializerImpl struct {
-	keys *enc.Keys
 	params *Parameters
 }
 
 func (si *scanInitializerImpl) Initialize(
-	content io.Writer, mediaType string, pages chan *api.Page,
+	content io.Writer, mediaType string, keys *enc.Keys, pages chan *api.Page,
 ) (comp.Decompressor, page.Unpaginator, error) {
 
 	codec, err := comp.GetCompressionCodec(mediaType)
 	if err != nil {
 		return nil, nil, err
 	}
-	decompressor, err := comp.NewDecompressor(content, codec, si.keys,
+	decompressor, err := comp.NewDecompressor(content, codec, keys,
 		si.params.CompressionBufferSize)
 	if err != nil {
 		return nil, nil, err
 	}
-	decrypter, err := enc.NewDecrypter(si.keys)
+	decrypter, err := enc.NewDecrypter(keys)
 	if err != nil {
 		return nil, nil, err
 	}
-	unpaginator, err := page.NewUnpaginator(pages, decrypter, si.keys)
+	unpaginator, err := page.NewUnpaginator(pages, decrypter, keys)
 	if err != nil {
 		return nil, nil, err
 	}

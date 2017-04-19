@@ -43,7 +43,7 @@ func TestScanner_Scan_ok(t *testing.T) {
 		},
 	}
 
-	scanner1 := NewScanner(params, keys, &fixedLoader{})
+	scanner1 := NewScanner(params, &fixedLoader{})
 	scanner1.(*scanner).init = &fixedScanInitializer{
 		initDecompressor: decompressor,
 		initUnpaginator:  unpaginator,
@@ -58,7 +58,7 @@ func TestScanner_Scan_ok(t *testing.T) {
 	)
 	assert.Nil(t, err)
 
-	err = scanner1.Scan(nil, pageKeys, entryMetadata)
+	err = scanner1.Scan(nil, pageKeys, keys, entryMetadata)
 	assert.Nil(t, err)
 	assert.Equal(t, pageKeys, pageKeys)
 	actualCiphertextSize, _ := entryMetadata.GetCiphertextSize()
@@ -85,32 +85,32 @@ func TestScanner_Scan_err(t *testing.T) {
 	assert.Nil(t, err)
 
 	// check that invalid metadata triggers error
-	scanner1 := NewScanner(params, keys, &fixedLoader{})
+	scanner1 := NewScanner(params, &fixedLoader{})
 	md1 := &api.Metadata{} // empty, so missing all fields
-	err = scanner1.Scan(content, pageKeys, md1)
+	err = scanner1.Scan(content, pageKeys, keys, md1)
 	assert.NotNil(t, err)
 
 	// check that init error bubbles up
-	scanner2 := NewScanner(params, keys, &fixedLoader{})
+	scanner2 := NewScanner(params, &fixedLoader{})
 	scanner2.(*scanner).init = &fixedScanInitializer{
 		initDecompressor: nil,
 		initUnpaginator:  &fixedUnpaginator{},
 		initErr:        errors.New("some Initialize error"),
 	}
-	err = scanner2.Scan(content, pageKeys, entryMetadata)
+	err = scanner2.Scan(content, pageKeys, keys, entryMetadata)
 	assert.NotNil(t, err)
 
 	// check that load error bubbles up
 	loader3 := &fixedLoader{
 		loadErr: errors.New("some Load error"),
 	}
-	scanner3 := NewScanner(params, keys, loader3)
+	scanner3 := NewScanner(params, loader3)
 	scanner3.(*scanner).init = &fixedScanInitializer{
 		initDecompressor: nil,
 		initUnpaginator:  &fixedUnpaginator{},
 		initErr:        nil,
 	}
-	err = scanner3.Scan(content, pageKeys, entryMetadata)
+	err = scanner3.Scan(content, pageKeys, keys, entryMetadata)
 	assert.NotNil(t, err)
 
 	// check that unpaginator.WriteTo error bubbles up
@@ -118,13 +118,13 @@ func TestScanner_Scan_err(t *testing.T) {
 		writeN:   0,
 		writeErr: errors.New("some WriteTo error"),
 	}
-	scanner4 := NewScanner(params, keys, &fixedLoader{})
+	scanner4 := NewScanner(params, &fixedLoader{})
 	scanner4.(*scanner).init = &fixedScanInitializer{
 		initDecompressor: nil,
 		initUnpaginator:  unpaginator4,
 		initErr:        nil,
 	}
-	err = scanner4.Scan(content, pageKeys, entryMetadata)
+	err = scanner4.Scan(content, pageKeys, keys, entryMetadata)
 	assert.NotNil(t, err)
 
 	// check that MAC check error bubbles up
@@ -140,13 +140,13 @@ func TestScanner_Scan_err(t *testing.T) {
 			sum:         []byte{},
 		},
 	}
-	scanner5 := NewScanner(params, keys, &fixedLoader{})
+	scanner5 := NewScanner(params, &fixedLoader{})
 	scanner5.(*scanner).init = &fixedScanInitializer{
 		initDecompressor: decompressor,
 		initUnpaginator:  unpaginator,
 		initErr:        nil,
 	}
-	err = scanner5.Scan(content, pageKeys, entryMetadata)
+	err = scanner5.Scan(content, pageKeys, keys, entryMetadata)
 	assert.NotNil(t, err)
 }
 
@@ -158,11 +158,8 @@ func TestScanInitializerImpl_Initialize_ok(t *testing.T) {
 	content, mediaType := new(bytes.Buffer), "application/x-pdf"
 	pages := make(chan *api.Page)
 
-	scanInit := &scanInitializerImpl{
-		keys:      keys,
-		params:    params,
-	}
-	decompressor, unpaginator, err := scanInit.Initialize(content, mediaType, pages)
+	scanInit := &scanInitializerImpl{params: params}
+	decompressor, unpaginator, err := scanInit.Initialize(content, mediaType, keys, pages)
 	assert.Nil(t, err)
 	assert.NotNil(t, decompressor)
 	assert.NotNil(t, unpaginator)
@@ -178,18 +175,16 @@ func TestScanInitializerImpl_Initialize_err(t *testing.T) {
 	pages := make(chan *api.Page)
 
 	scanInit1 := &scanInitializerImpl{
-		keys:      keys,
 		params:    params,
 	}
 
 	// check that bad media type triggers error
-	decompressor, unpaginator, err := scanInit1.Initialize(content, "application/", pages)
+	decompressor, unpaginator, err := scanInit1.Initialize(content, "application/", keys, pages)
 	assert.NotNil(t, err)
 	assert.Nil(t, decompressor)
 	assert.Nil(t, unpaginator)
 
 	scanInit2 := &scanInitializerImpl{
-		keys:      keys,
 		params: &Parameters{
 			CompressionBufferSize: 0, // will trigger error when creating decompressor
 			PageSize:              page.MinSize,
@@ -198,7 +193,7 @@ func TestScanInitializerImpl_Initialize_err(t *testing.T) {
 	}
 
 	// check that error creating new decompressor bubbles up
-	decompressor, unpaginator, err = scanInit2.Initialize(content, mediaType, pages)
+	decompressor, unpaginator, err = scanInit2.Initialize(content, mediaType, keys, pages)
 	assert.NotNil(t, err)
 	assert.Nil(t, decompressor)
 	assert.Nil(t, unpaginator)
@@ -206,12 +201,11 @@ func TestScanInitializerImpl_Initialize_err(t *testing.T) {
 	keys3, _, _ := enc.NewPseudoRandomKeys(rng)
 	keys3.AESKey = []byte{} // will trigger error when creating decrypter
 	scanInit3 := &scanInitializerImpl{
-		keys:      keys3,
 		params:    params,
 	}
 
 	// check that error creating new decrypter triggers error
-	decompressor, unpaginator, err = scanInit3.Initialize(content, mediaType, pages)
+	decompressor, unpaginator, err = scanInit3.Initialize(content, mediaType, keys3, pages)
 	assert.NotNil(t, err)
 	assert.Nil(t, decompressor)
 	assert.Nil(t, unpaginator)
@@ -219,12 +213,11 @@ func TestScanInitializerImpl_Initialize_err(t *testing.T) {
 	keys4, _, _ := enc.NewPseudoRandomKeys(rng)
 	keys4.HMACKey = []byte{} // will trigger error when creating unpaginator
 	scanInit4 := &scanInitializerImpl{
-		keys:      keys4,
 		params:    params,
 	}
 
 	// check that error creating new decrypter triggers error
-	decompressor, unpaginator, err = scanInit4.Initialize(content, mediaType, pages)
+	decompressor, unpaginator, err = scanInit4.Initialize(content, mediaType, keys4, pages)
 	assert.NotNil(t, err)
 	assert.Nil(t, decompressor)
 	assert.Nil(t, unpaginator)
@@ -297,7 +290,7 @@ type fixedScanInitializer struct {
 }
 
 func (f *fixedScanInitializer) Initialize(
-	content io.Writer, mediaType string, pages chan *api.Page,
+	content io.Writer, mediaType string, keys *enc.Keys, pages chan *api.Page,
 ) (comp.Decompressor, page.Unpaginator, error) {
 
 	f.initUnpaginator.pages = pages

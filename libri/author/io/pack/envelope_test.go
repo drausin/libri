@@ -33,8 +33,7 @@ func TestSeparateEnvelopeDoc(t *testing.T) {
 	assert.Equal(t, entryKey1, entryKey2)
 
 	// check it errors on non-envelope doc
-	entryDoc, err := api.NewTestDocument(rng)
-	assert.Nil(t, err)
+	entryDoc, _ := api.NewTestDocument(rng)
 	authorPub3, readerPub3, entryKey3, err := SeparateEnvelopeDoc(entryDoc)
 	assert.NotNil(t, err)
 	assert.Nil(t, authorPub3)

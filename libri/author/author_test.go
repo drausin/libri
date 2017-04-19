@@ -101,14 +101,13 @@ func (f *fixedMLPublisher) Publish(docKeys []id.ID, cb api.ClientBalancer) error
 
 type fixedEntryPacker struct {
 	entry    *api.Document
-	pageKeys []id.ID
 	err      error
 }
 
 func (f *fixedEntryPacker) Pack(
 	content io.Reader, mediaType string, keys *enc.Keys, authorPub []byte,
-) (*api.Document, []id.ID, error) {
-	return f.entry, f.pageKeys, f.err
+) (*api.Document, error) {
+	return f.entry, f.err
 }
 
 type fixedShipper struct {
@@ -117,9 +116,8 @@ type fixedShipper struct {
 	err error
 }
 
-func (f *fixedShipper) Ship(
-	entry *api.Document, pageKeys []id.ID, authorPub []byte, readerPub []byte,
-) (*api.Document, id.ID, error) {
+func (f *fixedShipper) Ship(entry *api.Document, authorPub []byte, readerPub []byte) (
+	*api.Document, id.ID, error) {
 	return f.envelope, f.entryKey, f.err
 }
 

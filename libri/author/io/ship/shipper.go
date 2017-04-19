@@ -5,23 +5,14 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/author/io/publish"
 	"github.com/drausin/libri/libri/author/io/pack"
-	"errors"
-	"bytes"
 )
-
-// ErrInconsistentPageKey indicates when a page key does not match the expected value.
-var ErrInconsistentPageKey = errors.New("inconsistent page key")
-
-// ErrUnexpectedPage indicates when an entry unexpectedly contains a page instead of page keys.
-var ErrUnexpectedPage = errors.New("unexpected entry page")
 
 // Shipper publishes documents to libri.
 type Shipper interface {
 	// Ship publishes (to libri) the entry document, its page document keys (if more than one),
 	// and the envelope document with the author and reader public keys. It returns the
 	// published envelope document and entry document key.
-	Ship(entry *api.Document, pageKeys []id.ID, authorPub []byte, readerPub []byte) (
-		*api.Document, id.ID, error)
+	Ship(entry *api.Document, authorPub []byte, readerPub []byte) (*api.Document, id.ID, error)
 }
 
 type shipper struct {
@@ -42,14 +33,15 @@ func NewShipper(
 	}
 }
 
-func (s *shipper) Ship(entry *api.Document, pageKeys []id.ID, authorPub []byte, readerPub []byte) (
+func (s *shipper) Ship(entry *api.Document, authorPub []byte, readerPub []byte) (
 	*api.Document, id.ID, error) {
 
 	// publish separate pages, if necessary
-	if len(pageKeys) > 1 {
-		if err := checkConsistentPageKeys(pageKeys, entry); err != nil {
-			return nil, nil, err
-		}
+	pageKeys, err := api.GetEntryPageKeys(entry)
+	if err != nil {
+		return nil, nil, err
+	}
+	if pageKeys != nil {
 		if err := s.mlPublisher.Publish(pageKeys, authorPub, s.librarians); err != nil {
 			return nil, nil, err
 		}
@@ -70,18 +62,4 @@ func (s *shipper) Ship(entry *api.Document, pageKeys []id.ID, authorPub []byte, 
 	}
 
 	return envelope, entryKey, nil
-}
-
-func checkConsistentPageKeys(expected []id.ID, entry *api.Document) error {
-	switch x := entry.Contents.(*api.Document_Entry).Entry.Contents.(type) {
-	case *api.Entry_PageKeys:
-		for i, keyBytes := range x.PageKeys.Keys {
-			if !bytes.Equal(expected[i].Bytes(), keyBytes) {
-				return ErrInconsistentPageKey
-			}
-		}
-	case *api.Entry_Page:
-		return ErrUnexpectedPage
-	}
-	return nil
 }

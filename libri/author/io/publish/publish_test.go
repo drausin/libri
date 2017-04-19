@@ -218,6 +218,8 @@ func TestMultiLoadPublisher_Publish_err(t *testing.T) {
 	}
 }
 
+// TODO TestMultiAcquirePublish
+
 type fixedPutter struct {
 	request *api.PutRequest
 	err error

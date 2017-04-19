@@ -11,6 +11,7 @@ import (
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
+	"github.com/drausin/libri/libri/author/io/common"
 )
 
 func TestNewPaginator_err(t *testing.T) {
@@ -210,7 +211,7 @@ func TestPaginateUnpaginate(t *testing.T) {
 		paginator, err := NewPaginator(pages, encrypter, keys, authorPub, c.pageSize)
 		assert.Nil(t, err)
 
-		uncompressed1 := newTestBytes(rng, c.uncompressedSize)
+		uncompressed1 := common.NewCompressableBytes(rng, c.uncompressedSize)
 		uncompressed1Bytes := uncompressed1.Bytes()
 
 		uncompressedBufferSize := uint32(c.pageSize) / 2
@@ -252,7 +253,7 @@ type pageTestCase struct {
 }
 
 func (p pageTestCase) String() string {
-	return fmt.Sprintf("pageSize: %d, uncompressedSize: %d, mediaType: %s", p.pageSize,
+	return fmt.Sprintf("pageSize: %d, uncompressedSize: %d, codec: %s", p.pageSize,
 		p.uncompressedSize, p.codec)
 }
 
@@ -274,20 +275,3 @@ func caseCrossProduct(
 	return cases
 }
 
-func newTestBytes(rng *rand.Rand, size int) *bytes.Buffer {
-	dict := []string{
-		"these", "are", "some", "test", "words", "that", "will", "be", "compressed",
-	}
-	words := new(bytes.Buffer)
-	for {
-		word := dict[int(rng.Int31n(int32(len(dict))))] + " "
-		if words.Len()+len(word) > size {
-			// pad words to exact length
-			words.Write(make([]byte, size-words.Len()))
-			break
-		}
-		words.WriteString(word)
-	}
-
-	return words
-}

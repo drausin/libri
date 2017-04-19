@@ -60,13 +60,11 @@ func NewDefaultParameters() *Parameters {
 // Printer stores pages created from (uncompressed) content.
 type Printer interface {
 	// Print creates pages from the given content and stores them via an internal page.Storer.
-	Print(content io.Reader, mediaType string) ([]id.ID, *api.Metadata, error)
+	Print(content io.Reader, mediaType string, keys *enc.Keys, authorPub []byte) ([]id.ID, *api.Metadata, error)
 }
 
 type printer struct {
 	params    *Parameters
-	keys      *enc.Keys
-	authorPub []byte
 	pageS     page.Storer
 	init      printInitializer
 }
@@ -74,26 +72,22 @@ type printer struct {
 // NewPrinter returns a new Printer instance.
 func NewPrinter(
 	params *Parameters,
-	keys *enc.Keys,
-	authorPub []byte,
 	pageS page.Storer,
 ) Printer {
 	return &printer{
 		params:    params,
-		keys:      keys,
-		authorPub: authorPub,
 		pageS:     pageS,
 		init: &printInitializerImpl{
-			keys:      keys,
-			authorPub: authorPub,
 			params:    params,
 		},
 	}
 }
 
-func (p *printer) Print(content io.Reader, mediaType string) ([]id.ID, *api.Metadata, error) {
+func (p *printer) Print(content io.Reader, mediaType string, keys *enc.Keys, authorPub []byte) (
+	[]id.ID, *api.Metadata, error) {
+
 	pages := make(chan *api.Page, int(p.params.Parallelism))
-	compressor, paginator, err := p.init.Initialize(content, mediaType, pages)
+	compressor, paginator, err := p.init.Initialize(content, mediaType, keys, authorPub, pages)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -132,34 +126,32 @@ func (p *printer) Print(content io.Reader, mediaType string) ([]id.ID, *api.Meta
 }
 
 type printInitializer interface {
-	Initialize(content io.Reader, mediaType string, pages chan *api.Page) (comp.Compressor,
-		page.Paginator, error)
+	Initialize(content io.Reader, mediaType string, keys *enc.Keys, authorPub []byte,
+		pages chan *api.Page) (comp.Compressor, page.Paginator, error)
 }
 
 type printInitializerImpl struct {
-	keys      *enc.Keys
-	authorPub []byte
 	params    *Parameters
 }
 
 func (pi *printInitializerImpl) Initialize(
-	content io.Reader, mediaType string, pages chan *api.Page,
+	content io.Reader, mediaType string, keys *enc.Keys, authorPub []byte, pages chan *api.Page,
 ) (comp.Compressor, page.Paginator, error) {
 
 	codec, err := comp.GetCompressionCodec(mediaType)
 	if err != nil {
 		return nil, nil, err
 	}
-	compressor, err := comp.NewCompressor(content, codec, pi.keys,
+	compressor, err := comp.NewCompressor(content, codec, keys,
 		pi.params.CompressionBufferSize)
 	if err != nil {
 		return nil, nil, err
 	}
-	encrypter, err := enc.NewEncrypter(pi.keys)
+	encrypter, err := enc.NewEncrypter(keys)
 	if err != nil {
 		return nil, nil, err
 	}
-	paginator, err := page.NewPaginator(pages, encrypter, pi.keys, pi.authorPub,
+	paginator, err := page.NewPaginator(pages, encrypter, keys, authorPub,
 		pi.params.PageSize)
 	if err != nil {
 		return nil, nil, err

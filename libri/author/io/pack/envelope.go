@@ -3,7 +3,6 @@ package pack
 import (
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/pkg/errors"
 )
 
 // NewEnvelopeDoc returns a new envelope document for the given entry key and author and reader
@@ -27,7 +26,7 @@ func SeparateEnvelopeDoc(envelope *api.Document) ([]byte, []byte, id.ID, error) 
 	switch c := envelope.Contents.(type) {
 	case *api.Document_Envelope:
 		e := c.Envelope
-		return e.AuthorPublicKey, e.ReaderPublicKey, id.FromBytes(e.EntryKey)
+		return e.AuthorPublicKey, e.ReaderPublicKey, id.FromBytes(e.EntryKey), nil
 	}
-	return api.ErrUnexpectedDocumentType
+	return nil, nil, nil, api.ErrUnexpectedDocumentType
 }

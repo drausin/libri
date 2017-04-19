@@ -27,14 +27,20 @@ func TestShipper_Ship_ok(t *testing.T) {
 	assert.Nil(t, err)
 
 	// test multi-page ship
-	envelope, entryKey, err := s.Ship(entry, getPageKeys(entry), authorPub, readerPub)
+	envelope, entryKey, err := s.Ship(entry, authorPub, readerPub)
 	assert.Nil(t, err)
 	assert.NotNil(t, envelope)
 	assert.Equal(t, origEntryKey, entryKey)
 
 	// test single-page ship
-	pageKeys := []id.ID{id.NewPseudoRandom(rng)}
-	envelope, entryKey, err = s.Ship(entry, pageKeys, authorPub, readerPub)
+	entry = &api.Document{
+		Contents: &api.Document_Entry{
+			Entry: api.NewTestSinglePageEntry(rng),
+		},
+	}
+	origEntryKey, err = api.GetKey(entry)
+	assert.Nil(t, err)
+	envelope, entryKey, err = s.Ship(entry, authorPub, readerPub)
 	assert.Nil(t, err)
 	assert.NotNil(t, envelope)
 	assert.Equal(t, origEntryKey, entryKey)
@@ -55,16 +61,8 @@ func TestShipper_Ship_err(t *testing.T) {
 		&fixedMultiLoadPublisher{errors.New("some Publish error")},
 	)
 
-	// check inconsistent page keys trigger error
-	pageKeys := []id.ID{id.NewPseudoRandom(rng), id.NewPseudoRandom(rng)}
-	envelope, entryKey, err := s.Ship(entry, pageKeys, authorPub, readerPub)
-	assert.NotNil(t, err)
-	assert.Nil(t, envelope)
-	assert.Nil(t, entryKey)
-
 	// check page publish error bubbles up
-	pageKeys = getPageKeys(entry)
-	envelope, entryKey, err = s.Ship(entry, pageKeys, authorPub, readerPub)
+	envelope, entryKey, err := s.Ship(entry, authorPub, readerPub)
 	assert.NotNil(t, err)
 	assert.Nil(t, envelope)
 	assert.Nil(t, entryKey)
@@ -76,7 +74,7 @@ func TestShipper_Ship_err(t *testing.T) {
 	)
 
 	// check getting next librarian error bubbles up
-	envelope, entryKey, err = s.Ship(entry, pageKeys, authorPub, readerPub)
+	envelope, entryKey, err = s.Ship(entry, authorPub, readerPub)
 	assert.NotNil(t, err)
 	assert.Nil(t, envelope)
 	assert.Nil(t, entryKey)
@@ -88,7 +86,7 @@ func TestShipper_Ship_err(t *testing.T) {
 	)
 
 	// check entry publish error bubbles up
-	envelope, entryKey, err = s.Ship(entry, pageKeys, authorPub, readerPub)
+	envelope, entryKey, err = s.Ship(entry, authorPub, readerPub)
 	assert.NotNil(t, err)
 	assert.Nil(t, envelope)
 	assert.Nil(t, entryKey)
@@ -100,21 +98,13 @@ func TestShipper_Ship_err(t *testing.T) {
 	)
 
 	// check envelope publish error bubbles up
-	envelope, entryKey, err = s.Ship(entry, pageKeys, authorPub, readerPub)
+	envelope, entryKey, err = s.Ship(entry, authorPub, readerPub)
 	assert.NotNil(t, err)
 	assert.Nil(t, envelope)
 	assert.Nil(t, entryKey)
 }
 
-func getPageKeys(entry *api.Document) []id.ID {
-	pageKeysBytes := entry.Contents.(*api.Document_Entry).Entry.
-		Contents.(*api.Entry_PageKeys).PageKeys.Keys
-	pageKeys := make([]id.ID, len(pageKeysBytes))
-	for i, pageKeyBytes := range pageKeysBytes {
-		pageKeys[i] = id.FromBytes(pageKeyBytes)
-	}
-	return pageKeys
-}
+// TODO TestShipReceive
 
 type fixedMultiLoadPublisher struct {
 	err error

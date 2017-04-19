@@ -51,10 +51,7 @@ func NewStorerLoader(inner storage.DocumentStorerLoader) StorerLoader {
 func (s *storerLoader) Store(pages chan *api.Page) ([]cid.ID, error) {
 	keys := make([]cid.ID, 0)
 	for page := range pages {
-		doc := &api.Document{
-			Contents: &api.Document_Page{Page: page},
-		}
-		key, err := api.GetKey(doc)
+		doc, key, err := api.GetPageDocument(page)
 		if err != nil {
 			return nil, err
 		}
