@@ -7,15 +7,16 @@ import (
 	"github.com/drausin/libri/libri/author/io/publish"
 	"github.com/drausin/libri/libri/author/io/pack"
 	"github.com/drausin/libri/libri/author/keychain"
-	"errors"
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/storage"
 )
 
 type Receiver interface {
+	// Receive gets (from libri) the envelope, entry, and pages implied by the envelope key. It
+	// stores these documents in a storage.DocumentStorer and returns the entry and encryption
+	// keys.
 	Receive(envelopeKey id.ID) (*api.Document, *enc.Keys, error)
 }
-
 
 type receiver struct {
 	librarians api.ClientBalancer
@@ -25,13 +26,29 @@ type receiver struct {
 	docS storage.DocumentStorer
 }
 
+func NewReceiver(
+	librarians api.ClientBalancer,
+	readerKeys keychain.Keychain,
+	acquirer publish.Acquirer,
+	msAcquirer publish.MultiStoreAcquirer,
+	docS storage.DocumentStorer,
+) Receiver {
+	return &receiver{
+		librarians: librarians,
+		readerKeys: readerKeys,
+		acquirer: acquirer,
+		msAcquirer: msAcquirer,
+		docS: docS,
+	}
+}
+
 func (r *receiver) Receive(envelopeKey id.ID) (*api.Document, *enc.Keys, error) {
 	lc, err := r.librarians.Next()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// get the envelop and encryption keys
+	// get the envelope and encryption keys
 	envelopeDoc, err := r.acquirer.Acquire(envelopeKey, nil, lc)
 	if err != nil {
 		return nil, nil, err
@@ -40,7 +57,7 @@ func (r *receiver) Receive(envelopeKey id.ID) (*api.Document, *enc.Keys, error) 
 	if err != nil {
 		return nil, nil, err
 	}
-	encKeys, err := r.createEncryptionKeys(readerPubBytes)
+	encKeys, err := r.createEncryptionKeys(authorPubBytes, readerPubBytes)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -57,16 +74,16 @@ func (r *receiver) Receive(envelopeKey id.ID) (*api.Document, *enc.Keys, error) 
 	return entryDoc, encKeys, nil
 }
 
-func (r *receiver) createEncryptionKeys(readerPubBytes []byte) (*enc.Keys, error) {
+func (r *receiver) createEncryptionKeys(authorPubBytes, readerPubBytes []byte) (*enc.Keys, error) {
 	readerPriv, in := r.readerKeys.Get(readerPubBytes)
 	if !in {
-		return nil, errors.New("unable to find envelope reader key")
+		return nil, keychain.ErrUnexpectedMissingKey
 	}
-	readerPub, err := ecid.FromPublicKeyBytes(readerPubBytes)
+	authorPub, err := ecid.FromPublicKeyBytes(authorPubBytes)
 	if err != nil {
 		return nil, err
 	}
-	encKeys, err := enc.NewKeys(readerPriv.Key(), readerPub)
+	encKeys, err := enc.NewKeys(readerPriv.Key(), authorPub)
 	if err != nil {
 		return nil, err
 	}
@@ -81,16 +98,19 @@ func (r *receiver) getPages(entry *api.Document, authorPubBytes []byte) error {
 	case *api.Entry_PageKeys:
 		pageKeys, err := api.GetEntryPageKeys(entry)
 		if err != nil {
+			// should never get here
 			return err
 		}
 		return r.msAcquirer.Acquire(pageKeys, authorPubBytes, r.librarians)
 	case *api.Entry_Page:
 		pageDoc, docKey, err := api.GetPageDocument(ec.Page)
 		if err != nil {
+			// should never get here
 			return err
 		}
 		return r.docS.Store(docKey, pageDoc)
 	}
 
+	// should never get here
 	return api.ErrUnknownDocumentType
 }

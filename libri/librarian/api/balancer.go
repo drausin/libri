@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"sync"
 	"net"
-	"github.com/pkg/errors"
+	"errors"
 )
 
 // ErrEmptyLibrarianAddresses indicates that the librarian addresses is empty.

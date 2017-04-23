@@ -31,6 +31,9 @@ const (
 var (
 	// ErrEmptyKeychain indicates no keys in the keychain.
 	ErrEmptyKeychain = errors.New("empty keychain")
+
+	// ErrMissingKey indicates a unexpectedly missing key
+	ErrUnexpectedMissingKey = errors.New("missing key")
 )
 
 
