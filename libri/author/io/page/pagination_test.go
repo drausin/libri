@@ -7,11 +7,11 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/drausin/libri/libri/author/io/common"
 	"github.com/drausin/libri/libri/author/io/comp"
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
-	"github.com/drausin/libri/libri/author/io/common"
 )
 
 func TestNewPaginator_err(t *testing.T) {
@@ -101,7 +101,7 @@ func (e *errCloseWriter) Close() error {
 
 type fixedDecrypter struct {
 	compressedPage []byte
-	err error
+	err            error
 }
 
 func (f *fixedDecrypter) Decrypt(ciphertext []byte, pageIndex uint32) ([]byte, error) {
@@ -136,14 +136,13 @@ func TestUnpaginator_WriteTo_err(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Zero(t, n)
 
-
 	decrypter3 := &fixedDecrypter{
 		err: errors.New("some Decrypt error"),
 	}
 	ciphertext3 := []byte("some secret stuff")
 	ciphertextMac3 := enc.HMAC(ciphertext3, keys.HMACKey)
 	pages <- &api.Page{
-		Ciphertext: ciphertext3,
+		Ciphertext:    ciphertext3,
 		CiphertextMac: ciphertextMac3,
 	}
 	u3, err := NewUnpaginator(pages, decrypter3, keys)
@@ -154,12 +153,11 @@ func TestUnpaginator_WriteTo_err(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Zero(t, n)
 
-
 	decrypter4 := &fixedDecrypter{}
 	ciphertext4 := []byte("some other secret stuff")
 	ciphertextMac4 := enc.HMAC(ciphertext4, keys.HMACKey)
 	pages <- &api.Page{
-		Ciphertext: ciphertext4,
+		Ciphertext:    ciphertext4,
 		CiphertextMac: ciphertextMac4,
 	}
 	u4, err := NewUnpaginator(pages, decrypter4, keys)
@@ -172,12 +170,11 @@ func TestUnpaginator_WriteTo_err(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Zero(t, n)
 
-
 	decrypter5 := &fixedDecrypter{}
 	ciphertext5 := []byte("some other other secret stuff")
 	ciphertextMac5 := enc.HMAC(ciphertext5, keys.HMACKey)
 	pages <- &api.Page{
-		Ciphertext: ciphertext5,
+		Ciphertext:    ciphertext5,
 		CiphertextMac: ciphertextMac5,
 	}
 	u5, err := NewUnpaginator(pages, decrypter5, keys)
@@ -274,4 +271,3 @@ func caseCrossProduct(
 	}
 	return cases
 }
-

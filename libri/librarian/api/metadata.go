@@ -44,7 +44,7 @@ var (
 
 // NewEntryMetadata creates a new *Metadata instance with the given (required) fields.
 func NewEntryMetadata(
-	mediaType string,  // TODO (drausin) change to compression codec
+	mediaType string, // TODO (drausin) change to compression codec
 	ciphertextSize uint64,
 	ciphertextMAC []byte,
 	uncompressedSize uint64,

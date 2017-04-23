@@ -1,13 +1,14 @@
 package print
 
 import (
-	"github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/librarian/api"
 	"io"
+	"sync"
+
+	"github.com/drausin/libri/libri/author/io/comp"
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/page"
-	"github.com/drausin/libri/libri/author/io/comp"
-	"sync"
+	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/api"
 )
 
 // Scanner writes locally-stored pages to a unified content stream.
@@ -19,25 +20,24 @@ type Scanner interface {
 
 type scanner struct {
 	params *Parameters
-	keys *enc.Keys
-	pageL page.Loader
-	init scanInitializer
+	keys   *enc.Keys
+	pageL  page.Loader
+	init   scanInitializer
 }
 
 // NewScanner creates a new Scanner object with the given parameters, encryption keys, and page
 // loader.
-func NewScanner (params *Parameters, pageL page.Loader) Scanner {
-	return &scanner {
-		params:    params,
-		pageL:     pageL,
+func NewScanner(params *Parameters, pageL page.Loader) Scanner {
+	return &scanner{
+		params: params,
+		pageL:  pageL,
 		init: &scanInitializerImpl{
-			params:    params,
+			params: params,
 		},
 	}
 }
 
-func (s *scanner) Scan(content io.Writer, pageKeys []id.ID, keys *enc.Keys, md *api.Metadata) (
-	error) {
+func (s *scanner) Scan(content io.Writer, pageKeys []id.ID, keys *enc.Keys, md *api.Metadata) error {
 
 	pages := make(chan *api.Page, int(s.params.Parallelism))
 	if err := api.ValidateMetadata(md); err != nil {

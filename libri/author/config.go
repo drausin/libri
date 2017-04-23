@@ -2,13 +2,14 @@ package author
 
 import (
 	"net"
-	"github.com/drausin/libri/libri/author/io/print"
-	"go.uber.org/zap/zapcore"
-	"github.com/drausin/libri/libri/author/io/publish"
 	"os"
 	"path/filepath"
-	"go.uber.org/zap"
+
+	"github.com/drausin/libri/libri/author/io/print"
+	"github.com/drausin/libri/libri/author/io/publish"
 	"github.com/drausin/libri/libri/librarian/server"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -189,4 +190,3 @@ func (c *Config) WithDefaultLogLevel() *Config {
 	c.LogLevel = DefaultLogLevel
 	return c
 }
-

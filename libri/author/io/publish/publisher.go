@@ -1,15 +1,16 @@
 package publish
 
 import (
+	"bytes"
 	"errors"
 	"sync"
 	"time"
+
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
-	"bytes"
 )
 
 const (
@@ -52,16 +53,15 @@ var (
 	// ErrInconsistentAuthorPubKey indicates when the document author public key is different
 	// from the expected value.
 	ErrInconsistentAuthorPubKey = errors.New("inconsistent author public key")
-
 )
 
 // Parameters define configuration used by a Publisher.
 type Parameters struct {
 	// PutTimeout is the timeout duration used for Put requests.
-	PutTimeout     time.Duration
+	PutTimeout time.Duration
 
 	// GetTimeout is the timeout duration used for Get requests.
-	GetTimeout     time.Duration
+	GetTimeout time.Duration
 
 	// PutParallelism is the number of simultaneous Put requests (for different documents) that
 	// can occur.
@@ -93,8 +93,8 @@ func NewParameters(
 		return nil, ErrGetParallelismZeroValue
 	}
 	return &Parameters{
-		PutTimeout: putTimeout,
-		GetTimeout: getTimeout,
+		PutTimeout:     putTimeout,
+		GetTimeout:     getTimeout,
 		PutParallelism: putParallelism,
 		GetParallelism: getParallelism,
 	}, nil
@@ -165,7 +165,7 @@ type SingleLoadPublisher interface {
 
 type singleLoadPublisher struct {
 	inner Publisher
-	docL storage.DocumentLoader
+	docL  storage.DocumentLoader
 }
 
 // NewSingleLoadPublisher creates a new SingleLoadPublisher from an inner Publisher and a
@@ -173,7 +173,7 @@ type singleLoadPublisher struct {
 func NewSingleLoadPublisher(inner Publisher, docL storage.DocumentLoader) SingleLoadPublisher {
 	return &singleLoadPublisher{
 		inner: inner,
-		docL: docL,
+		docL:  docL,
 	}
 }
 
@@ -206,13 +206,12 @@ type multiLoadPublisher struct {
 // NewMultiLoadPublisher creates a new MultiLoadPublisher.
 func NewMultiLoadPublisher(inner SingleLoadPublisher, params *Parameters) MultiLoadPublisher {
 	return &multiLoadPublisher{
-		inner: inner,
+		inner:  inner,
 		params: params,
 	}
 }
 
-func (p *multiLoadPublisher) Publish(docKeys []cid.ID, authorPub []byte, cb api.ClientBalancer) (
-	error) {
+func (p *multiLoadPublisher) Publish(docKeys []cid.ID, authorPub []byte, cb api.ClientBalancer) error {
 	docKeysChan := make(chan cid.ID, p.params.PutParallelism)
 	go loadChan(docKeys, docKeysChan)
 	wg := new(sync.WaitGroup)

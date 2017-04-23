@@ -1,6 +1,11 @@
 package publish
 
 import (
+	"math/rand"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -10,10 +15,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"math/rand"
-	"sync"
-	"testing"
-	"time"
 )
 
 func TestNewParameters_ok(t *testing.T) {
@@ -344,7 +345,7 @@ func (f *fixedSigner) Sign(m proto.Message) (string, error) {
 
 type memDocStorerLoader struct {
 	docs map[string]*api.Document
-	mu sync.Mutex
+	mu   sync.Mutex
 }
 
 func (m *memDocStorerLoader) Load(key id.ID) (*api.Document, error) {
@@ -381,7 +382,7 @@ func (p *fixedPublisher) Publish(doc *api.Document, authorPub []byte, lc api.Put
 
 type memPublisherAcquirer struct {
 	docs map[string]*api.Document
-	mu sync.Mutex
+	mu   sync.Mutex
 }
 
 func (p *memPublisherAcquirer) Publish(doc *api.Document, authorPub []byte, lc api.Putter) (

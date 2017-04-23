@@ -1,14 +1,15 @@
 package author
 
 import (
-	"go.uber.org/zap"
-	"github.com/drausin/libri/libri/common/ecid"
-	"github.com/golang/protobuf/proto"
-	"github.com/drausin/libri/libri/common/storage"
-	"github.com/drausin/libri/libri/author/keychain"
-	"path"
 	"os"
+	"path"
+
+	"github.com/drausin/libri/libri/author/keychain"
+	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/drausin/libri/libri/common/storage"
+	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 )
 
 // ErrKeychainExists indicates when a keychain file already exists.
@@ -80,7 +81,6 @@ func saveClientID(ns storage.NamespaceStorer, clientID ecid.ID) error {
 }
 
 type keychainLoader interface {
-
 }
 
 func loadKeychains(keychainDir, auth string) (keychain.Keychain, keychain.Keychain, error) {
@@ -133,4 +133,3 @@ func createKeychain(logger *zap.Logger, filepath, auth string, scryptN, scryptP 
 		zap.Int(LoggerKeychainNKeys, nInitialKeys))
 	return nil
 }
-

@@ -1,21 +1,22 @@
 package author
 
 import (
-	"testing"
-	"github.com/drausin/libri/libri/author/keychain"
-	"github.com/stretchr/testify/assert"
-	"github.com/drausin/libri/libri/author/io/enc"
-	"github.com/drausin/libri/libri/common/ecid"
-	"github.com/pkg/errors"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"math/rand"
+	"testing"
+
+	"github.com/drausin/libri/libri/author/io/enc"
+	"github.com/drausin/libri/libri/author/keychain"
+	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestEnvelopeKeySampler_Sample_ok(t *testing.T) {
 	authorKeys, selfReaderKeys := keychain.New(3), keychain.New(3)
 	s := &envelopeKeySamplerImpl{
-		authorKeys: authorKeys,
+		authorKeys:     authorKeys,
 		selfReaderKeys: selfReaderKeys,
 	}
 	authPubBytes, srPubBytes, encKeys1, err := s.sample()
@@ -37,12 +38,11 @@ func TestEnvelopeKeySampler_Sample_ok(t *testing.T) {
 	assert.Equal(t, encKeys1, encKeys2)
 }
 
-
 func TestEnvelopeKeySampler_Sample_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 
 	s1 := &envelopeKeySamplerImpl{
-		authorKeys: &fixedKeychain{sampleErr: errors.New("some Sample error")},
+		authorKeys:     &fixedKeychain{sampleErr: errors.New("some Sample error")},
 		selfReaderKeys: keychain.New(3),
 	}
 	aPB, srPB, eK, err := s1.sample()
@@ -52,7 +52,7 @@ func TestEnvelopeKeySampler_Sample_err(t *testing.T) {
 	assert.Nil(t, eK)
 
 	s2 := &envelopeKeySamplerImpl{
-		authorKeys: keychain.New(3),
+		authorKeys:     keychain.New(3),
 		selfReaderKeys: &fixedKeychain{sampleErr: errors.New("some Sample error")},
 	}
 	aPB, srPB, eK, err = s2.sample()
@@ -64,7 +64,7 @@ func TestEnvelopeKeySampler_Sample_err(t *testing.T) {
 	offCurvePriv, err := ecdsa.GenerateKey(elliptic.P256(), rng)
 	assert.Nil(t, err)
 	s3 := &envelopeKeySamplerImpl{
-		authorKeys: &fixedKeychain{sampleID: ecid.FromPrivateKey(offCurvePriv)},
+		authorKeys:     &fixedKeychain{sampleID: ecid.FromPrivateKey(offCurvePriv)},
 		selfReaderKeys: keychain.New(3),
 	}
 	aPB, srPB, eK, err = s3.sample()
@@ -75,7 +75,7 @@ func TestEnvelopeKeySampler_Sample_err(t *testing.T) {
 }
 
 type fixedKeychain struct {
-	sampleID ecid.ID
+	sampleID  ecid.ID
 	sampleErr error
 }
 

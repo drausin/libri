@@ -1,10 +1,10 @@
 package ship
 
 import (
-	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/author/io/publish"
 	"github.com/drausin/libri/libri/author/io/pack"
+	"github.com/drausin/libri/libri/author/io/publish"
+	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/api"
 )
 
 // Shipper publishes documents to libri.
@@ -16,8 +16,8 @@ type Shipper interface {
 }
 
 type shipper struct {
-	librarians api.ClientBalancer
-	publisher publish.Publisher
+	librarians  api.ClientBalancer
+	publisher   publish.Publisher
 	mlPublisher publish.MultiLoadPublisher
 }
 
@@ -27,8 +27,8 @@ func NewShipper(
 	publisher publish.Publisher,
 	mlPublisher publish.MultiLoadPublisher) Shipper {
 	return &shipper{
-		librarians: librarians,
-		publisher: publisher,
+		librarians:  librarians,
+		publisher:   publisher,
 		mlPublisher: mlPublisher,
 	}
 }
@@ -57,7 +57,7 @@ func (s *shipper) Ship(entry *api.Document, authorPub []byte, readerPub []byte) 
 		return nil, nil, err
 	}
 	envelope := pack.NewEnvelopeDoc(authorPub, readerPub, entryKey)
-	envelopeKey, err := s.publisher.Publish(envelope, authorPub, lc);
+	envelopeKey, err := s.publisher.Publish(envelope, authorPub, lc)
 	if err != nil {
 		return nil, nil, err
 	}

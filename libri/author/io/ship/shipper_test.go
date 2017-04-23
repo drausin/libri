@@ -1,17 +1,18 @@
 package ship
 
 import (
-	"testing"
-	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/drausin/libri/libri/common/id"
 	"math/rand"
-	"github.com/drausin/libri/libri/author/io/enc"
-	"github.com/stretchr/testify/assert"
-	"github.com/pkg/errors"
-	"github.com/drausin/libri/libri/author/io/publish"
 	"sync"
+	"testing"
+
+	"github.com/drausin/libri/libri/author/io/enc"
+	"github.com/drausin/libri/libri/author/io/publish"
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestShipper_Ship_ok(t *testing.T) {
@@ -132,7 +133,7 @@ func TestShipReceive(t *testing.T) {
 		docKeys := make([]id.ID, nDocs)
 		for i := uint32(0); i < nDocs; i++ {
 			entry := api.NewTestSinglePageEntry(rng)
-			if i % 2 == 1 {
+			if i%2 == 1 {
 				nPages := i * 2
 				pageKeys := make([][]byte, nPages)
 				for j := uint32(0); j < nPages; j++ {
@@ -250,7 +251,7 @@ func (f *fixedClientBalancer) CloseAll() error {
 
 type memDocStorerLoader struct {
 	docs map[string]*api.Document
-	mu sync.Mutex
+	mu   sync.Mutex
 }
 
 func (m *memDocStorerLoader) Load(key id.ID) (*api.Document, error) {
@@ -269,7 +270,7 @@ func (m *memDocStorerLoader) Store(key id.ID, value *api.Document) error {
 
 type memPublisherAcquirer struct {
 	docs map[string]*api.Document
-	mu sync.Mutex
+	mu   sync.Mutex
 }
 
 func (p *memPublisherAcquirer) Publish(doc *api.Document, authorPub []byte, lc api.Putter) (

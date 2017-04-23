@@ -1,16 +1,17 @@
 package author
 
 import (
-	"testing"
-	clogging "github.com/drausin/libri/libri/common/logging"
-	"github.com/drausin/libri/libri/common/ecid"
-	"github.com/golang/protobuf/proto"
-	"github.com/stretchr/testify/assert"
-	"math/rand"
 	"errors"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path"
+	"testing"
+
+	"github.com/drausin/libri/libri/common/ecid"
+	clogging "github.com/drausin/libri/libri/common/logging"
+	"github.com/golang/protobuf/proto"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -169,7 +170,7 @@ func rmDir(dir string) {
 type fixedStorerLoader struct {
 	loadBytes []byte
 	loadErr   error
-	storeErr error
+	storeErr  error
 }
 
 func (l *fixedStorerLoader) Load(key []byte) ([]byte, error) {
@@ -179,4 +180,3 @@ func (l *fixedStorerLoader) Load(key []byte) ([]byte, error) {
 func (l *fixedStorerLoader) Store(key []byte, value []byte) error {
 	return l.storeErr
 }
-

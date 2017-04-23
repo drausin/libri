@@ -1,17 +1,18 @@
 package publish
 
 import (
-	"testing"
-	"github.com/drausin/libri/libri/librarian/api"
-	"google.golang.org/grpc"
-	"golang.org/x/net/context"
+	"errors"
 	"math/rand"
+	"sync"
+	"testing"
+
 	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/stretchr/testify/assert"
-	"errors"
-	"github.com/drausin/libri/libri/common/id"
-	"sync"
+	"golang.org/x/net/context"
+	"google.golang.org/grpc"
 )
 
 func TestAcquirer_Acquire_ok(t *testing.T) {
@@ -49,13 +50,12 @@ func TestAcquirer_Acquire_err(t *testing.T) {
 	// check that error from client.NewSignedTimeoutContext error bubbles up
 	signer1 := &fixedSigner{ // causes client.NewSignedTimeoutContext to error
 		signature: "",
-		err: errors.New("some Sign error"),
+		err:       errors.New("some Sign error"),
 	}
 	acq1 := NewAcquirer(clientID, signer1, params)
 	actualDoc, err := acq1.Acquire(docKey, authorPub, lc)
 	assert.NotNil(t, err)
 	assert.Nil(t, actualDoc)
-
 
 	lc2 := &fixedGetter{
 		err: errors.New("some Get error"),
@@ -175,9 +175,9 @@ func TestMultiStoreAcquirer_Acquire_err(t *testing.T) {
 }
 
 type fixedGetter struct {
-	request *api.GetRequest
+	request       *api.GetRequest
 	responseValue *api.Document
-	err error
+	err           error
 }
 
 func (f *fixedGetter) Get(ctx context.Context, in *api.GetRequest, opts ...grpc.CallOption) (
@@ -218,8 +218,8 @@ func (f *fixedAcquirer) Acquire(docKey id.ID, authorPub []byte, lc api.Getter) (
 }
 
 type fixedStorer struct {
-	err error
-	storedKey id.ID
+	err         error
+	storedKey   id.ID
 	storedValue *api.Document
 }
 
@@ -242,5 +242,3 @@ func (f *fixedSingleStoreAcquirer) Acquire(docKey id.ID, authorPub []byte, lc ap
 	}
 	return f.err
 }
-
-

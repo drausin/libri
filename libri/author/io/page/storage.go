@@ -77,7 +77,7 @@ func (s *storerLoader) Load(keys []cid.ID, pages chan *api.Page, abort chan stru
 			return ErrUnexpectedDocContent
 		}
 		select {
-		case <- abort:
+		case <-abort:
 			return nil
 		default:
 			pages <- docPage.Page

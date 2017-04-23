@@ -1,17 +1,18 @@
 package print
 
 import (
-	"github.com/drausin/libri/libri/author/io/comp"
-	"github.com/drausin/libri/libri/author/io/page"
-	"github.com/drausin/libri/libri/author/io/enc"
 	"bytes"
-	"testing"
-	"math/rand"
-	"github.com/stretchr/testify/assert"
-	"github.com/drausin/libri/libri/librarian/api"
-	"io"
-	"github.com/drausin/libri/libri/common/id"
 	"errors"
+	"io"
+	"math/rand"
+	"testing"
+
+	"github.com/drausin/libri/libri/author/io/comp"
+	"github.com/drausin/libri/libri/author/io/enc"
+	"github.com/drausin/libri/libri/author/io/page"
+	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestScanner_Scan_ok(t *testing.T) {
@@ -35,8 +36,8 @@ func TestScanner_Scan_ok(t *testing.T) {
 		},
 	}
 	unpaginator := &fixedUnpaginator{
-		writeN:      int64(writeCiphertextN),
-		writeErr:    nil,
+		writeN:   int64(writeCiphertextN),
+		writeErr: nil,
 		ciphertextMAC: &fixedMAC{
 			messageSize: writeCiphertextN,
 			sum:         ciphertextSum,
@@ -47,7 +48,7 @@ func TestScanner_Scan_ok(t *testing.T) {
 	scanner1.(*scanner).init = &fixedScanInitializer{
 		initDecompressor: decompressor,
 		initUnpaginator:  unpaginator,
-		initErr:        nil,
+		initErr:          nil,
 	}
 	entryMetadata, err := api.NewEntryMetadata(
 		"application/x-pdf",
@@ -95,7 +96,7 @@ func TestScanner_Scan_err(t *testing.T) {
 	scanner2.(*scanner).init = &fixedScanInitializer{
 		initDecompressor: nil,
 		initUnpaginator:  &fixedUnpaginator{},
-		initErr:        errors.New("some Initialize error"),
+		initErr:          errors.New("some Initialize error"),
 	}
 	err = scanner2.Scan(content, pageKeys, keys, entryMetadata)
 	assert.NotNil(t, err)
@@ -108,7 +109,7 @@ func TestScanner_Scan_err(t *testing.T) {
 	scanner3.(*scanner).init = &fixedScanInitializer{
 		initDecompressor: nil,
 		initUnpaginator:  &fixedUnpaginator{},
-		initErr:        nil,
+		initErr:          nil,
 	}
 	err = scanner3.Scan(content, pageKeys, keys, entryMetadata)
 	assert.NotNil(t, err)
@@ -122,7 +123,7 @@ func TestScanner_Scan_err(t *testing.T) {
 	scanner4.(*scanner).init = &fixedScanInitializer{
 		initDecompressor: nil,
 		initUnpaginator:  unpaginator4,
-		initErr:        nil,
+		initErr:          nil,
 	}
 	err = scanner4.Scan(content, pageKeys, keys, entryMetadata)
 	assert.NotNil(t, err)
@@ -144,7 +145,7 @@ func TestScanner_Scan_err(t *testing.T) {
 	scanner5.(*scanner).init = &fixedScanInitializer{
 		initDecompressor: decompressor,
 		initUnpaginator:  unpaginator,
-		initErr:        nil,
+		initErr:          nil,
 	}
 	err = scanner5.Scan(content, pageKeys, keys, entryMetadata)
 	assert.NotNil(t, err)
@@ -165,7 +166,6 @@ func TestScanInitializerImpl_Initialize_ok(t *testing.T) {
 	assert.NotNil(t, unpaginator)
 }
 
-
 func TestScanInitializerImpl_Initialize_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	params, err := NewParameters(comp.MinBufferSize, page.MinSize, DefaultParallelism)
@@ -175,7 +175,7 @@ func TestScanInitializerImpl_Initialize_err(t *testing.T) {
 	pages := make(chan *api.Page)
 
 	scanInit1 := &scanInitializerImpl{
-		params:    params,
+		params: params,
 	}
 
 	// check that bad media type triggers error
@@ -201,7 +201,7 @@ func TestScanInitializerImpl_Initialize_err(t *testing.T) {
 	keys3, _, _ := enc.NewPseudoRandomKeys(rng)
 	keys3.AESKey = []byte{} // will trigger error when creating decrypter
 	scanInit3 := &scanInitializerImpl{
-		params:    params,
+		params: params,
 	}
 
 	// check that error creating new decrypter triggers error
@@ -213,7 +213,7 @@ func TestScanInitializerImpl_Initialize_err(t *testing.T) {
 	keys4, _, _ := enc.NewPseudoRandomKeys(rng)
 	keys4.HMACKey = []byte{} // will trigger error when creating unpaginator
 	scanInit4 := &scanInitializerImpl{
-		params:    params,
+		params: params,
 	}
 
 	// check that error creating new decrypter triggers error
@@ -225,7 +225,7 @@ func TestScanInitializerImpl_Initialize_err(t *testing.T) {
 
 type fixedLoader struct {
 	loadErr error
-	pages map[string]*api.Page
+	pages   map[string]*api.Page
 }
 
 func (f *fixedLoader) Load(keys []id.ID, pages chan *api.Page, abort chan struct{}) error {
@@ -235,7 +235,7 @@ func (f *fixedLoader) Load(keys []id.ID, pages chan *api.Page, abort chan struct
 	for _, key := range keys {
 		p, _ := f.pages[key.String()]
 		select {
-		case <- pages:
+		case <-pages:
 			return nil
 		default:
 			pages <- p
@@ -245,8 +245,8 @@ func (f *fixedLoader) Load(keys []id.ID, pages chan *api.Page, abort chan struct
 }
 
 type fixedUnpaginator struct {
-	writeN         int64
-	writeErr       error
+	writeN        int64
+	writeErr      error
 	pages         chan *api.Page
 	ciphertextMAC enc.MAC
 }
@@ -286,7 +286,7 @@ func (f *fixedDecompressor) Close() error {
 type fixedScanInitializer struct {
 	initDecompressor comp.Decompressor
 	initUnpaginator  *fixedUnpaginator
-	initErr        error
+	initErr          error
 }
 
 func (f *fixedScanInitializer) Initialize(

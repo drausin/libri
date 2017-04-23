@@ -1,13 +1,14 @@
 package enc
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
 	"hash"
 	"io"
+
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/pkg/errors"
-	"bytes"
 )
 
 // ErrUnexpectedCiphertextSize indicates when the ciphertext size does not match the expected value.

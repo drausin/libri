@@ -7,6 +7,7 @@ import (
 	"io"
 	"math/big"
 	mrand "math/rand"
+
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	"github.com/pkg/errors"

@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-
 func TestLoadOrCreatePeerID_ok(t *testing.T) {
 
 	// create new peer ID
@@ -119,7 +118,7 @@ func TestLoadOrCreateRoutingTable_selfIDErr(t *testing.T) {
 type fixedStorerLoader struct {
 	loadBytes []byte
 	loadErr   error
-	storeErr error
+	storeErr  error
 }
 
 func (l *fixedStorerLoader) Load(key []byte) ([]byte, error) {

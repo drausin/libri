@@ -7,8 +7,8 @@ import (
 	"time"
 
 	cid "github.com/drausin/libri/libri/common/id"
-	"github.com/stretchr/testify/assert"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNew(t *testing.T) {

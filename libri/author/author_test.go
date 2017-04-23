@@ -1,7 +1,14 @@
 package author
 
 import (
+	"bytes"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"math/rand"
+	"sync"
+	"testing"
+
 	"github.com/drausin/libri/libri/author/io/common"
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/page"
@@ -12,12 +19,6 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"io"
-	"io/ioutil"
-	"math/rand"
-	"sync"
-	"testing"
-	"bytes"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -96,7 +97,7 @@ func TestAuthor_Download_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	doc, docKey := api.NewTestDocument(rng)
 	a := &Author{
-		logger: clogging.NewDevInfoLogger(),
+		logger:        clogging.NewDevInfoLogger(),
 		receiver:      &fixedReceiver{entry: doc},
 		entryUnpacker: &fixedUnpacker{},
 	}
@@ -110,7 +111,7 @@ func TestAuthor_Download_err(t *testing.T) {
 
 	// check Receive error bubbles up
 	a1 := &Author{
-		logger: clogging.NewDevInfoLogger(),
+		logger:        clogging.NewDevInfoLogger(),
 		receiver:      &fixedReceiver{err: errors.New("some Receive error")},
 		entryUnpacker: &fixedUnpacker{},
 	}
@@ -119,7 +120,7 @@ func TestAuthor_Download_err(t *testing.T) {
 
 	// check Unpack error bubbles up
 	a2 := &Author{
-		logger: clogging.NewDevInfoLogger(),
+		logger:        clogging.NewDevInfoLogger(),
 		receiver:      &fixedReceiver{entry: doc},
 		entryUnpacker: &fixedUnpacker{err: errors.New("some Unpack error")},
 	}

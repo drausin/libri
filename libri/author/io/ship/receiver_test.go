@@ -1,17 +1,18 @@
 package ship
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"math/rand"
+	"testing"
+
 	"github.com/drausin/libri/libri/author/io/pack"
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/stretchr/testify/assert"
-	"math/rand"
-	"testing"
 	"github.com/pkg/errors"
-	"crypto/ecdsa"
-	"crypto/elliptic"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestReceiver_Receive_ok(t *testing.T) {
@@ -117,7 +118,7 @@ func TestReceiver_Receive_err(t *testing.T) {
 
 	// check SeparateEnvelopeDoc error bubbles up
 	acq3 := &fixedAcquirer{docs: make(map[string]*api.Document)}
-	acq3.docs[envelopeKey.String()] = entry  // wrong doc type
+	acq3.docs[envelopeKey.String()] = entry // wrong doc type
 	r3 := NewReceiver(cb, readerKeys, acq3, msAcq, docS)
 	receivedDoc, receivedKeys, err = r3.Receive(envelopeKey)
 	assert.NotNil(t, err)
@@ -149,7 +150,7 @@ func TestReceiver_Receive_err(t *testing.T) {
 	// check getPages error bubbles up
 	acq6 := &fixedAcquirer{docs: make(map[string]*api.Document)}
 	acq6.docs[envelopeKey.String()] = envelope
-	acq6.docs[entryKey.String()] = envelope  // wrong doc type
+	acq6.docs[entryKey.String()] = envelope // wrong doc type
 	r6 := NewReceiver(cb, readerKeys, acq6, msAcq, docS)
 	receivedDoc, receivedKeys, err = r6.Receive(envelopeKey)
 	assert.NotNil(t, err)
@@ -172,9 +173,9 @@ func TestReceiver_createEncryptionKeys_err(t *testing.T) {
 	assert.Nil(t, keys)
 
 	// check ecid.FromPublicKeyButes error bubbles up
-	readerKeys2 := &fixedKeychain{in: true}  // allows us to not err on readerKeys.Get()
+	readerKeys2 := &fixedKeychain{in: true} // allows us to not err on readerKeys.Get()
 	r2 := NewReceiver(cb, readerKeys2, acq, msAcq, docS).(*receiver)
-	keys, err = r2.createEncryptionKeys(api.RandBytes(rng, 16), nil)  // bad authorPubBytes
+	keys, err = r2.createEncryptionKeys(api.RandBytes(rng, 16), nil) // bad authorPubBytes
 	assert.Equal(t, ecid.ErrKeyPointOffCurve, err)
 	assert.Nil(t, keys)
 
@@ -228,7 +229,7 @@ func (f *fixedStorer) Store(key id.ID, value *api.Document) error {
 
 type fixedKeychain struct {
 	getKey ecid.ID
-	in bool
+	in     bool
 }
 
 func (f *fixedKeychain) Sample() (ecid.ID, error) {

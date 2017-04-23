@@ -8,10 +8,10 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/drausin/libri/libri/author/io/common"
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"github.com/drausin/libri/libri/author/io/common"
 )
 
 func TestGetCompressionCodec(t *testing.T) {

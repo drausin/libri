@@ -1,13 +1,14 @@
 package publish
 
 import (
-	"github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/drausin/libri/libri/common/ecid"
-	"github.com/drausin/libri/libri/librarian/client"
 	"bytes"
-	"github.com/drausin/libri/libri/common/storage"
 	"sync"
+
+	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/storage"
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/client"
 )
 
 // Acquirer Gets documents from the libri network.
@@ -26,8 +27,8 @@ type acquirer struct {
 func NewAcquirer(clientID ecid.ID, signer client.Signer, params *Parameters) Acquirer {
 	return &acquirer{
 		clientID: clientID,
-		signer: signer,
-		params: params,
+		signer:   signer,
+		params:   params,
 	}
 }
 
@@ -63,7 +64,7 @@ type SingleStoreAcquirer interface {
 
 type singleStoreAcquirer struct {
 	inner Acquirer
-	docS storage.DocumentStorer
+	docS  storage.DocumentStorer
 }
 
 // NewSingleStoreAcquirer creates a new SingleStoreAcquirer from the inner Acquirer and the docS
@@ -71,7 +72,7 @@ type singleStoreAcquirer struct {
 func NewSingleStoreAcquirer(inner Acquirer, docS storage.DocumentStorer) SingleStoreAcquirer {
 	return &singleStoreAcquirer{
 		inner: inner,
-		docS: docS,
+		docS:  docS,
 	}
 }
 
@@ -94,7 +95,7 @@ type MultiStoreAcquirer interface {
 }
 
 type multiStoreAcquirer struct {
-	inner SingleStoreAcquirer
+	inner  SingleStoreAcquirer
 	params *Parameters
 }
 
@@ -102,13 +103,12 @@ type multiStoreAcquirer struct {
 // params.
 func NewMultiStoreAcquirer(inner SingleStoreAcquirer, params *Parameters) MultiStoreAcquirer {
 	return &multiStoreAcquirer{
-		inner: inner,
+		inner:  inner,
 		params: params,
 	}
 }
 
-func (a *multiStoreAcquirer) Acquire(docKeys []id.ID, authorPub []byte, cb api.ClientBalancer) (
-	error) {
+func (a *multiStoreAcquirer) Acquire(docKeys []id.ID, authorPub []byte, cb api.ClientBalancer) error {
 	docKeysChan := make(chan id.ID, a.params.PutParallelism)
 	go loadChan(docKeys, docKeysChan)
 	wg := new(sync.WaitGroup)

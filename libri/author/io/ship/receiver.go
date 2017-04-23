@@ -1,14 +1,14 @@
 package ship
 
 import (
-	"github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/author/io/enc"
-	"github.com/drausin/libri/libri/author/io/publish"
 	"github.com/drausin/libri/libri/author/io/pack"
+	"github.com/drausin/libri/libri/author/io/publish"
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
+	"github.com/drausin/libri/libri/librarian/api"
 )
 
 // Receiver downloads the envelope, entry, and pages from the libri network.
@@ -22,9 +22,9 @@ type Receiver interface {
 type receiver struct {
 	librarians api.ClientBalancer
 	readerKeys keychain.Keychain
-	acquirer publish.Acquirer
+	acquirer   publish.Acquirer
 	msAcquirer publish.MultiStoreAcquirer
-	docS storage.DocumentStorer
+	docS       storage.DocumentStorer
 }
 
 // NewReceiver creates a new Receiver from the librarian balancer, keychain of reader keys,
@@ -39,9 +39,9 @@ func NewReceiver(
 	return &receiver{
 		librarians: librarians,
 		readerKeys: readerKeys,
-		acquirer: acquirer,
+		acquirer:   acquirer,
 		msAcquirer: msAcquirer,
-		docS: docS,
+		docS:       docS,
 	}
 }
 

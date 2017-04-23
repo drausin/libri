@@ -3,6 +3,10 @@ package pack
 import (
 	"bytes"
 	"errors"
+	"io"
+	"math/rand"
+	"testing"
+
 	"github.com/drausin/libri/libri/author/io/common"
 	"github.com/drausin/libri/libri/author/io/comp"
 	"github.com/drausin/libri/libri/author/io/enc"
@@ -11,9 +15,6 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
-	"io"
-	"math/rand"
-	"testing"
 )
 
 func TestEntryPacker_Pack_ok(t *testing.T) {

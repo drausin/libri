@@ -2,14 +2,15 @@ package pack
 
 import (
 	"errors"
+	"io"
+	"time"
+
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/page"
 	"github.com/drausin/libri/libri/author/io/print"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
-	"io"
-	"time"
 )
 
 // EntryPacker creates entry documents from raw content.

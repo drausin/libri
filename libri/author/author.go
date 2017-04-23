@@ -3,6 +3,8 @@ package author
 import (
 	"io"
 
+	"fmt"
+
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/pack"
 	"github.com/drausin/libri/libri/author/io/page"
@@ -16,7 +18,6 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"go.uber.org/zap"
-	"fmt"
 )
 
 const (

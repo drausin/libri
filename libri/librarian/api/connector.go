@@ -25,20 +25,20 @@ type connector struct {
 	publicAddress *net.TCPAddr
 
 	// Librarian client to peer
-	client        LibrarianClient
+	client LibrarianClient
 
 	// client connection to the peer
-	clientConn    *grpc.ClientConn
+	clientConn *grpc.ClientConn
 
 	// dials a particular address
-	dialer        dialer
+	dialer dialer
 }
 
 // NewConnector creates a Connector instance from an address.
 func NewConnector(address *net.TCPAddr) Connector {
 	return &connector{
 		publicAddress: address,
-		dialer: insecureDialer{},
+		dialer:        insecureDialer{},
 	}
 }
 
@@ -69,12 +69,11 @@ func (c *connector) Address() *net.TCPAddr {
 	return c.publicAddress
 }
 
-
 type dialer interface {
 	Dial(addr *net.TCPAddr) (*grpc.ClientConn, error)
 }
 
-type insecureDialer struct {}
+type insecureDialer struct{}
 
 func (insecureDialer) Dial(addr *net.TCPAddr) (*grpc.ClientConn, error) {
 	return grpc.Dial(addr.String(), grpc.WithInsecure())

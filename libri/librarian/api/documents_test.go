@@ -5,8 +5,8 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetKey(t *testing.T) {

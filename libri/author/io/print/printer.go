@@ -65,9 +65,9 @@ type Printer interface {
 }
 
 type printer struct {
-	params    *Parameters
-	pageS     page.Storer
-	init      printInitializer
+	params *Parameters
+	pageS  page.Storer
+	init   printInitializer
 }
 
 // NewPrinter returns a new Printer instance.
@@ -76,10 +76,10 @@ func NewPrinter(
 	pageS page.Storer,
 ) Printer {
 	return &printer{
-		params:    params,
-		pageS:     pageS,
+		params: params,
+		pageS:  pageS,
 		init: &printInitializerImpl{
-			params:    params,
+			params: params,
 		},
 	}
 }
@@ -132,7 +132,7 @@ type printInitializer interface {
 }
 
 type printInitializerImpl struct {
-	params    *Parameters
+	params *Parameters
 }
 
 func (pi *printInitializerImpl) Initialize(

@@ -2,17 +2,16 @@ package author
 
 import (
 	"github.com/drausin/libri/libri/author/io/enc"
-	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/author/keychain"
+	"github.com/drausin/libri/libri/common/ecid"
 )
-
 
 type envelopeKeySampler interface {
 	sample() ([]byte, []byte, *enc.Keys, error)
 }
 
 type envelopeKeySamplerImpl struct {
-	authorKeys keychain.Keychain
+	authorKeys     keychain.Keychain
 	selfReaderKeys keychain.Keychain
 }
 

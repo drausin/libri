@@ -3,8 +3,8 @@ package api
 import (
 	"math/rand"
 
-	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/ecid"
+	cid "github.com/drausin/libri/libri/common/id"
 )
 
 // NewTestDocument generates a dummy Entry document for use in testing.

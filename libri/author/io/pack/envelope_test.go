@@ -1,9 +1,10 @@
 package pack
 
 import (
-	"testing"
-	"github.com/drausin/libri/libri/author/io/enc"
 	"math/rand"
+	"testing"
+
+	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"

@@ -20,7 +20,7 @@ const (
 	// MaxEntriesValueLength is the maximum length of all entry values. We add a little buffer
 	// on top of the value to account for Entry values other than the actual ciphertext (which
 	// we want to be <= 2MB).
-	MaxEntriesValueLength = 2 * 1024 * 1024 + 1024
+	MaxEntriesValueLength = 2*1024*1024 + 1024
 )
 
 var (

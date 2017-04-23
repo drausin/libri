@@ -6,6 +6,9 @@ import (
 	"math/rand"
 	"testing"
 
+	"fmt"
+
+	"github.com/drausin/libri/libri/author/io/common"
 	"github.com/drausin/libri/libri/author/io/comp"
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/page"
@@ -13,8 +16,6 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"github.com/drausin/libri/libri/author/io/common"
-	"fmt"
 )
 
 func TestNewDefaultParameters(t *testing.T) {
@@ -203,7 +204,7 @@ func TestPrintInitializerImpl_Initialize_ok(t *testing.T) {
 	pages := make(chan *api.Page)
 
 	printInit := &printInitializerImpl{
-		params:    params,
+		params: params,
 	}
 	compressor, paginator, err := printInit.Initialize(content, mediaType, keys, authorPub,
 		pages)
@@ -221,7 +222,7 @@ func TestPrintInitializerImpl_Initialize_err(t *testing.T) {
 	pages := make(chan *api.Page)
 
 	printInit1 := &printInitializerImpl{
-		params:    params,
+		params: params,
 	}
 
 	// check that bad media type triggers error
@@ -368,7 +369,6 @@ func (m *memDocumentStorerLoader) Load(key cid.ID) (*api.Document, error) {
 	return m.stored[key.String()], nil
 }
 
-
 func randPages(t *testing.T, rng *rand.Rand, n int) ([]cid.ID, []*api.Page) {
 	pages := make([]*api.Page, n)
 	pageKeys := make([]cid.ID, n)
@@ -384,8 +384,8 @@ func randPages(t *testing.T, rng *rand.Rand, n int) ([]cid.ID, []*api.Page) {
 type printTestCase struct {
 	pageSize         uint32
 	uncompressedSize int
-	mediaType            string
-	parallelism uint32
+	mediaType        string
+	parallelism      uint32
 }
 
 func (p printTestCase) String() string {
@@ -404,8 +404,8 @@ func caseCrossProduct(
 					cases = append(cases, &printTestCase{
 						pageSize:         pageSize,
 						uncompressedSize: uncompressedSize,
-						mediaType:            mediaType,
-						parallelism: parallelism,
+						mediaType:        mediaType,
+						parallelism:      parallelism,
 					})
 				}
 			}
@@ -413,4 +413,3 @@ func caseCrossProduct(
 	}
 	return cases
 }
-
