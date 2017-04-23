@@ -93,29 +93,37 @@ func TestAuthor_Upload_err(t *testing.T) {
 }
 
 func TestAuthor_Download_ok(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	doc, docKey := api.NewTestDocument(rng)
 	a := &Author{
-		receiver:      &fixedReceiver{},
+		logger: clogging.NewDevInfoLogger(),
+		receiver:      &fixedReceiver{entry: doc},
 		entryUnpacker: &fixedUnpacker{},
 	}
-	err := a.Download(nil, nil) // since everything is mocked, args don't matter
+	err := a.Download(nil, docKey)
 	assert.Nil(t, err)
 }
 
 func TestAuthor_Download_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	doc, docKey := api.NewTestDocument(rng)
+
 	// check Receive error bubbles up
 	a1 := &Author{
+		logger: clogging.NewDevInfoLogger(),
 		receiver:      &fixedReceiver{err: errors.New("some Receive error")},
 		entryUnpacker: &fixedUnpacker{},
 	}
-	err := a1.Download(nil, nil) // since everything is mocked, args don't matter
+	err := a1.Download(nil, docKey)
 	assert.NotNil(t, err)
 
 	// check Unpack error bubbles up
 	a2 := &Author{
-		receiver:      &fixedReceiver{},
+		logger: clogging.NewDevInfoLogger(),
+		receiver:      &fixedReceiver{entry: doc},
 		entryUnpacker: &fixedUnpacker{err: errors.New("some Unpack error")},
 	}
-	err = a2.Download(nil, nil) // since everything is mocked, args don't matter
+	err = a2.Download(nil, docKey)
 	assert.NotNil(t, err)
 }
 
