@@ -68,7 +68,7 @@ func TestEntryPacker_Pack_err(t *testing.T) {
 
 	errDocSL := &fixedDocStorerLoader{
 		stored:  make(map[string]*api.Document),
-		loadErr: errorsNew("some Load error"),
+		loadErr: errors.New("some Load error"),
 	}
 	p2 := NewEntryPacker(params, enc.NewMetadataEncrypterDecrypter(), errDocSL)
 
@@ -115,7 +115,7 @@ func TestEntryUnpacker_Unpack_err(t *testing.T) {
 	// check decryption error bubbles up
 	u2 := NewEntryUnpacker(
 		params,
-		&fixedMetadataDecrypter{err: errorsNew("some Decrypt error")},
+		&fixedMetadataDecrypter{err: errors.New("some Decrypt error")},
 		docSL,
 	)
 	err = u2.Unpack(content, doc, keys)
@@ -124,7 +124,7 @@ func TestEntryUnpacker_Unpack_err(t *testing.T) {
 	// check scanner error bubbles up
 	u3 := NewEntryUnpacker(params, &fixedMetadataDecrypter{}, docSL)
 	u3.(*entryUnpacker).scanner = &fixedScanner{
-		err: errorsNew("some Scan error"),
+		err: errors.New("some Scan error"),
 	}
 	err = u3.Unpack(content, doc, keys)
 	assert.NotNil(t, err)

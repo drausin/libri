@@ -9,7 +9,7 @@ import (
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/peer"
-	"errors"
+	"errors."
 	"github.com/stretchr/testify/assert"
 )
 
@@ -89,7 +89,7 @@ func TestSearch_Errored(t *testing.T) {
 
 	// errored state b/c of a fatal error
 	search3 := NewSearch(selfID, target, NewDefaultParameters())
-	search3.Result.FatalErr = errorsNew("test fatal error")
+	search3.Result.FatalErr = errors.New("test fatal error")
 	assert.True(t, search3.Errored())
 }
 

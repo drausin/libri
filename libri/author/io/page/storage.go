@@ -4,17 +4,17 @@ import (
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
-	"errors"
+	"errors."
 )
 
 var (
 
 	// ErrUnexpectedDocContent indicates that a document is not of the expected content type
 	// (e.g., an Entry when expecing a Page).
-	ErrUnexpectedDocContent = errorsNew("unexpected document content")
+	ErrUnexpectedDocContent = errors.New("unexpected document content")
 
 	// ErrMissingPage indicates when a page was expected to be stored but was not found.
-	ErrMissingPage = errorsNew("missing page")
+	ErrMissingPage = errors.New("missing page")
 )
 
 // Storer stores pages to an inner storage.DocumentStorer.

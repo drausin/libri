@@ -14,7 +14,7 @@ import (
 	"github.com/drausin/libri/libri/author/io/page"
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
-	"errors"
+	"errors."
 	"github.com/stretchr/testify/assert"
 )
 
@@ -92,7 +92,7 @@ func TestPrinter_Print_err(t *testing.T) {
 	printer1.(*printer).init = &fixedPrintInitializer{
 		initCompressor: nil,
 		initPaginator:  &fixedPaginator{},
-		initErr:        errorsNew("some Initialize error"),
+		initErr:        errors.New("some Initialize error"),
 	}
 
 	// check that init error bubbles up
@@ -102,7 +102,7 @@ func TestPrinter_Print_err(t *testing.T) {
 	assert.Nil(t, entryMetadata)
 
 	storer2 := &fixedStorer{
-		storeErr: errorsNew("some Store error"),
+		storeErr: errors.New("some Store error"),
 	}
 	printer2 := NewPrinter(params, storer2)
 	printer2.(*printer).init = &fixedPrintInitializer{
@@ -119,7 +119,7 @@ func TestPrinter_Print_err(t *testing.T) {
 
 	paginator3 := &fixedPaginator{
 		readN:   0,
-		readErr: errorsNew("some ReadFrom error"),
+		readErr: errors.New("some ReadFrom error"),
 	}
 
 	printer3 := NewPrinter(params, &fixedStorer{})

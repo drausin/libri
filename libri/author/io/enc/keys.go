@@ -8,19 +8,19 @@ import (
 
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/api"
-	"errors"
+	"errors."
 	"golang.org/x/crypto/hkdf"
 )
 
 // ErrAuthorOffCurve indicates that an author ECDSA private key is is not on the expected curve.
-var ErrAuthorOffCurve = errorsNew("author public key point not on expected elliptic curve")
+var ErrAuthorOffCurve = errors.New("author public key point not on expected elliptic curve")
 
 // ErrReaderOffCurve indicates that a reader ECDSA public key is is not on the expected curve.
-var ErrReaderOffCurve = errorsNew("reader public key point not on expected elliptic curve")
+var ErrReaderOffCurve = errors.New("reader public key point not on expected elliptic curve")
 
 // ErrIncompleteKeyDefinition indicates that the key definition function was unable to generate
 // the required number of bytes for the encryption keys.
-var ErrIncompleteKeyDefinition = errorsNew("incomplete key definition")
+var ErrIncompleteKeyDefinition = errors.New("incomplete key definition")
 
 // Keys are used to encrypt an Entry and its Pages.
 type Keys struct {

@@ -11,7 +11,7 @@ import (
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
-	"errors"
+	"errors."
 	"github.com/stretchr/testify/assert"
 )
 
@@ -67,7 +67,7 @@ func TestShipper_Ship_err(t *testing.T) {
 	s := NewShipper(
 		&fixedClientBalancer{},
 		&fixedPublisher{},
-		&fixedMultiLoadPublisher{errorsNew("some Publish error")},
+		&fixedMultiLoadPublisher{errors.New("some Publish error")},
 	)
 
 	// check page publish error bubbles up
@@ -77,7 +77,7 @@ func TestShipper_Ship_err(t *testing.T) {
 	assert.Nil(t, entryKey)
 
 	s = NewShipper(
-		&fixedClientBalancer{errorsNew("some Next error")},
+		&fixedClientBalancer{errors.New("some Next error")},
 		&fixedPublisher{},
 		&fixedMultiLoadPublisher{},
 	)
@@ -90,7 +90,7 @@ func TestShipper_Ship_err(t *testing.T) {
 
 	s = NewShipper(
 		&fixedClientBalancer{},
-		&fixedPublisher{[]error{errorsNew("some Publish error")}},
+		&fixedPublisher{[]error{errors.New("some Publish error")}},
 		&fixedMultiLoadPublisher{},
 	)
 
@@ -102,7 +102,7 @@ func TestShipper_Ship_err(t *testing.T) {
 
 	s = NewShipper(
 		&fixedClientBalancer{},
-		&fixedPublisher{[]error{nil, errorsNew("some Publish error")}},
+		&fixedPublisher{[]error{nil, errors.New("some Publish error")}},
 		&fixedMultiLoadPublisher{},
 	)
 

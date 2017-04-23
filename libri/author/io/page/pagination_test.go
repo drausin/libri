@@ -42,13 +42,13 @@ func TestNewPaginator_err(t *testing.T) {
 type errReader struct{}
 
 func (errReader) Read(p []byte) (int, error) {
-	return 0, errorsNew("some read error")
+	return 0, errors.New("some read error")
 }
 
 type errEncrypter struct{}
 
 func (errEncrypter) Encrypt(plaintext []byte, pageIndex uint32) ([]byte, error) {
-	return nil, errorsNew("some encrypt error")
+	return nil, errors.New("some encrypt error")
 }
 
 func TestPaginator_ReadFrom_err(t *testing.T) {
@@ -137,7 +137,7 @@ func TestUnpaginator_WriteTo_err(t *testing.T) {
 	assert.Zero(t, n)
 
 	decrypter3 := &fixedDecrypter{
-		err: errorsNew("some Decrypt error"),
+		err: errors.New("some Decrypt error"),
 	}
 	ciphertext3 := []byte("some secret stuff")
 	ciphertextMac3 := enc.HMAC(ciphertext3, keys.HMACKey)
@@ -165,7 +165,7 @@ func TestUnpaginator_WriteTo_err(t *testing.T) {
 
 	// check that decompressor write error bubbles up
 	n, err = u4.WriteTo(&errCloseWriter{
-		writeErr: errorsNew("some write error"),
+		writeErr: errors.New("some write error"),
 	})
 	assert.NotNil(t, err)
 	assert.Zero(t, n)
@@ -182,7 +182,7 @@ func TestUnpaginator_WriteTo_err(t *testing.T) {
 
 	// check that decompressor close error bubbles up
 	n, err = u5.WriteTo(&errCloseWriter{
-		closeErr: errorsNew("some close error"),
+		closeErr: errors.New("some close error"),
 	})
 	assert.NotNil(t, err)
 	assert.Zero(t, n)

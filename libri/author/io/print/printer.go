@@ -17,7 +17,7 @@ const (
 )
 
 // ErrZeroParallelism indicates when Print and Scan parallelism is improperly set to zero.
-var ErrZeroParallelism = errorsNew("zero value parallelism")
+var ErrZeroParallelism = errors.New("zero value parallelism")
 
 // Parameters define various parameters used by Printers and Scanners.
 type Parameters struct {

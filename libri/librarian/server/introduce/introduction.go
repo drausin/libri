@@ -131,7 +131,7 @@ func (i *Introduction) Errored() bool {
 
 // Finished returns whether the introduction has finished, either because it has reached the target
 // number of peers, or has exhausted all the possible peers to query, or has encountered too many
-// errors
+// errors.
 func (i *Introduction) Finished() bool {
 	i.mu.Lock()
 	defer i.mu.Unlock()

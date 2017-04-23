@@ -9,7 +9,7 @@ import (
 
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/golang/protobuf/proto"
-	"errors"
+	"errors."
 )
 
 // field lengths
@@ -47,11 +47,11 @@ const (
 var (
 	// ErrUnexpectedDocumentType indicates when a document type is not expected (e.g., a Page
 	// when expecting an Entry).
-	ErrUnexpectedDocumentType = errorsNew("unexpected document type")
+	ErrUnexpectedDocumentType = errors.New("unexpected document type")
 
 	// ErrUnknownDocumentType indicates when a document type is not known (usually, this
 	// error should never actually be thrown).
-	ErrUnknownDocumentType = errorsNew("unknown document type")
+	ErrUnknownDocumentType = errors.New("unknown document type")
 )
 
 // GetKey calculates the key from the has of the proto.Message.
@@ -113,7 +113,7 @@ func GetPageDocument(page *Page) (*Document, cid.ID, error) {
 // lengths.
 func ValidateDocument(d *Document) error {
 	if d == nil {
-		return errorsNew("Document may not be nil")
+		return errors.New("Document may not be nil")
 	}
 	switch c := d.Contents.(type) {
 	case *Document_Envelope:
@@ -130,7 +130,7 @@ func ValidateDocument(d *Document) error {
 // lengths.
 func ValidateEnvelope(e *Envelope) error {
 	if e == nil {
-		return errorsNew("Envelope may not be nil")
+		return errors.New("Envelope may not be nil")
 	}
 	if err := ValidatePublicKey(e.AuthorPublicKey); err != nil {
 		return err
@@ -148,13 +148,13 @@ func ValidateEnvelope(e *Envelope) error {
 // lengths.
 func ValidateEntry(e *Entry) error {
 	if e == nil {
-		return errorsNew("Entry may not be nil")
+		return errors.New("Entry may not be nil")
 	}
 	if err := ValidatePublicKey(e.AuthorPublicKey); err != nil {
 		return err
 	}
 	if e.CreatedTime == 0 {
-		return errorsNew("CreateTime must be populated")
+		return errors.New("CreateTime must be populated")
 	}
 	if err := ValidateHMAC256(e.MetadataCiphertextMac); err != nil {
 		log.Print("metadata ciphertext mac issue")
@@ -173,20 +173,20 @@ func validateEntryContents(e *Entry) error {
 	switch x := e.Contents.(type) {
 	case *Entry_Page:
 		if !bytes.Equal(e.AuthorPublicKey, x.Page.AuthorPublicKey) {
-			return errorsNew("Page author public key must be the same as Entry's")
+			return errors.New("Page author public key must be the same as Entry's")
 		}
 		return ValidatePage(x.Page)
 	case *Entry_PageKeys:
 		return ValidatePageKeys(x.PageKeys)
 	default:
-		return errorsNew("unknown Entry.Contents type")
+		return errors.New("unknown Entry.Contents type")
 	}
 }
 
 // ValidatePage checks that all fields of a Page are populated and have the expected lengths.
 func ValidatePage(p *Page) error {
 	if p == nil {
-		return errorsNew("Page may not be nil")
+		return errors.New("Page may not be nil")
 	}
 	if err := ValidatePublicKey(p.AuthorPublicKey); err != nil {
 		return err
@@ -206,13 +206,13 @@ func ValidatePage(p *Page) error {
 // lengths.
 func ValidatePageKeys(pk *PageKeys) error {
 	if pk == nil {
-		return errorsNew("PageKeys may not be nil")
+		return errors.New("PageKeys may not be nil")
 	}
 	if pk.Keys == nil {
-		return errorsNew("PageKeys.Keys may not be nil")
+		return errors.New("PageKeys.Keys may not be nil")
 	}
 	if len(pk.Keys) == 0 {
-		return errorsNew("PageKeys.Keys must have length > 0")
+		return errors.New("PageKeys.Keys must have length > 0")
 	}
 	for i, k := range pk.Keys {
 		if err := ValidateNotEmpty(k, fmt.Sprintf("key %d", i)); err != nil {

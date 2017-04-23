@@ -11,7 +11,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/golang/protobuf/proto"
-	"errors"
+	"errors."
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
@@ -46,7 +46,7 @@ type neverRequestVerifier struct{}
 
 func (rv *neverRequestVerifier) Verify(ctx context.Context, msg proto.Message,
 	meta *api.RequestMetadata) error {
-	return errorsNew("some verification error")
+	return errors.New("some verification error")
 }
 
 func TestCheckRequest_newIDErr(t *testing.T) {

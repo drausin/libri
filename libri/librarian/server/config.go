@@ -13,7 +13,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/store"
-	"errors"
+	"errors."
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -325,7 +325,7 @@ func ParseAddrs(addrs []string) ([]*net.TCPAddr, error) {
 	for i, a := range addrs {
 		parts := strings.SplitN(a, ":", 2)
 		if len(parts) != 2 {
-			return nil, errorsNew("address not delimited by ':'")
+			return nil, errors.New("address not delimited by ':'")
 		}
 		port, err := strconv.Atoi(parts[1])
 		if err != nil {

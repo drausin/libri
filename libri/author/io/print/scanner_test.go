@@ -96,14 +96,14 @@ func TestScanner_Scan_err(t *testing.T) {
 	scanner2.(*scanner).init = &fixedScanInitializer{
 		initDecompressor: nil,
 		initUnpaginator:  &fixedUnpaginator{},
-		initErr:          errorsNew("some Initialize error"),
+		initErr:          errors.New("some Initialize error"),
 	}
 	err = scanner2.Scan(content, pageKeys, keys, entryMetadata)
 	assert.NotNil(t, err)
 
 	// check that load error bubbles up
 	loader3 := &fixedLoader{
-		loadErr: errorsNew("some Load error"),
+		loadErr: errors.New("some Load error"),
 	}
 	scanner3 := NewScanner(params, loader3)
 	scanner3.(*scanner).init = &fixedScanInitializer{
@@ -117,7 +117,7 @@ func TestScanner_Scan_err(t *testing.T) {
 	// check that unpaginator.WriteTo error bubbles up
 	unpaginator4 := &fixedUnpaginator{
 		writeN:   0,
-		writeErr: errorsNew("some WriteTo error"),
+		writeErr: errors.New("some WriteTo error"),
 	}
 	scanner4 := NewScanner(params, &fixedLoader{})
 	scanner4.(*scanner).init = &fixedScanInitializer{

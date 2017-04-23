@@ -20,7 +20,7 @@ var (
 )
 
 // ErrUnexpectedCiphertextMAC indicates when the ciphertext MAC does not match the expected value.
-var ErrUnexpectedCiphertextMAC = errorsNew("ciphertext mac does not match expected value")
+var ErrUnexpectedCiphertextMAC = errors.New("ciphertext mac does not match expected value")
 
 // ErrPageSizeTooSmall indicates when the max page size is too small (often because it is zero).
 var ErrPageSizeTooSmall = fmt.Errorf("page size is below %d byte minimum", MinSize)

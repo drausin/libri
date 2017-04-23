@@ -9,7 +9,7 @@ import (
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/ecid"
-	"errors"
+	"errors."
 	"github.com/stretchr/testify/assert"
 )
 
@@ -42,7 +42,7 @@ func TestEnvelopeKeySampler_Sample_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 
 	s1 := &envelopeKeySamplerImpl{
-		authorKeys:     &fixedKeychain{sampleErr: errorsNew("some Sample error")},
+		authorKeys:     &fixedKeychain{sampleErr: errors.New("some Sample error")},
 		selfReaderKeys: keychain.New(3),
 	}
 	aPB, srPB, eK, err := s1.sample()
@@ -53,7 +53,7 @@ func TestEnvelopeKeySampler_Sample_err(t *testing.T) {
 
 	s2 := &envelopeKeySamplerImpl{
 		authorKeys:     keychain.New(3),
-		selfReaderKeys: &fixedKeychain{sampleErr: errorsNew("some Sample error")},
+		selfReaderKeys: &fixedKeychain{sampleErr: errors.New("some Sample error")},
 	}
 	aPB, srPB, eK, err = s2.sample()
 	assert.NotNil(t, err)

@@ -17,7 +17,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/store"
 	"github.com/golang/protobuf/proto"
-	"errors"
+	"errors."
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
@@ -365,11 +365,11 @@ func TestLibrarian_Store_checkRequestError(t *testing.T) {
 type errDocStorerLoader struct{}
 
 func (*errDocStorerLoader) Store(key cid.ID, value *api.Document) error {
-	return errorsNew("some store error")
+	return errors.New("some store error")
 }
 
 func (*errDocStorerLoader) Load(key cid.ID) (*api.Document, error) {
-	return nil, errorsNew("some load error")
+	return nil, errors.New("some load error")
 }
 
 func TestLibrarian_Store_storeError(t *testing.T) {
@@ -455,7 +455,7 @@ func TestLibrarian_Get_Errored(t *testing.T) {
 	// create mock search result with fatal error, making Errored() true
 	searchParams := search.NewDefaultParameters()
 	fatalErrorResult := search.NewInitialResult(key, searchParams)
-	fatalErrorResult.FatalErr = errorsNew("some fatal error")
+	fatalErrorResult.FatalErr = errors.New("some fatal error")
 
 	// create librarian and request
 	l := newGetLibrarian(rng, fatalErrorResult, nil)
@@ -490,7 +490,7 @@ func TestLibrarian_Get_err(t *testing.T) {
 	key, peerID := cid.NewPseudoRandom(rng), ecid.NewPseudoRandom(rng)
 
 	// create librarian and request
-	l := newGetLibrarian(rng, nil, errorsNew("some unexpected search error"))
+	l := newGetLibrarian(rng, nil, errors.New("some unexpected search error"))
 	rq := client.NewGetRequest(peerID, key)
 
 	// since fixedSearcher returns fixed value, should get that back in response
@@ -592,7 +592,7 @@ func TestLibrarian_Put_Errored(t *testing.T) {
 	// create mock search result where the value has been stored
 	searchParams := search.NewDefaultParameters()
 	erroredResult := store.NewInitialResult(search.NewInitialResult(key, searchParams))
-	erroredResult.FatalErr = errorsNew("some fatal error")
+	erroredResult.FatalErr = errors.New("some fatal error")
 
 	// create librarian and request
 	l := newPutLibrarian(rng, erroredResult, nil)
@@ -610,7 +610,7 @@ func TestLibrarian_Put_err(t *testing.T) {
 	peerID := ecid.NewPseudoRandom(rng)
 
 	// create librarian and request
-	l := newPutLibrarian(rng, nil, errorsNew("some store error"))
+	l := newPutLibrarian(rng, nil, errors.New("some store error"))
 	rq := client.NewPutRequest(peerID, key, value)
 
 	// since fixedSearcher returns fixed value, should get that back in response

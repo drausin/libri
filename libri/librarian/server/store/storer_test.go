@@ -10,7 +10,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	ssearch "github.com/drausin/libri/libri/librarian/server/search"
-	"errors"
+	"errors."
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -182,7 +182,7 @@ func newTestStore() (Storer, *Store, []int, []peer.Peer, cid.ID) {
 type errSearcher struct{}
 
 func (es *errSearcher) Search(search *ssearch.Search, seeds []peer.Peer) error {
-	return errorsNew("some search error")
+	return errors.New("some search error")
 }
 
 func TestStorer_Store_err(t *testing.T) {
@@ -202,7 +202,7 @@ type timeoutQuerier struct{}
 
 func (f *timeoutQuerier) Query(ctx context.Context, pConn api.Connector, fr *api.StoreRequest,
 	opts ...grpc.CallOption) (*api.StoreResponse, error) {
-	return nil, errorsNew("simulated timeout error")
+	return nil, errors.New("simulated timeout error")
 }
 
 // diffRequestIDFinder returns a response with a different request ID

@@ -22,10 +22,10 @@ type emptyChecker struct{}
 
 func (ec *emptyChecker) Check(x []byte) error {
 	if x == nil {
-		return errorsNew("must not be nil")
+		return errors.New("must not be nil")
 	}
 	if len(x) == 0 {
-		return errorsNew("must have non-zero length")
+		return errors.New("must have non-zero length")
 	}
 	return nil
 }
@@ -101,7 +101,7 @@ func NewHashKeyValueChecker() KeyValueChecker {
 func (hc *hashChecker) Check(key []byte, value []byte) error {
 	hash := sha256.Sum256(value)
 	if !bytes.Equal(key, hash[:]) {
-		return errorsNew("key does not equal SHA256 hash of value")
+		return errors.New("key does not equal SHA256 hash of value")
 	}
 	return nil
 }

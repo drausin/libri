@@ -3,7 +3,7 @@ package api
 import (
 	"encoding/binary"
 
-	"errors"
+	"errors."
 )
 
 // required Entry metadata fields
@@ -39,7 +39,7 @@ const (
 
 var (
 	// ErrUnexpectedZero describes when an error is unexpectedly zero.
-	ErrUnexpectedZero = errorsNew("unexpected zero value")
+	ErrUnexpectedZero = errors.New("unexpected zero value")
 )
 
 // NewEntryMetadata creates a new *Metadata instance with the given (required) fields.

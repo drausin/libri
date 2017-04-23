@@ -34,25 +34,25 @@ const (
 var (
 	// ErrUnexpectedMissingDocument indicates when a document is unexpectely missing from the
 	// document storer loader.
-	ErrUnexpectedMissingDocument = errorsNew("unexpected missing document")
+	ErrUnexpectedMissingDocument = errors.New("unexpected missing document")
 
 	// ErrPutTimeoutZeroValue indicates when the PutTimeout parameter has the zero value.
-	ErrPutTimeoutZeroValue = errorsNew("PutTimeout must be greater than zero")
+	ErrPutTimeoutZeroValue = errors.New("PutTimeout must be greater than zero")
 
 	// ErrGetTimeoutZeroValue indicates when the GetTimeout parameter has the zero value.
-	ErrGetTimeoutZeroValue = errorsNew("GetTimeout must be greater than zero")
+	ErrGetTimeoutZeroValue = errors.New("GetTimeout must be greater than zero")
 
 	// ErrPutParallelismZeroValue indicates when the PutParallelism parameter has the zero
 	// value.
-	ErrPutParallelismZeroValue = errorsNew("PutParallelism must be greater than zero")
+	ErrPutParallelismZeroValue = errors.New("PutParallelism must be greater than zero")
 
 	// ErrGetParallelismZeroValue indicates when the GetParallelism parameter has the zero
 	// value.
-	ErrGetParallelismZeroValue = errorsNew("GetParallelism must be greater than zero")
+	ErrGetParallelismZeroValue = errors.New("GetParallelism must be greater than zero")
 
 	// ErrInconsistentAuthorPubKey indicates when the document author public key is different
 	// from the expected value.
-	ErrInconsistentAuthorPubKey = errorsNew("inconsistent author public key")
+	ErrInconsistentAuthorPubKey = errors.New("inconsistent author public key")
 )
 
 // Parameters define configuration used by a Publisher.

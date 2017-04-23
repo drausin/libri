@@ -11,7 +11,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
-	"errors"
+	"errors."
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -68,7 +68,7 @@ func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
 	}
 	if !l.config.isBootstrap() && len(intro.Result.Responded) == 0 {
 		// if we're not a libri bootstrap peer, error if couldn't find any
-		err := errorsNew("failed to bootstrap any other peers")
+		err := errors.New("failed to bootstrap any other peers")
 		l.logger.Error("failed to bootstrap any other peers")
 		return err
 	}

@@ -15,7 +15,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/store"
-	"errors"
+	"errors."
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 )
@@ -135,7 +135,7 @@ func (l *Librarian) Introduce(ctx context.Context, rq *api.IntroduceRequest) (
 	}
 	requester := l.fromer.FromAPI(rq.Self)
 	if requester.ID().Cmp(requesterID) != 0 {
-		return nil, errorsNew("stated client peer ID does not match signature")
+		return nil, errors.New("stated client peer ID does not match signature")
 	}
 	l.record(requesterID, peer.Request, peer.Success)
 
@@ -238,13 +238,13 @@ func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetRespon
 		}, nil
 	}
 	if s.Errored() {
-		return nil, errorsNew("search for key errored")
+		return nil, errors.New("search for key errored")
 	}
 	if s.Exhausted() {
-		return nil, errorsNew("search for key exhausted")
+		return nil, errors.New("search for key exhausted")
 	}
 
-	return nil, errorsNew("unexpected search result")
+	return nil, errors.New("unexpected search result")
 }
 
 // Put stores a given key and value. This endpoint handles the internals of finding the right
@@ -287,8 +287,8 @@ func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutRespon
 	}
 	if s.Errored() {
 		// TODO (drausin) better collect and surface errors from queries
-		return nil, errorsNew("received error during search or store operations")
+		return nil, errors.New("received error during search or store operations")
 	}
 
-	return nil, errorsNew("unexpected store result")
+	return nil, errors.New("unexpected store result")
 }

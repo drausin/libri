@@ -6,7 +6,7 @@ import (
 
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/server/peer"
-	"errors"
+	"errors."
 	"github.com/stretchr/testify/assert"
 )
 
@@ -107,7 +107,7 @@ func TestIntroduction_Errored(t *testing.T) {
 	})
 
 	// create some fatal error
-	intro2.Result.FatalErr = errorsNew("some fata error")
+	intro2.Result.FatalErr = errors.New("some fata error")
 	assert.True(t, intro1.Errored())
 	assert.False(t, intro1.Exhausted())
 	assert.False(t, intro1.ReachedTarget())

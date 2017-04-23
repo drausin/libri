@@ -8,7 +8,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/golang/protobuf/proto"
-	"errors"
+	"errors."
 	"golang.org/x/net/context"
 )
 
@@ -39,7 +39,7 @@ func (rv *verifier) Verify(ctx context.Context, msg proto.Message,
 		return err
 	}
 	if meta.RequestId == nil {
-		return errorsNew("RequestId must not be nil")
+		return errors.New("RequestId must not be nil")
 	}
 	if len(meta.RequestId) != cid.Length {
 		return fmt.Errorf("invalid RequestId length: %v; expected length %v",

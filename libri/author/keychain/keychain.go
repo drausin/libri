@@ -31,10 +31,10 @@ const (
 
 var (
 	// ErrEmptyKeychain indicates no keys in the keychain.
-	ErrEmptyKeychain = errorsNew("empty keychain")
+	ErrEmptyKeychain = errors.New("empty keychain")
 
 	// ErrUnexpectedMissingKey indicates a unexpectedly missing key
-	ErrUnexpectedMissingKey = errorsNew("missing key")
+	ErrUnexpectedMissingKey = errors.New("missing key")
 )
 
 // Keychain is a collection of ECDSA keys.

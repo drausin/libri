@@ -8,7 +8,7 @@ import (
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/golang/protobuf/proto"
-	"errors"
+	"errors."
 	"go.uber.org/zap"
 )
 
@@ -76,7 +76,7 @@ func loadOrCreateRoutingTable(logger *zap.Logger, nl storage.NamespaceLoader, se
 		if selfID.Cmp(rt.SelfID()) != 0 {
 			msg := fmt.Sprintf("selfID (%v) of loaded routing table does not match "+
 				"Librarian selfID (%v)", rt.SelfID(), selfID)
-			err := errorsNew(msg)
+			err := errors.New(msg)
 			logger.Error(msg, zap.Error(err))
 			return nil, err
 		}

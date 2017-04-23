@@ -19,5 +19,5 @@ type TestErrSigner struct{}
 
 // Sign returns an error.
 func (s *TestErrSigner) Sign(m proto.Message) (string, error) {
-	return "", errorsNew("some sign error")
+	return "", errors.New("some sign error")
 }

@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
-	"errors"
+	"errors."
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/metadata"
 )
@@ -24,11 +24,11 @@ func NewSignatureContext(ctx context.Context, signedJWT string) context.Context 
 func FromSignatureContext(ctx context.Context) (string, error) {
 	md, ok := metadata.FromContext(ctx)
 	if !ok {
-		return "", errorsNew("context unexpectedly missing metadata")
+		return "", errors.New("context unexpectedly missing metadata")
 	}
 	signedJWTs, exists := md[signatureKey]
 	if !exists {
-		return "", errorsNew("metadata signature key unexpectedly does not exist")
+		return "", errors.New("metadata signature key unexpectedly does not exist")
 	}
 	return signedJWTs[0], nil
 }

@@ -8,7 +8,7 @@ import (
 )
 
 // ErrEmptyLibrarianAddresses indicates that the librarian addresses is empty.
-var ErrEmptyLibrarianAddresses = errorsNew("empty librarian addresses")
+var ErrEmptyLibrarianAddresses = errors.New("empty librarian addresses")
 
 // ClientBalancer load balances between a collection of LibrarianClients.
 type ClientBalancer interface {

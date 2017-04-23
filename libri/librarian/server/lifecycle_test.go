@@ -12,7 +12,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
-	"errors"
+	"errors."
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
@@ -122,7 +122,7 @@ func TestLibrarian_bootstrapPeers_introduceErr(t *testing.T) {
 	l := &Librarian{
 		config: NewDefaultConfig(),
 		introducer: &fixedIntroducer{
-			err: errorsNew("some fatal introduce error"),
+			err: errors.New("some fatal introduce error"),
 		},
 		rt:     routing.NewEmpty(cid.NewPseudoRandom(rng), routing.NewDefaultParameters()),
 		logger: clogging.NewDevInfoLogger(),
