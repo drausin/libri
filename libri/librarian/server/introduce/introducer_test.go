@@ -256,7 +256,7 @@ type timeoutQuerier struct{}
 
 func (f *timeoutQuerier) Query(ctx context.Context, pConn api.Connector, fr *api.IntroduceRequest,
 	opts ...grpc.CallOption) (*api.IntroduceResponse, error) {
-	return nil, errors.New("simulated timeout error")
+	return nil, errorsNew("simulated timeout error")
 }
 
 type diffRequestIDQuerier struct {
@@ -275,7 +275,7 @@ func (f *diffRequestIDQuerier) Query(ctx context.Context, pConn api.Connector,
 type errResponseProcessor struct{}
 
 func (erp *errResponseProcessor) Process(rp *api.IntroduceResponse, result *Result) error {
-	return errors.New("some fatal processing error")
+	return errorsNew("some fatal processing error")
 }
 
 func newTestIntroducer(peersMap map[string]peer.Peer, selfID cid.ID) Introducer {

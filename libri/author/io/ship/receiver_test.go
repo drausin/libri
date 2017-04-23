@@ -11,7 +11,7 @@ import (
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
-	"errors."
+	"errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -101,7 +101,7 @@ func TestReceiver_Receive_err(t *testing.T) {
 	acq.docs[envelopeKey.String()] = envelope
 
 	// check clientBalancer.Next() error bubbles up
-	cb1 := &fixedClientBalancer{errors.New("some Next error")}
+	cb1 := &fixedClientBalancer{errorsNew("some Next error")}
 	r1 := NewReceiver(cb1, readerKeys, acq, msAcq, docS)
 	receivedDoc, receivedKeys, err := r1.Receive(envelopeKey)
 	assert.NotNil(t, err)
@@ -109,7 +109,7 @@ func TestReceiver_Receive_err(t *testing.T) {
 	assert.Nil(t, receivedKeys)
 
 	// check acquire error bubbles up
-	acq2 := &fixedAcquirer{err: errors.New("some Acquire error")}
+	acq2 := &fixedAcquirer{err: errorsNew("some Acquire error")}
 	r2 := NewReceiver(cb, readerKeys, acq2, msAcq, docS)
 	receivedDoc, receivedKeys, err = r2.Receive(envelopeKey)
 	assert.NotNil(t, err)
@@ -198,7 +198,7 @@ func (f *fixedAcquirer) Acquire(docKey id.ID, authorPub []byte, lc api.Getter) (
 	*api.Document, error) {
 	value, in := f.docs[docKey.String()]
 	if !in {
-		return nil, errors.New("missing")
+		return nil, errorsNew("missing")
 	}
 	return value, f.err
 }

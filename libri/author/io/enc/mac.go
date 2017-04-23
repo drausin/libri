@@ -8,22 +8,22 @@ import (
 	"io"
 
 	"github.com/drausin/libri/libri/librarian/api"
-	"errors."
+	"errors"
 )
 
 // ErrUnexpectedCiphertextSize indicates when the ciphertext size does not match the expected value.
-var ErrUnexpectedCiphertextSize = errors.New("unexpected ciphertext size")
+var ErrUnexpectedCiphertextSize = errorsNew("unexpected ciphertext size")
 
 // ErrUnexpectedCiphertextMAC indicates when the ciphertext MAC does not match the expected value.
-var ErrUnexpectedCiphertextMAC = errors.New("unexpected ciphertext MAC")
+var ErrUnexpectedCiphertextMAC = errorsNew("unexpected ciphertext MAC")
 
 // ErrUnexpectedUncompressedSize indicates when the uncompressed size does not match the expected
 // value.
-var ErrUnexpectedUncompressedSize = errors.New("unexpected uncompressed size")
+var ErrUnexpectedUncompressedSize = errorsNew("unexpected uncompressed size")
 
 // ErrUnexpectedUncompressedMAC indicates when the uncompressed MAC does not match the expected
 // value.
-var ErrUnexpectedUncompressedMAC = errors.New("unexpected uncompressed MAC")
+var ErrUnexpectedUncompressedMAC = errorsNew("unexpected uncompressed MAC")
 
 // MAC wraps a hash function to return a message authentication code (MAC) and the total number
 // of bytes it has digested.

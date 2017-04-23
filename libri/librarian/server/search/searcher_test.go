@@ -11,7 +11,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
-	"errors."
+	"errors"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -126,7 +126,7 @@ func TestSearcher_Search_queryErr(t *testing.T) {
 type errResponseProcessor struct{}
 
 func (erp *errResponseProcessor) Process(rp *api.FindResponse, result *Result) error {
-	return errors.New("some fatal processing error")
+	return errorsNew("some fatal processing error")
 }
 
 func TestSearcher_Search_rpErr(t *testing.T) {
@@ -203,7 +203,7 @@ type timeoutQuerier struct{}
 
 func (f *timeoutQuerier) Query(ctx context.Context, pConn api.Connector, fr *api.FindRequest,
 	opts ...grpc.CallOption) (*api.FindResponse, error) {
-	return nil, errors.New("simulated timeout error")
+	return nil, errorsNew("simulated timeout error")
 }
 
 // diffRequestIDFinder returns a response with a different request ID

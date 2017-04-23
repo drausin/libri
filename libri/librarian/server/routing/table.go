@@ -164,7 +164,7 @@ func (rt *table) Push(new peer.Peer) PushStatus {
 	}
 	if _, exists := rt.peers[new.ID().String()]; exists {
 		// should never happen, but check just in case
-		panic(errors.New("peer should be found in its insert bucket if in peers map"))
+		panic(errorsNew("peer should be found in its insert bucket if in peers map"))
 	}
 
 	if new.Connector() == nil {
@@ -342,7 +342,7 @@ func (rt *table) chooseBucketIndex(target cid.ID, fwdIdx int, bkwdIdx int) int {
 		return bkwdIdx
 	}
 
-	panic(errors.New("should always have either a valid forward or backward index"))
+	panic(errorsNew("should always have either a valid forward or backward index"))
 }
 
 // bucketIndex searches for the bucket containing the given target

@@ -9,7 +9,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	ssearch "github.com/drausin/libri/libri/librarian/server/search"
-	"errors."
+	"errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -97,7 +97,7 @@ func TestStore_Errored(t *testing.T) {
 
 	// or, if we receive a fatal error
 	s.Result.NErrors = 0
-	s.Result.FatalErr = errors.New("some fatal error")
+	s.Result.FatalErr = errorsNew("some fatal error")
 	assert.True(t, s.Errored())
 	assert.True(t, s.Finished())
 }

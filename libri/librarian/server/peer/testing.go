@@ -121,7 +121,7 @@ type TestErrConnector struct{}
 
 // Connect is stub that always returns an error.
 func (ec *TestErrConnector) Connect() (api.LibrarianClient, error) {
-	return nil, errors.New("some connect error")
+	return nil, errorsNew("some connect error")
 }
 
 // Disconnect is a no-op stub to satisfy the interface's signature.

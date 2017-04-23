@@ -156,7 +156,7 @@ func newSinglePageEntry(
 	}
 	pageContent, ok := pageDoc.Contents.(*api.Document_Page)
 	if !ok {
-		return nil, errors.New("not a page")
+		return nil, errorsNew("not a page")
 	}
 	return &api.Entry{
 		AuthorPublicKey: authorPub,

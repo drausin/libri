@@ -40,7 +40,7 @@ func TestLoadOrCreateClientID_ok(t *testing.T) {
 
 func TestLoadOrCreatePeerID_err(t *testing.T) {
 	id1, err := loadOrCreateClientID(clogging.NewDevInfoLogger(), &fixedStorerLoader{
-		loadErr: errors.New("some load error"),
+		loadErr: errorsNew("some load error"),
 	})
 	assert.Nil(t, id1)
 	assert.NotNil(t, err)

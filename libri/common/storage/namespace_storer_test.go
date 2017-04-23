@@ -9,7 +9,7 @@ import (
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/golang/protobuf/proto"
-	"errors."
+	"errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -171,7 +171,7 @@ func TestDocumentStorerLoader_Load_loadErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	key := cid.NewPseudoRandom(rng)
 	dsl1 := NewDocumentStorerLoader(&fixedStorerLoader{
-		loadErr: errors.New("some load error"),
+		loadErr: errorsNew("some load error"),
 	})
 
 	// check that load error propagates up

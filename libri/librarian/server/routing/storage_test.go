@@ -9,7 +9,7 @@ import (
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/server/peer"
-	"errors."
+	"errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -106,7 +106,7 @@ func TestLoad_err(t *testing.T) {
 	rt2, err := Load(
 		&fixedLoader{
 			bytes: []byte("some random bytes"),
-			err:   errors.New("some random error"),
+			err:   errorsNew("some random error"),
 		},
 		NewDefaultParameters(),
 	)

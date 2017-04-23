@@ -10,7 +10,7 @@ import (
 
 	"github.com/drausin/libri/libri/author/io/common"
 	"github.com/drausin/libri/libri/author/io/enc"
-	"errors."
+	"errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -92,7 +92,7 @@ func TestNewDecompressor_err(t *testing.T) {
 type errReader struct{}
 
 func (errReader) Read(p []byte) (int, error) {
-	return 0, errors.New("some read error")
+	return 0, errorsNew("some read error")
 }
 
 type errFlushCloseWriter struct {
@@ -159,7 +159,7 @@ func TestCompressor_Read_err(t *testing.T) {
 	buf := bytes.NewReader([]byte("some data"))
 	comp, err = NewCompressor(buf, GZIPCodec, keys, MinBufferSize)
 	comp.(*compressor).inner = errFlushCloseWriter{
-		writeErr: errors.New("some write error"),
+		writeErr: errorsNew("some write error"),
 	}
 	assert.Nil(t, err)
 
@@ -171,7 +171,7 @@ func TestCompressor_Read_err(t *testing.T) {
 	buf = bytes.NewReader([]byte("some data"))
 	comp, err = NewCompressor(buf, GZIPCodec, keys, MinBufferSize)
 	comp.(*compressor).inner = errFlushCloseWriter{
-		flushErr: errors.New("some flush error"),
+		flushErr: errorsNew("some flush error"),
 	}
 	assert.Nil(t, err)
 
@@ -183,7 +183,7 @@ func TestCompressor_Read_err(t *testing.T) {
 	buf = bytes.NewReader([]byte("some data"))
 	comp, err = NewCompressor(buf, GZIPCodec, keys, MinBufferSize)
 	comp.(*compressor).inner = errFlushCloseWriter{
-		closeErr: errors.New("some close error"),
+		closeErr: errorsNew("some close error"),
 	}
 	assert.Nil(t, err)
 

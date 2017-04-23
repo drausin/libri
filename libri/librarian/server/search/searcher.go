@@ -9,7 +9,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
-	"errors."
+	"errors"
 )
 
 // Searcher executes searches for particular keys.
@@ -176,5 +176,5 @@ func (frp *responseProcessor) Process(rp *api.FindResponse, result *Result) erro
 	}
 
 	// invalid response
-	return errors.New("FindResponse contains neither value nor peer addresses")
+	return errorsNew("FindResponse contains neither value nor peer addresses")
 }

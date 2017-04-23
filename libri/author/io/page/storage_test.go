@@ -6,7 +6,7 @@ import (
 
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
-	"errors."
+	"errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -173,9 +173,9 @@ func (m *memDocumentStorerLoader) Load(key cid.ID) (*api.Document, error) {
 type errDocumentStorerLoader struct{}
 
 func (m *errDocumentStorerLoader) Store(key cid.ID, value *api.Document) error {
-	return errors.New("some store error")
+	return errorsNew("some store error")
 }
 
 func (m *errDocumentStorerLoader) Load(key cid.ID) (*api.Document, error) {
-	return nil, errors.New("some store error")
+	return nil, errorsNew("some store error")
 }

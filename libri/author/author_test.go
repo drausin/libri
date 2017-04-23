@@ -17,7 +17,7 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/librarian/api"
-	"errors."
+	"errors"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap/zapcore"
 )
@@ -71,7 +71,7 @@ func TestAuthor_Upload_ok(t *testing.T) {
 func TestAuthor_Upload_err(t *testing.T) {
 	a := newTestAuthor()
 	go func() { <-a.stop }() // dummy stop signal acceptor
-	a.entryPacker = &fixedEntryPacker{err: errors.New("some Pack error")}
+	a.entryPacker = &fixedEntryPacker{err: errorsNew("some Pack error")}
 	a.shipper = &fixedShipper{}
 
 	// check pack error bubbles up
@@ -81,7 +81,7 @@ func TestAuthor_Upload_err(t *testing.T) {
 	assert.Nil(t, actualEnvelopeKey)
 
 	a.entryPacker = &fixedEntryPacker{}
-	a.shipper = &fixedShipper{err: errors.New("some Ship error")}
+	a.shipper = &fixedShipper{err: errorsNew("some Ship error")}
 
 	// check pack error bubbles up
 	actualEnvelope, actualEnvelopeKey, err = a.Upload(nil, "")
@@ -112,7 +112,7 @@ func TestAuthor_Download_err(t *testing.T) {
 	// check Receive error bubbles up
 	a1 := &Author{
 		logger:        clogging.NewDevInfoLogger(),
-		receiver:      &fixedReceiver{err: errors.New("some Receive error")},
+		receiver:      &fixedReceiver{err: errorsNew("some Receive error")},
 		entryUnpacker: &fixedUnpacker{},
 	}
 	err := a1.Download(nil, docKey)
@@ -122,7 +122,7 @@ func TestAuthor_Download_err(t *testing.T) {
 	a2 := &Author{
 		logger:        clogging.NewDevInfoLogger(),
 		receiver:      &fixedReceiver{entry: doc},
-		entryUnpacker: &fixedUnpacker{err: errors.New("some Unpack error")},
+		entryUnpacker: &fixedUnpacker{err: errorsNew("some Unpack error")},
 	}
 	err = a2.Download(nil, docKey)
 	assert.NotNil(t, err)

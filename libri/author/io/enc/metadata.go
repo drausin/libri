@@ -9,7 +9,7 @@ import (
 )
 
 // ErrUnexpectedMAC occurs when the calculated MAC did not match the expected MAC.
-var ErrUnexpectedMAC = errors.New("unexpected MAC")
+var ErrUnexpectedMAC = errorsNew("unexpected MAC")
 
 // EncryptedMetadata contains both the ciphertext and ciphertext MAC involved in encrypting an
 // *api.Metadata instance.

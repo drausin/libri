@@ -8,12 +8,12 @@ import (
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/golang/protobuf/proto"
-	"errors."
+	"errors"
 	"go.uber.org/zap"
 )
 
 // ErrKeychainExists indicates when a keychain file already exists.
-var ErrKeychainExists = errors.New("keychain already exists")
+var ErrKeychainExists = errorsNew("keychain already exists")
 
 // logger keys
 const (

@@ -10,7 +10,7 @@ import (
 
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
-	"errors."
+	"errors"
 )
 
 // Curve defines the elliptic curve public & private keys use. Curve S256 implies 32-byte private
@@ -21,7 +21,7 @@ var Curve = secp256k1.S256()
 const CurveName = "secp256k1"
 
 // ErrKeyPointOffCurve indicates when a public key does not lay on the expected elliptic curve.
-var ErrKeyPointOffCurve = errors.New("key point is off the expected curve")
+var ErrKeyPointOffCurve = errorsNew("key point is off the expected curve")
 
 // ID is an elliptic curve identifier, where the ID is the x-value of the (x, y) public key
 // point on the curve. When couples with the private key, this allows something (e.g., a libri

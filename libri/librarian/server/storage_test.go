@@ -10,7 +10,7 @@ import (
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/golang/protobuf/proto"
-	"errors."
+	"errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -35,7 +35,7 @@ func TestLoadOrCreatePeerID_ok(t *testing.T) {
 
 func TestLoadOrCreatePeerID_err(t *testing.T) {
 	id1, err := loadOrCreatePeerID(clogging.NewDevInfoLogger(), &fixedStorerLoader{
-		loadErr: errors.New("some load error"),
+		loadErr: errorsNew("some load error"),
 	})
 	assert.Nil(t, id1)
 	assert.NotNil(t, err)
@@ -84,7 +84,7 @@ func TestLoadOrCreateRoutingTable_loadErr(t *testing.T) {
 	selfID := id.NewPseudoRandom(rng)
 
 	errLoader := &fixedStorerLoader{
-		loadErr: errors.New("some error during load"),
+		loadErr: errorsNew("some error during load"),
 	}
 
 	rt1, err := loadOrCreateRoutingTable(clogging.NewDevInfoLogger(), errLoader, selfID,

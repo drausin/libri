@@ -11,7 +11,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/golang/protobuf/proto"
-	"errors."
+	"errors"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -88,7 +88,7 @@ func TestPublisher_Publish_err(t *testing.T) {
 
 	signer2 := &fixedSigner{ // causes client.NewSignedTimeoutContext to error
 		signature: "",
-		err:       errors.New("some Sign error"),
+		err:       errorsNew("some Sign error"),
 	}
 	pub = NewPublisher(clientID, signer2, params)
 
@@ -98,7 +98,7 @@ func TestPublisher_Publish_err(t *testing.T) {
 	assert.Nil(t, docKey)
 
 	lc3 := &fixedPutter{
-		err: errors.New("some Put error"),
+		err: errorsNew("some Put error"),
 	}
 	pub = NewPublisher(clientID, signer, params)
 
@@ -153,7 +153,7 @@ func TestSingleLoadPublisher_Publish_err(t *testing.T) {
 	assert.Equal(t, ErrUnexpectedMissingDocument, err)
 
 	pub3 := &fixedPublisher{
-		publishErr: errors.New("some Publish error"),
+		publishErr: errorsNew("some Publish error"),
 	}
 	slPub = NewSingleLoadPublisher(pub3, docL)
 	docL.docs[docKey.String()] = doc
@@ -204,7 +204,7 @@ func TestMultiLoadPublisher_Publish_err(t *testing.T) {
 		authorKey := ecid.ToPublicKeyBytes(ecid.NewPseudoRandom(rng))
 		for _, putParallelism := range []uint32{1, 2, 3} {
 			slPub := &fixedSingleLoadPublisher{
-				err: errors.New("some Publish error"),
+				err: errorsNew("some Publish error"),
 			}
 			params, err := NewParameters(DefaultPutTimeout, DefaultGetTimeout,
 				putParallelism, DefaultGetParallelism)
@@ -365,7 +365,7 @@ func (m *memDocStorerLoader) Store(key id.ID, value *api.Document) error {
 type errDocLoader struct{}
 
 func (m *errDocLoader) Load(key id.ID) (*api.Document, error) {
-	return nil, errors.New("some Load error")
+	return nil, errorsNew("some Load error")
 }
 
 type fixedPublisher struct {

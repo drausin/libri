@@ -4,7 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"errors."
+	"errors"
 	"github.com/tecbot/gorocksdb"
 )
 
@@ -78,7 +78,7 @@ func (db *RocksDB) Get(key []byte) ([]byte, error) {
 	// slow for large reads we might want to add a separate method for getting the slice
 	// (or an abstraction of it) directly.
 	if db.rdb == nil {
-		return nil, errors.New("rdb is nil!")
+		return nil, errorsNew("rdb is nil!")
 	}
 	return db.rdb.GetBytes(db.ro, key)
 }

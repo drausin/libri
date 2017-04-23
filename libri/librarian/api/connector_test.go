@@ -4,7 +4,7 @@ import (
 	"net"
 	"testing"
 
-	"errors."
+	"errors"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 )
@@ -29,7 +29,7 @@ func TestConnector_Connect_ok(t *testing.T) {
 func TestConnector_Connect_err(t *testing.T) {
 	addr := &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 11000}
 	conn := NewConnector(addr)
-	conn.(*connector).dialer = &fixedDialer{dialErr: errors.New("some Dial error")}
+	conn.(*connector).dialer = &fixedDialer{dialErr: errorsNew("some Dial error")}
 
 	lc, err := conn.Connect()
 	assert.NotNil(t, err)

@@ -8,7 +8,7 @@ import (
 	"mime"
 
 	"github.com/drausin/libri/libri/author/io/enc"
-	"errors."
+	"errors"
 )
 
 // Codec is a comp.codec.
@@ -261,7 +261,7 @@ func newInnerDecompressor(buf io.Reader, codec Codec) (io.Reader, error) {
 // Write decompressed p and writes its contents to the underlying uncompressed io.Writer.
 func (d *decompressor) Write(p []byte) (int, error) {
 	if d.closed {
-		return 0, errors.New("decompressor is closed")
+		return 0, errorsNew("decompressor is closed")
 	}
 
 	// write compressed contents to buffer

@@ -50,7 +50,7 @@ func TestAcquirer_Acquire_err(t *testing.T) {
 	// check that error from client.NewSignedTimeoutContext error bubbles up
 	signer1 := &fixedSigner{ // causes client.NewSignedTimeoutContext to error
 		signature: "",
-		err:       errors.New("some Sign error"),
+		err:       errorsNew("some Sign error"),
 	}
 	acq1 := NewAcquirer(clientID, signer1, params)
 	actualDoc, err := acq1.Acquire(docKey, authorPub, lc)
@@ -58,7 +58,7 @@ func TestAcquirer_Acquire_err(t *testing.T) {
 	assert.Nil(t, actualDoc)
 
 	lc2 := &fixedGetter{
-		err: errors.New("some Get error"),
+		err: errorsNew("some Get error"),
 	}
 	acq2 := NewAcquirer(clientID, signer, params)
 	actualDoc, err = acq2.Acquire(docKey, authorPub, lc2)
@@ -105,7 +105,7 @@ func TestSingleStoreAcquirer_Acquire_err(t *testing.T) {
 
 	// check inner acquire error bubbles up
 	acq1 := NewSingleStoreAcquirer(
-		&fixedAcquirer{err: errors.New("some Acquire error")},
+		&fixedAcquirer{err: errorsNew("some Acquire error")},
 		&fixedStorer{},
 	)
 	err := acq1.Acquire(docKey, authorPub, lc)
@@ -114,7 +114,7 @@ func TestSingleStoreAcquirer_Acquire_err(t *testing.T) {
 	// check store error bubbles up
 	acq2 := NewSingleStoreAcquirer(
 		&fixedAcquirer{},
-		&fixedStorer{err: errors.New("some Store error")},
+		&fixedStorer{err: errorsNew("some Store error")},
 	)
 	err = acq2.Acquire(docKey, authorPub, lc)
 	assert.NotNil(t, err)
@@ -161,7 +161,7 @@ func TestMultiStoreAcquirer_Acquire_err(t *testing.T) {
 		authorKey := ecid.ToPublicKeyBytes(ecid.NewPseudoRandom(rng))
 		for _, getParallelism := range []uint32{1, 2, 3} {
 			slAcq := &fixedSingleStoreAcquirer{
-				err: errors.New("some Acquire error"),
+				err: errorsNew("some Acquire error"),
 			}
 			params, err := NewParameters(DefaultPutTimeout, DefaultGetTimeout,
 				DefaultPutParallelism, getParallelism)
