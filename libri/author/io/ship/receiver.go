@@ -11,6 +11,7 @@ import (
 	"github.com/drausin/libri/libri/common/storage"
 )
 
+// Receiver downloads the envelope, entry, and pages from the libri network.
 type Receiver interface {
 	// Receive gets (from libri) the envelope, entry, and pages implied by the envelope key. It
 	// stores these documents in a storage.DocumentStorer and returns the entry and encryption
@@ -26,6 +27,8 @@ type receiver struct {
 	docS storage.DocumentStorer
 }
 
+// NewReceiver creates a new Receiver from the librarian balancer, keychain of reader keys,
+// acquirers, and storage.DocumentStorer.
 func NewReceiver(
 	librarians api.ClientBalancer,
 	readerKeys keychain.Keychain,

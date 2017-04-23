@@ -20,10 +20,19 @@ import (
 )
 
 const (
+	// LoggerEntryKey is the logger key used for the key of an Entry document.
 	LoggerEntryKey = "entry_key"
+
+	// LoggerEnvelopeKey is the logger key used for the key of an Envelope document.
 	LoggerEnvelopeKey = "envelope_key"
+
+	// LoggerAuthorPub is the logger key used for an author public key.
 	LoggerAuthorPub = "author_pub"
+
+	// LoggerReaderPub is the logger key used for a reader public key.
 	LoggerReaderPub = "reader_pub"
+
+	// LoggerNPages is the logger key used for the number of pages in a document.
 	LoggerNPages = "n_pages"
 )
 
@@ -186,6 +195,8 @@ func (a *Author) Upload(content io.Reader, mediaType string) (*api.Document, id.
 	return envelope, envelopeKey, nil
 }
 
+// Download downloads, join, decrypts, and decompressed the content, writing it to a unified output
+// content writer.
 func (a *Author) Download(content io.Writer, envelopeKey id.ID) error {
 	a.logger.Debug("receiving entry", zap.String(LoggerEnvelopeKey, envelopeKey.String()))
 	entry, keys, err := a.receiver.Receive(envelopeKey)

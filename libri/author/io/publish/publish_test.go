@@ -1,7 +1,6 @@
 package publish
 
 import (
-	"fmt"
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -254,7 +253,8 @@ func TestMultiAcquirePublish(t *testing.T) {
 			docs[i], docKeys[i] = api.NewTestDocument(rng)
 
 			// load first SL with documents for publiser
-			docSL1.Store(docKeys[i], docs[i])
+			err = docSL1.Store(docKeys[i], docs[i])
+			assert.Nil(t, err)
 		}
 
 		// publish & then acquire docs
@@ -435,11 +435,6 @@ type publishTestCase struct {
 	getParallelism uint32
 	putParallelism uint32
 	numDocs        uint32
-}
-
-func (p publishTestCase) String() string {
-	return fmt.Sprintf("getParallelism: %d, putParallelism: %d, numDocs: %s", p.getParallelism,
-		p.putParallelism, p.numDocs)
 }
 
 func caseCrossProduct(

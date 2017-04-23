@@ -48,6 +48,8 @@ var (
 	// when expecting an Entry).
 	ErrUnexpectedDocumentType = errors.New("unexpected document type")
 
+	// ErrUnknownDocumentType indicates when a document type is not known (usually, this
+	// error should never actually be thrown).
 	ErrUnknownDocumentType = errors.New("unknown document type")
 )
 
@@ -90,6 +92,7 @@ func GetEntryPageKeys(entry *Document) ([]cid.ID, error) {
 	return nil, ErrUnexpectedDocumentType
 }
 
+// GetPageDocument wraps a Page into a Document, returning it and its key.
 func GetPageDocument(page *Page) (*Document, cid.ID, error) {
 	pageDoc := &Document{
 		Contents: &Document_Page{

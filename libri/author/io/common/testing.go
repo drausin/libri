@@ -5,6 +5,7 @@ import (
 	"math/rand"
 )
 
+// NewCompressableBytes generates a buffer of repeated strings with a given length.
 func NewCompressableBytes(rng *rand.Rand, size int) *bytes.Buffer {
 	dict := []string{
 		"these", "are", "some", "test", "words", "that", "will", "be", "compressed",

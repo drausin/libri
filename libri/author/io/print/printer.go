@@ -60,7 +60,8 @@ func NewDefaultParameters() *Parameters {
 // Printer stores pages created from (uncompressed) content.
 type Printer interface {
 	// Print creates pages from the given content and stores them via an internal page.Storer.
-	Print(content io.Reader, mediaType string, keys *enc.Keys, authorPub []byte) ([]id.ID, *api.Metadata, error)
+	Print(content io.Reader, mediaType string, keys *enc.Keys, authorPub []byte) (
+		[]id.ID, *api.Metadata, error)
 }
 
 type printer struct {

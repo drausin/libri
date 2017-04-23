@@ -205,7 +205,8 @@ func TestPrintInitializerImpl_Initialize_ok(t *testing.T) {
 	printInit := &printInitializerImpl{
 		params:    params,
 	}
-	compressor, paginator, err := printInit.Initialize(content, mediaType, keys, authorPub, pages)
+	compressor, paginator, err := printInit.Initialize(content, mediaType, keys, authorPub,
+		pages)
 	assert.Nil(t, err)
 	assert.NotNil(t, compressor)
 	assert.NotNil(t, paginator)
@@ -224,7 +225,8 @@ func TestPrintInitializerImpl_Initialize_err(t *testing.T) {
 	}
 
 	// check that bad media type triggers error
-	compressor, paginator, err := printInit1.Initialize(content, "application/", keys, authorPub, pages)
+	compressor, paginator, err := printInit1.Initialize(content, "application/", keys,
+		authorPub, pages)
 	assert.NotNil(t, err)
 	assert.Nil(t, compressor)
 	assert.Nil(t, paginator)
@@ -238,7 +240,8 @@ func TestPrintInitializerImpl_Initialize_err(t *testing.T) {
 	}
 
 	// check that error creating new compressor bubbles up
-	compressor, paginator, err = printInit2.Initialize(content, mediaType, keys, authorPub, pages)
+	compressor, paginator, err = printInit2.Initialize(content, mediaType, keys, authorPub,
+		pages)
 	assert.NotNil(t, err)
 	assert.Nil(t, compressor)
 	assert.Nil(t, paginator)
@@ -248,7 +251,8 @@ func TestPrintInitializerImpl_Initialize_err(t *testing.T) {
 	printInit3 := &printInitializerImpl{params}
 
 	// check that error creating new encrypter triggers error
-	compressor, paginator, err = printInit3.Initialize(content, mediaType, keys3, authorPub, pages)
+	compressor, paginator, err = printInit3.Initialize(content, mediaType, keys3, authorPub,
+		pages)
 	assert.NotNil(t, err)
 	assert.Nil(t, compressor)
 	assert.Nil(t, paginator)
@@ -258,7 +262,8 @@ func TestPrintInitializerImpl_Initialize_err(t *testing.T) {
 	printInit4 := &printInitializerImpl{params}
 
 	// check that error creating new encrypter triggers error
-	compressor, paginator, err = printInit4.Initialize(content, mediaType, keys4, authorPub, pages)
+	compressor, paginator, err = printInit4.Initialize(content, mediaType, keys4, authorPub,
+		pages)
 	assert.NotNil(t, err)
 	assert.Nil(t, compressor)
 	assert.Nil(t, paginator)

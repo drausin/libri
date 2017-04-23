@@ -58,7 +58,10 @@ func (p *entryPacker) Pack(content io.Reader, mediaType string, keys *enc.Keys, 
 	return newEntryDoc(authorPub, pageKeys, encMetadata, p.docL)
 }
 
+// EntryUnpacker writes individual pages to the content io.Writer.
 type EntryUnpacker interface {
+	// Unpack extracts the individual pages from a document and stitches them together to write
+	// to the content io.Writer.
 	Unpack(content io.Writer, entry *api.Document, keys *enc.Keys) error
 }
 
@@ -68,6 +71,8 @@ type entryUnpacker struct {
 	scanner     print.Scanner
 }
 
+// NewEntryUnpacker creates a new EntryUnpacker with the given parameters, metadata decrypter, and
+// storage.DocumentStorerLoader.
 func NewEntryUnpacker(
 	params *print.Parameters,
 	metadataDec enc.MetadataDecrypter,

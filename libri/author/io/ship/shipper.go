@@ -42,7 +42,7 @@ func (s *shipper) Ship(entry *api.Document, authorPub []byte, readerPub []byte) 
 		return nil, nil, err
 	}
 	if pageKeys != nil {
-		if err := s.mlPublisher.Publish(pageKeys, authorPub, s.librarians); err != nil {
+		if err = s.mlPublisher.Publish(pageKeys, authorPub, s.librarians); err != nil {
 			return nil, nil, err
 		}
 	}

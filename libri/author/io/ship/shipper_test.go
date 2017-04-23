@@ -157,7 +157,8 @@ func TestShipReceive(t *testing.T) {
 			docKeys[i] = docKey
 
 			// load first SL with documents for publisher
-			docSL1.Store(docKeys[i], docs[i])
+			err = docSL1.Store(docKeys[i], docs[i])
+			assert.Nil(t, err)
 		}
 
 		// ship all docs
@@ -175,6 +176,7 @@ func TestShipReceive(t *testing.T) {
 			envelope, _, err := s.Ship(docs[i], authorPub, readerPub)
 			assert.Nil(t, err)
 			envelopeKeys[i], err = api.GetKey(envelope)
+			assert.Nil(t, err)
 		}
 
 		// receive all docs
@@ -191,6 +193,7 @@ func TestShipReceive(t *testing.T) {
 			assert.Equal(t, docs[i], entry)
 			assert.Nil(t, err)
 			entryKey, err := api.GetKey(entry)
+			assert.Nil(t, err)
 			assert.Equal(t, docKeys[i], entryKey)
 			pageKeys, err := api.GetEntryPageKeys(entry)
 			assert.Nil(t, err)
