@@ -8,7 +8,7 @@ import (
 
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/api"
-	"errors."
+	"github.com/pkg/errors"
 	"golang.org/x/crypto/hkdf"
 )
 

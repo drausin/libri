@@ -8,7 +8,7 @@ import (
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/golang/protobuf/proto"
-	"errors."
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 

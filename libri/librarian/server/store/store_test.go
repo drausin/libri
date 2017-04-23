@@ -9,7 +9,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	ssearch "github.com/drausin/libri/libri/librarian/server/search"
-	"errors."
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -4,7 +4,7 @@ import (
 	"net"
 	"testing"
 
-	"errors."
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 )

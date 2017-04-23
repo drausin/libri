@@ -3,7 +3,7 @@ package api
 import (
 	"encoding/binary"
 
-	"errors."
+	"github.com/pkg/errors"
 )
 
 // required Entry metadata fields

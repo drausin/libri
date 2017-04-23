@@ -9,7 +9,7 @@ import (
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/ecid"
-	"errors."
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 

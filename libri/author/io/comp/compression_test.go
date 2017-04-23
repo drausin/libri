@@ -10,7 +10,7 @@ import (
 
 	"github.com/drausin/libri/libri/author/io/common"
 	"github.com/drausin/libri/libri/author/io/enc"
-	"errors."
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 

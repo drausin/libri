@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
-	"errors."
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/metadata"
 )

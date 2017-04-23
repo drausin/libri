@@ -4,7 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"errors."
+	"github.com/pkg/errors"
 	"github.com/tecbot/gorocksdb"
 )
 
