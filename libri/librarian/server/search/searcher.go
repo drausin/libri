@@ -9,7 +9,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
-	"github.com/pkg/errors"
+	"errors."
 )
 
 // Searcher executes searches for particular keys.

@@ -9,7 +9,7 @@ import (
 
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/golang/protobuf/proto"
-	"github.com/pkg/errors"
+	"errors."
 )
 
 // field lengths

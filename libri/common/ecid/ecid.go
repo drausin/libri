@@ -10,7 +10,7 @@ import (
 
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
-	"github.com/pkg/errors"
+	"errors."
 )
 
 // Curve defines the elliptic curve public & private keys use. Curve S256 implies 32-byte private

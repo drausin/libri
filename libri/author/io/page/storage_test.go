@@ -6,7 +6,7 @@ import (
 
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/pkg/errors"
+	"errors."
 	"github.com/stretchr/testify/assert"
 )
 

@@ -9,7 +9,7 @@ import (
 	"crypto/elliptic"
 
 	cid "github.com/drausin/libri/libri/common/id"
-	"github.com/pkg/errors"
+	"errors."
 	"github.com/stretchr/testify/assert"
 )
 

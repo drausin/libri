@@ -8,7 +8,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/golang/protobuf/proto"
-	"github.com/pkg/errors"
+	"errors."
 	"golang.org/x/net/context"
 )
 

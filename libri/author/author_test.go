@@ -17,7 +17,7 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/pkg/errors"
+	"errors."
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap/zapcore"
 )
