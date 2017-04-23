@@ -108,7 +108,8 @@ func NewMultiStoreAcquirer(inner SingleStoreAcquirer, params *Parameters) MultiS
 	}
 }
 
-func (a *multiStoreAcquirer) Acquire(docKeys []id.ID, authorPub []byte, cb api.ClientBalancer) error {
+func (a *multiStoreAcquirer) Acquire(docKeys []id.ID, authorPub []byte, cb api.ClientBalancer) (
+	error) {
 	docKeysChan := make(chan id.ID, a.params.PutParallelism)
 	go loadChan(docKeys, docKeysChan)
 	wg := new(sync.WaitGroup)
