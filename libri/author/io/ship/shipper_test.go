@@ -31,10 +31,12 @@ func TestShipper_Ship_ok(t *testing.T) {
 	assert.Nil(t, err)
 
 	// test multi-page ship
-	envelope, entryKey, err := s.Ship(entry, authorPub, readerPub)
+	envelope, envelopeKey, err := s.Ship(entry, authorPub, readerPub)
 	assert.Nil(t, err)
 	assert.NotNil(t, envelope)
-	assert.Equal(t, origEntryKey, entryKey)
+	assert.NotNil(t, envelopeKey)
+	assert.Equal(t, origEntryKey.Bytes(),
+		envelope.Contents.(*api.Document_Envelope).Envelope.EntryKey)
 
 	// test single-page ship
 	entry = &api.Document{
@@ -44,10 +46,12 @@ func TestShipper_Ship_ok(t *testing.T) {
 	}
 	origEntryKey, err = api.GetKey(entry)
 	assert.Nil(t, err)
-	envelope, entryKey, err = s.Ship(entry, authorPub, readerPub)
+	envelope, envelopeKey, err = s.Ship(entry, authorPub, readerPub)
 	assert.Nil(t, err)
 	assert.NotNil(t, envelope)
-	assert.Equal(t, origEntryKey, entryKey)
+	assert.NotNil(t, envelopeKey)
+	assert.Equal(t, origEntryKey.Bytes(),
+		envelope.Contents.(*api.Document_Envelope).Envelope.EntryKey)
 }
 
 func TestShipper_Ship_err(t *testing.T) {

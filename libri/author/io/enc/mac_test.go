@@ -46,6 +46,8 @@ func TestSizeHMAC_Sum(t *testing.T) {
 
 	assert.Equal(t, mac1, mac2[3:])
 	assert.Equal(t, len(mac1), len(mac3))
+	assert.Nil(t, api.ValidateHMAC256(mac1))
+	assert.Nil(t, api.ValidateHMAC256(mac3))
 	assert.NotEqual(t, mac1, mac3)
 }
 

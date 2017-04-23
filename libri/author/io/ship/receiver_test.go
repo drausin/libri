@@ -12,7 +12,6 @@ import (
 	"github.com/pkg/errors"
 	"crypto/ecdsa"
 	"crypto/elliptic"
-	"github.com/drausin/libri/libri/author/io/enc"
 )
 
 func TestReceiver_Receive_ok(t *testing.T) {
@@ -176,7 +175,7 @@ func TestReceiver_createEncryptionKeys_err(t *testing.T) {
 	readerKeys2 := &fixedKeychain{in: true}  // allows us to not err on readerKeys.Get()
 	r2 := NewReceiver(cb, readerKeys2, acq, msAcq, docS).(*receiver)
 	keys, err = r2.createEncryptionKeys(api.RandBytes(rng, 16), nil)  // bad authorPubBytes
-	assert.Equal(t, keychain.ErrUnexpectedMissingKey, err)
+	assert.Equal(t, ecid.ErrKeyPointOffCurve, err)
 	assert.Nil(t, keys)
 
 	// check enc.NewKeys() error bubbles up
@@ -185,7 +184,7 @@ func TestReceiver_createEncryptionKeys_err(t *testing.T) {
 	readerKeys3 := &fixedKeychain{getKey: ecid.FromPrivateKey(wrongCurveKey)}
 	wrongCurveKeyPubBytes := ecid.ToPublicKeyBytes(readerKeys3.getKey)
 	keys, err = r2.createEncryptionKeys(wrongCurveKeyPubBytes, nil)
-	assert.Equal(t, enc.ErrReaderOffCurve, err)
+	assert.Equal(t, ecid.ErrKeyPointOffCurve, err)
 	assert.Nil(t, keys)
 }
 

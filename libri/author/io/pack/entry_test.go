@@ -1,26 +1,25 @@
 package pack
 
 import (
-	"testing"
-	"github.com/drausin/libri/libri/author/io/print"
-	"github.com/drausin/libri/libri/author/io/enc"
-	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/drausin/libri/libri/common/id"
 	"bytes"
-	"math/rand"
-	"github.com/stretchr/testify/assert"
-	"github.com/drausin/libri/libri/author/io/page"
 	"errors"
-	"io"
 	"github.com/drausin/libri/libri/author/io/common"
-	"fmt"
 	"github.com/drausin/libri/libri/author/io/comp"
+	"github.com/drausin/libri/libri/author/io/enc"
+	"github.com/drausin/libri/libri/author/io/page"
+	"github.com/drausin/libri/libri/author/io/print"
+	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/stretchr/testify/assert"
+	"io"
+	"math/rand"
+	"testing"
 )
 
 func TestEntryPacker_Pack_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	params := print.NewDefaultParameters()
-	page.MinSize = 64  // just for testing
+	page.MinSize = 64 // just for testing
 	params.PageSize = 128
 	docSL := &fixedDocStorerLoader{
 		stored: make(map[string]*api.Document),
@@ -30,13 +29,13 @@ func TestEntryPacker_Pack_ok(t *testing.T) {
 	mediaType := "application/x-pdf"
 
 	// test works with single-page content
-	content1 := common.NewCompressableBytes(rng, int(params.PageSize  / 2))
+	content1 := common.NewCompressableBytes(rng, int(params.PageSize/2))
 	doc, err := p.Pack(content1, mediaType, keys, authorPub)
 	assert.Nil(t, err)
 	assert.NotNil(t, doc)
 
 	// test works with multi-page content
-	content2 := common.NewCompressableBytes(rng, int(params.PageSize  * 5))
+	content2 := common.NewCompressableBytes(rng, int(params.PageSize*5))
 	doc, err = p.Pack(content2, mediaType, keys, authorPub)
 	assert.Nil(t, err)
 	assert.NotNil(t, doc)
@@ -53,7 +52,7 @@ func TestEntryPacker_Pack_err(t *testing.T) {
 	}
 	p := NewEntryPacker(params, enc.NewMetadataEncrypterDecrypter(), docSL)
 	mediaType := "application/x-pdf"
-	content := common.NewCompressableBytes(rng, int(params.PageSize  / 2))
+	content := common.NewCompressableBytes(rng, int(params.PageSize/2))
 	keys, authorPub, _ := enc.NewPseudoRandomKeys(rng)
 
 	// check error from bad mediaType bubbles up
@@ -67,7 +66,7 @@ func TestEntryPacker_Pack_err(t *testing.T) {
 	assert.Nil(t, doc)
 
 	errDocSL := &fixedDocStorerLoader{
-		stored: make(map[string]*api.Document),
+		stored:  make(map[string]*api.Document),
 		loadErr: errors.New("some Load error"),
 	}
 	p2 := NewEntryPacker(params, enc.NewMetadataEncrypterDecrypter(), errDocSL)
@@ -132,24 +131,37 @@ func TestEntryUnpacker_Unpack_err(t *testing.T) {
 
 func TestEntryPackUnpack(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	page.MinSize = 64  // just for testing
+	page.MinSize = 64 // just for testing
 	keys, authorPub, _ := enc.NewPseudoRandomKeys(rng)
 	metadataEncDec := enc.NewMetadataEncrypterDecrypter()
 
 	pageSizes := []uint32{128, 256, 512, 1024}
 	uncompressedSizes := []int{128, 192, 256, 384, 512, 768, 1024, 2048, 4096, 8192}
 	mediaTypes := []string{"application/x-pdf", "application/x-gzip"}
-	parallelisms := []uint32{1, 2, 3}
+	packParallelisms := []uint32{1, 2, 3}
+	unpackParallelisms := []uint32{1, 2, 3}
+	cases := caseCrossProduct(
+		pageSizes,
+		uncompressedSizes,
+		mediaTypes,
+		packParallelisms,
+		unpackParallelisms,
+	)
 
-	for _, c := range caseCrossProduct(pageSizes, uncompressedSizes, mediaTypes, parallelisms) {
+	for _, c := range cases {
 		content1 := common.NewCompressableBytes(rng, c.uncompressedSize)
 		content1Bytes := content1.Bytes()
 		docSL := &fixedDocStorerLoader{
 			stored: make(map[string]*api.Document),
 		}
-		params, err := print.NewParameters(comp.MinBufferSize, c.pageSize, c.parallelism)
-		p := NewEntryPacker(params, metadataEncDec, docSL)
-		u := NewEntryUnpacker(params, metadataEncDec, docSL)
+		packParams, err := print.NewParameters(comp.MinBufferSize, c.pageSize,
+			c.packParallelism)
+		assert.Nil(t, err)
+		p := NewEntryPacker(packParams, metadataEncDec, docSL)
+		unpackParams, err := print.NewParameters(comp.MinBufferSize, c.pageSize,
+			c.unpackParallelism)
+		assert.Nil(t, err)
+		u := NewEntryUnpacker(unpackParams, metadataEncDec, docSL)
 
 		doc, err := p.Pack(content1, c.mediaType, keys, authorPub)
 		assert.Nil(t, err)
@@ -164,8 +176,8 @@ func TestEntryPackUnpack(t *testing.T) {
 
 type fixedDocStorerLoader struct {
 	storeErr error
-	stored map[string]*api.Document
-	loadErr error
+	stored   map[string]*api.Document
+	loadErr  error
 }
 
 func (f *fixedDocStorerLoader) Store(key id.ID, value *api.Document) error {
@@ -180,7 +192,7 @@ func (f *fixedDocStorerLoader) Load(key id.ID) (*api.Document, error) {
 
 type fixedMetadataDecrypter struct {
 	metadata *api.Metadata
-	err error
+	err      error
 }
 
 func (f *fixedMetadataDecrypter) Decrypt(em *enc.EncryptedMetadata, keys *enc.Keys) (
@@ -199,31 +211,34 @@ func (f *fixedScanner) Scan(
 }
 
 type packTestCase struct {
-	pageSize         uint32
-	uncompressedSize int
-	mediaType            string
-	parallelism uint32
-}
-
-func (p packTestCase) String() string {
-	return fmt.Sprintf("pageSize: %d, uncompressedSize: %d, mediaType: %s", p.pageSize,
-		p.uncompressedSize, p.mediaType)
+	pageSize          uint32
+	uncompressedSize  int
+	mediaType         string
+	packParallelism   uint32
+	unpackParallelism uint32
 }
 
 func caseCrossProduct(
-	pageSizes []uint32, uncompressedSizes []int, mediaTypes []string, parallelisms []uint32,
+	pageSizes []uint32,
+	uncompressedSizes []int,
+	mediaTypes []string,
+	packParallelisms []uint32,
+	unpackParallelisms []uint32,
 ) []*packTestCase {
 	cases := make([]*packTestCase, 0)
 	for _, pageSize := range pageSizes {
 		for _, uncompressedSize := range uncompressedSizes {
 			for _, mediaType := range mediaTypes {
-				for _, parallelism := range parallelisms {
-					cases = append(cases, &packTestCase{
-						pageSize:         pageSize,
-						uncompressedSize: uncompressedSize,
-						mediaType:            mediaType,
-						parallelism: parallelism,
-					})
+				for _, packParallelism := range packParallelisms {
+					for _, unpackParallelism := range unpackParallelisms {
+						cases = append(cases, &packTestCase{
+							pageSize:          pageSize,
+							uncompressedSize:  uncompressedSize,
+							mediaType:         mediaType,
+							packParallelism:   packParallelism,
+							unpackParallelism: unpackParallelism,
+						})
+					}
 				}
 			}
 		}

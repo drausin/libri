@@ -11,7 +11,7 @@ import (
 type Shipper interface {
 	// Ship publishes (to libri) the entry document, its page document keys (if more than one),
 	// and the envelope document with the author and reader public keys. It returns the
-	// published envelope document and entry document key.
+	// published envelope document and its key.
 	Ship(entry *api.Document, authorPub []byte, readerPub []byte) (*api.Document, id.ID, error)
 }
 
@@ -57,9 +57,10 @@ func (s *shipper) Ship(entry *api.Document, authorPub []byte, readerPub []byte) 
 		return nil, nil, err
 	}
 	envelope := pack.NewEnvelopeDoc(authorPub, readerPub, entryKey)
-	if _, err = s.publisher.Publish(envelope, authorPub, lc); err != nil {
+	envelopeKey, err := s.publisher.Publish(envelope, authorPub, lc);
+	if err != nil {
 		return nil, nil, err
 	}
 
-	return envelope, entryKey, nil
+	return envelope, envelopeKey, nil
 }

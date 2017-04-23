@@ -8,6 +8,7 @@ import (
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
+	"log"
 )
 
 // field lengths
@@ -152,6 +153,7 @@ func ValidateEntry(e *Entry) error {
 		return errors.New("CreateTime must be populated")
 	}
 	if err := ValidateHMAC256(e.MetadataCiphertextMac); err != nil {
+		log.Print("metadata ciphertext mac issue")
 		return err
 	}
 	if err := ValidateNotEmpty(e.MetadataCiphertext, "MetadataCiphertext"); err != nil {
@@ -187,6 +189,7 @@ func ValidatePage(p *Page) error {
 	}
 	// nothing to check for index, since it's zero value is legitimate
 	if err := ValidateHMAC256(p.CiphertextMac); err != nil {
+		log.Print("page ciphertext mac issue")
 		return err
 	}
 	if err := ValidateNotEmpty(p.Ciphertext, "Ciphertext"); err != nil {
