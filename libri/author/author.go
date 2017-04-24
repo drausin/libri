@@ -136,7 +136,7 @@ func NewAuthor(config *Config, keychainAuth string, logger *zap.Logger) (*Author
 	entryPacker := pack.NewEntryPacker(config.Print, mdEncDec, documentSL)
 	entryUnpacker := pack.NewEntryUnpacker(config.Print, mdEncDec, documentSL)
 
-	return &Author{
+	author := &Author{
 		clientID:       clientID,
 		config:         config,
 		authorKeys:     authorKeys,
@@ -154,7 +154,12 @@ func NewAuthor(config *Config, keychainAuth string, logger *zap.Logger) (*Author
 		signer:         signer,
 		logger:         logger,
 		stop:           make(chan struct{}),
-	}, nil
+	}
+
+	// for now, this doesn't really do anything
+	go func() { <- author.stop }()
+
+	return author, nil
 }
 
 // TODO (drausin) Author methods

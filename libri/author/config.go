@@ -23,7 +23,7 @@ const (
 	DefaultLogLevel = zap.InfoLevel
 
 	// DataSubdir is the name of the data directory.
-	DataSubdir = "data"
+	DataSubdir = "author-data"
 
 	// DBSubDir is the default DB subdirectory within the data dir.
 	DBSubDir = "db"

@@ -28,14 +28,12 @@ const (
 
 func TestNewAuthor(t *testing.T) {
 	a1 := newTestAuthor()
-	go func() { <-a1.stop }() // dummy stop signal acceptor
 
 	clientID1 := a1.clientID
 	err := a1.Close()
 	assert.Nil(t, err)
 
 	a2, err := NewAuthor(a1.config, testKeychainAuth, clogging.NewDevInfoLogger())
-	go func() { <-a2.stop }() // dummy stop signal acceptor
 
 	assert.Nil(t, err)
 	assert.Equal(t, clientID1, a2.clientID)
@@ -56,7 +54,6 @@ func TestAuthor_Upload_ok(t *testing.T) {
 		},
 		envelopeKey: expectedEntryKey,
 	}
-	go func() { <-a.stop }() // dummy stop signal acceptor
 
 	// since everything is mocked, inputs don't really matter
 	actualEnvelope, actualEnvelopeKey, err := a.Upload(nil, "")
@@ -70,7 +67,6 @@ func TestAuthor_Upload_ok(t *testing.T) {
 
 func TestAuthor_Upload_err(t *testing.T) {
 	a := newTestAuthor()
-	go func() { <-a.stop }() // dummy stop signal acceptor
 	a.entryPacker = &fixedEntryPacker{err: errors.New("some Pack error")}
 	a.shipper = &fixedShipper{}
 
@@ -131,7 +127,6 @@ func TestAuthor_Download_err(t *testing.T) {
 func TestAuthor_UploadDownload(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	a := newTestAuthor()
-	go func() { <-a.stop }() // dummy stop signal acceptor
 	a.librarians = &fixedClientBalancer{}
 
 	// just mock interaction with libri network
@@ -320,7 +315,7 @@ func newTestAuthor() *Author {
 	logger := clogging.NewDevLogger(zapcore.DebugLevel)
 
 	// create keychains
-	err := createKeychains(logger, config.KeychainDir, testKeychainAuth,
+	err := CreateKeychains(logger, config.KeychainDir, testKeychainAuth,
 		veryLightScryptN, veryLightScryptP)
 	if err != nil {
 		panic(err)

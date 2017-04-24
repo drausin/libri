@@ -49,7 +49,7 @@ func (a *acquirer) Acquire(docKey id.ID, authorPub []byte, lc api.Getter) (*api.
 	if err := api.ValidateDocument(rp.Value); err != nil {
 		return nil, err
 	}
-	if authorPub == nil || !bytes.Equal(authorPub, api.GetAuthorPub(rp.Value)) {
+	if authorPub != nil && !bytes.Equal(authorPub, api.GetAuthorPub(rp.Value)) {
 		return nil, ErrInconsistentAuthorPubKey
 	}
 	return rp.Value, nil

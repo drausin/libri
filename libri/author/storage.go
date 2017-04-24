@@ -99,7 +99,7 @@ func loadKeychains(keychainDir, auth string) (keychain.Keychain, keychain.Keycha
 	return authorKeys, selfReaderKeys, nil
 }
 
-func createKeychains(logger *zap.Logger, keychainDir, auth string, scryptN, scryptP int) error {
+func CreateKeychains(logger *zap.Logger, keychainDir, auth string, scryptN, scryptP int) error {
 	if _, err := os.Stat(keychainDir); os.IsNotExist(err) {
 		err := os.MkdirAll(keychainDir, os.ModePerm)
 		if err != nil {
