@@ -5,8 +5,6 @@ import (
 	"crypto/sha256"
 	"fmt"
 
-	"log"
-
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/golang/protobuf/proto"
 	"errors"
@@ -80,6 +78,9 @@ func GetAuthorPub(d *Document) []byte {
 // GetEntryPageKeys returns the []id.ID page keys if the entry is multi-page. It returns nil for
 // single-page entries.
 func GetEntryPageKeys(entry *Document) ([]cid.ID, error) {
+	if _, ok := entry.Contents.(*Document_Entry); !ok {
+		return nil, ErrUnexpectedDocumentType
+	}
 	switch x := entry.Contents.(*Document_Entry).Entry.Contents.(type) {
 	case *Entry_PageKeys:
 		pageKeys := make([]cid.ID, len(x.PageKeys.Keys))
@@ -157,7 +158,6 @@ func ValidateEntry(e *Entry) error {
 		return errors.New("CreateTime must be populated")
 	}
 	if err := ValidateHMAC256(e.MetadataCiphertextMac); err != nil {
-		log.Print("metadata ciphertext mac issue")
 		return err
 	}
 	if err := ValidateNotEmpty(e.MetadataCiphertext, "MetadataCiphertext"); err != nil {
@@ -179,7 +179,7 @@ func validateEntryContents(e *Entry) error {
 	case *Entry_PageKeys:
 		return ValidatePageKeys(x.PageKeys)
 	default:
-		return errors.New("unknown Entry.Contents type")
+		return ErrUnknownDocumentType
 	}
 }
 
@@ -193,7 +193,6 @@ func ValidatePage(p *Page) error {
 	}
 	// nothing to check for index, since it's zero value is legitimate
 	if err := ValidateHMAC256(p.CiphertextMac); err != nil {
-		log.Print("page ciphertext mac issue")
 		return err
 	}
 	if err := ValidateNotEmpty(p.Ciphertext, "Ciphertext"); err != nil {

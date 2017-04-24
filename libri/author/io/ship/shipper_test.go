@@ -70,8 +70,19 @@ func TestShipper_Ship_err(t *testing.T) {
 		&fixedMultiLoadPublisher{errors.New("some Publish error")},
 	)
 
+	// check GetEntryPageKeys error bubbles up
+	envelope := &api.Document{  // wrong doc type
+		Contents: &api.Document_Envelope{
+			Envelope: api.NewTestEnvelope(rng),
+		},
+	}
+	envelope, entryKey, err := s.Ship(envelope, authorPub, readerPub)
+	assert.NotNil(t, err)
+	assert.Nil(t, envelope)
+	assert.Nil(t, entryKey)
+
 	// check page publish error bubbles up
-	envelope, entryKey, err := s.Ship(entry, authorPub, readerPub)
+	envelope, entryKey, err = s.Ship(entry, authorPub, readerPub)
 	assert.NotNil(t, err)
 	assert.Nil(t, envelope)
 	assert.Nil(t, entryKey)

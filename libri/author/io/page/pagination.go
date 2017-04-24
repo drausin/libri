@@ -117,6 +117,10 @@ func (p *paginator) getPage(ciphertext []byte, index uint32) (*api.Page, error) 
 		Ciphertext:      ciphertext,
 		CiphertextMac:   p.pageMAC.Sum(nil),
 	}
+	if err := api.ValidatePage(page); err != nil {
+		// extra safeguard
+		return nil, err
+	}
 	return page, nil
 }
 

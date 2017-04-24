@@ -38,7 +38,7 @@ func TestGetAuthorPub(t *testing.T) {
 	assert.Equal(t, expected, GetAuthorPub(&Document{&Document_Envelope{Envelope: envelope}}))
 }
 
-func TestGetEntryPageKeys(t *testing.T) {
+func TestGetEntryPageKeys_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 
 	singlePageDoc := &Document{
@@ -58,6 +58,21 @@ func TestGetEntryPageKeys(t *testing.T) {
 	pageKeys2, err := GetEntryPageKeys(multiPageDoc)
 	assert.Nil(t, err)
 	assert.NotNil(t, len(pageKeys2) > 1)
+
+
+}
+
+func TestGetEntryPageKeys_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+
+	envelope := &Document{  // wrong doc type
+		Contents: &Document_Envelope{
+			Envelope: NewTestEnvelope(rng),
+		},
+	}
+	pageKeys, err := GetEntryPageKeys(envelope)
+	assert.NotNil(t, err)
+	assert.Nil(t, pageKeys)
 }
 
 func TestGetPageDocument(t *testing.T) {
