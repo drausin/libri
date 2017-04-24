@@ -99,6 +99,8 @@ func loadKeychains(keychainDir, auth string) (keychain.Keychain, keychain.Keycha
 	return authorKeys, selfReaderKeys, nil
 }
 
+// CreateKeychains creas the author and self reader keychains in the given keychain directory with
+// the given authentication passphrase and Scrypt parameters.
 func CreateKeychains(logger *zap.Logger, keychainDir, auth string, scryptN, scryptP int) error {
 	if _, err := os.Stat(keychainDir); os.IsNotExist(err) {
 		err := os.MkdirAll(keychainDir, os.ModePerm)
