@@ -231,6 +231,7 @@ func TestUnpaginator_WriteTo_err(t *testing.T) {
 		Ciphertext:      ciphertext6,
 		CiphertextMac:   ciphertextMac6,
 	}
+	close(pages)
 	u6, err := NewUnpaginator(pages, decrypter6, keys)
 	assert.Nil(t, err)
 	n, err = u6.WriteTo(&errCloseWriter{
