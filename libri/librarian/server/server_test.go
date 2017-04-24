@@ -17,7 +17,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/store"
 	"github.com/golang/protobuf/proto"
-	"github.com/pkg/errors"
+	"errors"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )

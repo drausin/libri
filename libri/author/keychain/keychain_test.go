@@ -5,8 +5,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestKeychain_Sample_ok(t *testing.T) {

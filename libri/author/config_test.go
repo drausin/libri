@@ -1,12 +1,13 @@
 package author
 
 import (
-	"testing"
-	"github.com/drausin/libri/libri/author/io/print"
-	"github.com/stretchr/testify/assert"
 	"net"
-	"github.com/drausin/libri/libri/librarian/server"
+	"testing"
+
+	"github.com/drausin/libri/libri/author/io/print"
 	"github.com/drausin/libri/libri/author/io/publish"
+	"github.com/drausin/libri/libri/librarian/server"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap/zapcore"
 )
 

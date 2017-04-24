@@ -3,19 +3,38 @@ package author
 import (
 	"io"
 
+	"fmt"
+
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/pack"
 	"github.com/drausin/libri/libri/author/io/page"
 	"github.com/drausin/libri/libri/author/io/publish"
+	"github.com/drausin/libri/libri/author/io/ship"
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"go.uber.org/zap"
-	"github.com/drausin/libri/libri/author/io/ship"
-	"github.com/drausin/libri/libri/common/id"
+)
+
+const (
+	// LoggerEntryKey is the logger key used for the key of an Entry document.
+	LoggerEntryKey = "entry_key"
+
+	// LoggerEnvelopeKey is the logger key used for the key of an Envelope document.
+	LoggerEnvelopeKey = "envelope_key"
+
+	// LoggerAuthorPub is the logger key used for an author public key.
+	LoggerAuthorPub = "author_pub"
+
+	// LoggerReaderPub is the logger key used for a reader public key.
+	LoggerReaderPub = "reader_pub"
+
+	// LoggerNPages is the logger key used for the number of pages in a document.
+	LoggerNPages = "n_pages"
 )
 
 // Author is the main client of the libri network. It can upload, download, and share documents with
@@ -45,7 +64,7 @@ type Author struct {
 	clientSL storage.NamespaceStorerLoader
 
 	// SL for locally stored documents
-	documentSL storage.DocumentLoader
+	documentSL storage.DocumentStorerLoader
 
 	// load balancer for librarian clients
 	librarians api.ClientBalancer
@@ -53,8 +72,12 @@ type Author struct {
 	// creates entry documents from raw content
 	entryPacker pack.EntryPacker
 
+	entryUnpacker pack.EntryUnpacker
+
 	// publishes documents to libri
 	shipper ship.Shipper
+
+	receiver ship.Receiver
 
 	// stores Pages in chan to local storage
 	pageSL page.StorerLoader
@@ -99,17 +122,21 @@ func NewAuthor(config *Config, keychainAuth string, logger *zap.Logger) (*Author
 		return nil, err
 	}
 	signer := client.NewSigner(clientID.Key())
-	publisher := publish.NewPublisher(clientID, signer, config.Publish)
-	slPublisher := publish.NewSingleLoadPublisher(publisher, documentSL)
-	mlPublisher := publish.NewMultiLoadPublisher(slPublisher, config.Publish)
-	shipper := ship.NewShipper(librarians, publisher, mlPublisher)
-	entryPacker := pack.NewEntryPacker(
-		config.Print,
-		enc.NewMetadataEncrypterDecrypter(),
-		documentSL,
-	)
 
-	return &Author{
+	publisher := publish.NewPublisher(clientID, signer, config.Publish)
+	acquirer := publish.NewAcquirer(clientID, signer, config.Publish)
+	slPublisher := publish.NewSingleLoadPublisher(publisher, documentSL)
+	ssAcquirer := publish.NewSingleStoreAcquirer(acquirer, documentSL)
+	mlPublisher := publish.NewMultiLoadPublisher(slPublisher, config.Publish)
+	msAcquirer := publish.NewMultiStoreAcquirer(ssAcquirer, config.Publish)
+	shipper := ship.NewShipper(librarians, publisher, mlPublisher)
+	receiver := ship.NewReceiver(librarians, selfReaderKeys, acquirer, msAcquirer, documentSL)
+
+	mdEncDec := enc.NewMetadataEncrypterDecrypter()
+	entryPacker := pack.NewEntryPacker(config.Print, mdEncDec, documentSL)
+	entryUnpacker := pack.NewEntryUnpacker(config.Print, mdEncDec, documentSL)
+
+	author := &Author{
 		clientID:       clientID,
 		config:         config,
 		authorKeys:     authorKeys,
@@ -120,39 +147,104 @@ func NewAuthor(config *Config, keychainAuth string, logger *zap.Logger) (*Author
 		documentSL:     documentSL,
 		librarians:     librarians,
 		entryPacker:    entryPacker,
-		shipper: shipper,
+		entryUnpacker:  entryUnpacker,
+		shipper:        shipper,
+		receiver:       receiver,
 		pageSL:         page.NewStorerLoader(documentSL),
 		signer:         signer,
 		logger:         logger,
 		stop:           make(chan struct{}),
-	}, nil
+	}
+
+	// for now, this doesn't really do anything
+	go func() { <- author.stop }()
+
+	return author, nil
 }
 
 // TODO (drausin) Author methods
-// - Download()
 // - Share()
 
 // Upload compresses, encrypts, and splits the content into pages and then stores them in the
-// libri network. It returns the key for the *api.Entry that was stored.
-func (a *Author) Upload(content io.Reader, mediaType string) (id.ID, error) {
+// libri network. It returns the uploaded envelope for self-storage and its key.
+func (a *Author) Upload(content io.Reader, mediaType string) (*api.Document, id.ID, error) {
 	authorPub, readerPub, keys, err := a.envelopeKeys.sample()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	entry, pageKeys, err := a.entryPacker.Pack(content, mediaType, keys, authorPub)
+	a.logger.Debug("packing content",
+		zap.String(LoggerAuthorPub, fmt.Sprintf("%065x", authorPub)),
+	)
+	entry, err := a.entryPacker.Pack(content, mediaType, keys, authorPub)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	_, entryKey, err := a.shipper.Ship(entry, pageKeys, authorPub, readerPub)
+	a.logger.Debug("shipping entry",
+		zap.String(LoggerAuthorPub, fmt.Sprintf("%065x", authorPub)),
+		zap.String(LoggerReaderPub, fmt.Sprintf("%065x", readerPub)),
+	)
+	envelope, envelopeKey, err := a.shipper.Ship(entry, authorPub, readerPub)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// TODO (drausin)
-	// - store envelope in local storage by entry key
 	// - delete pages from local storage
 
-	return entryKey, nil
+	entryKeyBytes := envelope.Contents.(*api.Document_Envelope).Envelope.EntryKey
+	a.logger.Debug("successfully uploaded document",
+		zap.String(LoggerEnvelopeKey, envelopeKey.String()),
+		zap.String(LoggerEntryKey, id.FromBytes(entryKeyBytes).String()),
+	)
+	return envelope, envelopeKey, nil
+}
+
+// Download downloads, join, decrypts, and decompressed the content, writing it to a unified output
+// content writer.
+func (a *Author) Download(content io.Writer, envelopeKey id.ID) error {
+	a.logger.Debug("receiving entry", zap.String(LoggerEnvelopeKey, envelopeKey.String()))
+	entry, keys, err := a.receiver.Receive(envelopeKey)
+	if err != nil {
+		return err
+	}
+	entryKey, nPages, err := getEntryInfo(entry)
+	if err != nil {
+		return err
+	}
+
+	a.logger.Debug("unpacking content",
+		zap.String(LoggerEntryKey, entryKey.String()),
+		zap.Int(LoggerNPages, nPages),
+	)
+	if err := a.entryUnpacker.Unpack(content, entry, keys); err != nil {
+		return err
+	}
+
+	// TODO (drausin)
+	// - delete pages from local storage
+
+	a.logger.Debug("successfully downloaded document",
+		zap.String(LoggerEnvelopeKey, envelopeKey.String()),
+		zap.String(LoggerEntryKey, entryKey.String()),
+	)
+	return nil
+}
+
+func getEntryInfo(entry *api.Document) (id.ID, int, error) {
+	entryKey, err := api.GetKey(entry)
+	if err != nil {
+		return nil, 0, err
+	}
+	pageKeys, err := api.GetEntryPageKeys(entry)
+	if err != nil {
+		return nil, 0, err
+	}
+	if len(pageKeys) > 0 {
+		return entryKey, len(pageKeys), nil
+	}
+
+	// zero extra pages implies a single page entry
+	return entryKey, 1, nil
 }

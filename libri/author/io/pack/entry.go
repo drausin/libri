@@ -1,15 +1,16 @@
 package pack
 
 import (
+	"errors"
 	"io"
-	"github.com/drausin/libri/libri/author/io/enc"
-	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/drausin/libri/libri/author/io/print"
-	"github.com/drausin/libri/libri/author/io/page"
 	"time"
+
+	"github.com/drausin/libri/libri/author/io/enc"
+	"github.com/drausin/libri/libri/author/io/page"
+	"github.com/drausin/libri/libri/author/io/print"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
-	"errors"
+	"github.com/drausin/libri/libri/librarian/api"
 )
 
 // EntryPacker creates entry documents from raw content.
@@ -17,7 +18,7 @@ type EntryPacker interface {
 	// Pack prints pages from the content, encrypts their metadata, and binds them together
 	// into an entry *api.Document.
 	Pack(content io.Reader, mediaType string, keys *enc.Keys, authorPub []byte) (
-		*api.Document, []id.ID, error)
+		*api.Document, error)
 }
 
 // NewEntryPacker creates a new Packer instance.
@@ -26,37 +27,95 @@ func NewEntryPacker(
 	metadataEnc enc.MetadataEncrypter,
 	docSL storage.DocumentStorerLoader,
 ) EntryPacker {
+	pageS := page.NewStorerLoader(docSL)
 	return &entryPacker{
-		params: params,
+		params:      params,
 		metadataEnc: metadataEnc,
-		pageS: page.NewStorerLoader(docSL),
-		docL: docSL,
+		printer:     print.NewPrinter(params, pageS),
+		pageS:       pageS,
+		docL:        docSL,
 	}
 }
 
 type entryPacker struct {
-	params *print.Parameters
+	params      *print.Parameters
 	metadataEnc enc.MetadataEncrypter
-	pageS page.Storer
-	docL storage.DocumentLoader
+	printer     print.Printer
+	pageS       page.Storer
+	docL        storage.DocumentLoader
 }
 
 func (p *entryPacker) Pack(content io.Reader, mediaType string, keys *enc.Keys, authorPub []byte) (
-	*api.Document, []id.ID, error) {
+	*api.Document, error) {
 
-	printer := print.NewPrinter(p.params, keys, authorPub, p.pageS)
-	pageKeys, metadata, err := printer.Print(content, mediaType)
+	pageKeys, metadata, err := p.printer.Print(content, mediaType, keys, authorPub)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	encMetadata, err := p.metadataEnc.Encrypt(metadata, keys)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	doc, err := newEntryDoc(authorPub, pageKeys, encMetadata, p.docL)
-	return doc, pageKeys, err
+	return newEntryDoc(authorPub, pageKeys, encMetadata, p.docL)
 }
 
+// EntryUnpacker writes individual pages to the content io.Writer.
+type EntryUnpacker interface {
+	// Unpack extracts the individual pages from a document and stitches them together to write
+	// to the content io.Writer.
+	Unpack(content io.Writer, entry *api.Document, keys *enc.Keys) error
+}
+
+type entryUnpacker struct {
+	params      *print.Parameters
+	metadataDec enc.MetadataDecrypter
+	scanner     print.Scanner
+}
+
+// NewEntryUnpacker creates a new EntryUnpacker with the given parameters, metadata decrypter, and
+// storage.DocumentStorerLoader.
+func NewEntryUnpacker(
+	params *print.Parameters,
+	metadataDec enc.MetadataDecrypter,
+	docSL storage.DocumentStorerLoader,
+) EntryUnpacker {
+	pageL := page.NewStorerLoader(docSL)
+	return &entryUnpacker{
+		params:      params,
+		metadataDec: metadataDec,
+		scanner:     print.NewScanner(params, pageL),
+	}
+}
+
+func (u *entryUnpacker) Unpack(content io.Writer, entry *api.Document, keys *enc.Keys) error {
+	encMetadata, err := enc.NewEncryptedMetadata(
+		entry.Contents.(*api.Document_Entry).Entry.MetadataCiphertext,
+		entry.Contents.(*api.Document_Entry).Entry.MetadataCiphertextMac,
+	)
+	if err != nil {
+		return err
+	}
+	metadata, err := u.metadataDec.Decrypt(encMetadata, keys)
+	if err != nil {
+		return err
+	}
+
+	var pageKeys []id.ID
+	switch ec := entry.Contents.(*api.Document_Entry).Entry.Contents.(type) {
+	case *api.Entry_PageKeys:
+		pageKeys, err = api.GetEntryPageKeys(entry)
+		if err != nil {
+			return err
+		}
+	case *api.Entry_Page:
+		_, docKey, err := api.GetPageDocument(ec.Page)
+		if err != nil {
+			return err
+		}
+		pageKeys = []id.ID{docKey}
+	}
+	return u.scanner.Scan(content, pageKeys, keys, metadata)
+}
 
 func newEntryDoc(
 	authorPub []byte,

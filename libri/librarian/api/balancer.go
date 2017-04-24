@@ -1,10 +1,10 @@
 package api
 
 import (
+	"errors"
 	"math/rand"
-	"sync"
 	"net"
-	"github.com/pkg/errors"
+	"sync"
 )
 
 // ErrEmptyLibrarianAddresses indicates that the librarian addresses is empty.
@@ -20,8 +20,8 @@ type ClientBalancer interface {
 }
 
 type uniformRandBalancer struct {
-	rng *rand.Rand
-	mu sync.Mutex
+	rng   *rand.Rand
+	mu    sync.Mutex
 	conns []Connector
 }
 
@@ -36,7 +36,7 @@ func NewUniformRandomClientBalancer(libAddrs []*net.TCPAddr) (ClientBalancer, er
 		conns[i] = NewConnector(la)
 	}
 	return &uniformRandBalancer{
-		rng: rand.New(rand.NewSource(int64(len(conns)))),
+		rng:   rand.New(rand.NewSource(int64(len(conns)))),
 		conns: conns,
 	}, nil
 }

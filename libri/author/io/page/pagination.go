@@ -92,24 +92,36 @@ func (p *paginator) ReadFrom(compressor io.Reader) (int64, error) {
 		if err != nil {
 			return n, err
 		}
-		if _, err := p.ciphertextMAC.Write(pageCiphertext); err != nil {
+		if _, err = p.ciphertextMAC.Write(pageCiphertext); err != nil {
 			return n, err
 		}
 
-		p.pages <- p.getPage(pageCiphertext, i)
+		page, err := p.getPage(pageCiphertext, i)
+		if err != nil {
+			return n, err
+		}
+		p.pages <- page
 	}
 	return n, nil
 }
 
 // getPage constructs a page from a given ciphertext.
-func (p *paginator) getPage(ciphertext []byte, index uint32) *api.Page {
+func (p *paginator) getPage(ciphertext []byte, index uint32) (*api.Page, error) {
 	p.pageMAC.Reset()
-	return &api.Page{
+	if _, err := p.pageMAC.Write(ciphertext); err != nil {
+		return nil, err
+	}
+	page := &api.Page{
 		AuthorPublicKey: p.authorPub,
 		Index:           index,
 		Ciphertext:      ciphertext,
-		CiphertextMac:   p.pageMAC.Sum(ciphertext),
+		CiphertextMac:   p.pageMAC.Sum(nil),
 	}
+	if err := api.ValidatePage(page); err != nil {
+		// extra safeguard
+		return nil, err
+	}
+	return page, nil
 }
 
 func (p *paginator) CiphertextMAC() enc.MAC {
@@ -154,6 +166,9 @@ func (u *unpaginator) WriteTo(decompressor comp.CloseWriter) (int64, error) {
 	var n int64
 	var pageIndex uint32
 	for page := range u.pages {
+		if err := api.ValidatePage(page); err != nil {
+			return n, err
+		}
 		if page.Index != pageIndex {
 			return n, fmt.Errorf("received out of order page index %d, expected %d",
 				page.Index, pageIndex)
@@ -184,8 +199,10 @@ func (u *unpaginator) WriteTo(decompressor comp.CloseWriter) (int64, error) {
 // supplied value.
 func (u *unpaginator) checkCiphertextMAC(page *api.Page) error {
 	u.pageMAC.Reset()
-	mac := u.pageMAC.Sum(page.Ciphertext)
-	if !bytes.Equal(mac, page.CiphertextMac) {
+	if _, err := u.pageMAC.Write(page.Ciphertext); err != nil {
+		return err
+	}
+	if !bytes.Equal(u.pageMAC.Sum(nil), page.CiphertextMac) {
 		return ErrUnexpectedCiphertextMAC
 	}
 	return nil

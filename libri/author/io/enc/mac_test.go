@@ -5,6 +5,7 @@ import (
 
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
+	"math/rand"
 )
 
 func TestSizeHMAC_Write(t *testing.T) {
@@ -46,6 +47,8 @@ func TestSizeHMAC_Sum(t *testing.T) {
 
 	assert.Equal(t, mac1, mac2[3:])
 	assert.Equal(t, len(mac1), len(mac3))
+	assert.Nil(t, api.ValidateHMAC256(mac1))
+	assert.Nil(t, api.ValidateHMAC256(mac3))
 	assert.NotEqual(t, mac1, mac3)
 }
 
@@ -87,4 +90,99 @@ func TestSizeHMAC_MessageSize(t *testing.T) {
 func TestHMAC(t *testing.T) {
 	mac := HMAC([]byte{1, 2, 3}, []byte{4, 5, 6})
 	assert.Nil(t, api.ValidateHMAC256(mac))
+}
+
+func TestCheckMACs_ok(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	key := api.RandBytes(rng, 32)
+	uncompressedMAC, ciphertextMAC := NewHMAC(key), NewHMAC(key)
+	_, err := uncompressedMAC.Write([]byte("some uncompressed stuff"))
+	assert.Nil(t, err)
+	_, err = ciphertextMAC.Write([]byte("some ciphertext"))
+	assert.Nil(t, err)
+	md, err := api.NewEntryMetadata(
+		"application/x-pdf",
+		ciphertextMAC.MessageSize(),
+		ciphertextMAC.Sum(nil),
+		uncompressedMAC.MessageSize(),
+		uncompressedMAC.Sum(nil),
+	)
+	assert.Nil(t, err)
+
+	err = CheckMACs(ciphertextMAC, uncompressedMAC, md)
+	assert.Nil(t, err)
+}
+
+func TestCheckMACs_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	key := api.RandBytes(rng, 32)
+	uncompressedMAC, ciphertextMAC := NewHMAC(key), NewHMAC(key)
+	_, err := uncompressedMAC.Write([]byte("some uncompressed stuff"))
+	assert.Nil(t, err)
+	_, err = ciphertextMAC.Write([]byte("some ciphertext"))
+	assert.Nil(t, err)
+	_, err = ciphertextMAC.Write([]byte("some ciphertext"))
+	assert.Nil(t, err)
+	mediaType := "application/x-pdf"
+
+	// check ValidateMetadata error bubbles up
+	md1, err := api.NewEntryMetadata(
+		mediaType,
+		ciphertextMAC.MessageSize(),
+		ciphertextMAC.Sum(nil),
+		uncompressedMAC.MessageSize(),
+		uncompressedMAC.Sum(nil),
+	)
+	assert.Nil(t, err)
+	md1.SetBytes(api.MetadataEntryCiphertextMAC, nil)  // now md1 is invalid
+	err = CheckMACs(ciphertextMAC, uncompressedMAC, md1)
+	assert.NotNil(t, err)
+
+	// check errors on different ciphertext sizes
+	md2, err := api.NewEntryMetadata(
+		mediaType,
+		1,
+		ciphertextMAC.Sum(nil),
+		uncompressedMAC.MessageSize(),
+		uncompressedMAC.Sum(nil),
+	)
+	assert.Nil(t, err)
+	err = CheckMACs(ciphertextMAC, uncompressedMAC, md2)
+	assert.Equal(t, ErrUnexpectedCiphertextSize, err)
+
+	// check errors on different ciphertext MACs
+	md3, err := api.NewEntryMetadata(
+		mediaType,
+		ciphertextMAC.MessageSize(),
+		api.RandBytes(rng, 32),
+		uncompressedMAC.MessageSize(),
+		uncompressedMAC.Sum(nil),
+	)
+	assert.Nil(t, err)
+	err = CheckMACs(ciphertextMAC, uncompressedMAC, md3)
+	assert.Equal(t, ErrUnexpectedCiphertextMAC, err)
+
+	// check errors on different uncompressed sizes
+	md4, err := api.NewEntryMetadata(
+		mediaType,
+		ciphertextMAC.MessageSize(),
+		ciphertextMAC.Sum(nil),
+		1,
+		uncompressedMAC.Sum(nil),
+	)
+	assert.Nil(t, err)
+	err = CheckMACs(ciphertextMAC, uncompressedMAC, md4)
+	assert.Equal(t, ErrUnexpectedUncompressedSize, err)
+
+	// check errors on different uncompressed MACs
+	md5, err := api.NewEntryMetadata(
+		mediaType,
+		ciphertextMAC.MessageSize(),
+		ciphertextMAC.Sum(nil),
+		uncompressedMAC.MessageSize(),
+		api.RandBytes(rng, 32),
+	)
+	assert.Nil(t, err)
+	err = CheckMACs(ciphertextMAC, uncompressedMAC, md5)
+	assert.Equal(t, ErrUnexpectedUncompressedMAC, err)
 }

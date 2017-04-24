@@ -8,7 +8,7 @@ func (a *Author) Close() error {
 	a.stop <- struct{}{}
 
 	// disconnect from librarians
-	if err :=a.librarians.CloseAll(); err != nil {
+	if err := a.librarians.CloseAll(); err != nil {
 		return err
 	}
 

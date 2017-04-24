@@ -1,11 +1,12 @@
 package api
 
 import (
-	"testing"
 	"net"
-	"google.golang.org/grpc"
+	"testing"
+
+	"errors"
 	"github.com/stretchr/testify/assert"
-	"github.com/pkg/errors"
+	"google.golang.org/grpc"
 )
 
 func TestConnector_Connect_ok(t *testing.T) {
@@ -45,10 +46,9 @@ func TestConnector_Address(t *testing.T) {
 
 type fixedDialer struct {
 	clientConn *grpc.ClientConn
-	dialErr error
+	dialErr    error
 }
 
 func (f *fixedDialer) Dial(addr *net.TCPAddr) (*grpc.ClientConn, error) {
 	return f.clientConn, f.dialErr
 }
-

@@ -8,7 +8,7 @@ import (
 	"mime"
 
 	"github.com/drausin/libri/libri/author/io/enc"
-	"github.com/pkg/errors"
+	"errors"
 )
 
 // Codec is a comp.codec.
@@ -232,6 +232,9 @@ type decompressor struct {
 func NewDecompressor(
 	uncompressed io.Writer, codec Codec, keys *enc.Keys, uncompressedBufferSize uint32,
 ) (Decompressor, error) {
+	if uncompressedBufferSize < MinBufferSize {
+		return nil, ErrBufferSizeTooSmall
+	}
 	return &decompressor{
 		uncompressed:           uncompressed,
 		inner:                  nil,

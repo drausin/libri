@@ -4,13 +4,13 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	crand "crypto/rand"
-	"fmt"
 	"io"
 	"math/big"
 	mrand "math/rand"
 
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
+	"errors"
 )
 
 // Curve defines the elliptic curve public & private keys use. Curve S256 implies 32-byte private
@@ -19,6 +19,9 @@ var Curve = secp256k1.S256()
 
 // CurveName gives the name of the elliptic curve used for the private key.
 const CurveName = "secp256k1"
+
+// ErrKeyPointOffCurve indicates when a public key does not lay on the expected elliptic curve.
+var ErrKeyPointOffCurve = errors.New("key point is off the expected curve")
 
 // ID is an elliptic curve identifier, where the ID is the x-value of the (x, y) public key
 // point on the curve. When couples with the private key, this allows something (e.g., a libri
@@ -100,8 +103,7 @@ func FromPrivateKey(priv *ecdsa.PrivateKey) ID {
 func FromPublicKeyBytes(buf []byte) (*ecdsa.PublicKey, error) {
 	x, y := elliptic.Unmarshal(Curve, buf) // also checks (x, y) is on curve
 	if x == nil {
-		return nil, fmt.Errorf("unable to unmarshal bytes to point on curve %v",
-			Curve.Params().Name)
+		return nil, ErrKeyPointOffCurve
 	}
 	return &ecdsa.PublicKey{
 		Curve: Curve,

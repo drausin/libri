@@ -7,7 +7,7 @@ import (
 
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/golang/protobuf/proto"
-	"github.com/pkg/errors"
+	"errors"
 )
 
 // field lengths
@@ -42,7 +42,15 @@ const (
 	HMAC256Length = sha256.Size
 )
 
-var errUnknownDocumentType = errors.New("unknown document type")
+var (
+	// ErrUnexpectedDocumentType indicates when a document type is not expected (e.g., a Page
+	// when expecting an Entry).
+	ErrUnexpectedDocumentType = errors.New("unexpected document type")
+
+	// ErrUnknownDocumentType indicates when a document type is not known (usually, this
+	// error should never actually be thrown).
+	ErrUnknownDocumentType = errors.New("unknown document type")
+)
 
 // GetKey calculates the key from the has of the proto.Message.
 func GetKey(value proto.Message) (cid.ID, error) {
@@ -64,7 +72,42 @@ func GetAuthorPub(d *Document) []byte {
 	case *Document_Envelope:
 		return c.Envelope.AuthorPublicKey
 	}
-	panic(errUnknownDocumentType)
+	panic(ErrUnknownDocumentType)
+}
+
+// GetEntryPageKeys returns the []id.ID page keys if the entry is multi-page. It returns nil for
+// single-page entries.
+func GetEntryPageKeys(entry *Document) ([]cid.ID, error) {
+	if _, ok := entry.Contents.(*Document_Entry); !ok {
+		return nil, ErrUnexpectedDocumentType
+	}
+	switch x := entry.Contents.(*Document_Entry).Entry.Contents.(type) {
+	case *Entry_PageKeys:
+		pageKeys := make([]cid.ID, len(x.PageKeys.Keys))
+		for i, keyBytes := range x.PageKeys.Keys {
+			pageKeys[i] = cid.FromBytes(keyBytes)
+		}
+		return pageKeys, nil
+	case *Entry_Page:
+		return nil, nil
+	}
+	return nil, ErrUnexpectedDocumentType
+}
+
+// GetPageDocument wraps a Page into a Document, returning it and its key.
+func GetPageDocument(page *Page) (*Document, cid.ID, error) {
+	pageDoc := &Document{
+		Contents: &Document_Page{
+			Page: page,
+		},
+	}
+	// store single page as separate doc
+	pageKey, err := GetKey(pageDoc)
+	if err != nil {
+		// should never happen
+		return nil, nil, err
+	}
+	return pageDoc, pageKey, nil
 }
 
 // ValidateDocument checks that all fields of a Document are populated and have the expected
@@ -81,7 +124,7 @@ func ValidateDocument(d *Document) error {
 	case *Document_Page:
 		return ValidatePage(c.Page)
 	}
-	return errUnknownDocumentType
+	return ErrUnknownDocumentType
 }
 
 // ValidateEnvelope checks that all fields of an Envelope are populated and have the expected
@@ -136,7 +179,7 @@ func validateEntryContents(e *Entry) error {
 	case *Entry_PageKeys:
 		return ValidatePageKeys(x.PageKeys)
 	default:
-		return errors.New("unknown Entry.Contents type")
+		return ErrUnknownDocumentType
 	}
 }
 

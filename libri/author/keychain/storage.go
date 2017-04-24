@@ -4,9 +4,9 @@ import (
 	"crypto/ecdsa"
 	"sync"
 
+	"github.com/drausin/libri/libri/common/ecid"
 	ethkeystore "github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/drausin/libri/libri/common/ecid"
 )
 
 // encryptToStored encrypts the contents of Keychain using the authentication passphrase and scrypt

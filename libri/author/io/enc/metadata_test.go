@@ -101,7 +101,7 @@ func TestMetadataEncDec_Decrypt_err(t *testing.T) {
 
 	em2, err := NewEncryptedMetadata(api.RandBytes(rng, 64), api.RandBytes(rng, 32))
 	assert.Nil(t, err)
-	keys2, _, _ := NewPseudoRandomKeys(rng)  // valid, but not connected to ciphertext
+	keys2, _, _ := NewPseudoRandomKeys(rng) // valid, but not connected to ciphertext
 
 	// check different MAC triggers error;
 	m2, err := med.Decrypt(em2, keys2)

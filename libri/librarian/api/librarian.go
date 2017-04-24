@@ -5,7 +5,8 @@ import (
 	"google.golang.org/grpc"
 )
 
-// These interfaces split up the methods of LibrarianClient, mostly for simplifying testing.
+// These interfaces split up the methods of LibrarianClient, mostly to allow for narrow interface
+// usage and testing.
 
 // Pinger issues Ping queries.
 type Pinger interface {
@@ -43,4 +44,10 @@ type Getter interface {
 type Putter interface {
 	// Put stores a value.
 	Put(ctx context.Context, in *PutRequest, opts ...grpc.CallOption) (*PutResponse, error)
+}
+
+// PutterGetter issues Put and Get queries.
+type PutterGetter interface {
+	Getter
+	Putter
 }

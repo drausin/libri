@@ -2,12 +2,13 @@ package keychain
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"sort"
+
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/golang/protobuf/proto"
-	"fmt"
 )
 
 const (
@@ -31,8 +32,10 @@ const (
 var (
 	// ErrEmptyKeychain indicates no keys in the keychain.
 	ErrEmptyKeychain = errors.New("empty keychain")
-)
 
+	// ErrUnexpectedMissingKey indicates a unexpectedly missing key
+	ErrUnexpectedMissingKey = errors.New("missing key")
+)
 
 // Keychain is a collection of ECDSA keys.
 type Keychain interface {

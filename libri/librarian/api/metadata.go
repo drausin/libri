@@ -3,7 +3,7 @@ package api
 import (
 	"encoding/binary"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 // required Entry metadata fields
@@ -44,7 +44,7 @@ var (
 
 // NewEntryMetadata creates a new *Metadata instance with the given (required) fields.
 func NewEntryMetadata(
-	mediaType string,
+	mediaType string, // TODO (drausin) change to compression codec
 	ciphertextSize uint64,
 	ciphertextMAC []byte,
 	uncompressedSize uint64,

@@ -111,10 +111,9 @@ func (c *TestConnector) Disconnect() error {
 }
 
 // Address is a stub that always returns false.
-func (c *TestConnector) Address() *net.TCPAddr{
+func (c *TestConnector) Address() *net.TCPAddr {
 	return nil
 }
-
 
 // TestErrConnector mocks the peer.Connector interface. The Connect() methods always returns an
 // error.

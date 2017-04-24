@@ -1,16 +1,17 @@
 package author
 
 import (
-	"testing"
-	clogging "github.com/drausin/libri/libri/common/logging"
-	"github.com/drausin/libri/libri/common/ecid"
-	"github.com/golang/protobuf/proto"
-	"github.com/stretchr/testify/assert"
-	"math/rand"
 	"errors"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path"
+	"testing"
+
+	"github.com/drausin/libri/libri/common/ecid"
+	clogging "github.com/drausin/libri/libri/common/logging"
+	"github.com/golang/protobuf/proto"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -62,7 +63,7 @@ func TestLoadKeychains(t *testing.T) {
 	assert.Nil(t, err)
 	auth := "some secret passphrase"
 
-	err = createKeychains(clogging.NewDevInfoLogger(), testKeychainDir, auth,
+	err = CreateKeychains(clogging.NewDevInfoLogger(), testKeychainDir, auth,
 		veryLightScryptN, veryLightScryptP)
 	assert.Nil(t, err)
 
@@ -100,13 +101,13 @@ func TestCreateKeychains_ok(t *testing.T) {
 	auth := "some secret passphrase"
 
 	// check creating in existing dir is fine
-	err = createKeychains(clogging.NewDevInfoLogger(), testKeychainDir, auth,
+	err = CreateKeychains(clogging.NewDevInfoLogger(), testKeychainDir, auth,
 		veryLightScryptN, veryLightScryptP)
 	assert.Nil(t, err)
 
 	// check creating in new dir is fine
 	testKeychainSubDir := path.Join(testKeychainDir, "sub")
-	err = createKeychains(clogging.NewDevInfoLogger(), testKeychainSubDir, auth,
+	err = CreateKeychains(clogging.NewDevInfoLogger(), testKeychainSubDir, auth,
 		veryLightScryptN, veryLightScryptP)
 	assert.Nil(t, err)
 }
@@ -122,12 +123,12 @@ func TestCreateKeychains_err(t *testing.T) {
 	assert.Nil(t, err)
 
 	// check create self reader keychain error bubbles up
-	err = createKeychains(clogging.NewDevInfoLogger(), testKeychainDir, auth,
+	err = CreateKeychains(clogging.NewDevInfoLogger(), testKeychainDir, auth,
 		veryLightScryptN, veryLightScryptP)
 	assert.NotNil(t, err)
 
 	// check create author keychain error bubbles up
-	err = createKeychains(clogging.NewDevInfoLogger(), testKeychainDir, auth,
+	err = CreateKeychains(clogging.NewDevInfoLogger(), testKeychainDir, auth,
 		veryLightScryptN, veryLightScryptP)
 	assert.NotNil(t, err)
 }
@@ -169,7 +170,7 @@ func rmDir(dir string) {
 type fixedStorerLoader struct {
 	loadBytes []byte
 	loadErr   error
-	storeErr error
+	storeErr  error
 }
 
 func (l *fixedStorerLoader) Load(key []byte) ([]byte, error) {
@@ -179,4 +180,3 @@ func (l *fixedStorerLoader) Load(key []byte) ([]byte, error) {
 func (l *fixedStorerLoader) Store(key []byte, value []byte) error {
 	return l.storeErr
 }
-

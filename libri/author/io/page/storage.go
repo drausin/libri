@@ -4,7 +4,7 @@ import (
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/pkg/errors"
+	"errors"
 )
 
 var (
@@ -25,8 +25,9 @@ type Storer interface {
 
 // Loader loads pages from an inner storage.DocmentLoader.
 type Loader interface {
-	// Load reads pages from inner storage and sends them on the supplied pages channel.
-	Load(keys []cid.ID, pages chan *api.Page) error
+	// Load reads pages from inner storage and sends them on the supplied pages channel. A
+	// signal (or closing) on the abort channel interrupts the loading.
+	Load(keys []cid.ID, pages chan *api.Page, abort chan struct{}) error
 }
 
 // StorerLoader stores and loads pages from an inner storage.DocumentStorerLoader.
@@ -50,10 +51,7 @@ func NewStorerLoader(inner storage.DocumentStorerLoader) StorerLoader {
 func (s *storerLoader) Store(pages chan *api.Page) ([]cid.ID, error) {
 	keys := make([]cid.ID, 0)
 	for page := range pages {
-		doc := &api.Document{
-			Contents: &api.Document_Page{Page: page},
-		}
-		key, err := api.GetKey(doc)
+		doc, key, err := api.GetPageDocument(page)
 		if err != nil {
 			return nil, err
 		}
@@ -65,7 +63,7 @@ func (s *storerLoader) Store(pages chan *api.Page) ([]cid.ID, error) {
 	return keys, nil
 }
 
-func (s *storerLoader) Load(keys []cid.ID, pages chan *api.Page) error {
+func (s *storerLoader) Load(keys []cid.ID, pages chan *api.Page, abort chan struct{}) error {
 	for _, key := range keys {
 		doc, err := s.inner.Load(key)
 		if err != nil {
@@ -78,7 +76,12 @@ func (s *storerLoader) Load(keys []cid.ID, pages chan *api.Page) error {
 		if !ok {
 			return ErrUnexpectedDocContent
 		}
-		pages <- docPage.Page
+		select {
+		case <-abort:
+			return nil
+		default:
+			pages <- docPage.Page
+		}
 	}
 	return nil
 }

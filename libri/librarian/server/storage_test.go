@@ -10,10 +10,9 @@ import (
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/golang/protobuf/proto"
-	"github.com/pkg/errors"
+	"errors"
 	"github.com/stretchr/testify/assert"
 )
-
 
 func TestLoadOrCreatePeerID_ok(t *testing.T) {
 
@@ -119,7 +118,7 @@ func TestLoadOrCreateRoutingTable_selfIDErr(t *testing.T) {
 type fixedStorerLoader struct {
 	loadBytes []byte
 	loadErr   error
-	storeErr error
+	storeErr  error
 }
 
 func (l *fixedStorerLoader) Load(key []byte) ([]byte, error) {

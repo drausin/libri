@@ -1,14 +1,15 @@
 package author
 
 import (
-	"go.uber.org/zap"
-	"github.com/drausin/libri/libri/common/ecid"
-	"github.com/golang/protobuf/proto"
-	"github.com/drausin/libri/libri/common/storage"
-	"github.com/drausin/libri/libri/author/keychain"
-	"path"
 	"os"
-	"github.com/pkg/errors"
+	"path"
+
+	"github.com/drausin/libri/libri/author/keychain"
+	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/drausin/libri/libri/common/storage"
+	"github.com/golang/protobuf/proto"
+	"errors"
+	"go.uber.org/zap"
 )
 
 // ErrKeychainExists indicates when a keychain file already exists.
@@ -80,7 +81,6 @@ func saveClientID(ns storage.NamespaceStorer, clientID ecid.ID) error {
 }
 
 type keychainLoader interface {
-
 }
 
 func loadKeychains(keychainDir, auth string) (keychain.Keychain, keychain.Keychain, error) {
@@ -99,7 +99,9 @@ func loadKeychains(keychainDir, auth string) (keychain.Keychain, keychain.Keycha
 	return authorKeys, selfReaderKeys, nil
 }
 
-func createKeychains(logger *zap.Logger, keychainDir, auth string, scryptN, scryptP int) error {
+// CreateKeychains creas the author and self reader keychains in the given keychain directory with
+// the given authentication passphrase and Scrypt parameters.
+func CreateKeychains(logger *zap.Logger, keychainDir, auth string, scryptN, scryptP int) error {
 	if _, err := os.Stat(keychainDir); os.IsNotExist(err) {
 		err := os.MkdirAll(keychainDir, os.ModePerm)
 		if err != nil {
@@ -133,4 +135,3 @@ func createKeychain(logger *zap.Logger, filepath, auth string, scryptN, scryptP 
 		zap.Int(LoggerKeychainNKeys, nInitialKeys))
 	return nil
 }
-

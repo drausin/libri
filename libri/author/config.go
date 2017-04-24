@@ -2,13 +2,14 @@ package author
 
 import (
 	"net"
-	"github.com/drausin/libri/libri/author/io/print"
-	"go.uber.org/zap/zapcore"
-	"github.com/drausin/libri/libri/author/io/publish"
 	"os"
 	"path/filepath"
-	"go.uber.org/zap"
+
+	"github.com/drausin/libri/libri/author/io/print"
+	"github.com/drausin/libri/libri/author/io/publish"
 	"github.com/drausin/libri/libri/librarian/server"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -22,7 +23,7 @@ const (
 	DefaultLogLevel = zap.InfoLevel
 
 	// DataSubdir is the name of the data directory.
-	DataSubdir = "data"
+	DataSubdir = "author-data"
 
 	// DBSubDir is the default DB subdirectory within the data dir.
 	DBSubDir = "db"
@@ -189,4 +190,3 @@ func (c *Config) WithDefaultLogLevel() *Config {
 	c.LogLevel = DefaultLogLevel
 	return c
 }
-

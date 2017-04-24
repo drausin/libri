@@ -7,7 +7,7 @@ import (
 
 // NewEnvelopeDoc returns a new envelope document for the given entry key and author and reader
 // public keys.
-func NewEnvelopeDoc(authorPub []byte, readerPub []byte, entryKey id.ID) *api.Document {
+func NewEnvelopeDoc(authorPub, readerPub []byte, entryKey id.ID) *api.Document {
 	envelope := &api.Envelope{
 		AuthorPublicKey: authorPub,
 		ReaderPublicKey: readerPub,
@@ -18,4 +18,15 @@ func NewEnvelopeDoc(authorPub []byte, readerPub []byte, entryKey id.ID) *api.Doc
 			Envelope: envelope,
 		},
 	}
+}
+
+// SeparateEnvelopeDoc returns the author and reader public keys along with the entry ID in an
+// envelope.
+func SeparateEnvelopeDoc(envelope *api.Document) ([]byte, []byte, id.ID, error) {
+	switch c := envelope.Contents.(type) {
+	case *api.Document_Envelope:
+		e := c.Envelope
+		return e.AuthorPublicKey, e.ReaderPublicKey, id.FromBytes(e.EntryKey), nil
+	}
+	return nil, nil, nil, api.ErrUnexpectedDocumentType
 }

@@ -5,8 +5,8 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetKey(t *testing.T) {
@@ -36,6 +36,58 @@ func TestGetAuthorPub(t *testing.T) {
 	envelope := NewTestEnvelope(rng)
 	envelope.AuthorPublicKey = expected
 	assert.Equal(t, expected, GetAuthorPub(&Document{&Document_Envelope{Envelope: envelope}}))
+}
+
+func TestGetEntryPageKeys_ok(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+
+	singlePageDoc := &Document{
+		Contents: &Document_Entry{
+			Entry: NewTestSinglePageEntry(rng),
+		},
+	}
+	pageKeys1, err := GetEntryPageKeys(singlePageDoc)
+	assert.Nil(t, err)
+	assert.Nil(t, pageKeys1)
+
+	multiPageDoc := &Document{
+		Contents: &Document_Entry{
+			Entry: NewTestMultiPageEntry(rng),
+		},
+	}
+	pageKeys2, err := GetEntryPageKeys(multiPageDoc)
+	assert.Nil(t, err)
+	assert.NotNil(t, len(pageKeys2) > 1)
+
+
+}
+
+func TestGetEntryPageKeys_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+
+	envelope := &Document{  // wrong doc type
+		Contents: &Document_Envelope{
+			Envelope: NewTestEnvelope(rng),
+		},
+	}
+	pageKeys, err := GetEntryPageKeys(envelope)
+	assert.NotNil(t, err)
+	assert.Nil(t, pageKeys)
+}
+
+func TestGetPageDocument(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+
+	page := NewTestPage(rng)
+	pageDoc, docKey, err := GetPageDocument(page)
+	assert.Nil(t, err)
+	assert.Equal(t, page, pageDoc.Contents.(*Document_Page).Page)
+	assert.NotNil(t, docKey)
+
+	pageDoc, docKey, err = GetPageDocument(nil)
+	assert.NotNil(t, err)
+	assert.Nil(t, pageDoc)
+	assert.Nil(t, docKey)
 }
 
 func TestValidateDocument_ok(t *testing.T) {

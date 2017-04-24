@@ -1,10 +1,11 @@
 package client
 
 import (
+	"errors"
+
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
-	"errors"
 )
 
 // ErrUnexpectedRequestID indicates when the RequestID in a response is different than that in the

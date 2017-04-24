@@ -8,8 +8,9 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/drausin/libri/libri/author/io/common"
 	"github.com/drausin/libri/libri/author/io/enc"
-	"github.com/pkg/errors"
+	"errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -81,6 +82,13 @@ func TestNewDecompressor_ok(t *testing.T) {
 	assert.Equal(t, minUncompressedBufferSize, comp.(*decompressor).uncompressedBufferSize)
 }
 
+func TestNewDecompressor_err(t *testing.T) {
+	// too small uncompressed buffer
+	comp, err := NewDecompressor(new(bytes.Buffer), GZIPCodec, nil, 0)
+	assert.NotNil(t, err)
+	assert.Nil(t, comp)
+}
+
 type errReader struct{}
 
 func (errReader) Read(p []byte) (int, error) {
@@ -108,7 +116,7 @@ func (w errFlushCloseWriter) Close() error {
 func TestCompressor_Read_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	keys, _, _ := enc.NewPseudoRandomKeys(rng)
-	uncompressed1 := newTestBytes(rng, 256)
+	uncompressed1 := common.NewCompressableBytes(rng, 256)
 	uncompressed1Bytes := uncompressed1.Bytes()
 
 	comp, err := NewCompressor(
@@ -198,7 +206,7 @@ func TestCompressor_Read_err(t *testing.T) {
 func TestDecompressor_Write_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	keys, _, _ := enc.NewPseudoRandomKeys(rng)
-	uncompressed1 := newTestBytes(rng, 256).Bytes()
+	uncompressed1 := common.NewCompressableBytes(rng, 256).Bytes()
 
 	compressed := new(bytes.Buffer)
 	writer := gzip.NewWriter(compressed)
@@ -277,7 +285,7 @@ func TestCompressDecompress(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	keys, _, _ := enc.NewPseudoRandomKeys(rng)
 	for _, c := range cases {
-		uncompressed1 := newTestBytes(rng, c.uncompressedSize)
+		uncompressed1 := common.NewCompressableBytes(rng, c.uncompressedSize)
 		uncompressed1Bytes := uncompressed1.Bytes()
 		assert.Equal(t, c.uncompressedSize, uncompressed1.Len())
 
@@ -391,22 +399,4 @@ func caseCrossProduct(
 		}
 	}
 	return cases
-}
-
-func newTestBytes(rng *rand.Rand, size int) *bytes.Buffer {
-	dict := []string{
-		"these", "are", "some", "test", "words", "that", "will", "be", "compressed",
-	}
-	words := new(bytes.Buffer)
-	for {
-		word := dict[int(rng.Int31n(int32(len(dict))))] + " "
-		if words.Len()+len(word) > size {
-			// pad words to exact length
-			words.Write(make([]byte, size-words.Len()))
-			break
-		}
-		words.WriteString(word)
-	}
-
-	return words
 }

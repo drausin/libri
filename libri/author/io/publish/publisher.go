@@ -1,15 +1,16 @@
 package publish
 
 import (
+	"bytes"
 	"errors"
 	"sync"
 	"time"
+
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
-	"bytes"
 )
 
 const (
@@ -17,9 +18,17 @@ const (
 	// librarian.
 	DefaultPutTimeout = 3 * time.Second
 
+	// DefaultGetTimeout is the default timeout duration for an Acquirer's Get() call to a
+	// librarian.
+	DefaultGetTimeout = 3 * time.Second
+
 	// DefaultPutParallelism is the default parallelism a MultiLoadPublisher uses when
 	// making multiple Put calls to librarians.
 	DefaultPutParallelism = 3
+
+	// DefaultGetParallelism is the default parallelism a MultiStoreAcquirer uses when
+	// making multiple Get calls to librarians.
+	DefaultGetParallelism = 3
 )
 
 var (
@@ -30,43 +39,71 @@ var (
 	// ErrPutTimeoutZeroValue indicates when the PutTimeout parameter has the zero value.
 	ErrPutTimeoutZeroValue = errors.New("PutTimeout must be greater than zero")
 
+	// ErrGetTimeoutZeroValue indicates when the GetTimeout parameter has the zero value.
+	ErrGetTimeoutZeroValue = errors.New("GetTimeout must be greater than zero")
+
 	// ErrPutParallelismZeroValue indicates when the PutParallelism parameter has the zero
 	// value.
 	ErrPutParallelismZeroValue = errors.New("PutParallelism must be greater than zero")
 
+	// ErrGetParallelismZeroValue indicates when the GetParallelism parameter has the zero
+	// value.
+	ErrGetParallelismZeroValue = errors.New("GetParallelism must be greater than zero")
+
 	// ErrInconsistentAuthorPubKey indicates when the document author public key is different
 	// from the expected value.
 	ErrInconsistentAuthorPubKey = errors.New("inconsistent author public key")
-
 )
 
 // Parameters define configuration used by a Publisher.
 type Parameters struct {
 	// PutTimeout is the timeout duration used for Put requests.
-	PutTimeout     time.Duration
+	PutTimeout time.Duration
+
+	// GetTimeout is the timeout duration used for Get requests.
+	GetTimeout time.Duration
 
 	// PutParallelism is the number of simultaneous Put requests (for different documents) that
 	// can occur.
 	PutParallelism uint32
+
+	// GetParallelism is the number of simultaneous Ge requests (for different documents) that
+	// can occur.
+	GetParallelism uint32
 }
 
 // NewParameters validates the parameters and returns a new *Parameters instance.
-func NewParameters(putTimeout time.Duration, putParallelism uint32) (*Parameters, error) {
+func NewParameters(
+	putTimeout time.Duration,
+	getTimeout time.Duration,
+	putParallelism uint32,
+	getParallelism uint32,
+) (*Parameters, error) {
+
 	if putTimeout == 0 {
 		return nil, ErrPutTimeoutZeroValue
+	}
+	if getTimeout == 0 {
+		return nil, ErrGetTimeoutZeroValue
 	}
 	if putParallelism == 0 {
 		return nil, ErrPutParallelismZeroValue
 	}
+	if getParallelism == 0 {
+		return nil, ErrGetParallelismZeroValue
+	}
 	return &Parameters{
-		PutTimeout: putTimeout,
+		PutTimeout:     putTimeout,
+		GetTimeout:     getTimeout,
 		PutParallelism: putParallelism,
+		GetParallelism: getParallelism,
 	}, nil
 }
 
 // NewDefaultParameters creates a default *Parameters instance.
 func NewDefaultParameters() *Parameters {
-	params, err := NewParameters(DefaultPutTimeout, DefaultPutParallelism)
+	params, err := NewParameters(DefaultPutTimeout, DefaultGetTimeout, DefaultPutParallelism,
+		DefaultGetParallelism)
 	if err != nil {
 		// should never happen; if does, it's programmer error
 		panic(err)
@@ -128,7 +165,7 @@ type SingleLoadPublisher interface {
 
 type singleLoadPublisher struct {
 	inner Publisher
-	docL storage.DocumentLoader
+	docL  storage.DocumentLoader
 }
 
 // NewSingleLoadPublisher creates a new SingleLoadPublisher from an inner Publisher and a
@@ -136,7 +173,7 @@ type singleLoadPublisher struct {
 func NewSingleLoadPublisher(inner Publisher, docL storage.DocumentLoader) SingleLoadPublisher {
 	return &singleLoadPublisher{
 		inner: inner,
-		docL: docL,
+		docL:  docL,
 	}
 }
 
@@ -169,7 +206,7 @@ type multiLoadPublisher struct {
 // NewMultiLoadPublisher creates a new MultiLoadPublisher.
 func NewMultiLoadPublisher(inner SingleLoadPublisher, params *Parameters) MultiLoadPublisher {
 	return &multiLoadPublisher{
-		inner: inner,
+		inner:  inner,
 		params: params,
 	}
 }

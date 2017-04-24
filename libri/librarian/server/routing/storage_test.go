@@ -9,7 +9,7 @@ import (
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/server/peer"
-	"github.com/pkg/errors"
+	"errors"
 	"github.com/stretchr/testify/assert"
 )
 
