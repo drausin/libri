@@ -62,6 +62,15 @@ func NewTestPage(rng *rand.Rand) *Page {
 	}
 }
 
+func NewTestPublication(rng *rand.Rand) *Publication {
+	return &Publication{
+		EnvelopeKey: RandBytes(rng, cid.Length),
+		EntryKey: RandBytes(rng, cid.Length),
+		AuthorPublicKey: fakePubKey(rng),
+		ReaderPublicKey: fakePubKey(rng),
+	}
+}
+
 // RandBytes generates a random bytes slice of a given length.
 func RandBytes(rng *rand.Rand, length int) []byte {
 	b := make([]byte, length)
@@ -72,5 +81,5 @@ func RandBytes(rng *rand.Rand, length int) []byte {
 	return b
 }
 func fakePubKey(rng *rand.Rand) []byte {
-	return RandBytes(rng, 65)
+	return RandBytes(rng, ECPubKeyLength)
 }

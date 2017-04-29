@@ -20,14 +20,14 @@ message Document {
 // 4) 12-byte metadata block cipher initialization vector
 message Envelope {
 
+    // 32-byte key of the Entry whose encryption keys are being sent
+    bytes entry_key = 1;
+
     // ECDH public key of the entry author/sender
-    bytes author_public_key = 1;
+    bytes author_public_key = 2;
 
     // ECDH public key of the entry reader/recipient
-    bytes reader_public_key = 2;
-
-    // 32-byte key of the Entry whose encryption keys are being sent
-    bytes entry_key = 4;
+    bytes reader_public_key = 3;
 }
 
 // Entry is the main unit of storage in the Libri network.

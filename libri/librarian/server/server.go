@@ -292,3 +292,8 @@ func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutRespon
 
 	return nil, errors.New("unexpected store result")
 }
+
+func (l *Librarian) Subscribe(*api.SubscribeRequest, api.Librarian_SubscribeServer) error {
+	// TODO (drausin)
+	return nil
+}
