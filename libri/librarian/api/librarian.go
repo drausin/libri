@@ -51,3 +51,10 @@ type PutterGetter interface {
 	Getter
 	Putter
 }
+
+// Subscriber issues Subscribe queries.
+type Subscriber interface {
+	// Subscribe subscribes to a defined publication stream.
+	Subscribe(ctx context.Context, in *SubscribeRequest, opts ...grpc.CallOption) (
+		Librarian_SubscribeClient, error)
+}

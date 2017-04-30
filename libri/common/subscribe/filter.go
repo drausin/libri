@@ -6,8 +6,6 @@ import (
 	"math/rand"
 )
 
-const DefaultFPRate = 0.75
-
 var minFilterElements = 10
 
 func ToAPI(f *bloom.BloomFilter) (*api.BloomFilter, error) {

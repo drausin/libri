@@ -13,13 +13,52 @@ import (
 
 var errTooManySubscriptionErrs = errors.New("too many subscription errors")
 
-const errQueueSize = 100
+const (
+	/*
+	 * The following table gives the consistencies (% of publications seen) when maintaining
+	 * NSubscriptions with the FPRate. These are calculated via
+	 *
+	 *	consistency = 1 - BinomialCDF(x = 0 | p = FPRate, n = NSubscriptions)
+	 *
+	 *   FPRate	NSubscriptions	consistency
+	 *   --------------------------------------------------
+	 *   0.9	5		99.999%
+	 *   0.9	10		99.9999999%
+	 *
+	 *   0.75	5		99.9%
+	 *   0.75	10		99.9999%
+	 *
+	 *   0.5	10		99.9%
+	 *   0.5	20		99.9999%
+	 *
+	 *   0.3	20		99.9%
+	 *   0.3	40		99.9999%
+	 */
+
+	DefaultNSubscriptions = 10
+
+	DefaultFPRate = 0.75
+
+	DefaultTimout = 5 * time.Second
+	DefaultMaxErrRate = 0.1
+	errQueueSize = 100
+)
+
 
 type Parameters struct {
-	NumSubscriptions uint32
-	FPRate           float32
-	Timeout          time.Duration
-	MaxErrRate       float32
+	NSubscriptions uint32
+	FPRate         float32
+	Timeout        time.Duration
+	MaxErrRate     float32
+}
+
+func NewDefaultParameters() *Parameters {
+	return &Parameters{
+		NSubscriptions: DefaultNSubscriptions,
+		FPRate: DefaultFPRate,
+		Timeout: DefaultTimout,
+		MaxErrRate: DefaultMaxErrRate,
+	}
 }
 
 type To interface {
@@ -29,29 +68,51 @@ type To interface {
 
 type to struct {
 	params   *Parameters
-	clientID ecid.ID
 	cb       api.ClientBalancer
-	signer   client.Signer
+	sb subscriptionBeginner
 	recent   RecentPublications
 	new      chan *keyedPub
 	end      chan struct{}
 }
 
-func (t *to) Begin() error {
-	channelsSlack := t.params.NumSubscriptions * 2
-	received := make(chan *pubValueReceipt, channelsSlack) // all received pubs
-	fatal := make(chan error)                              // signals fatal end
-	errs := make(chan error, channelsSlack)                // non-fatal errs and nils
+func NewTo(
+	params *Parameters,
+	clientID ecid.ID,
+	cb api.ClientBalancer,
+	signer client.Signer,
+	recent RecentPublications,
+	new chan *keyedPub,
+	end chan struct{},
+) To {
+	return &to{
+		params: params,
+		cb: cb,
+		sb: &subscriptionBeginnerImpl{
+			clientID: clientID,
+			signer: signer,
+			params: params,
+		},
+		recent: recent,
+		new: new,
+		end: end,
+	}
+}
 
-	// dedup all received publications, writing new to t.new
+func (t *to) Begin() error {
+	channelsSlack := t.params.NSubscriptions
+	received := make(chan *pubValueReceipt, channelsSlack) // all received pubs
+	errs := make(chan error, channelsSlack)                // non-fatal errs and nils
+	fatal := make(chan error)                              // signals fatal end
+
+	// dedup all received publications, writing new to t.new & t.recent
 	go t.dedup(received)
 
 	// monitor non-fatal errors, sending fatal err if too many
 	go monitorRunningErrorCount(errs, fatal, t.params.MaxErrRate)
 
-	// subscription threads writing to t.inbound & errs
+	// subscription threads writing to received & errs channels
 	wg := new(sync.WaitGroup)
-	for c := uint32(0); c < t.params.NumSubscriptions; c++ {
+	for c := uint32(0); c < t.params.NSubscriptions; c++ {
 		wg.Add(1)
 		go func(i uint32, wg *sync.WaitGroup) {
 			rng, fp := rand.New(rand.NewSource(int64(i))), float64(t.params.FPRate)
@@ -68,7 +129,7 @@ func (t *to) Begin() error {
 				select {
 				case <-t.end:
 					return
-				case errs <- t.beginTo(lc, sub, received, errs, t.end):
+				case errs <- t.sb.begin(lc, sub, received, errs, t.end):
 				}
 			}
 		}(c, wg)
@@ -88,16 +149,37 @@ func (t *to) End() {
 	close(t.end)
 }
 
-func (t *to) beginTo(
-	lc api.LibrarianClient,
+func (t *to) dedup(received chan *pubValueReceipt) {
+	for pvr := range received {
+		seen := t.recent.Add(pvr)
+		if !seen {
+			t.new <- pvr.pub
+		}
+	}
+}
+
+type subscriptionBeginner interface {
+	// begin begins a subscription and writes publications to received and errors to errs
+	begin(lc api.Subscriber, sub *api.Subscription, received chan *pubValueReceipt,
+		errs chan error, end chan struct{}) error
+}
+
+type subscriptionBeginnerImpl struct {
+	clientID ecid.ID
+	signer client.Signer
+	params *Parameters
+}
+
+func (sb *subscriptionBeginnerImpl) begin(
+	lc api.Subscriber,
 	sub *api.Subscription,
 	received chan *pubValueReceipt,
 	errs chan error,
 	end chan struct{},
 ) error {
 
-	rq := client.NewSubscribeRequest(t.clientID, sub)
-	ctx, cancel, err := client.NewSignedTimeoutContext(t.signer, rq, t.params.Timeout)
+	rq := client.NewSubscribeRequest(sb.clientID, sub)
+	ctx, cancel, err := client.NewSignedTimeoutContext(sb.signer, rq, sb.params.Timeout)
 	if err != nil {
 		return err
 	}
@@ -127,22 +209,13 @@ func (t *to) beginTo(
 	}
 }
 
-func (t *to) dedup(received chan *pubValueReceipt) {
-	for pvr := range received {
-		seen := t.recent.Add(pvr)
-		if !seen {
-			t.new <- pvr.pub
-		}
-	}
-}
-
 func monitorRunningErrorCount(errs chan error, fatal chan error, maxRunningErrRate float32) {
 	maxRunningErrCount := int(float32(maxRunningErrRate) * errQueueSize)
 
 	// fill error queue with non-errors
 	runningErrs := make(chan error, errQueueSize)
 	for c := 0; c < errQueueSize; c++ {
-		errs <- nil
+		runningErrs <- nil
 	}
 
 	// consume from errs and keep running error count; send fatal error if ever above threshold
@@ -150,7 +223,7 @@ func monitorRunningErrorCount(errs chan error, fatal chan error, maxRunningErrRa
 	for latestErr := range errs {
 		if latestErr != nil {
 			runningNErrs++
-			if runningNErrs > maxRunningErrCount {
+			if runningNErrs >= maxRunningErrCount {
 				fatal <- errTooManySubscriptionErrs
 				return
 			}
