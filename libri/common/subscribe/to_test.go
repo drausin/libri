@@ -18,14 +18,12 @@ func TestTo_BeginEnd(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	params := NewDefaultParameters()
 	params.NSubscriptions = 2
-	clientID := ecid.NewPseudoRandom(rng)
 	cb := &fixedClientBalancer{}
-	signer := &fixedSigner{signature: "some.signature.jtw"}
 	recent, err := NewRecentPublications(2)
 	assert.Nil(t, err)
 	newPubs := make(chan *keyedPub, 1)
 	end := make(chan struct{})
-	toImpl := NewTo(params, clientID, cb, signer, recent, newPubs, end).(*to)
+	toImpl := NewTo(params, nil, cb, nil, recent, newPubs, end).(*to)
 
 	// mock what we actually get from subscriptions
 	received := make(chan *pubValueReceipt)
@@ -124,31 +122,48 @@ func TestTo_BeginEnd(t *testing.T) {
 	assert.Nil(t, newPub)
 }
 
-type fixedSubscriptionBeginner struct {
-	received chan *pubValueReceipt
-	errs chan error
-	subscribeErr error
-}
+func TestTo_Begin_err(t *testing.T) {
+	//rng := rand.New(rand.NewSource(0))
+	params := NewDefaultParameters()
+	params.NSubscriptions = 2
+	recent, err := NewRecentPublications(2)
+	cb := &fixedClientBalancer{}
+	assert.Nil(t, err)
+	newPubs := make(chan *keyedPub, 1)
 
-func (f *fixedSubscriptionBeginner) begin(lc api.Subscriber, sub *api.Subscription,
-	received chan *pubValueReceipt, errs chan error, end chan struct{}) error {
-	prv := <- f.received
-	err := <- f.errs
-	received <- prv
-	errs <- err
-	return f.subscribeErr
-}
+	// check cb.Next() error bubbles up
+	nextErr := errors.New("some Next() error")
+	cb1 := &fixedClientBalancer{err: nextErr}
+	toImpl1 := NewTo(params, nil, cb1, nil, recent, newPubs, make(chan struct{})).(*to)
+	toImpl1.sb = &fixedSubscriptionBeginner{subscribeErr: errors.New("some subscribe error")}
+	err = toImpl1.Begin()
+	assert.Equal(t, nextErr, err)
 
-type fixedClientBalancer struct {
-	err error
-}
+	// check NewFPSubscription error bubbles up
+	params2 := NewDefaultParameters()
+	params2.FPRate = 0.0  // will trigger error
+	toImpl2 := NewTo(params2, nil, cb, nil, recent, newPubs, make(chan struct{})).(*to)
+	toImpl2.sb = &fixedSubscriptionBeginner{subscribeErr: errors.New("some subscribe error")}
+	err = toImpl2.Begin()
+	assert.Equal(t, ErrOutOfBoundsFPRate, err)
 
-func (f *fixedClientBalancer) Next() (api.LibrarianClient, error) {
-	return nil, f.err
-}
-
-func (f *fixedClientBalancer) CloseAll() error {
-	return nil
+	// check running error count above threshold triggers error
+	received := make(chan *pubValueReceipt)
+	errs := make(chan error)
+	toImpl3 := NewTo(params, nil, cb, nil, recent, newPubs, make(chan struct{})).(*to)
+	toImpl3.sb = &fixedSubscriptionBeginner{
+		received: received,
+		errs: errs,
+		subscribeErr: errors.New("some subscribe error"),
+	}
+	go func() {
+		for c := 0; c < int(params.FPRate * float32(errQueueSize)); c++ {
+			received <- nil
+			errs <- errors.New("some Recv error")
+		}
+	}()
+	err = toImpl3.Begin()
+	assert.Equal(t, ErrTooManySubscriptionErrs, err)
 }
 
 func TestSubscriptionBeginnerImpl_Begin_ok(t *testing.T) {
@@ -365,7 +380,7 @@ func TestMonitorRunningErrorCount(t *testing.T) {
 		errs <- errors.New("some To error")
 	}
 	fataErr := <-fatal
-	assert.Equal(t, errTooManySubscriptionErrs, fataErr)
+	assert.Equal(t, ErrTooManySubscriptionErrs, fataErr)
 
 	go monitorRunningErrorCount(errs, fatal, maxRunningErrRate)
 
@@ -386,6 +401,34 @@ func TestMonitorRunningErrorCount(t *testing.T) {
 	assert.Nil(t, fatalErr)
 }
 
+type fixedSubscriptionBeginner struct {
+	received chan *pubValueReceipt
+	errs chan error
+	subscribeErr error
+}
+
+func (f *fixedSubscriptionBeginner) begin(lc api.Subscriber, sub *api.Subscription,
+	received chan *pubValueReceipt, errs chan error, end chan struct{}) error {
+	if f.subscribeErr == nil {
+		prv := <-f.received
+		err := <-f.errs
+		received <- prv
+		errs <- err
+	}
+	return f.subscribeErr
+}
+
+type fixedClientBalancer struct {
+	err error
+}
+
+func (f *fixedClientBalancer) Next() (api.LibrarianClient, error) {
+	return nil, f.err
+}
+
+func (f *fixedClientBalancer) CloseAll() error {
+	return nil
+}
 
 type fixedSubscriber struct {
 	client api.Librarian_SubscribeClient

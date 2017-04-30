@@ -7,11 +7,10 @@ import (
 	"github.com/pkg/errors"
 	"io"
 	"math/rand"
-	"sync"
 	"time"
 )
 
-var errTooManySubscriptionErrs = errors.New("too many subscription errors")
+var ErrTooManySubscriptionErrs = errors.New("too many subscription errors")
 
 const (
 	/*
@@ -111,12 +110,9 @@ func (t *to) Begin() error {
 	go monitorRunningErrorCount(errs, fatal, t.params.MaxErrRate)
 
 	// subscription threads writing to received & errs channels
-	wg := new(sync.WaitGroup)
 	for c := uint32(0); c < t.params.NSubscriptions; c++ {
-		wg.Add(1)
-		go func(i uint32, wg *sync.WaitGroup) {
+		go func(i uint32) {
 			rng, fp := rand.New(rand.NewSource(int64(i))), float64(t.params.FPRate)
-			defer wg.Done()
 			for {
 				lc, err := t.cb.Next()
 				if err != nil {
@@ -132,9 +128,8 @@ func (t *to) Begin() error {
 				case errs <- t.sb.begin(lc, sub, received, errs, t.end):
 				}
 			}
-		}(c, wg)
+		}(c)
 	}
-	wg.Wait()
 
 	select {
 	case err := <-fatal:
@@ -224,7 +219,7 @@ func monitorRunningErrorCount(errs chan error, fatal chan error, maxRunningErrRa
 		if latestErr != nil {
 			runningNErrs++
 			if runningNErrs >= maxRunningErrCount {
-				fatal <- errTooManySubscriptionErrs
+				fatal <- ErrTooManySubscriptionErrs
 				return
 			}
 		}

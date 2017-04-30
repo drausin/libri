@@ -14,44 +14,49 @@ type From interface {
 	Fanout()
 
 	// New creates a new subscriber channel, adds it to the fan-out, and returns it.
-	New() chan *api.Publication
+	New() (chan *api.Publication, chan struct{})
 }
 
 type from struct {
 	out    chan *api.Publication
-	fanout map[int]chan *api.Publication
+	fanout map[uint64]chan *api.Publication
+	done map[uint64]chan struct{}
+	nextFanIndex uint64
 	mu     sync.Mutex
 }
 
 func NewFrom(out chan *api.Publication) From {
 	return &from{
 		out: out,
-		fanout: make(map[int]chan *api.Publication),
+		fanout: make(map[uint64]chan *api.Publication),
+		done: make(map[uint64]chan struct{}),
 	}
 }
 
 func (f *from) Fanout() {
 	for pub := range f.out {
-		f.mu.Lock()
 		for i := range f.fanout {
 			select {
 			// TODO (drausin) add timeout here for channel accepting value (?)
-			case <-f.fanout[i]:
-				// remove closed channel
+			case <- f.done[i]:
+				f.mu.Lock()
+				close(f.fanout[i])
 				delete(f.fanout, i)
+				delete(f.done, i)
+				f.mu.Unlock()
 			case f.fanout[i] <- pub:
 			}
-
 		}
-		f.mu.Unlock()
 	}
 }
 
-func (f *from) New() chan *api.Publication {
+func (f *from) New() (chan *api.Publication, chan struct{}) {
 	out := make(chan *api.Publication, fanSlack)
-	i := len(f.fanout)
+	done := make(chan struct{})
 	f.mu.Lock()
-	f.fanout[i] = out
+	f.fanout[f.nextFanIndex] = out
+	f.done[f.nextFanIndex] = done
+	f.nextFanIndex++
 	f.mu.Unlock()
-	return out
+	return out, done
 }
