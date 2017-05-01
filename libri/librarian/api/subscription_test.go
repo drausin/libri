@@ -9,6 +9,9 @@ import (
 )
 
 func TestValidateSubscription(t *testing.T) {
+	err := ValidateSubscription(nil)
+	assert.Equal(t, ErrUnexpectedNilValue, err)
+
 	cases := []struct {
 		authorPublicKeys *BloomFilter
 		readerPublicKeys *BloomFilter

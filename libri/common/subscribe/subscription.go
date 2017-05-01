@@ -7,7 +7,10 @@ import (
 )
 
 var (
-	ErrOutOfBoundsFPRate = errors.New("false positive rate out of (0, 1) bounds")
+	// ErrOutOfBoundsFPRate indicates when the false positive rate is not in (0, 1].
+	ErrOutOfBoundsFPRate = errors.New("false positive rate out of (0, 1] bounds")
+
+	// ErrNilPublicKeys indicates when either the author or reader public keys are nil.
 	ErrNilPublicKeys = errors.New("nil public keys")
 )
 
@@ -42,16 +45,24 @@ func NewSubscription(
 	}, nil
 }
 
+// NewAuthorSubscription creates an *api.Subscription using the given author public keys and false
+// positive rate with a 1.0 false positive rate for reader keys. This is useful when one doesn't
+// want to filter on any reader keys.
 func NewAuthorSubscription(authorPubs [][]byte, fp float64, rng *rand.Rand) (
 	*api.Subscription, error) {
 	return NewSubscription(authorPubs, fp, [][]byte{}, 1.0, rng)
 }
 
+// NewReaderSubscription creates an *api.Subscription using the given reader public keys and false
+// positive rate with a 1.0 false positive rate for author keys. This is useful when one doesn't
+// want to filter on any author keys.
 func NewReaderSubscription(readerPubs [][]byte, fp float64, rng *rand.Rand) (
 	*api.Subscription, error) {
 	return NewSubscription([][]byte{}, 1.0, readerPubs, fp, rng)
 }
 
+// NewFPSubscription creates an *api.Subscription with the given false positive rate on the author
+// keys and a 1.0 false positive rate on the reader keys.
 func NewFPSubscription(fp float64, rng *rand.Rand) (*api.Subscription, error) {
 	return NewSubscription([][]byte{}, fp, [][]byte{}, 1.0, rng)
 }

@@ -12,6 +12,7 @@ import (
 	"testing"
 	"io"
 	"github.com/golang/protobuf/proto"
+	"sync"
 )
 
 func TestTo_BeginEnd(t *testing.T) {
@@ -21,7 +22,7 @@ func TestTo_BeginEnd(t *testing.T) {
 	cb := &fixedClientBalancer{}
 	recent, err := NewRecentPublications(2)
 	assert.Nil(t, err)
-	newPubs := make(chan *keyedPub, 1)
+	newPubs := make(chan *KeyedPub, 1)
 	end := make(chan struct{})
 	toImpl := NewTo(params, nil, cb, nil, recent, newPubs, end).(*to)
 
@@ -33,10 +34,13 @@ func TestTo_BeginEnd(t *testing.T) {
 		errs: errs,
 	}
 
-	go func() {
-		err := toImpl.Begin()
+	wg := new(sync.WaitGroup)
+	wg.Add(1)
+	go func(wg *sync.WaitGroup) {
+		defer wg.Done()
+		err = toImpl.Begin()
 		assert.Nil(t, err)
-	}()
+	}(wg)
 
 	value1 := api.NewTestPublication(rng)
 	value2 := api.NewTestPublication(rng)
@@ -50,76 +54,63 @@ func TestTo_BeginEnd(t *testing.T) {
 	fromPub1 := api.RandBytes(rng, api.ECPubKeyLength)
 	fromPub2 := api.RandBytes(rng, api.ECPubKeyLength)
 
-	var ended bool
-	var newPub *keyedPub
-
 	// new
-	newPub = nil
 	pvr1, err := newPublicationValueReceipt(key1.Bytes(), value1, fromPub1)
 	assert.Nil(t, err)
 	received <- pvr1
 	errs <- nil
-	select {
-	case <- end:
-		ended = true
-	case newPub = <- newPubs:
-	}
+	newPub, ended := getNewPub(newPubs, end)
 	assert.False(t, ended)
 	assert.Equal(t, pvr1.pub, newPub)
 
 	// not new
-	newPub = nil
 	pvr2, err := newPublicationValueReceipt(key1.Bytes(), value1, fromPub2)
 	assert.Nil(t, err)
 	received <- pvr2
 	errs <- nil
+	newPub = nil
 	select {
 	case <- end:
 		ended = true
 	case newPub = <- newPubs:
 	default:
 	}
-	assert.False(t, ended)
 	assert.Nil(t, newPub)
+	assert.False(t, ended)
 
 	// new
-	newPub = nil
 	pvr3, err := newPublicationValueReceipt(key2.Bytes(), value2, fromPub1)
 	assert.Nil(t, err)
 	received <- pvr3
 	errs <- nil
-	select {
-	case <- end:
-		ended = true
-	case newPub = <- newPubs:
-	}
-	assert.False(t, ended)
+	newPub, ended = getNewPub(newPubs, end)
 	assert.Equal(t, pvr3.pub, newPub)
+	assert.False(t, ended)
 
 	// new
-	newPub = nil
 	pvr4, err := newPublicationValueReceipt(key3.Bytes(), value3, fromPub2)
 	assert.Nil(t, err)
 	received <- pvr4
 	errs <- nil
-	select {
-	case <- end:
-		ended = true
-	case newPub = <- newPubs:
-	}
-	assert.False(t, ended)
+	newPub, ended = getNewPub(newPubs, end)
 	assert.Equal(t, pvr4.pub, newPub)
+	assert.False(t, ended)
 
 	toImpl.End()
+	newPub, ended = getNewPub(newPubs, end)
+	assert.Nil(t, newPub)
+	assert.True(t, ended)
 
-	newPub = nil
+	wg.Wait()
+}
+
+func getNewPub(newPubs chan *KeyedPub, end chan struct{}) (newPub *KeyedPub, ended bool) {
 	select {
 	case <- end:
 		ended = true
 	case newPub = <- newPubs:
 	}
-	assert.True(t, ended)
-	assert.Nil(t, newPub)
+	return newPub, ended
 }
 
 func TestTo_Begin_err(t *testing.T) {
@@ -129,7 +120,7 @@ func TestTo_Begin_err(t *testing.T) {
 	recent, err := NewRecentPublications(2)
 	cb := &fixedClientBalancer{}
 	assert.Nil(t, err)
-	newPubs := make(chan *keyedPub, 1)
+	newPubs := make(chan *KeyedPub, 1)
 
 	// check cb.Next() error bubbles up
 	nextErr := errors.New("some Next() error")
@@ -179,7 +170,7 @@ func TestSubscriptionBeginnerImpl_Begin_ok(t *testing.T) {
 	responses := make(chan *api.SubscribeResponse)
 	responseErrs := make(chan error, 1)
 	lc := &fixedSubscriber{
-		client: &fixedLibrarian_SubscribeClient{
+		client: &fixedLibrarianSubscribeClient{
 			responses: responses,
 			err:  responseErrs,
 		},
@@ -191,12 +182,13 @@ func TestSubscriptionBeginnerImpl_Begin_ok(t *testing.T) {
 	end := make(chan struct{})
 
 	go func() {
-		err := sb.begin(lc, sub, received, errs, end)
+		err = sb.begin(lc, sub, received, errs, end)
 		assert.Nil(t, err)
 	}()
 
 	value := api.NewTestPublication(rng)
 	key, err := api.GetKey(value)
+	assert.Nil(t, err)
 	responses <- &api.SubscribeResponse{
 		Metadata: &api.ResponseMetadata{
 			PubKey: fromPubKey,
@@ -209,8 +201,8 @@ func TestSubscriptionBeginnerImpl_Begin_ok(t *testing.T) {
 	receivedPub := <- received
 	err = <- errs
 	assert.Nil(t, err)
-	assert.Equal(t, key, receivedPub.pub.key)
-	assert.Equal(t, value, receivedPub.pub.value)
+	assert.Equal(t, key, receivedPub.pub.Key)
+	assert.Equal(t, value, receivedPub.pub.Value)
 	assert.Equal(t, fromPubKey, receivedPub.receipt.fromPub)
 
 	// simulate subscription being close on server side
@@ -219,12 +211,13 @@ func TestSubscriptionBeginnerImpl_Begin_ok(t *testing.T) {
 
 	// start again
 	go func() {
-		err := sb.begin(lc, sub, received, errs, end)
+		err = sb.begin(lc, sub, received, errs, end)
 		assert.Nil(t, err)
 	}()
 
 	value = api.NewTestPublication(rng)
 	key, err = api.GetKey(value)
+	assert.Nil(t, err)
 	responses <- &api.SubscribeResponse{
 		Metadata: &api.ResponseMetadata{
 			PubKey: fromPubKey,
@@ -281,7 +274,7 @@ func TestSubscriptionBeginnerImpl_Begin_err(t *testing.T) {
 	responses3 := make(chan *api.SubscribeResponse, 1)
 	responseErrs3 := make(chan error, 1)
 	lc3 := &fixedSubscriber{
-		client: &fixedLibrarian_SubscribeClient{
+		client: &fixedLibrarianSubscribeClient{
 			responses: responses3,
 			err:  responseErrs3,
 		},
@@ -300,7 +293,7 @@ func TestSubscriptionBeginnerImpl_Begin_err(t *testing.T) {
 	responses4 := make(chan *api.SubscribeResponse, 1)
 	responseErrs4 := make(chan error, 1)
 	lc4 := &fixedSubscriber{
-		client: &fixedLibrarian_SubscribeClient{
+		client: &fixedLibrarianSubscribeClient{
 			responses: responses4,
 			err:  responseErrs4,
 		},
@@ -332,7 +325,7 @@ func TestDedup(t *testing.T) {
 	slack := 1
 	rp, err := NewRecentPublications(2)
 	assert.Nil(t, err)
-	newPVRs := make(chan *keyedPub, slack)
+	newPVRs := make(chan *KeyedPub, slack)
 	receivedPVRs := make(chan *pubValueReceipt, slack)
 	toImpl := &to{
 		new:    newPVRs,
@@ -352,7 +345,7 @@ func TestDedup(t *testing.T) {
 	pvr2in, err := newPublicationValueReceipt(key1.Bytes(), value1, fromPub2)
 	assert.Nil(t, err)
 	receivedPVRs <- pvr2in
-	var pv2out *keyedPub
+	var pv2out *KeyedPub
 	select {
 	case pv2out = <-newPVRs:
 	default:
@@ -449,38 +442,38 @@ func (f *fixedSigner) Sign(m proto.Message) (string, error) {
 	return f.signature, f.err
 }
 
-type fixedLibrarian_SubscribeClient struct {
+type fixedLibrarianSubscribeClient struct {
 	responses chan *api.SubscribeResponse
 	err       chan error
 }
 
-func (f *fixedLibrarian_SubscribeClient) Recv() (*api.SubscribeResponse, error) {
+func (f *fixedLibrarianSubscribeClient) Recv() (*api.SubscribeResponse, error) {
 	sr := <-f.responses
 	err := <-f.err
 	return sr, err
 }
 
 // the stubs below just satisfy the Librarian_SubscribeClient interface
-func (f *fixedLibrarian_SubscribeClient) Header() (metadata.MD, error) {
+func (f *fixedLibrarianSubscribeClient) Header() (metadata.MD, error) {
 	return nil, nil
 }
 
-func (f *fixedLibrarian_SubscribeClient) Trailer() metadata.MD {
+func (f *fixedLibrarianSubscribeClient) Trailer() metadata.MD {
 	return nil
 }
 
-func (f *fixedLibrarian_SubscribeClient) CloseSend() error {
+func (f *fixedLibrarianSubscribeClient) CloseSend() error {
 	return nil
 }
 
-func (f *fixedLibrarian_SubscribeClient) Context() context.Context {
+func (f *fixedLibrarianSubscribeClient) Context() context.Context {
 	return nil
 }
 
-func (f *fixedLibrarian_SubscribeClient) SendMsg(m interface{}) error {
+func (f *fixedLibrarianSubscribeClient) SendMsg(m interface{}) error {
 	return nil
 }
 
-func (f *fixedLibrarian_SubscribeClient) RecvMsg(m interface{}) error {
+func (f *fixedLibrarianSubscribeClient) RecvMsg(m interface{}) error {
 	return nil
 }

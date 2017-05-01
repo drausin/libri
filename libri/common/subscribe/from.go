@@ -1,7 +1,6 @@
 package subscribe
 
 import (
-	"github.com/drausin/libri/libri/librarian/api"
 	"sync"
 )
 
@@ -14,21 +13,22 @@ type From interface {
 	Fanout()
 
 	// New creates a new subscriber channel, adds it to the fan-out, and returns it.
-	New() (chan *api.Publication, chan struct{})
+	New() (chan *KeyedPub, chan struct{})
 }
 
 type from struct {
-	out    chan *api.Publication
-	fanout map[uint64]chan *api.Publication
+	out    chan *KeyedPub
+	fanout map[uint64]chan *KeyedPub
 	done map[uint64]chan struct{}
 	nextFanIndex uint64
 	mu     sync.Mutex
 }
 
-func NewFrom(out chan *api.Publication) From {
+// NewFrom creates a new From instance that fans out from the given output channel.
+func NewFrom(out chan *KeyedPub) From {
 	return &from{
 		out: out,
-		fanout: make(map[uint64]chan *api.Publication),
+		fanout: make(map[uint64]chan *KeyedPub),
 		done: make(map[uint64]chan struct{}),
 	}
 }
@@ -50,8 +50,8 @@ func (f *from) Fanout() {
 	}
 }
 
-func (f *from) New() (chan *api.Publication, chan struct{}) {
-	out := make(chan *api.Publication, fanSlack)
+func (f *from) New() (chan *KeyedPub, chan struct{}) {
+	out := make(chan *KeyedPub, fanSlack)
 	done := make(chan struct{})
 	f.mu.Lock()
 	f.fanout[f.nextFanIndex] = out

@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// ErrTooManySubscriptionErrs indicates when too many subscription errors have occurred.
 var ErrTooManySubscriptionErrs = errors.New("too many subscription errors")
 
 const (
@@ -34,34 +35,58 @@ const (
 	 *   0.3	40		99.9999%
 	 */
 
+	// DefaultNSubscriptions is the default number of subscriptions to other peers to maintain.
 	DefaultNSubscriptions = 10
 
+	// DefaultFPRate is the default false positive rate for each subscription to another peer.
 	DefaultFPRate = 0.75
 
-	DefaultTimout = 5 * time.Second
+	// DefaultTimeout is the default timeout for Subscribe requests.
+	DefaultTimeout = 5 * time.Second
+
+	// DefaultMaxErrRate is the maximum allowed error rate for Subscribe requests and received
+	// publications before a fatal error is thrown.
 	DefaultMaxErrRate = 0.1
+
+	// errQueueSize is the size of the error queue used to calculate the running error rate.
 	errQueueSize = 100
 )
 
-
+// Parameters define how the collection of subscriptions will be managed.
 type Parameters struct {
+	// NSubscriptions is the number of concurrent subscriptions maintained to other peers.
 	NSubscriptions uint32
+
+	// FPRate is the estimated false positive rate of the subscriptions.
 	FPRate         float32
+
+	// Timeout is the timeout for each Subscribe request.
 	Timeout        time.Duration
+
+	// MaxErrRate is the maximum allowed error rate for Subscribe requests and received
+	// publications before a fatal error is thrown. This value is a running rate over a constant
+	// history of responses (c.f., errQueueSize).
 	MaxErrRate     float32
 }
 
+// NewDefaultParameters returns a *Parameters object with default values.
 func NewDefaultParameters() *Parameters {
 	return &Parameters{
 		NSubscriptions: DefaultNSubscriptions,
 		FPRate: DefaultFPRate,
-		Timeout: DefaultTimout,
+		Timeout: DefaultTimeout,
 		MaxErrRate: DefaultMaxErrRate,
 	}
 }
 
+// To maintains active subscriptions to a collection of peers, merging their publications into a
+// single, deduplicated stream.
 type To interface {
+	// Begin starts and runs the subscriptions to the peers. It runs indefinitely until either
+	// a fatal error is encountered, or the subscriptions are gracefully stopped via End().
 	Begin() error
+
+	// End gracefully stops the active subscriptions.
 	End()
 }
 
@@ -70,17 +95,19 @@ type to struct {
 	cb       api.ClientBalancer
 	sb subscriptionBeginner
 	recent   RecentPublications
-	new      chan *keyedPub
+	new      chan *KeyedPub
 	end      chan struct{}
 }
 
+// NewTo creates a new To instance, writing merged, deduplicated publications to the given new
+// channel.
 func NewTo(
 	params *Parameters,
 	clientID ecid.ID,
 	cb api.ClientBalancer,
 	signer client.Signer,
 	recent RecentPublications,
-	new chan *keyedPub,
+	new chan *KeyedPub,
 	end chan struct{},
 ) To {
 	return &to{
@@ -205,7 +232,7 @@ func (sb *subscriptionBeginnerImpl) begin(
 }
 
 func monitorRunningErrorCount(errs chan error, fatal chan error, maxRunningErrRate float32) {
-	maxRunningErrCount := int(float32(maxRunningErrRate) * errQueueSize)
+	maxRunningErrCount := int(maxRunningErrRate * errQueueSize)
 
 	// fill error queue with non-errors
 	runningErrs := make(chan error, errQueueSize)

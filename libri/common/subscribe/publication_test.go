@@ -79,8 +79,8 @@ func TestNewPublicationValueReceipt_ok(t *testing.T) {
 
 	pvr, err := newPublicationValueReceipt(key.Bytes(), value, fromPub)
 	assert.Nil(t, err)
-	assert.Equal(t, value, pvr.pub.value)
-	assert.Equal(t, key, pvr.pub.key)
+	assert.Equal(t, value, pvr.pub.Value)
+	assert.Equal(t, key, pvr.pub.Key)
 	assert.Equal(t, fromPub, pvr.receipt.fromPub)
 	assert.NotNil(t, pvr.receipt.time)
 }

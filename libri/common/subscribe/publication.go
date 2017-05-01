@@ -9,8 +9,16 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 )
 
+// KeyedPub couples a publication value and its key.
+type KeyedPub struct {
+	// Key is the SHA-256 has of the value's bytes.
+	Key   id.ID
 
-// RecentPublications tracks publications recently received from peers.
+	// Value is the publication values.
+	Value *api.Publication
+}
+
+// RecentPublications tracks publications recently received from peers with an internal LRU cache.
 type RecentPublications interface {
 	// Add tracks that a given publication was received from the given peer public key and
 	// returns whether that value has recently been seen before.
@@ -21,6 +29,7 @@ type recentPublications struct {
 	recent *lru.Cache
 }
 
+// NewRecentPublications creates a RecentPublications LRU cache with a given size.
 func NewRecentPublications(size uint32) (RecentPublications, error) {
 	// TODO (drausin) store publicationReceipts on eviction
 	onEvicted := func(key interface{}, value interface{}) {}
@@ -34,12 +43,12 @@ func NewRecentPublications(size uint32) (RecentPublications, error) {
 }
 
 func (rp *recentPublications) Add(pvr *pubValueReceipt) bool {
-	pubReceipts, in := rp.recent.Get(pvr.pub.key.String())
+	pubReceipts, in := rp.recent.Get(pvr.pub.Key.String())
 	if !in {
-		pubReceipts = newPublicationReceipts(pvr.pub.value)
+		pubReceipts = newPublicationReceipts(pvr.pub.Value)
 	}
-	pubReceipts.(*publicationReceipts).Add(pvr.receipt)
-	rp.recent.Add(pvr.pub.key.String(), pubReceipts)
+	pubReceipts.(*publicationReceipts).add(pvr.receipt)
+	rp.recent.Add(pvr.pub.Key.String(), pubReceipts)
 	return in
 }
 
@@ -56,16 +65,12 @@ func newPublicationReceipts(value *api.Publication) *publicationReceipts {
 	}
 }
 
-func (prs *publicationReceipts) Add(pr *pubReceipt) {
+func (prs *publicationReceipts) add(pr *pubReceipt) {
 	prs.mu.Lock()
 	defer prs.mu.Unlock()
 	prs.receipts = append(prs.receipts, pr)
 }
 
-type keyedPub struct {
-	key     id.ID
-	value   *api.Publication
-}
 
 type pubReceipt struct {
 	fromPub []byte
@@ -73,7 +78,7 @@ type pubReceipt struct {
 }
 
 type pubValueReceipt struct {
-	pub     *keyedPub
+	pub     *KeyedPub
 	receipt *pubReceipt
 }
 
@@ -91,9 +96,9 @@ func newPublicationValueReceipt(key []byte, value *api.Publication, fromPub []by
 		return nil, err
 	}
 	return &pubValueReceipt{
-		pub: &keyedPub{
-			key: valueKey,
-			value: value,
+		pub: &KeyedPub{
+			Key: valueKey,
+			Value: value,
 		},
 		receipt: &pubReceipt{
 			fromPub: fromPub,

@@ -11,11 +11,11 @@ import (
 func TestFrom_Fanout(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	nFans := 8
-	out := make(chan *api.Publication)
+	out := make(chan *KeyedPub)
 	f := NewFrom(out).(*from)
 
 	go f.Fanout()
-	fanout := make(map[uint64]chan *api.Publication)
+	fanout := make(map[uint64]chan *KeyedPub)
 	done := make(map[uint64]chan struct{})
 	for i := uint64(0); int(i) < nFans; i++ {
 		f, d := f.New()
@@ -25,7 +25,7 @@ func TestFrom_Fanout(t *testing.T) {
 	// check things get fanned out as expected
 	nPubs := int(nFans) * 4
 	for i := 0; i < nPubs; i++ {
-		outPub := api.NewTestPublication(rng)
+		outPub := newKeyedPub(t, api.NewTestPublication(rng))
 		out <- outPub
 		// check that this pub appears on all fans
 		for i := range fanout {
@@ -39,7 +39,7 @@ func TestFrom_Fanout(t *testing.T) {
 	close(done[1])
 	nDeleted := 2
 
-	outPub := api.NewTestPublication(rng)
+	outPub := newKeyedPub(t, api.NewTestPublication(rng))
 	out <- outPub
 
 	fanPub, open := <- fanout[0]
@@ -70,7 +70,7 @@ func TestFrom_Fanout(t *testing.T) {
 
 func TestFrom_New(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	out := make(chan *api.Publication)
+	out := make(chan *KeyedPub)
 	f := NewFrom(out).(*from)
 	assert.Equal(t, 0, len(f.fanout))
 
@@ -80,11 +80,20 @@ func TestFrom_New(t *testing.T) {
 	fan2, _ := f.New()
 	assert.Equal(t, 2, len(f.fanout))
 
-	outPub := api.NewTestPublication(rng)
+	outPub := newKeyedPub(t, api.NewTestPublication(rng))
 	out <- outPub
 
 	fanPub1 := <- fan1
 	assert.Equal(t, outPub, fanPub1)
 	fanPub2 := <- fan2
 	assert.Equal(t, outPub, fanPub2)
+}
+
+func newKeyedPub(t *testing.T, pub *api.Publication) *KeyedPub {
+	key, err := api.GetKey(pub)
+	assert.Nil(t, err)
+	return &KeyedPub{
+		Key: key,
+		Value: pub,
+	}
 }

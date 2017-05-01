@@ -18,6 +18,7 @@ import (
 	"errors"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
+	"github.com/drausin/libri/libri/common/subscribe"
 )
 
 // Librarian is the main service of a single peer in the peer to peer network.
@@ -39,6 +40,10 @@ type Librarian struct {
 
 	// executes stores for key/value
 	storer store.Storer
+
+	subscribeFrom subscribe.From
+
+	subscribeTo subscribe.To
 
 	// verifies requests from peers
 	rqv RequestVerifier
@@ -293,7 +298,43 @@ func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutRespon
 	return nil, errors.New("unexpected store result")
 }
 
-func (l *Librarian) Subscribe(*api.SubscribeRequest, api.Librarian_SubscribeServer) error {
-	// TODO (drausin)
+// Subscribe begins a subscription to the peer's publication stream (from its own subscriptions to
+// other peers).
+func (l *Librarian) Subscribe(rq *api.SubscribeRequest, from api.Librarian_SubscribeServer) error {
+	if _, err := l.checkRequest(from.Context(), rq, rq.Metadata); err != nil {
+		return err
+	}
+	authorFilter, err := subscribe.FromAPI(rq.Subscription.AuthorPublicKeys)
+	if err != nil {
+		return err
+	}
+	readerFilter, err := subscribe.FromAPI(rq.Subscription.ReaderPublicKeys)
+	if err != nil {
+		return err
+	}
+
+	pubs, done := l.subscribeFrom.New()
+	responseMetadata := l.NewResponseMetadata(rq.Metadata)
+	for pub := range pubs {
+		if !authorFilter.Test(pub.Value.AuthorPublicKey) {
+			continue
+		}
+		if !readerFilter.Test(pub.Value.ReaderPublicKey) {
+			continue
+		}
+
+		// if we get to here, we know that both author and reader keys are in the filters,
+		// so we want to send the response
+		rp := &api.SubscribeResponse{
+			Metadata: responseMetadata,
+			Key: pub.Key.Bytes(),
+			Value: pub.Value,
+		}
+		if err := from.Send(rp); err != nil {
+			close(done)  // signal to l.subscribeFrom we're finished with this fanout
+			return err
+		}
+	}
+	close(done)
 	return nil
 }

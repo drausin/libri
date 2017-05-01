@@ -4,11 +4,13 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/willf/bloom"
 	"math/rand"
+	"encoding/gob"
 )
 
 var minFilterElements = 10
 
-func ToAPI(f *bloom.BloomFilter) (*api.BloomFilter, error) {
+// ToAPI converts a *bloom.BloomFilter (via narrower gob.GobEncoder) to an *api.BloomFilter.
+func ToAPI(f gob.GobEncoder) (*api.BloomFilter, error) {
 	encoded, err := f.GobEncode()
 	if err != nil {
 		// should never happen
@@ -19,6 +21,7 @@ func ToAPI(f *bloom.BloomFilter) (*api.BloomFilter, error) {
 	}, nil
 }
 
+// FromAPI converts an *api.BloomFilter to a *bloom.BloomFilter.
 func FromAPI(f *api.BloomFilter) (*bloom.BloomFilter, error) {
 	decoded := bloom.New(1, 1)
 	err := decoded.GobDecode(f.Encoded)
