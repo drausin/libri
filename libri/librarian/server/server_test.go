@@ -659,13 +659,13 @@ func TestLibrarian_Subscribe_ok(t *testing.T) {
 	from := &fixedLibrarianSubscribeServer{
 		sent: make(chan *api.SubscribeResponse),
 	}
-	wg1 := new(sync.WaitGroup)
-	wg1.Add(1)
+	wg := new(sync.WaitGroup)
+	wg.Add(1)
 	go func(wg *sync.WaitGroup) {
 		defer wg.Done()
 		err = l.Subscribe(rq, from)
 		assert.Nil(t, err)
-	}(wg1)
+	}(wg)
 
 	// generate pubs we're going to send
 	newPubsMap := make(map[string]*api.Publication)
@@ -675,8 +675,7 @@ func TestLibrarian_Subscribe_ok(t *testing.T) {
 	}
 
 	// check % pubs sent to client is >= targetFP
-	wg2 := new(sync.WaitGroup)
-	wg2.Add(1)
+	wg.Add(1)
 	go func(wg *sync.WaitGroup) {
 		defer wg.Done()
 		sentPubs := 0
@@ -689,17 +688,22 @@ func TestLibrarian_Subscribe_ok(t *testing.T) {
 		}
 		info := fmt.Sprintf("sentPubs: %d, nPubs: %d", sentPubs, nPubs)
 		assert.True(t, int(float64(nPubs)*targetFP) < sentPubs, info)
-	}(wg2)
+	}(wg)
 
 	// send pubs
 	for _, value := range newPubsMap {
 		newPubs <- newKeyedPub(t, value)
 	}
+
+	// ensure graceful end of l.Subscribe()
 	close(newPubs)
+	<- done
+
+	// ensure end to goroutine above that reads from from.sent
 	close(from.sent)
 
-	wg1.Wait()
-	wg2.Wait()
+	// wait for all goroutines to finish
+	wg.Wait()
 }
 
 func TestLibrarian_Subscribe_err(t *testing.T) {

@@ -182,8 +182,8 @@ func TestSubscriptionBeginnerImpl_Begin_ok(t *testing.T) {
 	end := make(chan struct{})
 
 	go func() {
-		err = sb.begin(lc, sub, received, errs, end)
-		assert.Nil(t, err)
+		beginErr := sb.begin(lc, sub, received, errs, end)
+		assert.Nil(t, beginErr)
 	}()
 
 	value := api.NewTestPublication(rng)
@@ -211,8 +211,8 @@ func TestSubscriptionBeginnerImpl_Begin_ok(t *testing.T) {
 
 	// start again
 	go func() {
-		err = sb.begin(lc, sub, received, errs, end)
-		assert.Nil(t, err)
+		beginErr := sb.begin(lc, sub, received, errs, end)
+		assert.Nil(t, beginErr)
 	}()
 
 	value = api.NewTestPublication(rng)
