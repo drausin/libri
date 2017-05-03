@@ -17,7 +17,7 @@ import (
 
 func TestTo_BeginEnd(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	params := NewDefaultParameters()
+	params := NewDefaultToParameters()
 	params.NSubscriptions = 2
 	cb := &fixedClientBalancer{}
 	recent, err := NewRecentPublications(2)
@@ -115,7 +115,7 @@ func getNewPub(newPubs chan *KeyedPub, end chan struct{}) (newPub *KeyedPub, end
 
 func TestTo_Begin_err(t *testing.T) {
 	//rng := rand.New(rand.NewSource(0))
-	params := NewDefaultParameters()
+	params := NewDefaultToParameters()
 	params.NSubscriptions = 2
 	recent, err := NewRecentPublications(2)
 	cb := &fixedClientBalancer{}
@@ -131,7 +131,7 @@ func TestTo_Begin_err(t *testing.T) {
 	assert.Equal(t, nextErr, err)
 
 	// check NewFPSubscription error bubbles up
-	params2 := NewDefaultParameters()
+	params2 := NewDefaultToParameters()
 	params2.FPRate = 0.0  // will trigger error
 	toImpl2 := NewTo(params2, nil, cb, nil, recent, newPubs, make(chan struct{})).(*to)
 	toImpl2.sb = &fixedSubscriptionBeginner{subscribeErr: errors.New("some subscribe error")}
@@ -165,7 +165,7 @@ func TestSubscriptionBeginnerImpl_Begin_ok(t *testing.T) {
 	sb := subscriptionBeginnerImpl {
 		clientID: clientID,
 		signer:   &fixedSigner{signature: "some.signature.jtw"},
-		params:   NewDefaultParameters(),
+		params:   NewDefaultToParameters(),
 	}
 	responses := make(chan *api.SubscribeResponse)
 	responseErrs := make(chan error, 1)
@@ -246,7 +246,7 @@ func TestSubscriptionBeginnerImpl_Begin_err(t *testing.T) {
 	sb1 := subscriptionBeginnerImpl {
 		clientID: clientID,
 		signer:   &fixedSigner{err: errors.New("some Signer error")},
-		params:   NewDefaultParameters(),
+		params:   NewDefaultToParameters(),
 	}
 	lc1 := &fixedSubscriber{}
 	err = sb1.begin(lc1, sub, received, errs, end)
@@ -256,7 +256,7 @@ func TestSubscriptionBeginnerImpl_Begin_err(t *testing.T) {
 	sb2 := subscriptionBeginnerImpl {
 		clientID: clientID,
 		signer:   &fixedSigner{signature: "some.signature.jtw"},
-		params:   NewDefaultParameters(),
+		params:   NewDefaultToParameters(),
 	}
 	lc2 := &fixedSubscriber{
 		client: nil,
@@ -269,7 +269,7 @@ func TestSubscriptionBeginnerImpl_Begin_err(t *testing.T) {
 	sb3 := subscriptionBeginnerImpl {
 		clientID: clientID,
 		signer:   &fixedSigner{signature: "some.signature.jtw"},
-		params:   NewDefaultParameters(),
+		params:   NewDefaultToParameters(),
 	}
 	responses3 := make(chan *api.SubscribeResponse, 1)
 	responseErrs3 := make(chan error, 1)
@@ -288,7 +288,7 @@ func TestSubscriptionBeginnerImpl_Begin_err(t *testing.T) {
 	sb4 := subscriptionBeginnerImpl {
 		clientID: clientID,
 		signer:   &fixedSigner{signature: "some.signature.jtw"},
-		params:   NewDefaultParameters(),
+		params:   NewDefaultToParameters(),
 	}
 	responses4 := make(chan *api.SubscribeResponse, 1)
 	responseErrs4 := make(chan error, 1)

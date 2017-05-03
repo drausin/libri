@@ -742,11 +742,26 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 	err = l3.Subscribe(rq3, from)
 	assert.NotNil(t, err)
 
+	// check subscribeFrom.New() bubbles up
 	sub4, err := subscribe.NewFPSubscription(1.0, rng)
 	assert.Nil(t, err)
 	rq4 := client.NewSubscribeRequest(ecid.NewPseudoRandom(rng), sub4)
-	newPubs := make(chan *subscribe.KeyedPub)
 	l4 := &Librarian{
+		selfID: ecid.NewPseudoRandom(rng),
+		subscribeFrom: &fixedFrom{
+			err: subscribe.ErrNotAcceptingNewSubscriptions,
+		},
+		rqv: &alwaysRequestVerifier{},
+	}
+	err = l4.Subscribe(rq4, from)
+	assert.Equal(t, subscribe.ErrNotAcceptingNewSubscriptions, err)
+
+	// check from.Send() error bubbles up
+	sub5, err := subscribe.NewFPSubscription(1.0, rng)
+	assert.Nil(t, err)
+	rq5 := client.NewSubscribeRequest(ecid.NewPseudoRandom(rng), sub5)
+	newPubs := make(chan *subscribe.KeyedPub)
+	l5 := &Librarian{
 		selfID: ecid.NewPseudoRandom(rng),
 		subscribeFrom: &fixedFrom{
 			new:  newPubs,
@@ -754,14 +769,14 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 		},
 		rqv: &alwaysRequestVerifier{},
 	}
-	from4 := &fixedLibrarianSubscribeServer{
+	from5 := &fixedLibrarianSubscribeServer{
 		err: errors.New("some Subscribe error"),
 	}
 	wg := new(sync.WaitGroup)
 	wg.Add(1)
 	go func(wg *sync.WaitGroup) {
 		defer wg.Done()
-		err = l4.Subscribe(rq4, from4)
+		err = l5.Subscribe(rq5, from5)
 		assert.NotNil(t, err)
 	}(wg)
 	newPubs <- newKeyedPub(t, api.NewTestPublication(rng))
@@ -780,10 +795,11 @@ func newKeyedPub(t *testing.T, pub *api.Publication) *subscribe.KeyedPub {
 type fixedFrom struct {
 	new  chan *subscribe.KeyedPub
 	done chan struct{}
+	err error
 }
 
-func (f *fixedFrom) New() (chan *subscribe.KeyedPub, chan struct{}) {
-	return f.new, f.done
+func (f *fixedFrom) New() (chan *subscribe.KeyedPub, chan struct{}, error) {
+	return f.new, f.done, f.err
 }
 
 func (f *fixedFrom) Fanout() {}

@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/binary"
 	"math/rand"
-
 	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
@@ -312,8 +311,11 @@ func (l *Librarian) Subscribe(rq *api.SubscribeRequest, from api.Librarian_Subsc
 	if err != nil {
 		return err
 	}
+	pubs, done, err := l.subscribeFrom.New()
+	if err != nil {
+		return err
+	}
 
-	pubs, done := l.subscribeFrom.New()
 	responseMetadata := l.NewResponseMetadata(rq.Metadata)
 	for pub := range pubs {
 		if !authorFilter.Test(pub.Value.AuthorPublicKey) {

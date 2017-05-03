@@ -16,6 +16,7 @@ import (
 	"errors"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"github.com/drausin/libri/libri/common/subscribe"
 )
 
 const (
@@ -81,6 +82,12 @@ type Config struct {
 	// Store defines parameters for stores the server performs.
 	Store *store.Parameters
 
+	// SubscribeTo defines parameters for subscriptions to other peers.
+	SubscribeTo *subscribe.ToParameters
+
+	// SubscribeFrom defines parameters for subscriptions to other peers.
+	SubscribeFrom *subscribe.FromParameters
+
 	// LogLevel is the log level
 	LogLevel zapcore.Level
 }
@@ -102,6 +109,8 @@ func NewDefaultConfig() *Config {
 	config.WithDefaultIntroduce()
 	config.WithDefaultSearch()
 	config.WithDefaultStore()
+	config.WithDefaultSubscribeTo()
+	config.WithDefaultSubscribeFrom()
 	config.WithDefaultLogLevel()
 
 	return config
@@ -286,6 +295,36 @@ func (c *Config) WithStore(params *store.Parameters) *Config {
 // package.
 func (c *Config) WithDefaultStore() *Config {
 	c.Store = store.NewDefaultParameters()
+	return c
+}
+
+// WithSubscribeTo sets the subscription to parameters to the given value or the default it it is nil.
+func (c *Config) WithSubscribeTo(params *subscribe.ToParameters) *Config {
+	if params == nil {
+		return c.WithDefaultSubscribeTo()
+	}
+	c.SubscribeTo = params
+	return c
+}
+
+// WithDefaultSubscribeTo sets the subscription to parameters to the default.
+func (c *Config) WithDefaultSubscribeTo() *Config {
+	c.SubscribeTo = subscribe.NewDefaultToParameters()
+	return c
+}
+
+// WithSubscribeFrom sets the subscription from parameters to the given value or the default it it is nil.
+func (c *Config) WithSubscribeFrom(params *subscribe.FromParameters) *Config {
+	if params == nil {
+		return c.WithDefaultSubscribeFrom()
+	}
+	c.SubscribeFrom = params
+	return c
+}
+
+// WithDefaultSubscribeFrom sets the subscription from parameters to the default.
+func (c *Config) WithDefaultSubscribeFrom() *Config {
+	c.SubscribeFrom = subscribe.NewDefaultFromParameters()
 	return c
 }
 

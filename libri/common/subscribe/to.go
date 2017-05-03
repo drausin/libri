@@ -35,8 +35,8 @@ const (
 	 *   0.3	40		99.9999%
 	 */
 
-	// DefaultNSubscriptions is the default number of subscriptions to other peers to maintain.
-	DefaultNSubscriptions = 10
+	// DefaultNSubscriptionsTo is the default number of subscriptions to other peers to maintain.
+	DefaultNSubscriptionsTo = 10
 
 	// DefaultFPRate is the default false positive rate for each subscription to another peer.
 	DefaultFPRate = 0.75
@@ -52,8 +52,8 @@ const (
 	errQueueSize = 100
 )
 
-// Parameters define how the collection of subscriptions will be managed.
-type Parameters struct {
+// ToParameters define how the collection of subscriptions to other peers will be managed.
+type ToParameters struct {
 	// NSubscriptions is the number of concurrent subscriptions maintained to other peers.
 	NSubscriptions uint32
 
@@ -69,10 +69,10 @@ type Parameters struct {
 	MaxErrRate     float32
 }
 
-// NewDefaultParameters returns a *Parameters object with default values.
-func NewDefaultParameters() *Parameters {
-	return &Parameters{
-		NSubscriptions: DefaultNSubscriptions,
+// NewDefaultParameters returns a *ToParameters object with default values.
+func NewDefaultToParameters() *ToParameters {
+	return &ToParameters{
+		NSubscriptions: DefaultNSubscriptionsTo,
 		FPRate: DefaultFPRate,
 		Timeout: DefaultTimeout,
 		MaxErrRate: DefaultMaxErrRate,
@@ -91,7 +91,7 @@ type To interface {
 }
 
 type to struct {
-	params   *Parameters
+	params   *ToParameters
 	cb       api.ClientBalancer
 	sb subscriptionBeginner
 	recent   RecentPublications
@@ -102,7 +102,7 @@ type to struct {
 // NewTo creates a new To instance, writing merged, deduplicated publications to the given new
 // channel.
 func NewTo(
-	params *Parameters,
+	params *ToParameters,
 	clientID ecid.ID,
 	cb api.ClientBalancer,
 	signer client.Signer,
@@ -189,7 +189,7 @@ type subscriptionBeginner interface {
 type subscriptionBeginnerImpl struct {
 	clientID ecid.ID
 	signer client.Signer
-	params *Parameters
+	params *ToParameters
 }
 
 func (sb *subscriptionBeginnerImpl) begin(
