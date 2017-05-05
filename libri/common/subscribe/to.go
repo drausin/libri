@@ -8,6 +8,7 @@ import (
 	"io"
 	"math/rand"
 	"time"
+	"sync"
 )
 
 // ErrTooManySubscriptionErrs indicates when too many subscription errors have occurred.
@@ -44,9 +45,12 @@ const (
 	// DefaultTimeout is the default timeout for Subscribe requests.
 	DefaultTimeout = 5 * time.Second
 
-	// DefaultMaxErrRate is the maximum allowed error rate for Subscribe requests and received
-	// publications before a fatal error is thrown.
+	// DefaultMaxErrRate is the default maximum allowed error rate for Subscribe requests and
+	// received publications before a fatal error is thrown.
 	DefaultMaxErrRate = 0.1
+
+	// DefaultRecentCacheSize is the default recent publications LRU cache size.
+	DefaultRecentCacheSize = 1 << 12
 
 	// errQueueSize is the size of the error queue used to calculate the running error rate.
 	errQueueSize = 100
@@ -67,6 +71,10 @@ type ToParameters struct {
 	// publications before a fatal error is thrown. This value is a running rate over a constant
 	// history of responses (c.f., errQueueSize).
 	MaxErrRate     float32
+
+	// NRecentCacheSize is the size of the LRU cache used in deduplicating and grouping
+	// publications.
+	RecentCacheSize uint32
 }
 
 // NewDefaultParameters returns a *ToParameters object with default values.
@@ -76,6 +84,7 @@ func NewDefaultToParameters() *ToParameters {
 		FPRate: DefaultFPRate,
 		Timeout: DefaultTimeout,
 		MaxErrRate: DefaultMaxErrRate,
+		RecentCacheSize: DefaultRecentCacheSize,
 	}
 }
 
@@ -86,7 +95,7 @@ type To interface {
 	// a fatal error is encountered, or the subscriptions are gracefully stopped via End().
 	Begin() error
 
-	// End gracefully stops the active subscriptions.
+	// End gracefully stops the active subscriptions and closes the new channel
 	End()
 }
 
@@ -95,6 +104,7 @@ type to struct {
 	cb       api.ClientBalancer
 	sb subscriptionBeginner
 	recent   RecentPublications
+	received chan *pubValueReceipt
 	new      chan *KeyedPub
 	end      chan struct{}
 }
@@ -108,7 +118,6 @@ func NewTo(
 	signer client.Signer,
 	recent RecentPublications,
 	new chan *KeyedPub,
-	end chan struct{},
 ) To {
 	return &to{
 		params: params,
@@ -119,19 +128,24 @@ func NewTo(
 			params: params,
 		},
 		recent: recent,
+		received: make(chan *pubValueReceipt, params.NSubscriptions),
 		new: new,
-		end: end,
+		end: make(chan struct{}),
 	}
 }
 
 func (t *to) Begin() error {
 	channelsSlack := t.params.NSubscriptions
-	received := make(chan *pubValueReceipt, channelsSlack) // all received pubs
 	errs := make(chan error, channelsSlack)                // non-fatal errs and nils
 	fatal := make(chan error)                              // signals fatal end
 
 	// dedup all received publications, writing new to t.new & t.recent
-	go t.dedup(received)
+	wg := new(sync.WaitGroup)
+	wg.Add(1)
+	go func(wg *sync.WaitGroup) {
+		defer wg.Done()
+		t.dedup()
+	}(wg)
 
 	// monitor non-fatal errors, sending fatal err if too many
 	go monitorRunningErrorCount(errs, fatal, t.params.MaxErrRate)
@@ -144,15 +158,17 @@ func (t *to) Begin() error {
 				lc, err := t.cb.Next()
 				if err != nil {
 					fatal <- err
+					return
 				}
 				sub, err := NewFPSubscription(fp, rng)
 				if err != nil {
 					fatal <- err
+					return
 				}
 				select {
 				case <-t.end:
 					return
-				case errs <- t.sb.begin(lc, sub, received, errs, t.end):
+				case errs <- t.sb.begin(lc, sub, t.received, errs, t.end):
 				}
 			}
 		}(c)
@@ -160,23 +176,31 @@ func (t *to) Begin() error {
 
 	select {
 	case err := <-fatal:
-		close(t.end)
+		t.End()
+		wg.Wait()
 		return err
 	case <-t.end:
+		wg.Wait()
 		return nil
 	}
 }
 
 func (t *to) End() {
+	close(t.received)
 	close(t.end)
 }
 
-func (t *to) dedup(received chan *pubValueReceipt) {
-	for pvr := range received {
+func (t *to) dedup() {
+	for pvr := range t.received {
 		seen := t.recent.Add(pvr)
 		if !seen {
 			t.new <- pvr.pub
 		}
+	}
+	select {
+	case <- t.new:   // already closed
+	default:
+		close(t.new)
 	}
 }
 

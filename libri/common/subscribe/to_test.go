@@ -23,8 +23,7 @@ func TestTo_BeginEnd(t *testing.T) {
 	recent, err := NewRecentPublications(2)
 	assert.Nil(t, err)
 	newPubs := make(chan *KeyedPub, 1)
-	end := make(chan struct{})
-	toImpl := NewTo(params, nil, cb, nil, recent, newPubs, end).(*to)
+	toImpl := NewTo(params, nil, cb, nil, recent, newPubs).(*to)
 
 	// mock what we actually get from subscriptions
 	received := make(chan *pubValueReceipt)
@@ -59,7 +58,7 @@ func TestTo_BeginEnd(t *testing.T) {
 	assert.Nil(t, err)
 	received <- pvr1
 	errs <- nil
-	newPub, ended := getNewPub(newPubs, end)
+	newPub, ended := getNewPub(newPubs, toImpl.end)
 	assert.False(t, ended)
 	assert.Equal(t, pvr1.pub, newPub)
 
@@ -70,7 +69,7 @@ func TestTo_BeginEnd(t *testing.T) {
 	errs <- nil
 	newPub = nil
 	select {
-	case <- end:
+	case <- toImpl.end:
 		ended = true
 	case newPub = <- newPubs:
 	default:
@@ -83,7 +82,7 @@ func TestTo_BeginEnd(t *testing.T) {
 	assert.Nil(t, err)
 	received <- pvr3
 	errs <- nil
-	newPub, ended = getNewPub(newPubs, end)
+	newPub, ended = getNewPub(newPubs, toImpl.end)
 	assert.Equal(t, pvr3.pub, newPub)
 	assert.False(t, ended)
 
@@ -92,14 +91,21 @@ func TestTo_BeginEnd(t *testing.T) {
 	assert.Nil(t, err)
 	received <- pvr4
 	errs <- nil
-	newPub, ended = getNewPub(newPubs, end)
+	newPub, ended = getNewPub(newPubs, toImpl.end)
 	assert.Equal(t, pvr4.pub, newPub)
 	assert.False(t, ended)
 
 	toImpl.End()
-	newPub, ended = getNewPub(newPubs, end)
+	newPub, ended = getNewPub(newPubs, toImpl.end)
 	assert.Nil(t, newPub)
 	assert.True(t, ended)
+
+	// check newPubs is closed
+	select {
+	case pub, open := <- newPubs:
+		assert.Nil(t, pub)
+		assert.False(t, open)
+	}
 
 	wg.Wait()
 }
@@ -125,7 +131,7 @@ func TestTo_Begin_err(t *testing.T) {
 	// check cb.Next() error bubbles up
 	nextErr := errors.New("some Next() error")
 	cb1 := &fixedClientBalancer{err: nextErr}
-	toImpl1 := NewTo(params, nil, cb1, nil, recent, newPubs, make(chan struct{})).(*to)
+	toImpl1 := NewTo(params, nil, cb1, nil, recent, newPubs).(*to)
 	toImpl1.sb = &fixedSubscriptionBeginner{subscribeErr: errors.New("some subscribe error")}
 	err = toImpl1.Begin()
 	assert.Equal(t, nextErr, err)
@@ -133,7 +139,7 @@ func TestTo_Begin_err(t *testing.T) {
 	// check NewFPSubscription error bubbles up
 	params2 := NewDefaultToParameters()
 	params2.FPRate = 0.0  // will trigger error
-	toImpl2 := NewTo(params2, nil, cb, nil, recent, newPubs, make(chan struct{})).(*to)
+	toImpl2 := NewTo(params2, nil, cb, nil, recent, newPubs).(*to)
 	toImpl2.sb = &fixedSubscriptionBeginner{subscribeErr: errors.New("some subscribe error")}
 	err = toImpl2.Begin()
 	assert.Equal(t, ErrOutOfBoundsFPRate, err)
@@ -141,7 +147,7 @@ func TestTo_Begin_err(t *testing.T) {
 	// check running error count above threshold triggers error
 	received := make(chan *pubValueReceipt)
 	errs := make(chan error)
-	toImpl3 := NewTo(params, nil, cb, nil, recent, newPubs, make(chan struct{})).(*to)
+	toImpl3 := NewTo(params, nil, cb, nil, recent, newPubs).(*to)
 	toImpl3.sb = &fixedSubscriptionBeginner{
 		received: received,
 		errs: errs,
@@ -328,11 +334,12 @@ func TestDedup(t *testing.T) {
 	newPVRs := make(chan *KeyedPub, slack)
 	receivedPVRs := make(chan *pubValueReceipt, slack)
 	toImpl := &to{
+		received: receivedPVRs,
 		new:    newPVRs,
 		recent: rp,
 	}
 
-	go toImpl.dedup(receivedPVRs)
+	go toImpl.dedup()
 
 	// new
 	pvr1in, err := newPublicationValueReceipt(key1.Bytes(), value1, fromPub1)

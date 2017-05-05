@@ -6,16 +6,19 @@ import (
 	"math/rand"
 	"github.com/stretchr/testify/assert"
 	"fmt"
+	"sync"
 )
 
 func TestFrom_Fanout(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	nFans := 8
 	params := NewDefaultFromParameters()
+	params.EndSubscriptionProb = 0.0  // never end
 	out := make(chan *KeyedPub)
 	f := NewFrom(params, out).(*from)
 
 	go f.Fanout()
+
 	fanout := make(map[uint64]chan *KeyedPub)
 	done := make(map[uint64]chan struct{})
 	for i := uint64(0); int(i) < nFans; i++ {
@@ -34,6 +37,34 @@ func TestFrom_Fanout(t *testing.T) {
 			fanPub := <- fanout[i]
 			assert.Equal(t, outPub, fanPub)
 		}
+	}
+}
+
+func TestFrom_Fanout_close(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	nFans := 8
+	params := NewDefaultFromParameters()
+	params.EndSubscriptionProb = 0.0  // never end
+	out := make(chan *KeyedPub)
+	f := NewFrom(params, out).(*from)
+
+	wg := new(sync.WaitGroup)
+	wg.Add(1)
+	go func(wg *sync.WaitGroup) {
+		defer wg.Done()
+		f.Fanout()
+
+		// check fanouts have been deleted
+		assert.Equal(t, 0, len(f.fanout))
+		assert.Equal(t, 0, len(f.done))
+	}(wg)
+
+	fanout := make(map[uint64]chan *KeyedPub)
+	done := make(map[uint64]chan struct{})
+	for i := uint64(0); int(i) < nFans; i++ {
+		f, d, err := f.New()
+		assert.Nil(t, err)
+		fanout[i], done[i] = f, d
 	}
 
 	// close a few channels
@@ -68,6 +99,46 @@ func TestFrom_Fanout(t *testing.T) {
 	f.mu.Lock()
 	assert.Equal(t, nFans - nDeleted, len(f.fanout))
 	f.mu.Unlock()
+
+	// ensure closing output channel closes all fanouts as well
+	close(out)
+	wg.Wait()
+	for i := range fanout {
+		select {
+		case pub, open := <- fanout[i]:
+			assert.Nil(t, pub)
+			assert.False(t, open)
+		}
+		select {
+		case _, open := <- done[i]:
+			assert.False(t, open)
+		}
+	}
+}
+
+func TestFrom_Fanout_end(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	params := NewDefaultFromParameters()
+	params.EndSubscriptionProb = 1.0  // always end
+	out := make(chan *KeyedPub)
+	f := NewFrom(params, out).(*from)
+
+	go f.Fanout()
+	fanout, done, err := f.New()
+	assert.Nil(t, err)
+
+	outPub := newKeyedPub(t, api.NewTestPublication(rng))
+	out <- outPub
+
+	// check that subscription has ended and done channel is closed
+	select {
+	case fanPub, open := <- fanout:
+		assert.Nil(t, fanPub)
+		assert.False(t, open)
+	}
+	select {
+	case <- done:  // if this doesn't block, means done is closed
+	}
 }
 
 func TestFrom_New_ok(t *testing.T) {

@@ -2,11 +2,12 @@ package server
 
 import (
 	"encoding/binary"
-	"math/rand"
+	"errors"
 	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
+	"github.com/drausin/libri/libri/common/subscribe"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
@@ -14,10 +15,9 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/store"
-	"errors"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
-	"github.com/drausin/libri/libri/common/subscribe"
+	"math/rand"
 )
 
 // Librarian is the main service of a single peer in the peer to peer network.
@@ -40,8 +40,10 @@ type Librarian struct {
 	// executes stores for key/value
 	storer store.Storer
 
+	// manages subscriptions from other peers
 	subscribeFrom subscribe.From
 
+	// manages subscriptions to other peers
 	subscribeTo subscribe.To
 
 	// verifies requests from peers
@@ -101,25 +103,36 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 
 	signer := client.NewSigner(peerID.Key())
 	searcher := search.NewDefaultSearcher(signer)
+	newPubs := make(chan *subscribe.KeyedPub)
+
+	recentPubs, err := subscribe.NewRecentPublications(config.SubscribeTo.RecentCacheSize)
+	if err != nil {
+		return nil, err
+	}
+	clientBalancer := routing.NewClientBalancer(rt)
+	subscribeTo := subscribe.NewTo(config.SubscribeTo, peerID, clientBalancer, signer,
+		recentPubs, newPubs)
 
 	return &Librarian{
-		selfID:     peerID,
-		config:     config,
-		apiSelf:    api.FromAddress(peerID.ID(), config.PublicName, config.PublicAddr),
-		introducer: introduce.NewDefaultIntroducer(signer, peerID.ID()),
-		searcher:   searcher,
-		storer:     store.NewStorer(signer, searcher, client.NewStoreQuerier()),
-		rqv:        NewRequestVerifier(),
-		db:         rdb,
-		serverSL:   serverSL,
-		documentSL: documentSL,
-		kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		kvc:        storage.NewHashKeyValueChecker(),
-		fromer:     peer.NewFromer(),
-		signer:     signer,
-		rt:         rt,
-		logger:     logger,
-		stop:       make(chan struct{}),
+		selfID:        peerID,
+		config:        config,
+		apiSelf:       api.FromAddress(peerID.ID(), config.PublicName, config.PublicAddr),
+		introducer:    introduce.NewDefaultIntroducer(signer, peerID.ID()),
+		searcher:      searcher,
+		storer:        store.NewStorer(signer, searcher, client.NewStoreQuerier()),
+		subscribeFrom: subscribe.NewFrom(config.SubscribeFrom, newPubs),
+		subscribeTo:   subscribeTo,
+		rqv:           NewRequestVerifier(),
+		db:            rdb,
+		serverSL:      serverSL,
+		documentSL:    documentSL,
+		kc:            storage.NewExactLengthChecker(storage.EntriesKeyLength),
+		kvc:           storage.NewHashKeyValueChecker(),
+		fromer:        peer.NewFromer(),
+		signer:        signer,
+		rt:            rt,
+		logger:        logger,
+		stop:          make(chan struct{}),
 	}, nil
 }
 
@@ -329,11 +342,11 @@ func (l *Librarian) Subscribe(rq *api.SubscribeRequest, from api.Librarian_Subsc
 		// so we want to send the response
 		rp := &api.SubscribeResponse{
 			Metadata: responseMetadata,
-			Key: pub.Key.Bytes(),
-			Value: pub.Value,
+			Key:      pub.Key.Bytes(),
+			Value:    pub.Value,
 		}
 		if err := from.Send(rp); err != nil {
-			close(done)  // signal to l.subscribeFrom we're finished with this fanout
+			close(done) // signal to l.subscribeFrom we're finished with this fanout
 			return err
 		}
 	}

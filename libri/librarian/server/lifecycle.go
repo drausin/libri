@@ -121,6 +121,16 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 			l.config.LocalAddr.Port))
 		s.GracefulStop()
 	}()
+	go func () {
+		// long-running goroutine managing subscriptions to other peers
+		if err := l.subscribeTo.Begin(); err != nil && !l.config.isBootstrap() {
+			l.logger.Error("fatal subscriptionTo error", zap.Error(err))
+			if err := l.Close(); err != nil {
+				panic(err)  // don't try to recover from Close error
+			}
+
+		}
+	}()
 	if err := s.Serve(lis); err != nil {
 		if strings.Contains(fmt.Sprintf("%s", err.Error()), "use of closed network connection") {
 			return nil
@@ -135,7 +145,7 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 func (l *Librarian) Close() error {
 
 	// send stop signal to listener
-	l.stop <- struct{}{}
+	close(l.stop)
 
 	// disconnect from peers in routing table
 	if err := l.rt.Disconnect(); err != nil {

@@ -298,7 +298,8 @@ func (c *Config) WithDefaultStore() *Config {
 	return c
 }
 
-// WithSubscribeTo sets the subscription to parameters to the given value or the default it it is nil.
+// WithSubscribeTo sets the subscription to parameters to the given value or the default it it is
+// nil.
 func (c *Config) WithSubscribeTo(params *subscribe.ToParameters) *Config {
 	if params == nil {
 		return c.WithDefaultSubscribeTo()
@@ -313,7 +314,8 @@ func (c *Config) WithDefaultSubscribeTo() *Config {
 	return c
 }
 
-// WithSubscribeFrom sets the subscription from parameters to the given value or the default it it is nil.
+// WithSubscribeFrom sets the subscription from parameters to the given value or the default it is
+// nil.
 func (c *Config) WithSubscribeFrom(params *subscribe.FromParameters) *Config {
 	if params == nil {
 		return c.WithDefaultSubscribeFrom()
