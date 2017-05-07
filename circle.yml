@@ -36,3 +36,4 @@ test:
         parallel: true
   post:
     - bash <(curl -s https://codecov.io/bash) -f test-coverage-merged.cov
+    - cp acceptance.log $CIRCLE_ARTIFACTS

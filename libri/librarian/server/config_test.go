@@ -10,6 +10,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/store"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap/zapcore"
+	"github.com/drausin/libri/libri/common/subscribe"
 )
 
 func TestDefaultConfig(t *testing.T) {
@@ -25,6 +26,8 @@ func TestDefaultConfig(t *testing.T) {
 	assert.NotEmpty(t, c.Introduce)
 	assert.NotEmpty(t, c.Search)
 	assert.NotEmpty(t, c.Store)
+	assert.NotEmpty(t, c.SubscribeTo)
+	assert.NotEmpty(t, c.SubscribeFrom)
 	assert.NotEmpty(t, c.LogLevel)
 }
 
@@ -120,6 +123,26 @@ func TestConfig_WithStore(t *testing.T) {
 	assert.NotEqual(t,
 		c1.Store,
 		c3.WithStore(&store.Parameters{Concurrency: 1}).Store,
+	)
+}
+
+func TestConfig_WithSubscribeTo(t *testing.T) {
+	c1, c2, c3 := &Config{}, &Config{}, &Config{}
+	c1.WithDefaultSubscribeTo()
+	assert.Equal(t, c1.SubscribeTo, c2.WithSubscribeTo(nil).SubscribeTo)
+	assert.NotEqual(t,
+		c1.SubscribeTo,
+		c3.WithSubscribeTo(&subscribe.ToParameters{NSubscriptions: 3}).SubscribeTo,
+	)
+}
+
+func TestConfig_WithSubscribeFrom(t *testing.T) {
+	c1, c2, c3 := &Config{}, &Config{}, &Config{}
+	c1.WithDefaultSubscribeFrom()
+	assert.Equal(t, c1.SubscribeFrom, c2.WithSubscribeFrom(nil).SubscribeFrom)
+	assert.NotEqual(t,
+		c1.SubscribeFrom,
+		c3.WithSubscribeFrom(&subscribe.FromParameters{NMaxSubscriptions: 0}).SubscribeFrom,
 	)
 }
 

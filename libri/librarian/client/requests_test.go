@@ -68,3 +68,12 @@ func TestNewPutRequest(t *testing.T) {
 	assert.Equal(t, key.Bytes(), rq.Key)
 	assert.Equal(t, value, rq.Value)
 }
+
+func TestNewSubscribeRequest(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	peerID := ecid.NewPseudoRandom(rng)
+	sub := &api.Subscription{}
+	rq := NewSubscribeRequest(peerID, sub)
+	assert.NotNil(t, rq.Metadata)
+	assert.Equal(t, sub, rq.Subscription)
+}

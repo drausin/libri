@@ -24,7 +24,7 @@ test:
 
 acceptance:
 	@echo "--> Running acceptance tests"
-	@go test -tags acceptance github.com/drausin/libri/libri/acceptance
+	@go test -tags acceptance github.com/drausin/libri/libri/acceptance 2>&1 | tee acceptance.log
 
 fix:
 	@echo "--> Running goimports"

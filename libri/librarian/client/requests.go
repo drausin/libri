@@ -65,3 +65,11 @@ func NewPutRequest(peerID ecid.ID, key cid.ID, value *api.Document) *api.PutRequ
 		Value:    value,
 	}
 }
+
+// NewSubscribeRequest creates a SubscribeRequest object.
+func NewSubscribeRequest(peerID ecid.ID, subscription *api.Subscription) *api.SubscribeRequest {
+	return &api.SubscribeRequest{
+		Metadata: NewRequestMetadata(peerID),
+		Subscription: subscription,
+	}
+}

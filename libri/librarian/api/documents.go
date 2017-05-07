@@ -50,6 +50,10 @@ var (
 	// ErrUnknownDocumentType indicates when a document type is not known (usually, this
 	// error should never actually be thrown).
 	ErrUnknownDocumentType = errors.New("unknown document type")
+
+	// ErrUnexpectedKey indicates when a key does not match the expected key (from GetKey)
+	// for a given value.
+	ErrUnexpectedKey = errors.New("unexpected key for value")
 )
 
 // GetKey calculates the key from the has of the proto.Message.

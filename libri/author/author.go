@@ -194,7 +194,7 @@ func (a *Author) Upload(content io.Reader, mediaType string) (*api.Document, id.
 	// - delete pages from local storage
 
 	entryKeyBytes := envelope.Contents.(*api.Document_Envelope).Envelope.EntryKey
-	a.logger.Debug("successfully uploaded document",
+	a.logger.Info("successfully uploaded document",
 		zap.String(LoggerEnvelopeKey, envelopeKey.String()),
 		zap.String(LoggerEntryKey, id.FromBytes(entryKeyBytes).String()),
 	)
@@ -225,7 +225,7 @@ func (a *Author) Download(content io.Writer, envelopeKey id.ID) error {
 	// TODO (drausin)
 	// - delete pages from local storage
 
-	a.logger.Debug("successfully downloaded document",
+	a.logger.Info("successfully downloaded document",
 		zap.String(LoggerEnvelopeKey, envelopeKey.String()),
 		zap.String(LoggerEntryKey, entryKey.String()),
 	)

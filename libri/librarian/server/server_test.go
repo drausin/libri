@@ -1,15 +1,14 @@
 package server
 
 import (
-	"io/ioutil"
-	"math/rand"
-	"testing"
-
+	"errors"
+	"fmt"
 	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/common/storage"
+	"github.com/drausin/libri/libri/common/subscribe"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
@@ -17,9 +16,14 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/store"
 	"github.com/golang/protobuf/proto"
-	"errors"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/metadata"
+	"io/ioutil"
+	"math"
+	"math/rand"
+	"sync"
+	"testing"
 )
 
 // TestNewLibrarian checks that we can create a new instance, close it, and create it again as
@@ -95,6 +99,7 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 		selfID:  serverID,
 		rt:      rt,
 		rqv:     &alwaysRequestVerifier{},
+		logger: clogging.NewDevInfoLogger(),
 	}
 
 	clientID, clientPeerIdx := ecid.NewPseudoRandom(rng), 1
@@ -314,14 +319,16 @@ func TestLibrarian_Store_ok(t *testing.T) {
 	assert.Nil(t, err)
 
 	l := &Librarian{
-		selfID:     peerID,
-		rt:         rt,
-		db:         kvdb,
-		serverSL:   storage.NewServerKVDBStorerLoader(kvdb),
-		documentSL: storage.NewDocumentKVDBStorerLoader(kvdb),
-		kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		kvc:        storage.NewHashKeyValueChecker(),
-		rqv:        &alwaysRequestVerifier{},
+		selfID:      peerID,
+		rt:          rt,
+		db:          kvdb,
+		serverSL:    storage.NewServerKVDBStorerLoader(kvdb),
+		documentSL:  storage.NewDocumentKVDBStorerLoader(kvdb),
+		subscribeTo: &fixedTo{},
+		kc:          storage.NewExactLengthChecker(storage.EntriesKeyLength),
+		kvc:         storage.NewHashKeyValueChecker(),
+		rqv:         &alwaysRequestVerifier{},
+		logger:      clogging.NewDevInfoLogger(),
 	}
 
 	// create key-value
@@ -523,6 +530,7 @@ func newGetLibrarian(rng *rand.Rand, searchResult *search.Result, searchErr erro
 			err:    searchErr,
 		},
 		rqv: &alwaysRequestVerifier{},
+		logger:      clogging.NewDevInfoLogger(),
 	}
 }
 
@@ -631,6 +639,228 @@ func TestLibrarian_Put_checkRequestError(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func TestLibrarian_Subscribe_ok(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	nPubs := 64
+	newPubs := make(chan *subscribe.KeyedPub)
+	done := make(chan struct{})
+	l := &Librarian{
+		selfID: ecid.NewPseudoRandom(rng),
+		subscribeFrom: &fixedFrom{
+			new:  newPubs,
+			done: done,
+		},
+		rqv: &alwaysRequestVerifier{},
+		logger: clogging.NewDevInfoLogger(),
+	}
+
+	// create subscription that should cover both the author and reader filter code branches
+	targetFP := float64(0.5)
+	filterFP := math.Sqrt(targetFP) // so product of author and reader FP rates is targetFP
+	sub, err := subscribe.NewSubscription([][]byte{}, filterFP, [][]byte{}, filterFP, rng)
+	assert.Nil(t, err)
+
+	rq := client.NewSubscribeRequest(ecid.NewPseudoRandom(rng), sub)
+	from := &fixedLibrarianSubscribeServer{
+		sent: make(chan *api.SubscribeResponse),
+	}
+	wg := new(sync.WaitGroup)
+	wg.Add(1)
+	go func(wg *sync.WaitGroup) {
+		defer wg.Done()
+		err = l.Subscribe(rq, from)
+		assert.Nil(t, err)
+	}(wg)
+
+	// generate pubs we're going to send
+	newPubsMap := make(map[string]*api.Publication)
+	for c := 0; c < nPubs; c++ {
+		newPub := newKeyedPub(t, api.NewTestPublication(rng))
+		newPubsMap[newPub.Key.String()] = newPub.Value
+	}
+
+	// check % pubs sent to client is >= targetFP
+	wg.Add(1)
+	go func(wg *sync.WaitGroup) {
+		defer wg.Done()
+		sentPubs := 0
+		for sentPub := range from.sent {
+			key := cid.FromBytes(sentPub.Key)
+			value, in := newPubsMap[key.String()]
+			assert.True(t, in)
+			assert.Equal(t, value, sentPub.Value)
+			sentPubs++
+		}
+		info := fmt.Sprintf("sentPubs: %d, nPubs: %d", sentPubs, nPubs)
+		assert.True(t, int(float64(nPubs)*targetFP) < sentPubs, info)
+	}(wg)
+
+	// send pubs
+	for _, value := range newPubsMap {
+		newPubs <- newKeyedPub(t, value)
+	}
+
+	// ensure graceful end of l.Subscribe()
+	close(newPubs)
+	<-done
+
+	// ensure end to goroutine above that reads from from.sent
+	close(from.sent)
+
+	// wait for all goroutines to finish
+	wg.Wait()
+}
+
+func TestLibrarian_Subscribe_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	selfID := ecid.NewPseudoRandom(rng)
+	sub, err := subscribe.NewFPSubscription(1.0, rng) // get everything
+	assert.Nil(t, err)
+	rq := client.NewSubscribeRequest(ecid.NewPseudoRandom(rng), sub)
+	from := &fixedLibrarianSubscribeServer{
+		sent: make(chan *api.SubscribeResponse),
+	}
+
+	// check request error bubbles up
+	l1 := &Librarian{
+		rqv: &neverRequestVerifier{},
+		rt:  routing.NewEmpty(selfID, routing.NewDefaultParameters()),
+	}
+	err = l1.Subscribe(rq, from)
+	assert.NotNil(t, err)
+
+	// check author filter error bubbles up
+	sub2, err := subscribe.NewFPSubscription(1.0, rng)
+	assert.Nil(t, err)
+	sub2.AuthorPublicKeys.Encoded = nil // will trigger error
+	rq2 := client.NewSubscribeRequest(ecid.NewPseudoRandom(rng), sub2)
+	l2 := &Librarian{rqv: &alwaysRequestVerifier{}}
+	err = l2.Subscribe(rq2, from)
+	assert.NotNil(t, err)
+
+	// check reader filter error bubbles up
+	sub3, err := subscribe.NewFPSubscription(1.0, rng)
+	assert.Nil(t, err)
+	sub3.ReaderPublicKeys.Encoded = nil // will trigger error
+	rq3 := client.NewSubscribeRequest(ecid.NewPseudoRandom(rng), sub3)
+	l3 := &Librarian{rqv: &alwaysRequestVerifier{}}
+	err = l3.Subscribe(rq3, from)
+	assert.NotNil(t, err)
+
+	// check subscribeFrom.New() bubbles up
+	sub4, err := subscribe.NewFPSubscription(1.0, rng)
+	assert.Nil(t, err)
+	rq4 := client.NewSubscribeRequest(ecid.NewPseudoRandom(rng), sub4)
+	l4 := &Librarian{
+		selfID: ecid.NewPseudoRandom(rng),
+		subscribeFrom: &fixedFrom{
+			err: subscribe.ErrNotAcceptingNewSubscriptions,
+		},
+		rqv: &alwaysRequestVerifier{},
+	}
+	err = l4.Subscribe(rq4, from)
+	assert.Equal(t, subscribe.ErrNotAcceptingNewSubscriptions, err)
+
+	// check from.Send() error bubbles up
+	sub5, err := subscribe.NewFPSubscription(1.0, rng)
+	assert.Nil(t, err)
+	rq5 := client.NewSubscribeRequest(ecid.NewPseudoRandom(rng), sub5)
+	newPubs := make(chan *subscribe.KeyedPub)
+	l5 := &Librarian{
+		selfID: ecid.NewPseudoRandom(rng),
+		subscribeFrom: &fixedFrom{
+			new:  newPubs,
+			done: make(chan struct{}),
+		},
+		rqv: &alwaysRequestVerifier{},
+		logger: clogging.NewDevInfoLogger(),
+	}
+	from5 := &fixedLibrarianSubscribeServer{
+		err: errors.New("some Subscribe error"),
+	}
+	wg := new(sync.WaitGroup)
+	wg.Add(1)
+	go func(wg *sync.WaitGroup) {
+		defer wg.Done()
+		err = l5.Subscribe(rq5, from5)
+		assert.NotNil(t, err)
+	}(wg)
+	newPubs <- newKeyedPub(t, api.NewTestPublication(rng))
+	wg.Wait()
+}
+
+func newKeyedPub(t *testing.T, pub *api.Publication) *subscribe.KeyedPub {
+	key, err := api.GetKey(pub)
+	assert.Nil(t, err)
+	return &subscribe.KeyedPub{
+		Key:   key,
+		Value: pub,
+	}
+}
+
+type fixedFrom struct {
+	new  chan *subscribe.KeyedPub
+	done chan struct{}
+	err  error
+}
+
+func (f *fixedFrom) New() (chan *subscribe.KeyedPub, chan struct{}, error) {
+	return f.new, f.done, f.err
+}
+
+func (f *fixedFrom) Fanout() {}
+
+type fixedTo struct {
+	beginErr error
+	sendErr  error
+}
+
+func (t *fixedTo) Begin() error {
+	return t.beginErr
+}
+
+func (t *fixedTo) End() {}
+
+func (t *fixedTo) Send(pub *api.Publication) error {
+	return t.sendErr
+}
+
+type fixedLibrarianSubscribeServer struct {
+	sent chan *api.SubscribeResponse
+	err  error
+}
+
+func (f *fixedLibrarianSubscribeServer) Send(rp *api.SubscribeResponse) error {
+	if f.err != nil {
+		return f.err
+	}
+	f.sent <- rp
+	return nil
+}
+
+// the stubs below are just to satisfy the Librarian_SubscribeServer interface
+func (f *fixedLibrarianSubscribeServer) SetHeader(metadata.MD) error {
+	return nil
+}
+
+func (f *fixedLibrarianSubscribeServer) SendHeader(metadata.MD) error {
+	return nil
+}
+
+func (f *fixedLibrarianSubscribeServer) SetTrailer(metadata.MD) {}
+
+func (f *fixedLibrarianSubscribeServer) Context() context.Context {
+	return nil
+}
+
+func (f *fixedLibrarianSubscribeServer) SendMsg(m interface{}) error {
+	return nil
+}
+
+func (f *fixedLibrarianSubscribeServer) RecvMsg(m interface{}) error {
+	return nil
+}
+
 func newPutLibrarian(rng *rand.Rand, storeResult *store.Result, searchErr error) *Librarian {
 	n := 8
 	rt, peerID, _ := routing.NewTestWithPeers(rng, n)
@@ -645,5 +875,6 @@ func newPutLibrarian(rng *rand.Rand, storeResult *store.Result, searchErr error)
 			err:    searchErr,
 		},
 		rqv: &alwaysRequestVerifier{},
+		logger:      clogging.NewDevInfoLogger(),
 	}
 }

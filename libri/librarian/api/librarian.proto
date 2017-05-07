@@ -24,6 +24,9 @@ service Librarian {
 
     // Put stores a value.
     rpc Put (PutRequest) returns (PutResponse) {}
+
+    // Subscribe streams Publications to the client per a subscription filter.
+    rpc Subscribe (SubscribeRequest) returns (stream SubscribeResponse) {}
 }
 
 // RequestMetadata defines metadata associated with every request.
@@ -128,7 +131,7 @@ message GetResponse {
     ResponseMetadata metadata = 1;
 
     // value to store for key
-    Document value = 3;
+    Document value = 2;
 }
 
 message PutRequest {
@@ -147,7 +150,7 @@ message PutResponse {
     // result of the put operation
     PutOperation operation = 2;
 
-    // number of replicas of the stored value; only populated for operation = ADDED
+    // number of replicas of the stored value; only populated for operation = STORED
     uint32 n_replicas = 3;
 }
 
@@ -157,4 +160,32 @@ enum PutOperation {
 
     // value already existed
     LEFT_EXISTING = 1;
+}
+
+message SubscribeRequest {
+    RequestMetadata metadata = 1;
+    Subscription subscription = 2;
+}
+
+message SubscribeResponse {
+    ResponseMetadata metadata = 1;
+    bytes key = 2;
+    Publication value = 3;
+}
+
+message Publication {
+    bytes envelope_key = 1;
+    bytes entry_key = 2;
+    bytes author_public_key = 3;
+    bytes reader_public_key = 4;
+}
+
+message Subscription {
+    BloomFilter author_public_keys = 1;
+    BloomFilter reader_public_keys = 2;
+}
+
+message BloomFilter {
+    // using https://godoc.org/github.com/willf/bloom#BloomFilter.GobEncode
+    bytes encoded = 1;
 }

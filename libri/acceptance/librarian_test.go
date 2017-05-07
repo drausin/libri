@@ -28,6 +28,8 @@ import (
 	"github.com/drausin/libri/libri/author/io/common"
 	"bytes"
 	"github.com/drausin/libri/libri/author/io/page"
+	"time"
+	"fmt"
 )
 
 // things to add later
@@ -50,9 +52,16 @@ func TestLibrarianCluster(t *testing.T) {
 	// handle grpc log noise
 	restore := declareLogNoise(t,
 		"grpc: addrConn.resetTransport failed to create client transport: connection error",
+		"addrConn.resetTransport failed to create client transport",
 		"transport: http2Server.HandleStreams failed to read frame",
+		"transport: http2Server.HandleStreams failed to receive the preface from client: " +
+			"EOF",
 		"context canceled; please retry",
 		"grpc: the connection is closing; please retry",
+		"http2Client.notifyError got notified that the client transport was broken read",
+		"http2Client.notifyError got notified that the client transport was broken EOF",
+		"http2Client.notifyError got notified that the client transport was broken " +
+			"write tcp",
 	)
 	defer restore()
 
@@ -77,6 +86,7 @@ func TestLibrarianCluster(t *testing.T) {
 	// upload a bunch of random documents
 	nDocs := 16
 	contents, envelopeKeys := testUpload(t, rng, author, nDocs)
+	checkPublications(t, nDocs, peers)
 
 	// down the same ones
 	testDownload(t, author, contents, envelopeKeys)
@@ -85,6 +95,7 @@ func TestLibrarianCluster(t *testing.T) {
 
 	awaitNewConnLogOutput()
 }
+
 
 func testIntroduce(t *testing.T, rng *rand.Rand, client *testClient, peerConfigs []*server.Config,
 	peers []*server.Librarian, nIntroductions int) {
@@ -203,7 +214,7 @@ func testUpload(t *testing.T, rng *rand.Rand, author *lauthor.Author, nDocs int)
 
 	contents = make([][]byte, nDocs)
 	envelopeKeys = make([]id.ID, nDocs)
-	maxContentSize := 12 * 1024
+	maxContentSize := 1024 // 12 * 1024
 	minContentSize := 32
 	var err error
 	for i := 0; i < nDocs; i++ {
@@ -229,6 +240,14 @@ func testDownload(t *testing.T, author *lauthor.Author, contents [][]byte, envel
 		assert.Nil(t, err)
 		assert.Equal(t, len(contents[i]), downloaded.Len())
 		assert.Equal(t, contents[i], downloaded.Bytes())
+	}
+}
+
+func checkPublications(t *testing.T, nDocs int, peers []*server.Librarian) {
+	// check all peers have publications for all docs
+	for i, p := range peers {
+		info := fmt.Sprintf("peer %d", i)
+		assert.Equal(t, nDocs, p.RecentPubs.Len(), info)
 	}
 }
 
@@ -283,6 +302,12 @@ func setUp(rng *rand.Rand, nSeeds, nPeers int, logLevel zapcore.Level) (
 	}
 	wg.Wait()
 
+	subscriptionWaitTime := 5 * time.Second
+	logger.Info("waiting for librarians to begin subscriptions",
+		zap.Float64("n_seconds", subscriptionWaitTime.Seconds()),
+	)
+	time.Sleep(subscriptionWaitTime)
+
 	// create client that will issue requests to network
 	selfID := ecid.NewPseudoRandom(rng)
 	publicAddr := peer.NewTestPublicAddr(nSeeds + nPeers + 1)
@@ -292,7 +317,7 @@ func setUp(rng *rand.Rand, nSeeds, nPeers int, logLevel zapcore.Level) (
 		selfID:  selfID,
 		selfAPI: selfPeer.ToAPI(),
 		signer:  signer,
-		logger:  clogging.NewDevLogger(logLevel),
+		logger:  logger,
 	}
 
 	// create keychains for author
