@@ -1,9 +1,6 @@
 package server
 
 import (
-	"io/ioutil"
-	"math/rand"
-	"testing"
 	"errors"
 	"fmt"
 	"github.com/drausin/libri/libri/common/db"
@@ -22,8 +19,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/metadata"
+	"io/ioutil"
 	"math"
+	"math/rand"
 	"sync"
+	"testing"
 )
 
 // TestNewLibrarian checks that we can create a new instance, close it, and create it again as
@@ -99,6 +99,7 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 		selfID:  serverID,
 		rt:      rt,
 		rqv:     &alwaysRequestVerifier{},
+		logger: clogging.NewDevInfoLogger(),
 	}
 
 	clientID, clientPeerIdx := ecid.NewPseudoRandom(rng), 1
@@ -318,14 +319,16 @@ func TestLibrarian_Store_ok(t *testing.T) {
 	assert.Nil(t, err)
 
 	l := &Librarian{
-		selfID:     peerID,
-		rt:         rt,
-		db:         kvdb,
-		serverSL:   storage.NewServerKVDBStorerLoader(kvdb),
-		documentSL: storage.NewDocumentKVDBStorerLoader(kvdb),
-		kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		kvc:        storage.NewHashKeyValueChecker(),
-		rqv:        &alwaysRequestVerifier{},
+		selfID:      peerID,
+		rt:          rt,
+		db:          kvdb,
+		serverSL:    storage.NewServerKVDBStorerLoader(kvdb),
+		documentSL:  storage.NewDocumentKVDBStorerLoader(kvdb),
+		subscribeTo: &fixedTo{},
+		kc:          storage.NewExactLengthChecker(storage.EntriesKeyLength),
+		kvc:         storage.NewHashKeyValueChecker(),
+		rqv:         &alwaysRequestVerifier{},
+		logger:      clogging.NewDevInfoLogger(),
 	}
 
 	// create key-value
@@ -527,6 +530,7 @@ func newGetLibrarian(rng *rand.Rand, searchResult *search.Result, searchErr erro
 			err:    searchErr,
 		},
 		rqv: &alwaysRequestVerifier{},
+		logger:      clogging.NewDevInfoLogger(),
 	}
 }
 
@@ -647,6 +651,7 @@ func TestLibrarian_Subscribe_ok(t *testing.T) {
 			done: done,
 		},
 		rqv: &alwaysRequestVerifier{},
+		logger: clogging.NewDevInfoLogger(),
 	}
 
 	// create subscription that should cover both the author and reader filter code branches
@@ -697,7 +702,7 @@ func TestLibrarian_Subscribe_ok(t *testing.T) {
 
 	// ensure graceful end of l.Subscribe()
 	close(newPubs)
-	<- done
+	<-done
 
 	// ensure end to goroutine above that reads from from.sent
 	close(from.sent)
@@ -768,6 +773,7 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 			done: make(chan struct{}),
 		},
 		rqv: &alwaysRequestVerifier{},
+		logger: clogging.NewDevInfoLogger(),
 	}
 	from5 := &fixedLibrarianSubscribeServer{
 		err: errors.New("some Subscribe error"),
@@ -795,7 +801,7 @@ func newKeyedPub(t *testing.T, pub *api.Publication) *subscribe.KeyedPub {
 type fixedFrom struct {
 	new  chan *subscribe.KeyedPub
 	done chan struct{}
-	err error
+	err  error
 }
 
 func (f *fixedFrom) New() (chan *subscribe.KeyedPub, chan struct{}, error) {
@@ -803,6 +809,21 @@ func (f *fixedFrom) New() (chan *subscribe.KeyedPub, chan struct{}, error) {
 }
 
 func (f *fixedFrom) Fanout() {}
+
+type fixedTo struct {
+	beginErr error
+	sendErr  error
+}
+
+func (t *fixedTo) Begin() error {
+	return t.beginErr
+}
+
+func (t *fixedTo) End() {}
+
+func (t *fixedTo) Send(pub *api.Publication) error {
+	return t.sendErr
+}
 
 type fixedLibrarianSubscribeServer struct {
 	sent chan *api.SubscribeResponse
@@ -854,5 +875,6 @@ func newPutLibrarian(rng *rand.Rand, storeResult *store.Result, searchErr error)
 			err:    searchErr,
 		},
 		rqv: &alwaysRequestVerifier{},
+		logger:      clogging.NewDevInfoLogger(),
 	}
 }

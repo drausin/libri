@@ -2,6 +2,7 @@ package subscribe
 
 import (
 	"github.com/drausin/libri/libri/common/ecid"
+	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/librarian/api"
 	"errors"
 	"github.com/stretchr/testify/assert"
@@ -13,17 +14,20 @@ import (
 	"io"
 	"github.com/golang/protobuf/proto"
 	"sync"
+	"go.uber.org/zap/zapcore"
 )
 
 func TestTo_BeginEnd(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	params := NewDefaultToParameters()
+	clientID := ecid.NewPseudoRandom(rng)
+	lg := clogging.NewDevInfoLogger()
 	params.NSubscriptions = 2
 	cb := &fixedClientBalancer{}
 	recent, err := NewRecentPublications(2)
 	assert.Nil(t, err)
 	newPubs := make(chan *KeyedPub, 1)
-	toImpl := NewTo(params, nil, cb, nil, recent, newPubs).(*to)
+	toImpl := NewTo(params, lg, clientID, cb, nil, recent, newPubs).(*to)
 
 	// mock what we actually get from subscriptions
 	received := make(chan *pubValueReceipt)
@@ -120,9 +124,11 @@ func getNewPub(newPubs chan *KeyedPub, end chan struct{}) (newPub *KeyedPub, end
 }
 
 func TestTo_Begin_err(t *testing.T) {
-	//rng := rand.New(rand.NewSource(0))
+	rng := rand.New(rand.NewSource(0))
 	params := NewDefaultToParameters()
 	params.NSubscriptions = 2
+	lg := clogging.NewDevInfoLogger()
+	clientID := ecid.NewPseudoRandom(rng)
 	recent, err := NewRecentPublications(2)
 	cb := &fixedClientBalancer{}
 	assert.Nil(t, err)
@@ -131,7 +137,7 @@ func TestTo_Begin_err(t *testing.T) {
 	// check cb.Next() error bubbles up
 	nextErr := errors.New("some Next() error")
 	cb1 := &fixedClientBalancer{err: nextErr}
-	toImpl1 := NewTo(params, nil, cb1, nil, recent, newPubs).(*to)
+	toImpl1 := NewTo(params, lg, clientID, cb1, nil, recent, newPubs).(*to)
 	toImpl1.sb = &fixedSubscriptionBeginner{subscribeErr: errors.New("some subscribe error")}
 	err = toImpl1.Begin()
 	assert.Equal(t, nextErr, err)
@@ -139,7 +145,7 @@ func TestTo_Begin_err(t *testing.T) {
 	// check NewFPSubscription error bubbles up
 	params2 := NewDefaultToParameters()
 	params2.FPRate = 0.0  // will trigger error
-	toImpl2 := NewTo(params2, nil, cb, nil, recent, newPubs).(*to)
+	toImpl2 := NewTo(params2, lg, clientID, cb, nil, recent, newPubs).(*to)
 	toImpl2.sb = &fixedSubscriptionBeginner{subscribeErr: errors.New("some subscribe error")}
 	err = toImpl2.Begin()
 	assert.Equal(t, ErrOutOfBoundsFPRate, err)
@@ -147,7 +153,7 @@ func TestTo_Begin_err(t *testing.T) {
 	// check running error count above threshold triggers error
 	received := make(chan *pubValueReceipt)
 	errs := make(chan error)
-	toImpl3 := NewTo(params, nil, cb, nil, recent, newPubs).(*to)
+	toImpl3 := NewTo(params, lg, clientID, cb, nil, recent, newPubs).(*to)
 	toImpl3.sb = &fixedSubscriptionBeginner{
 		received: received,
 		errs: errs,
@@ -161,6 +167,34 @@ func TestTo_Begin_err(t *testing.T) {
 	}()
 	err = toImpl3.Begin()
 	assert.Equal(t, ErrTooManySubscriptionErrs, err)
+}
+
+func TestFrom_Send(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	toImpl := &to{
+		clientID: ecid.NewPseudoRandom(rng),
+		received: make(chan *pubValueReceipt),
+		logger: clogging.NewDevInfoLogger(),
+	}
+
+	// check nothing sent with nil pub by ensuring that Send() doesn't block
+	err := toImpl.Send(nil)
+	assert.Nil(t, err)
+
+	pub := api.NewTestPublication(rng)
+	wg := new(sync.WaitGroup)
+	wg.Add(1)
+	go func(wg *sync.WaitGroup) {
+		defer wg.Done()
+		err := toImpl.Send(pub)
+		assert.Nil(t, err)
+	}(wg)
+
+	pvr := <- toImpl.received
+	assert.NotNil(t, pvr)
+	assert.Equal(t, pub, pvr.pub.Value)
+
+	wg.Wait()
 }
 
 func TestSubscriptionBeginnerImpl_Begin_ok(t *testing.T) {
@@ -209,7 +243,7 @@ func TestSubscriptionBeginnerImpl_Begin_ok(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, key, receivedPub.pub.Key)
 	assert.Equal(t, value, receivedPub.pub.Value)
-	assert.Equal(t, fromPubKey, receivedPub.receipt.fromPub)
+	assert.Equal(t, fromPubKey, receivedPub.receipt.FromPub)
 
 	// simulate subscription being close on server side
 	responses <- nil
@@ -337,6 +371,7 @@ func TestDedup(t *testing.T) {
 		received: receivedPVRs,
 		new:    newPVRs,
 		recent: rp,
+		logger: clogging.NewDevLogger(zapcore.DebugLevel),
 	}
 
 	go toImpl.dedup()
@@ -372,8 +407,9 @@ func TestMonitorRunningErrorCount(t *testing.T) {
 	fatal := make(chan error)
 	maxRunningErrRate := float32(0.1)
 	maxRunningErrCount := int(float32(maxRunningErrRate) * errQueueSize)
+	lg := clogging.NewDevInfoLogger()
 
-	go monitorRunningErrorCount(errs, fatal, maxRunningErrRate)
+	go monitorRunningErrorCount(errs, fatal, maxRunningErrRate, lg)
 
 	// check get fatal error when go over threshold
 	for c := 0; c < maxRunningErrCount; c++ {
@@ -382,7 +418,7 @@ func TestMonitorRunningErrorCount(t *testing.T) {
 	fataErr := <-fatal
 	assert.Equal(t, ErrTooManySubscriptionErrs, fataErr)
 
-	go monitorRunningErrorCount(errs, fatal, maxRunningErrRate)
+	go monitorRunningErrorCount(errs, fatal, maxRunningErrRate, lg)
 
 	// check don't get fatal error when below threshold
 	for c := 0; c < 200; c++ {

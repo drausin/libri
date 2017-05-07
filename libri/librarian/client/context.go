@@ -33,20 +33,28 @@ func FromSignatureContext(ctx context.Context) (string, error) {
 	return signedJWTs[0], nil
 }
 
-// NewSignedTimeoutContext creates a new context with a timeout and request signature.
-func NewSignedTimeoutContext(signer Signer, request proto.Message,
-	timeout time.Duration) (context.Context, context.CancelFunc, error) {
+// NewSignedContext creates a new context with a request signature.
+func NewSignedContext(signer Signer, request proto.Message) (context.Context, error) {
+
 	ctx := context.Background()
 
 	// sign the message
 	signedJWT, err := signer.Sign(request)
 	if err != nil {
-		return nil, func() {}, err
+		return nil, err
 	}
 	ctx = NewSignatureContext(ctx, signedJWT)
+	return ctx, nil
+}
 
-	// add timeout
+// NewSignedTimeoutContext creates a new context with a timeout and request signature.
+func NewSignedTimeoutContext(signer Signer, request proto.Message, timeout time.Duration) (
+	context.Context, context.CancelFunc, error) {
+
+	ctx, err := NewSignedContext(signer, request)
+	if err != nil {
+		return nil, func(){}, err
+	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
-
 	return ctx, cancel, nil
 }

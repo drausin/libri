@@ -54,8 +54,9 @@ func TestTableUniqueBalancer_Next_err(t *testing.T) {
 	cb := NewClientBalancer(rt)
 
 	// check empty RT throws error
+	tableSampleRetryWait = 10 * time.Millisecond  // just for test
 	lc, err := cb.Next()
-	assert.Equal(t, ErrEmptyTable, err)
+	assert.Equal(t, ErrNoNewClients, err)
 	assert.Nil(t, lc)
 
 	rt.Push(

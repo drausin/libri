@@ -1,14 +1,17 @@
 package subscribe
 
 import (
+	"fmt"
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 	"io"
 	"math/rand"
-	"time"
 	"sync"
+	"time"
+	"go.uber.org/zap/zapcore"
 )
 
 // ErrTooManySubscriptionErrs indicates when too many subscription errors have occurred.
@@ -42,8 +45,10 @@ const (
 	// DefaultFPRate is the default false positive rate for each subscription to another peer.
 	DefaultFPRate = 0.75
 
-	// DefaultTimeout is the default timeout for Subscribe requests.
-	DefaultTimeout = 5 * time.Second
+	// DefaultTimeout is the default timeout for Subscribe requests. This is longer than a few
+	// seconds because Subscribe responses are dependant on active publications, which may not
+	// always be happening.
+	DefaultTimeout = 30 * time.Minute
 
 	// DefaultMaxErrRate is the default maximum allowed error rate for Subscribe requests and
 	// received publications before a fatal error is thrown.
@@ -62,28 +67,28 @@ type ToParameters struct {
 	NSubscriptions uint32
 
 	// FPRate is the estimated false positive rate of the subscriptions.
-	FPRate         float32
+	FPRate float32
 
 	// Timeout is the timeout for each Subscribe request.
-	Timeout        time.Duration
+	Timeout time.Duration
 
 	// MaxErrRate is the maximum allowed error rate for Subscribe requests and received
 	// publications before a fatal error is thrown. This value is a running rate over a constant
 	// history of responses (c.f., errQueueSize).
-	MaxErrRate     float32
+	MaxErrRate float32
 
 	// NRecentCacheSize is the size of the LRU cache used in deduplicating and grouping
 	// publications.
 	RecentCacheSize uint32
 }
 
-// NewDefaultParameters returns a *ToParameters object with default values.
+// NewDefaultToParameters returns a *ToParameters object with default values.
 func NewDefaultToParameters() *ToParameters {
 	return &ToParameters{
-		NSubscriptions: DefaultNSubscriptionsTo,
-		FPRate: DefaultFPRate,
-		Timeout: DefaultTimeout,
-		MaxErrRate: DefaultMaxErrRate,
+		NSubscriptions:  DefaultNSubscriptionsTo,
+		FPRate:          DefaultFPRate,
+		Timeout:         DefaultTimeout,
+		MaxErrRate:      DefaultMaxErrRate,
 		RecentCacheSize: DefaultRecentCacheSize,
 	}
 }
@@ -97,12 +102,17 @@ type To interface {
 
 	// End gracefully stops the active subscriptions and closes the new channel
 	End()
+
+	// Send sends a publication to the channel of received publications.
+	Send(pub *api.Publication) error
 }
 
 type to struct {
 	params   *ToParameters
+	logger   *zap.Logger
+	clientID ecid.ID
 	cb       api.ClientBalancer
-	sb subscriptionBeginner
+	sb       subscriptionBeginner
 	recent   RecentPublications
 	received chan *pubValueReceipt
 	new      chan *KeyedPub
@@ -113,6 +123,7 @@ type to struct {
 // channel.
 func NewTo(
 	params *ToParameters,
+	logger *zap.Logger,
 	clientID ecid.ID,
 	cb api.ClientBalancer,
 	signer client.Signer,
@@ -121,23 +132,25 @@ func NewTo(
 ) To {
 	return &to{
 		params: params,
-		cb: cb,
+		logger: logger,
+		cb:     cb,
+		clientID: clientID,
 		sb: &subscriptionBeginnerImpl{
 			clientID: clientID,
-			signer: signer,
-			params: params,
+			signer:   signer,
+			params:   params,
 		},
-		recent: recent,
+		recent:   recent,
 		received: make(chan *pubValueReceipt, params.NSubscriptions),
-		new: new,
-		end: make(chan struct{}),
+		new:      new,
+		end:      make(chan struct{}),
 	}
 }
 
 func (t *to) Begin() error {
 	channelsSlack := t.params.NSubscriptions
-	errs := make(chan error, channelsSlack)                // non-fatal errs and nils
-	fatal := make(chan error)                              // signals fatal end
+	errs := make(chan error, channelsSlack) // non-fatal errs and nils
+	fatal := make(chan error)               // signals fatal end
 
 	// dedup all received publications, writing new to t.new & t.recent
 	wg := new(sync.WaitGroup)
@@ -148,7 +161,7 @@ func (t *to) Begin() error {
 	}(wg)
 
 	// monitor non-fatal errors, sending fatal err if too many
-	go monitorRunningErrorCount(errs, fatal, t.params.MaxErrRate)
+	go monitorRunningErrorCount(errs, fatal, t.params.MaxErrRate, t.logger)
 
 	// subscription threads writing to received & errs channels
 	for c := uint32(0); c < t.params.NSubscriptions; c++ {
@@ -165,6 +178,10 @@ func (t *to) Begin() error {
 					fatal <- err
 					return
 				}
+				t.logger.Debug("beginning new subscription",
+					zap.Int("index", int(i)),
+					zap.Float64("false_positive_rate", fp),
+				)
 				select {
 				case <-t.end:
 					return
@@ -176,6 +193,7 @@ func (t *to) Begin() error {
 
 	select {
 	case err := <-fatal:
+		t.logger.Error("fatal subscription error", zap.Error(err))
 		t.End()
 		wg.Wait()
 		return err
@@ -186,21 +204,62 @@ func (t *to) Begin() error {
 }
 
 func (t *to) End() {
+	t.logger.Info("ending subscriptions")
 	close(t.received)
 	close(t.end)
+}
+
+func (t *to) Send(pub *api.Publication) error {
+	if pub == nil {
+		return nil
+	}
+	key, err := api.GetKey(pub)
+	if err != nil {
+		// should never happen
+		return err
+	}
+
+	t.logger.Info("sending new publication",
+		zap.String("publication_key", key.String()),
+	)
+	t.logger.Debug("publication value", getLoggerValues(pub)...)
+	pvr, err := newPublicationValueReceipt(key.Bytes(), pub, ecid.ToPublicKeyBytes(t.clientID))
+	if err != nil {
+		return err
+	}
+	select {
+	case <- t.end:
+		return errors.New("receive channel closed")
+	default:
+		t.received <- pvr
+		return nil
+	}
 }
 
 func (t *to) dedup() {
 	for pvr := range t.received {
 		seen := t.recent.Add(pvr)
 		if !seen {
+			t.logger.Info("received new publication",
+				zap.String("publication_key", pvr.pub.Key.String()),
+			)
+			t.logger.Debug("publication value", getLoggerValues(pvr.pub.Value)...)
 			t.new <- pvr.pub
 		}
 	}
 	select {
-	case <- t.new:   // already closed
+	case <-t.new: // already closed
 	default:
 		close(t.new)
+	}
+}
+
+func getLoggerValues(pub *api.Publication) []zapcore.Field {
+	return []zapcore.Field{
+		zap.String("entry_key", fmt.Sprintf("%032x", pub.EntryKey)),
+		zap.String("envelope_key", fmt.Sprintf("%032x", pub.EnvelopeKey)),
+		zap.String("author_public_key", fmt.Sprintf("%065x", pub.AuthorPublicKey)),
+		zap.String("reader_public_key", fmt.Sprintf("%065x", pub.ReaderPublicKey)),
 	}
 }
 
@@ -212,8 +271,8 @@ type subscriptionBeginner interface {
 
 type subscriptionBeginnerImpl struct {
 	clientID ecid.ID
-	signer client.Signer
-	params *ToParameters
+	signer   client.Signer
+	params   *ToParameters
 }
 
 func (sb *subscriptionBeginnerImpl) begin(
@@ -225,12 +284,11 @@ func (sb *subscriptionBeginnerImpl) begin(
 ) error {
 
 	rq := client.NewSubscribeRequest(sb.clientID, sub)
-	ctx, cancel, err := client.NewSignedTimeoutContext(sb.signer, rq, sb.params.Timeout)
+	ctx, err := client.NewSignedContext(sb.signer, rq)
 	if err != nil {
 		return err
 	}
 	subscribeClient, err := lc.Subscribe(ctx, rq)
-	cancel()
 	if err != nil {
 		return err
 	}
@@ -255,7 +313,9 @@ func (sb *subscriptionBeginnerImpl) begin(
 	}
 }
 
-func monitorRunningErrorCount(errs chan error, fatal chan error, maxRunningErrRate float32) {
+func monitorRunningErrorCount(
+	errs chan error, fatal chan error, maxRunningErrRate float32, logger *zap.Logger,
+) {
 	maxRunningErrCount := int(maxRunningErrRate * errQueueSize)
 
 	// fill error queue with non-errors
@@ -269,6 +329,7 @@ func monitorRunningErrorCount(errs chan error, fatal chan error, maxRunningErrRa
 	for latestErr := range errs {
 		if latestErr != nil {
 			runningNErrs++
+			logger.Debug("received non-fatal subscribeTo error", zap.Error(latestErr))
 			if runningNErrs >= maxRunningErrCount {
 				fatal <- ErrTooManySubscriptionErrs
 				return

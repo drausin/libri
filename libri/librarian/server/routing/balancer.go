@@ -10,18 +10,12 @@ import (
 )
 
 var (
-
-	// ErrEmptyTable indicates when the Next() cannot return a new LibrarianClient because the
-	// table is empty.
-	ErrEmptyTable = errors.New("empty routing table")
-
-
 	// ErrNoNewClients indicates when Next() cannot return a new LibrarianClient because no
 	// new clients were found in the table.
 	ErrNoNewClients  = errors.New("no new LibrarianClients found in routing table")
 
 	tableSampleRetryWait = 2 * time.Second
-	numRetries = 3
+	numRetries = 16
 	sampleBatchSize = uint(8)
 )
 
@@ -51,7 +45,9 @@ func (b *tableUniqueBalancer) Next() (api.LibrarianClient, error) {
 			b.cache = b.rt.Sample(sampleBatchSize, b.rng)
 			if len(b.cache) == 0 {
 				b.mu.Unlock()
-				return nil, ErrEmptyTable
+				// wait for routing table to possibly fill up a bit
+				time.Sleep(tableSampleRetryWait)
+				continue
 			}
 		}
 		nextPeer := b.cache[0]

@@ -70,6 +70,64 @@ func TestRecentPublications_Add(t *testing.T) {
 	assert.False(t, in)
 }
 
+func TestRecentPublications_Get(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	value := api.NewTestPublication(rng)
+	key, err := api.GetKey(value)
+	assert.Nil(t, err)
+	fromPub := api.RandBytes(rng, api.ECPubKeyLength)
+	rp, err := NewRecentPublications(uint32(2))
+	assert.Nil(t, err)
+
+	// check value not in the cache
+	prs, in := rp.Get(key)
+	assert.False(t, in)
+	assert.Nil(t, prs)
+
+	// add value
+	pvr1, err := newPublicationValueReceipt(key.Bytes(), value, fromPub)
+	assert.Nil(t, err)
+	in = rp.Add(pvr1)
+	assert.False(t, in)
+
+	// check value in the cache
+	prs, in = rp.Get(key)
+	assert.True(t, in)
+	assert.Equal(t, value, prs.Value)
+}
+
+func TestRecentPublications_Len(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	value1 := api.NewTestPublication(rng)
+	value2 := api.NewTestPublication(rng)
+	key1, err := api.GetKey(value1)
+	assert.Nil(t, err)
+	key2, err := api.GetKey(value2)
+	assert.Nil(t, err)
+	fromPub1 := api.RandBytes(rng, api.ECPubKeyLength)
+	fromPub2 := api.RandBytes(rng, api.ECPubKeyLength)
+	rp, err := NewRecentPublications(uint32(2))
+	assert.Nil(t, err)
+
+	// check adding receipt for new value increments length
+	pvr1, err := newPublicationValueReceipt(key1.Bytes(), value1, fromPub1)
+	assert.Nil(t, err)
+	rp.Add(pvr1)
+	assert.Equal(t, 1, rp.Len())
+
+	// check adding receipt for existing value does not increment length
+	pvr2, err := newPublicationValueReceipt(key1.Bytes(), value1, fromPub2)
+	assert.Nil(t, err)
+	rp.Add(pvr2)
+	assert.Equal(t, 1, rp.Len())
+
+	// check adding receipt for new value increments length
+	pvr3, err := newPublicationValueReceipt(key2.Bytes(), value2, fromPub1)
+	assert.Nil(t, err)
+	rp.Add(pvr3)
+	assert.Equal(t, 2, rp.Len())
+}
+
 func TestNewPublicationValueReceipt_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	value := api.NewTestPublication(rng)
@@ -81,8 +139,8 @@ func TestNewPublicationValueReceipt_ok(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, value, pvr.pub.Value)
 	assert.Equal(t, key, pvr.pub.Key)
-	assert.Equal(t, fromPub, pvr.receipt.fromPub)
-	assert.NotNil(t, pvr.receipt.time)
+	assert.Equal(t, fromPub, pvr.receipt.FromPub)
+	assert.NotNil(t, pvr.receipt.Time)
 }
 
 func TestNewPublicationValueReceipt_err(t *testing.T) {

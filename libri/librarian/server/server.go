@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
@@ -15,6 +16,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/store"
+	"github.com/willf/bloom"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"math/rand"
@@ -45,6 +47,9 @@ type Librarian struct {
 
 	// manages subscriptions to other peers
 	subscribeTo subscribe.To
+
+	// LRU cache of recent publications librarian has received
+	RecentPubs subscribe.RecentPublications
 
 	// verifies requests from peers
 	rqv RequestVerifier
@@ -80,6 +85,8 @@ type Librarian struct {
 	stop chan struct{}
 }
 
+var newPublicationsSlack = 16
+
 // NewLibrarian creates a new librarian instance.
 func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 	rdb, err := db.NewRocksDB(config.DbDir)
@@ -103,14 +110,14 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 
 	signer := client.NewSigner(peerID.Key())
 	searcher := search.NewDefaultSearcher(signer)
-	newPubs := make(chan *subscribe.KeyedPub)
+	newPubs := make(chan *subscribe.KeyedPub, newPublicationsSlack)
 
 	recentPubs, err := subscribe.NewRecentPublications(config.SubscribeTo.RecentCacheSize)
 	if err != nil {
 		return nil, err
 	}
 	clientBalancer := routing.NewClientBalancer(rt)
-	subscribeTo := subscribe.NewTo(config.SubscribeTo, peerID, clientBalancer, signer,
+	subscribeTo := subscribe.NewTo(config.SubscribeTo, logger, peerID, clientBalancer, signer,
 		recentPubs, newPubs)
 
 	return &Librarian{
@@ -120,8 +127,9 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		introducer:    introduce.NewDefaultIntroducer(signer, peerID.ID()),
 		searcher:      searcher,
 		storer:        store.NewStorer(signer, searcher, client.NewStoreQuerier()),
-		subscribeFrom: subscribe.NewFrom(config.SubscribeFrom, newPubs),
+		subscribeFrom: subscribe.NewFrom(config.SubscribeFrom, logger, newPubs),
 		subscribeTo:   subscribeTo,
+		RecentPubs:    recentPubs,
 		rqv:           NewRequestVerifier(),
 		db:            rdb,
 		serverSL:      serverSL,
@@ -163,6 +171,10 @@ func (l *Librarian) Introduce(ctx context.Context, rq *api.IntroduceRequest) (
 	seed := int64(binary.BigEndian.Uint64(rq.Metadata.RequestId[:8]))
 	peers := l.rt.Sample(uint(rq.NumPeers), rand.New(rand.NewSource(seed)))
 
+	l.logger.Info("introduced",
+		zap.String("self_id", l.selfID.String()),
+		zap.Int("n_peers", len(peers)),
+	)
 	return &api.IntroduceResponse{
 		Metadata: l.NewResponseMetadata(rq.Metadata),
 		Self:     l.apiSelf,
@@ -201,7 +213,7 @@ func (l *Librarian) Find(ctx context.Context, rq *api.FindRequest) (*api.FindRes
 	}, nil
 }
 
-// Store stores the value
+// Store stores the value.
 func (l *Librarian) Store(ctx context.Context, rq *api.StoreRequest) (
 	*api.StoreResponse, error) {
 	requesterID, err := l.checkRequestAndKeyValue(ctx, rq, rq.Metadata, rq.Key, rq.Value)
@@ -213,6 +225,15 @@ func (l *Librarian) Store(ctx context.Context, rq *api.StoreRequest) (
 	if err := l.documentSL.Store(cid.FromBytes(rq.Key), rq.Value); err != nil {
 		return nil, err
 	}
+	if err := l.subscribeTo.Send(api.GetPublication(rq.Key, rq.Value)); err != nil {
+		return nil, err
+	}
+
+	l.logger.Debug("stored",
+		zap.String("self_id", l.selfID.String()),
+		zap.String("key", fmt.Sprintf("032%x", rq.Key)),
+		zap.String("request_id", fmt.Sprintf("032%x", rq.Metadata.RequestId)),
+	)
 	return &api.StoreResponse{
 		Metadata: l.NewResponseMetadata(rq.Metadata),
 	}, nil
@@ -242,6 +263,7 @@ func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetRespon
 
 	if s.FoundValue() {
 		// return the value found by the search
+		l.logger.Info("got value", zap.String("key", key.String()))
 		return &api.GetResponse{
 			Metadata: l.NewResponseMetadata(rq.Metadata),
 			Value:    s.Result.Value,
@@ -249,6 +271,7 @@ func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetRespon
 	}
 	if s.FoundClosestPeers() {
 		// return the nil value, indicating that the value wasn't found
+		l.logger.Info("did not get value", zap.String("key", key.String()))
 		return &api.GetResponse{
 			Metadata: l.NewResponseMetadata(rq.Metadata),
 			Value:    nil,
@@ -289,6 +312,10 @@ func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutRespon
 		l.rt.Push(p)
 	}
 	if s.Stored() {
+		l.logger.Info("put value",
+			zap.String("key", key.String()),
+			zap.String("operation", api.PutOperation_STORED.String()),
+		)
 		return &api.PutResponse{
 			Metadata:  l.NewResponseMetadata(rq.Metadata),
 			Operation: api.PutOperation_STORED,
@@ -296,6 +323,10 @@ func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutRespon
 		}, nil
 	}
 	if s.Exists() {
+		l.logger.Info("put value",
+			zap.String("key", key.String()),
+			zap.String("operation", api.PutOperation_LEFT_EXISTING.String()),
+		)
 		return &api.PutResponse{
 			Metadata:  l.NewResponseMetadata(rq.Metadata),
 			Operation: api.PutOperation_LEFT_EXISTING,
@@ -331,25 +362,49 @@ func (l *Librarian) Subscribe(rq *api.SubscribeRequest, from api.Librarian_Subsc
 
 	responseMetadata := l.NewResponseMetadata(rq.Metadata)
 	for pub := range pubs {
-		if !authorFilter.Test(pub.Value.AuthorPublicKey) {
-			continue
-		}
-		if !readerFilter.Test(pub.Value.ReaderPublicKey) {
-			continue
-		}
-
-		// if we get to here, we know that both author and reader keys are in the filters,
-		// so we want to send the response
-		rp := &api.SubscribeResponse{
-			Metadata: responseMetadata,
-			Key:      pub.Key.Bytes(),
-			Value:    pub.Value,
-		}
-		if err := from.Send(rp); err != nil {
-			close(done) // signal to l.subscribeFrom we're finished with this fanout
+		err = l.maybeSend(pub, authorFilter, readerFilter, from, responseMetadata, done)
+		if err != nil {
 			return err
 		}
 	}
-	close(done)
+
+	// only close done if it's not already
+	select {
+	case <-done:
+	default:
+		close(done)
+	}
+	return nil
+}
+
+func (l *Librarian) maybeSend(
+	pub *subscribe.KeyedPub,
+	authorFilter *bloom.BloomFilter,
+	readerFilter *bloom.BloomFilter,
+	from api.Librarian_SubscribeServer,
+	responseMetadata *api.ResponseMetadata,
+	done chan struct{},
+) error {
+
+	if !authorFilter.Test(pub.Value.AuthorPublicKey) {
+		return nil
+	}
+	if !readerFilter.Test(pub.Value.ReaderPublicKey) {
+		return nil
+	}
+
+	// if we get to here, we know that both author and reader keys are in the filters,
+	// so we want to send the response
+	rp := &api.SubscribeResponse{
+		Metadata: responseMetadata,
+		Key:      pub.Key.Bytes(),
+		Value:    pub.Value,
+	}
+	if err := from.Send(rp); err != nil {
+		l.logger.Error("subscribe send error", zap.Error(err))
+		close(done) // signal to l.subscribeFrom we're finished with this fanout
+		return err
+	}
+	l.logger.Debug("sent publication", zap.String("publication_key", pub.Key.String()))
 	return nil
 }

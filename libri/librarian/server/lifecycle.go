@@ -30,7 +30,7 @@ const (
 
 	// LoggerNBootstrappedPeers is the logger key used for the number of peers found
 	// during a bootstrap operation.
-	LoggerNBootstrappedPeers = "n_bootstrapped_peers"
+	LoggerNBootstrappedPeers = "n_peers"
 )
 
 // Start is the entry point for a Librarian server. It bootstraps peers for the Librarians's
@@ -107,22 +107,20 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 	api.RegisterLibrarianServer(s, l)
 	reflection.Register(s)
 
+
+	// handle stop signal
 	go func() {
-		// notify up channel shortly after starting to serve requests
-		time.Sleep(postListenNotifyWait)
-		l.logger.Info("listening for requests", zap.Int(LoggerPortKey,
-			l.config.LocalAddr.Port))
-		up <- l
-	}()
-	go func() {
-		// handle stop signal
 		<-l.stop
 		l.logger.Info("gracefully stopping server", zap.Int(LoggerPortKey,
 			l.config.LocalAddr.Port))
 		s.GracefulStop()
 	}()
+
+	// long-running goroutine managing subscriptions from other peers
+	go l.subscribeFrom.Fanout()
+
+	// long-running goroutine managing subscriptions to other peers
 	go func () {
-		// long-running goroutine managing subscriptions to other peers
 		if err := l.subscribeTo.Begin(); err != nil && !l.config.isBootstrap() {
 			l.logger.Error("fatal subscriptionTo error", zap.Error(err))
 			if err := l.Close(); err != nil {
@@ -131,6 +129,15 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 
 		}
 	}()
+
+	// notify up channel shortly after starting to serve requests
+	go func() {
+		time.Sleep(postListenNotifyWait)
+		l.logger.Info("listening for requests", zap.Int(LoggerPortKey,
+			l.config.LocalAddr.Port))
+		up <- l
+	}()
+
 	if err := s.Serve(lis); err != nil {
 		if strings.Contains(fmt.Sprintf("%s", err.Error()), "use of closed network connection") {
 			return nil
@@ -144,8 +151,15 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 // Close handles cleanup involved in closing down the server.
 func (l *Librarian) Close() error {
 
+	// end subscriptions to other peers
+	l.subscribeTo.End()
+
 	// send stop signal to listener
-	close(l.stop)
+	select {
+	case <- l.stop: // already closed
+	default:
+		close(l.stop)
+	}
 
 	// disconnect from peers in routing table
 	if err := l.rt.Disconnect(); err != nil {

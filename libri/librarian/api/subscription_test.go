@@ -112,3 +112,24 @@ func TestValidatePublication_err(t *testing.T) {
 	}
 }
 
+func TestGetPublication_ok(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	env := NewTestEnvelope(rng)
+	doc := &Document{&Document_Envelope{Envelope: env}}
+	key, err := GetKey(doc)
+	assert.Nil(t, err)
+
+	// check all fields are set correct
+	p := GetPublication(key.Bytes(), doc)
+	assert.Equal(t, env.EntryKey, p.EntryKey)
+	assert.Equal(t, key.Bytes(), p.EnvelopeKey)
+	assert.Equal(t, env.AuthorPublicKey, p.AuthorPublicKey)
+	assert.Equal(t, env.ReaderPublicKey, p.ReaderPublicKey)
+
+	// check non-envelope type has nil pub with no error
+	doc, _ = NewTestDocument(rng)
+	assert.Nil(t, err)
+	p = GetPublication(key.Bytes(), doc)
+	assert.Nil(t, err)
+	assert.Nil(t, p)
+}

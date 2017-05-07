@@ -20,9 +20,17 @@ type KeyedPub struct {
 
 // RecentPublications tracks publications recently received from peers with an internal LRU cache.
 type RecentPublications interface {
+
+	// Get returns the *PublicationsReceipts object and an indicator of whether the object
+	// exists in the cache. The *PublicationsReceipts object is nil if it doesn't exist.
+	Get(envelopeKey id.ID) (*PublicationReceipts, bool)
+
 	// Add tracks that a given publication was received from the given peer public key and
 	// returns whether that value has recently been seen before.
 	Add(pvr *pubValueReceipt) bool
+
+	// Len gives the number of items in the cache.
+	Len() int
 }
 
 type recentPublications struct {
@@ -43,43 +51,56 @@ func NewRecentPublications(size uint32) (RecentPublications, error) {
 }
 
 func (rp *recentPublications) Add(pvr *pubValueReceipt) bool {
-	pubReceipts, in := rp.recent.Get(pvr.pub.Key.String())
+	pubReceipts, in := rp.Get(pvr.pub.Key)
 	if !in {
 		pubReceipts = newPublicationReceipts(pvr.pub.Value)
 	}
-	pubReceipts.(*publicationReceipts).add(pvr.receipt)
+	pubReceipts.add(pvr.receipt)
 	rp.recent.Add(pvr.pub.Key.String(), pubReceipts)
 	return in
 }
 
-type publicationReceipts struct {
-	value *api.Publication
-	receipts []*pubReceipt
-	mu sync.Mutex
+func (rp *recentPublications) Get(publicationKey id.ID) (*PublicationReceipts, bool) {
+	pubReceipts, in := rp.recent.Get(publicationKey.String())
+	if pubReceipts == nil {
+		return nil, in
+	}
+	return pubReceipts.(*PublicationReceipts), in
 }
 
-func newPublicationReceipts(value *api.Publication) *publicationReceipts {
-	return &publicationReceipts{
-		value: value,
-		receipts: []*pubReceipt{},
+func (rp *recentPublications) Len() int {
+	return rp.recent.Len()
+}
+
+// PublicationReceipts is a list of *PubReceipts for a given publication.
+type PublicationReceipts struct {
+	Value    *api.Publication
+	Receipts []*PubReceipt
+	mu       sync.Mutex
+}
+
+func newPublicationReceipts(value *api.Publication) *PublicationReceipts {
+	return &PublicationReceipts{
+		Value: value,
+		Receipts: []*PubReceipt{},
 	}
 }
 
-func (prs *publicationReceipts) add(pr *pubReceipt) {
+func (prs *PublicationReceipts) add(pr *PubReceipt) {
 	prs.mu.Lock()
 	defer prs.mu.Unlock()
-	prs.receipts = append(prs.receipts, pr)
+	prs.Receipts = append(prs.Receipts, pr)
 }
 
-
-type pubReceipt struct {
-	fromPub []byte
-	time    time.Time
+// PubReceipt represents a publication receipt from a peer (public key) at a particular time.
+type PubReceipt struct {
+	FromPub []byte
+	Time    time.Time
 }
 
 type pubValueReceipt struct {
 	pub     *KeyedPub
-	receipt *pubReceipt
+	receipt *PubReceipt
 }
 
 func newPublicationValueReceipt(key []byte, value *api.Publication, fromPub []byte) (
@@ -100,9 +121,9 @@ func newPublicationValueReceipt(key []byte, value *api.Publication, fromPub []by
 			Key: valueKey,
 			Value: value,
 		},
-		receipt: &pubReceipt{
-			fromPub: fromPub,
-			time: time.Now().UTC(),
+		receipt: &PubReceipt{
+			FromPub: fromPub,
+			Time: time.Now().UTC(),
 		},
 	}, nil
 }

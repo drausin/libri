@@ -43,3 +43,18 @@ func ValidatePublication(p *Publication) error {
 	}
 	return nil
 }
+
+// GetPublication returns a *Publication object if one can be made from the given document key and
+// value. If not, it returns nil.
+func GetPublication(key []byte, value *Document) *Publication {
+	switch x := value.Contents.(type) {
+	case *Document_Envelope:
+		return &Publication{
+			EntryKey: x.Envelope.EntryKey,
+			EnvelopeKey: key,
+			AuthorPublicKey: x.Envelope.AuthorPublicKey,
+			ReaderPublicKey: x.Envelope.ReaderPublicKey,
+		}
+	}
+	return nil
+}

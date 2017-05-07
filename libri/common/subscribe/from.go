@@ -2,6 +2,7 @@ package subscribe
 
 import (
 	"errors"
+	"go.uber.org/zap"
 	"math/rand"
 	"sync"
 )
@@ -33,7 +34,7 @@ type FromParameters struct {
 // NewDefaultFromParameters returns a *FromParameters object with default values.
 func NewDefaultFromParameters() *FromParameters {
 	return &FromParameters{
-		NMaxSubscriptions: DefaultNMaxSubscriptions,
+		NMaxSubscriptions:   DefaultNMaxSubscriptions,
 		EndSubscriptionProb: DefaultEndSubscriptionProb,
 	}
 }
@@ -50,6 +51,7 @@ type From interface {
 
 type from struct {
 	params       *FromParameters
+	logger       *zap.Logger
 	out          chan *KeyedPub
 	fanout       map[uint64]chan *KeyedPub
 	done         map[uint64]chan struct{}
@@ -59,16 +61,16 @@ type from struct {
 }
 
 // NewFrom creates a new From instance that fans out from the given output channel.
-func NewFrom(params *FromParameters, out chan *KeyedPub) From {
+func NewFrom(params *FromParameters, logger *zap.Logger, out chan *KeyedPub) From {
 	return &from{
 		params: params,
+		logger: logger,
 		out:    out,
 		fanout: make(map[uint64]chan *KeyedPub),
 		done:   make(map[uint64]chan struct{}),
 		ender: &bernoulliEnder{
-			p: params.EndSubscriptionProb,
+			p:   params.EndSubscriptionProb,
 			rng: rand.New(rand.NewSource(0)),
-
 		},
 	}
 }
@@ -111,7 +113,7 @@ func (f *from) New() (chan *KeyedPub, chan struct{}, error) {
 func (f *from) endSubscription(i uint64) {
 	f.mu.Lock()
 	select {
-	case <- f.done[i]:
+	case <-f.done[i]:
 	default:
 		// close done[i] if it's not already closed
 		close(f.done[i])

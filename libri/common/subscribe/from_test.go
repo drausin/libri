@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"fmt"
 	"sync"
+	clogging "github.com/drausin/libri/libri/common/logging"
 )
 
 func TestFrom_Fanout(t *testing.T) {
@@ -15,7 +16,8 @@ func TestFrom_Fanout(t *testing.T) {
 	params := NewDefaultFromParameters()
 	params.EndSubscriptionProb = 0.0  // never end
 	out := make(chan *KeyedPub)
-	f := NewFrom(params, out).(*from)
+	lg := clogging.NewDevInfoLogger()
+	f := NewFrom(params, lg, out).(*from)
 
 	go f.Fanout()
 
@@ -46,7 +48,8 @@ func TestFrom_Fanout_close(t *testing.T) {
 	params := NewDefaultFromParameters()
 	params.EndSubscriptionProb = 0.0  // never end
 	out := make(chan *KeyedPub)
-	f := NewFrom(params, out).(*from)
+	lg := clogging.NewDevInfoLogger()
+	f := NewFrom(params, lg, out).(*from)
 
 	wg := new(sync.WaitGroup)
 	wg.Add(1)
@@ -121,7 +124,8 @@ func TestFrom_Fanout_end(t *testing.T) {
 	params := NewDefaultFromParameters()
 	params.EndSubscriptionProb = 1.0  // always end
 	out := make(chan *KeyedPub)
-	f := NewFrom(params, out).(*from)
+	lg := clogging.NewDevInfoLogger()
+	f := NewFrom(params, lg, out).(*from)
 
 	go f.Fanout()
 	fanout, done, err := f.New()
@@ -145,7 +149,8 @@ func TestFrom_New_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	params := NewDefaultFromParameters()
 	out := make(chan *KeyedPub)
-	f := NewFrom(params, out).(*from)
+	lg := clogging.NewDevInfoLogger()
+	f := NewFrom(params, lg, out).(*from)
 	assert.Equal(t, 0, len(f.fanout))
 
 	go f.Fanout()
@@ -170,7 +175,8 @@ func TestFrom_New_err(t *testing.T) {
 		NMaxSubscriptions: 0,
 	}
 	out := make(chan *KeyedPub)
-	f := NewFrom(params, out).(*from)
+	lg := clogging.NewDevInfoLogger()
+	f := NewFrom(params, lg, out).(*from)
 	fan, done, err := f.New()
 	assert.Equal(t, ErrNotAcceptingNewSubscriptions, err)
 	assert.Nil(t, fan)
