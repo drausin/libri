@@ -214,7 +214,7 @@ func testUpload(t *testing.T, rng *rand.Rand, author *lauthor.Author, nDocs int)
 
 	contents = make([][]byte, nDocs)
 	envelopeKeys = make([]id.ID, nDocs)
-	maxContentSize := 1024 // 12 * 1024
+	maxContentSize := 12 * 1024
 	minContentSize := 32
 	var err error
 	for i := 0; i < nDocs; i++ {
@@ -302,7 +302,7 @@ func setUp(rng *rand.Rand, nSeeds, nPeers int, logLevel zapcore.Level) (
 	}
 	wg.Wait()
 
-	subscriptionWaitTime := 5 * time.Second
+	subscriptionWaitTime := 10 * time.Second
 	logger.Info("waiting for librarians to begin subscriptions",
 		zap.Float64("n_seconds", subscriptionWaitTime.Seconds()),
 	)
