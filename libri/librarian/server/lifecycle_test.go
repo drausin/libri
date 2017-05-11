@@ -12,11 +12,13 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"errors"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"time"
 )
 
 func TestStart_ok(t *testing.T) {
@@ -34,16 +36,23 @@ func TestStart_ok(t *testing.T) {
 	// get the librarian once it's up
 	librarian := <-up
 
-	// set up client
+	// set up clients
 	conn, err := grpc.Dial(config.LocalAddr.String(), grpc.WithInsecure())
 	assert.NotNil(t, conn)
 	assert.Nil(t, err)
+	clientHealth := healthpb.NewHealthClient(conn)
 	client := api.NewLibrarianClient(conn)
 
+	// confirm ok health check
+	ctx1, cancel := context.WithTimeout(context.Background(), 1 * time.Second)
+	rp, err := clientHealth.Check(ctx1, &healthpb.HealthCheckRequest{})
+	cancel()
+	assert.Nil(t, err)
+	assert.Equal(t, healthpb.HealthCheckResponse_SERVING, rp.Status)
+
 	// confirm server is up and responds to ping
-	rq1 := &api.PingRequest{}
-	ctx1 := context.Background()
-	rp1, err := client.Ping(ctx1, rq1)
+	rq2 := &api.PingRequest{}
+	rp1, err := client.Ping(context.Background(), rq2)
 	assert.Nil(t, err)
 	assert.Equal(t, "pong", rp1.Message)
 
