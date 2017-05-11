@@ -5,9 +5,7 @@ import (
 	"net"
 	"os"
 	"time"
-
 	"strings"
-
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
@@ -15,6 +13,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 const (
@@ -105,8 +104,8 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 
 	s := grpc.NewServer()
 	api.RegisterLibrarianServer(s, l)
+	healthpb.RegisterHealthServer(s, l.health)
 	reflection.Register(s)
-
 
 	// handle stop signal
 	go func() {
@@ -135,6 +134,10 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 		time.Sleep(postListenNotifyWait)
 		l.logger.Info("listening for requests", zap.Int(LoggerPortKey,
 			l.config.LocalAddr.Port))
+
+		// set top-level health status
+		l.health.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
+
 		up <- l
 	}()
 

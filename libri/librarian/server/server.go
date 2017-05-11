@@ -19,6 +19,7 @@ import (
 	"github.com/willf/bloom"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/health"
 	"math/rand"
 )
 
@@ -81,6 +82,9 @@ type Librarian struct {
 	// logger for this instance
 	logger *zap.Logger
 
+	// health server
+	health *health.Server
+
 	// receives graceful stop signal
 	stop chan struct{}
 }
@@ -140,6 +144,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		signer:        signer,
 		rt:            rt,
 		logger:        logger,
+		health:        health.NewServer(),
 		stop:          make(chan struct{}),
 	}, nil
 }
