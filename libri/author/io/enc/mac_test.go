@@ -3,9 +3,10 @@ package enc
 import (
 	"testing"
 
+	"math/rand"
+
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
-	"math/rand"
 )
 
 func TestSizeHMAC_Write(t *testing.T) {
@@ -134,7 +135,7 @@ func TestCheckMACs_err(t *testing.T) {
 		uncompressedMAC.Sum(nil),
 	)
 	assert.Nil(t, err)
-	md1.SetBytes(api.MetadataEntryCiphertextMAC, nil)  // now md1 is invalid
+	md1.SetBytes(api.MetadataEntryCiphertextMAC, nil) // now md1 is invalid
 	err = CheckMACs(ciphertextMAC, uncompressedMAC, md1)
 	assert.NotNil(t, err)
 

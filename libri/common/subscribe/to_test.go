@@ -1,20 +1,21 @@
 package subscribe
 
 import (
+	"errors"
+	"io"
+	"math/rand"
+	"sync"
+	"testing"
+
 	"github.com/drausin/libri/libri/common/ecid"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/librarian/api"
-	"errors"
+	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap/zapcore"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
-	"math/rand"
-	"testing"
-	"io"
-	"github.com/golang/protobuf/proto"
-	"sync"
-	"go.uber.org/zap/zapcore"
 )
 
 func TestTo_BeginEnd(t *testing.T) {
@@ -34,7 +35,7 @@ func TestTo_BeginEnd(t *testing.T) {
 	errs := make(chan error)
 	toImpl.sb = &fixedSubscriptionBeginner{
 		received: received,
-		errs: errs,
+		errs:     errs,
 	}
 
 	wg := new(sync.WaitGroup)
@@ -73,9 +74,9 @@ func TestTo_BeginEnd(t *testing.T) {
 	errs <- nil
 	newPub = nil
 	select {
-	case <- toImpl.end:
+	case <-toImpl.end:
 		ended = true
-	case newPub = <- newPubs:
+	case newPub = <-newPubs:
 	default:
 	}
 	assert.Nil(t, newPub)
@@ -106,7 +107,7 @@ func TestTo_BeginEnd(t *testing.T) {
 
 	// check newPubs is closed
 	select {
-	case pub, open := <- newPubs:
+	case pub, open := <-newPubs:
 		assert.Nil(t, pub)
 		assert.False(t, open)
 	}
@@ -116,9 +117,9 @@ func TestTo_BeginEnd(t *testing.T) {
 
 func getNewPub(newPubs chan *KeyedPub, end chan struct{}) (newPub *KeyedPub, ended bool) {
 	select {
-	case <- end:
+	case <-end:
 		ended = true
-	case newPub = <- newPubs:
+	case newPub = <-newPubs:
 	}
 	return newPub, ended
 }
@@ -144,7 +145,7 @@ func TestTo_Begin_err(t *testing.T) {
 
 	// check NewFPSubscription error bubbles up
 	params2 := NewDefaultToParameters()
-	params2.FPRate = 0.0  // will trigger error
+	params2.FPRate = 0.0 // will trigger error
 	toImpl2 := NewTo(params2, lg, clientID, cb, nil, recent, newPubs).(*to)
 	toImpl2.sb = &fixedSubscriptionBeginner{subscribeErr: errors.New("some subscribe error")}
 	err = toImpl2.Begin()
@@ -155,12 +156,12 @@ func TestTo_Begin_err(t *testing.T) {
 	errs := make(chan error)
 	toImpl3 := NewTo(params, lg, clientID, cb, nil, recent, newPubs).(*to)
 	toImpl3.sb = &fixedSubscriptionBeginner{
-		received: received,
-		errs: errs,
+		received:     received,
+		errs:         errs,
 		subscribeErr: errors.New("some subscribe error"),
 	}
 	go func() {
-		for c := 0; c < int(params.FPRate * float32(errQueueSize)); c++ {
+		for c := 0; c < int(params.FPRate*float32(errQueueSize)); c++ {
 			received <- nil
 			errs <- errors.New("some Recv error")
 		}
@@ -174,7 +175,7 @@ func TestFrom_Send(t *testing.T) {
 	toImpl := &to{
 		clientID: ecid.NewPseudoRandom(rng),
 		received: make(chan *pubValueReceipt),
-		logger: clogging.NewDevInfoLogger(),
+		logger:   clogging.NewDevInfoLogger(),
 	}
 
 	// check nothing sent with nil pub by ensuring that Send() doesn't block
@@ -190,7 +191,7 @@ func TestFrom_Send(t *testing.T) {
 		assert.Nil(t, err)
 	}(wg)
 
-	pvr := <- toImpl.received
+	pvr := <-toImpl.received
 	assert.NotNil(t, pvr)
 	assert.Equal(t, pub, pvr.pub.Value)
 
@@ -202,7 +203,7 @@ func TestSubscriptionBeginnerImpl_Begin_ok(t *testing.T) {
 	clientID := ecid.NewPseudoRandom(rng)
 	fromID := ecid.NewPseudoRandom(rng)
 	fromPubKey := ecid.ToPublicKeyBytes(fromID)
-	sb := subscriptionBeginnerImpl {
+	sb := subscriptionBeginnerImpl{
 		clientID: clientID,
 		signer:   &fixedSigner{signature: "some.signature.jtw"},
 		params:   NewDefaultToParameters(),
@@ -212,7 +213,7 @@ func TestSubscriptionBeginnerImpl_Begin_ok(t *testing.T) {
 	lc := &fixedSubscriber{
 		client: &fixedLibrarianSubscribeClient{
 			responses: responses,
-			err:  responseErrs,
+			err:       responseErrs,
 		},
 	}
 	sub, err := NewFPSubscription(DefaultFPRate, rng)
@@ -238,8 +239,8 @@ func TestSubscriptionBeginnerImpl_Begin_ok(t *testing.T) {
 	}
 	responseErrs <- nil
 
-	receivedPub := <- received
-	err = <- errs
+	receivedPub := <-received
+	err = <-errs
 	assert.Nil(t, err)
 	assert.Equal(t, key, receivedPub.pub.Key)
 	assert.Equal(t, value, receivedPub.pub.Value)
@@ -283,7 +284,7 @@ func TestSubscriptionBeginnerImpl_Begin_err(t *testing.T) {
 	assert.Nil(t, err)
 
 	// check NewSignedTimeoutContext error bubbles up
-	sb1 := subscriptionBeginnerImpl {
+	sb1 := subscriptionBeginnerImpl{
 		clientID: clientID,
 		signer:   &fixedSigner{err: errors.New("some Signer error")},
 		params:   NewDefaultToParameters(),
@@ -293,20 +294,20 @@ func TestSubscriptionBeginnerImpl_Begin_err(t *testing.T) {
 	assert.NotNil(t, err)
 
 	// check Subscribe error bubbles up
-	sb2 := subscriptionBeginnerImpl {
+	sb2 := subscriptionBeginnerImpl{
 		clientID: clientID,
 		signer:   &fixedSigner{signature: "some.signature.jtw"},
 		params:   NewDefaultToParameters(),
 	}
 	lc2 := &fixedSubscriber{
 		client: nil,
-		err: errors.New("some Subscribe error"),
+		err:    errors.New("some Subscribe error"),
 	}
 	err = sb2.begin(lc2, sub, received, errs, end)
 	assert.NotNil(t, err)
 
 	// check Recv error bubbles up
-	sb3 := subscriptionBeginnerImpl {
+	sb3 := subscriptionBeginnerImpl{
 		clientID: clientID,
 		signer:   &fixedSigner{signature: "some.signature.jtw"},
 		params:   NewDefaultToParameters(),
@@ -316,7 +317,7 @@ func TestSubscriptionBeginnerImpl_Begin_err(t *testing.T) {
 	lc3 := &fixedSubscriber{
 		client: &fixedLibrarianSubscribeClient{
 			responses: responses3,
-			err:  responseErrs3,
+			err:       responseErrs3,
 		},
 	}
 	responses3 <- nil
@@ -325,7 +326,7 @@ func TestSubscriptionBeginnerImpl_Begin_err(t *testing.T) {
 	assert.NotNil(t, err)
 
 	// check newPublicationValueReceipt error bubbles up
-	sb4 := subscriptionBeginnerImpl {
+	sb4 := subscriptionBeginnerImpl{
 		clientID: clientID,
 		signer:   &fixedSigner{signature: "some.signature.jtw"},
 		params:   NewDefaultToParameters(),
@@ -335,7 +336,7 @@ func TestSubscriptionBeginnerImpl_Begin_err(t *testing.T) {
 	lc4 := &fixedSubscriber{
 		client: &fixedLibrarianSubscribeClient{
 			responses: responses4,
-			err:  responseErrs4,
+			err:       responseErrs4,
 		},
 	}
 	value := api.NewTestPublication(rng)
@@ -343,7 +344,7 @@ func TestSubscriptionBeginnerImpl_Begin_err(t *testing.T) {
 		Metadata: &api.ResponseMetadata{
 			PubKey: fromPubKey,
 		},
-		Key:   api.RandBytes(rng, 32),  // will trigger error since not hash of value
+		Key:   api.RandBytes(rng, 32), // will trigger error since not hash of value
 		Value: value,
 	}
 	responseErrs4 <- nil
@@ -369,9 +370,9 @@ func TestDedup(t *testing.T) {
 	receivedPVRs := make(chan *pubValueReceipt, slack)
 	toImpl := &to{
 		received: receivedPVRs,
-		new:    newPVRs,
-		recent: rp,
-		logger: clogging.NewDevLogger(zapcore.DebugLevel),
+		new:      newPVRs,
+		recent:   rp,
+		logger:   clogging.NewDevLogger(zapcore.DebugLevel),
 	}
 
 	go toImpl.dedup()
@@ -438,8 +439,8 @@ func TestMonitorRunningErrorCount(t *testing.T) {
 }
 
 type fixedSubscriptionBeginner struct {
-	received chan *pubValueReceipt
-	errs chan error
+	received     chan *pubValueReceipt
+	errs         chan error
 	subscribeErr error
 }
 

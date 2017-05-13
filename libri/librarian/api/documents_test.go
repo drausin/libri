@@ -59,13 +59,12 @@ func TestGetEntryPageKeys_ok(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, len(pageKeys2) > 1)
 
-
 }
 
 func TestGetEntryPageKeys_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 
-	envelope := &Document{  // wrong doc type
+	envelope := &Document{ // wrong doc type
 		Contents: &Document_Envelope{
 			Envelope: NewTestEnvelope(rng),
 		},

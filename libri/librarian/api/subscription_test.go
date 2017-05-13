@@ -2,10 +2,11 @@ package api
 
 import (
 	"fmt"
-	"testing"
-	"github.com/stretchr/testify/assert"
 	"math/rand"
+	"testing"
+
 	"github.com/drausin/libri/libri/common/id"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestValidateSubscription(t *testing.T) {
@@ -15,8 +16,8 @@ func TestValidateSubscription(t *testing.T) {
 	cases := []struct {
 		authorPublicKeys *BloomFilter
 		readerPublicKeys *BloomFilter
-		valid bool
-	} {
+		valid            bool
+	}{
 		{
 			&BloomFilter{Encoded: []byte{1, 2, 3}},
 			&BloomFilter{Encoded: []byte{4, 5, 6}},
@@ -79,29 +80,29 @@ func TestValidatePublication_ok(t *testing.T) {
 func TestValidatePublication_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	cases := []*Publication{
-		nil,	// 0
-		{},	// 1
-		{	// 2
-			EntryKey: nil,
-			EnvelopeKey: RandBytes(rng, id.Length),
+		nil, // 0
+		{},  // 1
+		{ // 2
+			EntryKey:        nil,
+			EnvelopeKey:     RandBytes(rng, id.Length),
 			AuthorPublicKey: fakePubKey(rng),
 			ReaderPublicKey: fakePubKey(rng),
 		},
-		{	// 3
-			EntryKey: RandBytes(rng, id.Length),
-			EnvelopeKey: nil,
+		{ // 3
+			EntryKey:        RandBytes(rng, id.Length),
+			EnvelopeKey:     nil,
 			AuthorPublicKey: fakePubKey(rng),
 			ReaderPublicKey: fakePubKey(rng),
 		},
-		{	// 4
-			EntryKey: RandBytes(rng, id.Length),
-			EnvelopeKey: RandBytes(rng, id.Length),
+		{ // 4
+			EntryKey:        RandBytes(rng, id.Length),
+			EnvelopeKey:     RandBytes(rng, id.Length),
 			AuthorPublicKey: nil,
 			ReaderPublicKey: fakePubKey(rng),
 		},
-		{	// 5
-			EntryKey: RandBytes(rng, id.Length),
-			EnvelopeKey: RandBytes(rng, id.Length),
+		{ // 5
+			EntryKey:        RandBytes(rng, id.Length),
+			EnvelopeKey:     RandBytes(rng, id.Length),
 			AuthorPublicKey: fakePubKey(rng),
 			ReaderPublicKey: nil,
 		},

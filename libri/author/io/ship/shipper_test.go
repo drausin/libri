@@ -5,13 +5,14 @@ import (
 	"sync"
 	"testing"
 
+	"errors"
+
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/publish"
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
-	"errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -71,7 +72,7 @@ func TestShipper_Ship_err(t *testing.T) {
 	)
 
 	// check GetEntryPageKeys error bubbles up
-	envelope := &api.Document{  // wrong doc type
+	envelope := &api.Document{ // wrong doc type
 		Contents: &api.Document_Envelope{
 			Envelope: api.NewTestEnvelope(rng),
 		},

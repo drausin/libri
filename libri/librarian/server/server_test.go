@@ -3,6 +3,12 @@ package server
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"math"
+	"math/rand"
+	"sync"
+	"testing"
+
 	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
@@ -19,11 +25,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/metadata"
-	"io/ioutil"
-	"math"
-	"math/rand"
-	"sync"
-	"testing"
 )
 
 // TestNewLibrarian checks that we can create a new instance, close it, and create it again as
@@ -99,7 +100,7 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 		selfID:  serverID,
 		rt:      rt,
 		rqv:     &alwaysRequestVerifier{},
-		logger: clogging.NewDevInfoLogger(),
+		logger:  clogging.NewDevInfoLogger(),
 	}
 
 	clientID, clientPeerIdx := ecid.NewPseudoRandom(rng), 1
@@ -529,8 +530,8 @@ func newGetLibrarian(rng *rand.Rand, searchResult *search.Result, searchErr erro
 			result: searchResult,
 			err:    searchErr,
 		},
-		rqv: &alwaysRequestVerifier{},
-		logger:      clogging.NewDevInfoLogger(),
+		rqv:    &alwaysRequestVerifier{},
+		logger: clogging.NewDevInfoLogger(),
 	}
 }
 
@@ -650,7 +651,7 @@ func TestLibrarian_Subscribe_ok(t *testing.T) {
 			new:  newPubs,
 			done: done,
 		},
-		rqv: &alwaysRequestVerifier{},
+		rqv:    &alwaysRequestVerifier{},
 		logger: clogging.NewDevInfoLogger(),
 	}
 
@@ -772,7 +773,7 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 			new:  newPubs,
 			done: make(chan struct{}),
 		},
-		rqv: &alwaysRequestVerifier{},
+		rqv:    &alwaysRequestVerifier{},
 		logger: clogging.NewDevInfoLogger(),
 	}
 	from5 := &fixedLibrarianSubscribeServer{
@@ -874,7 +875,7 @@ func newPutLibrarian(rng *rand.Rand, storeResult *store.Result, searchErr error)
 			result: storeResult,
 			err:    searchErr,
 		},
-		rqv: &alwaysRequestVerifier{},
-		logger:      clogging.NewDevInfoLogger(),
+		rqv:    &alwaysRequestVerifier{},
+		logger: clogging.NewDevInfoLogger(),
 	}
 }

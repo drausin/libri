@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math/rand"
+
 	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
@@ -20,7 +22,6 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/health"
-	"math/rand"
 )
 
 // Librarian is the main service of a single peer in the peer to peer network.

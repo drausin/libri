@@ -3,8 +3,9 @@ package client
 import (
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"errors"
+
+	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/metadata"
 )
@@ -53,7 +54,7 @@ func NewSignedTimeoutContext(signer Signer, request proto.Message, timeout time.
 
 	ctx, err := NewSignedContext(signer, request)
 	if err != nil {
-		return nil, func(){}, err
+		return nil, func() {}, err
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	return ctx, cancel, nil

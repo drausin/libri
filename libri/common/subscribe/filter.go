@@ -1,10 +1,11 @@
 package subscribe
 
 import (
+	"encoding/gob"
+	"math/rand"
+
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/willf/bloom"
-	"math/rand"
-	"encoding/gob"
 )
 
 var minFilterElements = 10
@@ -31,7 +32,6 @@ func FromAPI(f *api.BloomFilter) (*bloom.BloomFilter, error) {
 	return decoded, nil
 }
 
-
 func newFilter(elements [][]byte, fp float64, rng *rand.Rand) *bloom.BloomFilter {
 	if fp == 1.0 {
 		return alwaysInFilter()
@@ -48,6 +48,6 @@ func newFilter(elements [][]byte, fp float64, rng *rand.Rand) *bloom.BloomFilter
 
 func alwaysInFilter() *bloom.BloomFilter {
 	filter := bloom.New(1, 1)
-	filter.Add([]byte{1})  // could be anything
+	filter.Add([]byte{1}) // could be anything
 	return filter
 }

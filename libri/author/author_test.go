@@ -9,6 +9,8 @@ import (
 	"sync"
 	"testing"
 
+	"errors"
+
 	"github.com/drausin/libri/libri/author/io/common"
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/page"
@@ -17,7 +19,6 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/librarian/api"
-	"errors"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap/zapcore"
 )

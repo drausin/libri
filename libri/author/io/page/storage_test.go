@@ -4,9 +4,10 @@ import (
 	"math/rand"
 	"testing"
 
+	"errors"
+
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
-	"errors"
 	"github.com/stretchr/testify/assert"
 )
 

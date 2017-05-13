@@ -6,9 +6,10 @@ import (
 	"crypto/sha256"
 	"math/rand"
 
+	"errors"
+
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/api"
-	"errors"
 	"golang.org/x/crypto/hkdf"
 )
 

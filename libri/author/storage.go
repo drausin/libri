@@ -4,11 +4,12 @@ import (
 	"os"
 	"path"
 
+	"errors"
+
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/golang/protobuf/proto"
-	"errors"
 	"go.uber.org/zap"
 )
 

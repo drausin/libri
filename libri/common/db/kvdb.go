@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"errors"
+
 	"github.com/tecbot/gorocksdb"
 )
 

@@ -1,18 +1,19 @@
 package subscribe
 
 import (
-	"time"
-	"github.com/drausin/libri/libri/librarian/api"
-	"sync"
-	lru "github.com/hashicorp/golang-lru"
 	"bytes"
+	"sync"
+	"time"
+
 	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/api"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 // KeyedPub couples a publication value and its key.
 type KeyedPub struct {
 	// Key is the SHA-256 has of the value's bytes.
-	Key   id.ID
+	Key id.ID
 
 	// Value is the publication values.
 	Value *api.Publication
@@ -81,7 +82,7 @@ type PublicationReceipts struct {
 
 func newPublicationReceipts(value *api.Publication) *PublicationReceipts {
 	return &PublicationReceipts{
-		Value: value,
+		Value:    value,
 		Receipts: []*PubReceipt{},
 	}
 }
@@ -104,7 +105,7 @@ type pubValueReceipt struct {
 }
 
 func newPublicationValueReceipt(key []byte, value *api.Publication, fromPub []byte) (
-	*pubValueReceipt, error){
+	*pubValueReceipt, error) {
 
 	valueKey, err := api.GetKey(value)
 	if err != nil {
@@ -118,19 +119,12 @@ func newPublicationValueReceipt(key []byte, value *api.Publication, fromPub []by
 	}
 	return &pubValueReceipt{
 		pub: &KeyedPub{
-			Key: valueKey,
+			Key:   valueKey,
 			Value: value,
 		},
 		receipt: &PubReceipt{
 			FromPub: fromPub,
-			Time: time.Now().UTC(),
+			Time:    time.Now().UTC(),
 		},
 	}, nil
 }
-
-
-
-
-
-
-

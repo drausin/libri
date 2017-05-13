@@ -37,8 +37,7 @@ func NewScanner(params *Parameters, pageL page.Loader) Scanner {
 	}
 }
 
-func (s *scanner) Scan(content io.Writer, pageKeys []id.ID, keys *enc.Keys, md *api.Metadata) (
-	error) {
+func (s *scanner) Scan(content io.Writer, pageKeys []id.ID, keys *enc.Keys, md *api.Metadata) error {
 
 	pages := make(chan *api.Page, int(s.params.Parallelism))
 	if err := api.ValidateMetadata(md); err != nil {

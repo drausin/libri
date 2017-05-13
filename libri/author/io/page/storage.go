@@ -1,10 +1,11 @@
 package page
 
 import (
+	"errors"
+
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
-	"errors"
 )
 
 var (

@@ -6,19 +6,20 @@ import (
 	"net"
 	"testing"
 
+	"errors"
+	"time"
+
 	cid "github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
-	"errors"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"time"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 func TestStart_ok(t *testing.T) {
@@ -44,7 +45,7 @@ func TestStart_ok(t *testing.T) {
 	client := api.NewLibrarianClient(conn)
 
 	// confirm ok health check
-	ctx1, cancel := context.WithTimeout(context.Background(), 1 * time.Second)
+	ctx1, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	rp, err := clientHealth.Check(ctx1, &healthpb.HealthCheckRequest{})
 	cancel()
 	assert.Nil(t, err)

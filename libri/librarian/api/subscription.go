@@ -50,8 +50,8 @@ func GetPublication(key []byte, value *Document) *Publication {
 	switch x := value.Contents.(type) {
 	case *Document_Envelope:
 		return &Publication{
-			EntryKey: x.Envelope.EntryKey,
-			EnvelopeKey: key,
+			EntryKey:        x.Envelope.EntryKey,
+			EnvelopeKey:     key,
 			AuthorPublicKey: x.Envelope.AuthorPublicKey,
 			ReaderPublicKey: x.Envelope.ReaderPublicKey,
 		}
