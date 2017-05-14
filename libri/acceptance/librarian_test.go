@@ -392,7 +392,10 @@ func newConfigs(nSeeds, nPeers int, maxBucketPeers uint, logLevel zapcore.Level)
 	return seedConfigs, peerConfigs, authorConfig
 }
 
-func newConfig(dataDir string, port int, maxBucketPeers uint, logLevel zapcore.Level) *server.Config {
+func newConfig(
+	dataDir string, port int, maxBucketPeers uint, logLevel zapcore.Level,
+) *server.Config {
+
 	rtParams := routing.NewDefaultParameters()
 	rtParams.MaxBucketPeers = maxBucketPeers
 
