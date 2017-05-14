@@ -12,7 +12,7 @@ set -eou pipefail
 # where "path/to/output/binary" is the path to write the output binary to.
 #
 
-OUTPUT_FILE=${0}
+OUTPUT_FILE=${1}
 
 GOOS=linux go build \
     --ldflags '-extldflags "-lpthread -static"' \

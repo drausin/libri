@@ -17,7 +17,7 @@ build:
 
 build-static:
 	@echo "--> Running go build for static binary"
-	@./scripts/build-static
+	@./scripts/build-static deploy/bin/libri
 
 docker-image:
 	@echo "--> Building docker image"
