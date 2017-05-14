@@ -33,8 +33,9 @@ compile:
     - mkdir -p deploy/bin
   override:
     - make build
+    # build static libri binary for use in self-contained Docker image
     - go build --ldflags '-extldflags "-lpthread -static"' -a -installsuffix cgo -o deploy/bin/libri libri/main.go
-    - docker build -t libri:latest -f deploy/Dockerfile .
+    - docker build -t libri:latest deploy
 
 test:
   pre:
