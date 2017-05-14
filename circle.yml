@@ -30,20 +30,25 @@ dependencies:
 
 compile:
   pre:
-    - mkdir -p deploy/bin
+    - mkdir -p deploy/bin && mkdir $CIRCLE_ARTIFACTS/deploy/bin
   override:
-    - make build
-    # build static libri binary for use in self-contained Docker image
-    - go build --ldflags '-extldflags "-lpthread -static"' -a -installsuffix cgo -o deploy/bin/libri libri/main.go
-    - docker build -t libri:latest deploy
+    - make build          # ensure everything builds ok
+    - make build-static   # build linux binary for Docker image
+    - make docker-image   # ensure Docker image builds ok, even though only used on deployment
+  post:
+    - cp -r deploy/bin/* $CIRCLE_ARTIFACTS/deploy/bin
 
 test:
-  pre:
-    - mkdir $CIRCLE_ARTIFACTS/deploy
   override:
     - case $CIRCLE_NODE_INDEX in 0) make test-cover acceptance ;; 1) make lint ;; esac:
         parallel: true
   post:
     - bash <(curl -s https://codecov.io/bash) -f test-coverage-merged.cov
     - cp acceptance.log $CIRCLE_ARTIFACTS
-    - cp -r deploy/bin $CIRCLE_ARTIFACTS/deploy
+
+deployment:
+  docker_hub:
+    branch: develop
+    commands:
+      - docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS
+      - docker push libri:latest

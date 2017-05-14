@@ -10,21 +10,21 @@ CHANGED_PKGS=$(shell echo $(ALL_PKGS) $(GIT_STATUS_PKGS) | tr " " "\n" | sort | 
 # all builds binaries for all targets
 all: build fix lint test acceptance
 
+acceptance:
+	@echo "--> Running acceptance tests"
+	@go test -tags acceptance -v github.com/drausin/libri/libri/acceptance 2>&1 | tee acceptance.log
+
 build:
 	@echo "--> Running go build"
 	@go build ./...
 
-test-cover:
-	@echo "--> Running go test with coverage"
-	@./scripts/test-cover
+build-static:
+    @echo "--> Running go build for static binary"
+    @./scripts/build-static
 
-test:
-	@echo "--> Running go test"
-	@go test -race ./... --cover
-
-acceptance:
-	@echo "--> Running acceptance tests"
-	@go test -tags acceptance -v github.com/drausin/libri/libri/acceptance 2>&1 | tee acceptance.log
+docker-image:
+    @echo "--> Building docker image"
+    @docker build --rm=false -t libri:latest deploy
 
 fix:
 	@echo "--> Running goimports"
@@ -44,6 +44,14 @@ lint-diff:
 lint-optional:
 	@echo "--> Running gometalinter with optional linters"
 	@gometalinter ./... --config=.gometalinter.optional.json --deadline=240s
+
+test-cover:
+	@echo "--> Running go test with coverage"
+	@./scripts/test-cover
+
+test:
+	@echo "--> Running go test"
+	@go test -race ./... --cover
 
 proto:
 	@echo "--> Running protoc"
