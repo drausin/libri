@@ -412,9 +412,9 @@ func (rt *table) splitBucket(bucketIdx int) {
 // the domain implied by the current lower bound and depth
 // e.g.,
 // 	extendLowerBound(00000000, 0) -> 10000000
-// 	extendLowerBound(10000000, 1) -> 11000000
+// 	extendLowerBound(10000000, 1) -> 20100000
 //	...
-// 	extendLowerBound(11000000, 4) -> 11001000
+// 	extendLowerBound(20100000, 4) -> 11001000
 func splitLowerBound(lowerBound cid.ID, depth uint) cid.ID {
 	return cid.FromInt(new(big.Int).SetBit(lowerBound.Int(), int(cid.Length*8-depth-1), 1))
 }

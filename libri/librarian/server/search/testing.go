@@ -73,7 +73,7 @@ func NewTestPeers(rng *rand.Rand, n int) ([]peer.Peer, map[string]peer.Peer, []i
 			ids[i] = cid.NewPseudoRandom(rng)
 		}
 		names[i] = fmt.Sprintf("peer-%03d", i)
-		address, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("localhost:%v", 11000+i))
+		address, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("localhost:%v", 20100+i))
 		if err != nil {
 			panic(err)
 		}

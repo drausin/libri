@@ -330,7 +330,7 @@ func TestTable_chooseBucketIndex(t *testing.T) {
 	//			= 01100100
 	//			= 100
 	//
-	//	XOR(100, 192)	= 01100100 ^ 11000000
+	//	XOR(100, 192)	= 01100100 ^ 20100000
 	//			= 10100100
 	//			= 164
 	i = rt.chooseBucketIndex(target, 2, 0)

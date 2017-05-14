@@ -23,7 +23,7 @@ import (
 const (
 
 	// DefaultPort is the default port of both local and public addresses.
-	DefaultPort = 11000
+	DefaultPort = 20100
 
 	// DefaultIP is the default IP of both local and public addresses.
 	DefaultIP = "localhost"

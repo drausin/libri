@@ -90,7 +90,7 @@ func TestPeer_Merge_ok(t *testing.T) {
 	p1ID := cid.NewPseudoRandom(rng)
 	p1 = New(p1ID, "p1", api.NewConnector(&net.TCPAddr{
 		IP:   net.ParseIP("192.168.1.1"),
-		Port: 11000,
+		Port: 20100,
 	}))
 	p1.Recorder().Record(Request, Success)
 	assert.Equal(t, uint64(1), p1.Recorder().(*queryRecorder).requests.nQueries)
@@ -99,7 +99,7 @@ func TestPeer_Merge_ok(t *testing.T) {
 	p2Name := "p2"
 	p2 = New(p1.ID(), p2Name, api.NewConnector(&net.TCPAddr{
 		IP:   net.ParseIP("192.168.1.1"),
-		Port: 11000,
+		Port: 20100,
 	}))
 	p2.Recorder().Record(Request, Success)
 	p2.Recorder().Record(Response, Success)
@@ -134,7 +134,7 @@ func TestPeer_Merge_err(t *testing.T) {
 	p1ID := cid.NewPseudoRandom(rng)
 	p1 = New(p1ID, "p1", api.NewConnector(&net.TCPAddr{
 		IP:   net.ParseIP("192.168.1.1"),
-		Port: 11000,
+		Port: 20100,
 	}))
 	p2 = New(p1ID, "", api.NewConnector(&net.TCPAddr{
 		IP:   net.ParseIP("192.168.1.1"),

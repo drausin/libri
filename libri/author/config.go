@@ -14,7 +14,7 @@ import (
 
 const (
 	// DefaultLibrarianPort is the default port of the librarian server.
-	DefaultLibrarianPort = 11000
+	DefaultLibrarianPort = 20100
 
 	// DefaultLibrarianIP is the default IP of of the librarian server.
 	DefaultLibrarianIP = "localhost"
