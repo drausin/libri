@@ -17,6 +17,6 @@ OUTPUT_FILE=${0}
 GOOS=linux go build \
     --ldflags '-extldflags "-lpthread -static"'
     -a \
-    -installsuffix cgo
+    -installsuffix cgo \
     -o ${OUTPUT_FILE} \
     libri/main.go
