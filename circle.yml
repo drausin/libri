@@ -27,13 +27,20 @@ dependencies:
     - ~/rocksdb-5.2.1
 
 compile:
+  pre:
+    - mkdir -p build/bin
   override:
     - make build
+    - go build -o build/bin/libri libri/main.go
+    - CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o build/bin/libri libri/main.go
 
 test:
+  pre:
+    - mkdir $CIRCLE_ARTIFACTS/build
   override:
     - case $CIRCLE_NODE_INDEX in 0) make test-cover acceptance ;; 1) make lint ;; esac:
         parallel: true
   post:
     - bash <(curl -s https://codecov.io/bash) -f test-coverage-merged.cov
     - cp acceptance.log $CIRCLE_ARTIFACTS
+    - cp build/bin $CIRCLE_ARTIFACTS/build
