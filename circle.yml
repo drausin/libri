@@ -1,6 +1,8 @@
 machine:
   pre:
     - sudo apt-get install libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev
+  services:
+    - docker
   environment:
       # GOROOT is not set by default
       GOROOT: ""
@@ -31,16 +33,15 @@ compile:
     - mkdir -p build/bin
   override:
     - make build
-    - go build -o build/bin/libri libri/main.go
-    - CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o build/bin/libri libri/main.go
+    - go build --ldflags '-extldflags "-lpthread -static"' -a -installsuffix cgo -o deploy/bin/libri libri/main.go
 
 test:
   pre:
-    - mkdir $CIRCLE_ARTIFACTS/build
+    - mkdir $CIRCLE_ARTIFACTS/deploy/bin
   override:
     - case $CIRCLE_NODE_INDEX in 0) make test-cover acceptance ;; 1) make lint ;; esac:
         parallel: true
   post:
     - bash <(curl -s https://codecov.io/bash) -f test-coverage-merged.cov
     - cp acceptance.log $CIRCLE_ARTIFACTS
-    - cp build/bin $CIRCLE_ARTIFACTS/build
+    - cp deploy/bin $CIRCLE_ARTIFACTS/deploy/bin
