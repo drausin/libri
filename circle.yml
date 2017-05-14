@@ -30,7 +30,7 @@ dependencies:
 
 compile:
   pre:
-    - mkdir -p deploy/bin && mkdir $CIRCLE_ARTIFACTS/deploy/bin
+    - mkdir -p deploy/bin && mkdir -p $CIRCLE_ARTIFACTS/deploy/bin
   override:
     - make build          # ensure everything builds ok
     - make build-static   # build linux binary for Docker image
