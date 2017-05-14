@@ -5,11 +5,12 @@ import (
 
 	"math/rand"
 
+	"errors"
+
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/peer"
-	"errors"
 	"github.com/stretchr/testify/assert"
 )
 

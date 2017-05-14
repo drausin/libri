@@ -4,6 +4,8 @@ import (
 	"math/rand"
 	"testing"
 
+	"errors"
+
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
@@ -11,7 +13,6 @@ import (
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/golang/protobuf/proto"
-	"errors"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )

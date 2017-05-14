@@ -10,7 +10,15 @@ import (
 	"sync"
 	"testing"
 
+	"bytes"
+	"fmt"
+	"time"
+
+	lauthor "github.com/drausin/libri/libri/author"
+	"github.com/drausin/libri/libri/author/io/common"
+	"github.com/drausin/libri/libri/author/io/page"
 	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/librarian/api"
 	lclient "github.com/drausin/libri/libri/librarian/client"
@@ -23,13 +31,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	lauthor "github.com/drausin/libri/libri/author"
-	"github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/author/io/common"
-	"bytes"
-	"github.com/drausin/libri/libri/author/io/page"
-	"time"
-	"fmt"
 )
 
 // things to add later
@@ -46,7 +47,6 @@ const (
 	veryLightScryptP = 1
 )
 
-
 func TestLibrarianCluster(t *testing.T) {
 
 	// handle grpc log noise
@@ -54,13 +54,13 @@ func TestLibrarianCluster(t *testing.T) {
 		"grpc: addrConn.resetTransport failed to create client transport: connection error",
 		"addrConn.resetTransport failed to create client transport",
 		"transport: http2Server.HandleStreams failed to read frame",
-		"transport: http2Server.HandleStreams failed to receive the preface from client: " +
+		"transport: http2Server.HandleStreams failed to receive the preface from client: "+
 			"EOF",
 		"context canceled; please retry",
 		"grpc: the connection is closing; please retry",
 		"http2Client.notifyError got notified that the client transport was broken read",
 		"http2Client.notifyError got notified that the client transport was broken EOF",
-		"http2Client.notifyError got notified that the client transport was broken " +
+		"http2Client.notifyError got notified that the client transport was broken "+
 			"write tcp",
 	)
 	defer restore()
@@ -95,7 +95,6 @@ func TestLibrarianCluster(t *testing.T) {
 
 	awaitNewConnLogOutput()
 }
-
 
 func testIntroduce(t *testing.T, rng *rand.Rand, client *testClient, peerConfigs []*server.Config,
 	peers []*server.Librarian, nIntroductions int) {
@@ -219,10 +218,10 @@ func testUpload(t *testing.T, rng *rand.Rand, author *lauthor.Author, nDocs int)
 	var err error
 	for i := 0; i < nDocs; i++ {
 		nContentBytes := minContentSize +
-			int(rng.Int31n(int32(maxContentSize - minContentSize)))
+			int(rng.Int31n(int32(maxContentSize-minContentSize)))
 		contents[i] = common.NewCompressableBytes(rng, nContentBytes).Bytes()
 		mediaType := "application/x-pdf"
-		if rng.Int() % 2 == 0 {
+		if rng.Int()%2 == 0 {
 			mediaType = "application/x-gzip"
 		}
 
@@ -387,14 +386,16 @@ func newConfigs(nSeeds, nPeers int, maxBucketPeers uint, logLevel zapcore.Level)
 		WithDefaultDBDir().
 		WithDefaultKeychainDir().
 		WithLogLevel(logLevel)
-	authorConfig.Print.PageSize = 1024  // default is large, 2 MB
-	page.MinSize = 128  // just for testing
+	authorConfig.Print.PageSize = 1024 // default is large, 2 MB
+	page.MinSize = 128                 // just for testing
 
 	return seedConfigs, peerConfigs, authorConfig
 }
 
-func newConfig(dataDir string, port int, maxBucketPeers uint, logLevel zapcore.Level) (
-	*server.Config) {
+func newConfig(
+	dataDir string, port int, maxBucketPeers uint, logLevel zapcore.Level,
+) *server.Config {
+
 	rtParams := routing.NewDefaultParameters()
 	rtParams.MaxBucketPeers = maxBucketPeers
 

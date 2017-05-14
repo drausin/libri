@@ -5,9 +5,10 @@ import (
 	"crypto/sha256"
 	"fmt"
 
+	"errors"
+
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/golang/protobuf/proto"
-	"errors"
 )
 
 // field lengths

@@ -211,8 +211,10 @@ func NewMultiLoadPublisher(inner SingleLoadPublisher, params *Parameters) MultiL
 	}
 }
 
-func (p *multiLoadPublisher) Publish(docKeys []cid.ID, authorPub []byte, cb api.ClientBalancer) (
-	error) {
+func (p *multiLoadPublisher) Publish(
+	docKeys []cid.ID, authorPub []byte, cb api.ClientBalancer,
+) error {
+
 	docKeysChan := make(chan cid.ID, p.params.PutParallelism)
 	go loadChan(docKeys, docKeysChan)
 	wg := new(sync.WaitGroup)

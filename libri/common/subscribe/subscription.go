@@ -1,9 +1,10 @@
 package subscribe
 
 import (
+	"math/rand"
+
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/pkg/errors"
-	"math/rand"
 )
 
 var (

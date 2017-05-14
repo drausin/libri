@@ -157,7 +157,7 @@ func NewAuthor(config *Config, keychainAuth string, logger *zap.Logger) (*Author
 	}
 
 	// for now, this doesn't really do anything
-	go func() { <- author.stop }()
+	go func() { <-author.stop }()
 
 	return author, nil
 }

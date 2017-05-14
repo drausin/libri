@@ -1,20 +1,21 @@
 package subscribe
 
 import (
-	"testing"
-	"github.com/drausin/libri/libri/librarian/api"
-	"math/rand"
-	"github.com/stretchr/testify/assert"
 	"fmt"
+	"math/rand"
 	"sync"
+	"testing"
+
 	clogging "github.com/drausin/libri/libri/common/logging"
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestFrom_Fanout(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	nFans := 8
 	params := NewDefaultFromParameters()
-	params.EndSubscriptionProb = 0.0  // never end
+	params.EndSubscriptionProb = 0.0 // never end
 	out := make(chan *KeyedPub)
 	lg := clogging.NewDevInfoLogger()
 	f := NewFrom(params, lg, out).(*from)
@@ -36,7 +37,7 @@ func TestFrom_Fanout(t *testing.T) {
 		out <- outPub
 		// check that this pub appears on all fans
 		for i := range fanout {
-			fanPub := <- fanout[i]
+			fanPub := <-fanout[i]
 			assert.Equal(t, outPub, fanPub)
 		}
 	}
@@ -46,7 +47,7 @@ func TestFrom_Fanout_close(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	nFans := 8
 	params := NewDefaultFromParameters()
-	params.EndSubscriptionProb = 0.0  // never end
+	params.EndSubscriptionProb = 0.0 // never end
 	out := make(chan *KeyedPub)
 	lg := clogging.NewDevInfoLogger()
 	f := NewFrom(params, lg, out).(*from)
@@ -78,12 +79,12 @@ func TestFrom_Fanout_close(t *testing.T) {
 	outPub := newKeyedPub(t, api.NewTestPublication(rng))
 	out <- outPub
 
-	fanPub, open := <- fanout[0]
+	fanPub, open := <-fanout[0]
 	if open { // delete didn't happen in time
 		assert.Equal(t, outPub, fanPub)
 		nDeleted--
 	}
-	fanPub, open = <- fanout[1]
+	fanPub, open = <-fanout[1]
 	if open { // delete didn't happen in time
 		assert.Equal(t, outPub, fanPub)
 		nDeleted--
@@ -94,13 +95,13 @@ func TestFrom_Fanout_close(t *testing.T) {
 			continue
 		}
 		info := fmt.Sprintf("fan %d", i)
-		fanPub := <- fanout[i]
+		fanPub := <-fanout[i]
 		assert.Equal(t, outPub, fanPub, info)
 	}
 
 	// check closed fans are removed from fanout
 	f.mu.Lock()
-	assert.Equal(t, nFans - nDeleted, len(f.fanout))
+	assert.Equal(t, nFans-nDeleted, len(f.fanout))
 	f.mu.Unlock()
 
 	// ensure closing output channel closes all fanouts as well
@@ -108,12 +109,12 @@ func TestFrom_Fanout_close(t *testing.T) {
 	wg.Wait()
 	for i := range fanout {
 		select {
-		case pub, open := <- fanout[i]:
+		case pub, open := <-fanout[i]:
 			assert.Nil(t, pub)
 			assert.False(t, open)
 		}
 		select {
-		case _, open := <- done[i]:
+		case _, open := <-done[i]:
 			assert.False(t, open)
 		}
 	}
@@ -122,7 +123,7 @@ func TestFrom_Fanout_close(t *testing.T) {
 func TestFrom_Fanout_end(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	params := NewDefaultFromParameters()
-	params.EndSubscriptionProb = 1.0  // always end
+	params.EndSubscriptionProb = 1.0 // always end
 	out := make(chan *KeyedPub)
 	lg := clogging.NewDevInfoLogger()
 	f := NewFrom(params, lg, out).(*from)
@@ -136,12 +137,12 @@ func TestFrom_Fanout_end(t *testing.T) {
 
 	// check that subscription has ended and done channel is closed
 	select {
-	case fanPub, open := <- fanout:
+	case fanPub, open := <-fanout:
 		assert.Nil(t, fanPub)
 		assert.False(t, open)
 	}
 	select {
-	case <- done:  // if this doesn't block, means done is closed
+	case <-done: // if this doesn't block, means done is closed
 	}
 }
 
@@ -164,9 +165,9 @@ func TestFrom_New_ok(t *testing.T) {
 	outPub := newKeyedPub(t, api.NewTestPublication(rng))
 	out <- outPub
 
-	fanPub1 := <- fan1
+	fanPub1 := <-fan1
 	assert.Equal(t, outPub, fanPub1)
-	fanPub2 := <- fan2
+	fanPub2 := <-fan2
 	assert.Equal(t, outPub, fanPub2)
 }
 
@@ -187,7 +188,7 @@ func newKeyedPub(t *testing.T, pub *api.Publication) *KeyedPub {
 	key, err := api.GetKey(pub)
 	assert.Nil(t, err)
 	return &KeyedPub{
-		Key: key,
+		Key:   key,
 		Value: pub,
 	}
 }

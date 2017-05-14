@@ -3,12 +3,13 @@ package server
 import (
 	"fmt"
 
+	"errors"
+
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/golang/protobuf/proto"
-	"errors"
 	"golang.org/x/net/context"
 )
 

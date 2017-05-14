@@ -1,14 +1,13 @@
 package subscribe
 
 import (
-	"testing"
-	"github.com/drausin/libri/libri/librarian/api"
 	"math/rand"
-	"github.com/stretchr/testify/assert"
+	"testing"
+
 	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/stretchr/testify/assert"
 )
-
-
 
 func TestNewRecentPublications_ok(t *testing.T) {
 	rp, err := NewRecentPublications(uint32(2))

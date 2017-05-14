@@ -5,11 +5,12 @@ import (
 	"math/rand"
 	"testing"
 
+	"errors"
+
 	"github.com/drausin/libri/libri/common/db"
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/golang/protobuf/proto"
-	"errors"
 	"github.com/stretchr/testify/assert"
 )
 

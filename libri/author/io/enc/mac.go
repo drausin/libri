@@ -7,8 +7,9 @@ import (
 	"hash"
 	"io"
 
-	"github.com/drausin/libri/libri/librarian/api"
 	"errors"
+
+	"github.com/drausin/libri/libri/librarian/api"
 )
 
 // ErrUnexpectedCiphertextSize indicates when the ciphertext size does not match the expected value.

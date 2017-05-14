@@ -1,19 +1,20 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
-	"time"
 	"strings"
+	"time"
+
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
-	"errors"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/reflection"
 )
 
 const (
@@ -119,11 +120,11 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 	go l.subscribeFrom.Fanout()
 
 	// long-running goroutine managing subscriptions to other peers
-	go func () {
+	go func() {
 		if err := l.subscribeTo.Begin(); err != nil && !l.config.isBootstrap() {
 			l.logger.Error("fatal subscriptionTo error", zap.Error(err))
 			if err := l.Close(); err != nil {
-				panic(err)  // don't try to recover from Close error
+				panic(err) // don't try to recover from Close error
 			}
 
 		}
@@ -159,7 +160,7 @@ func (l *Librarian) Close() error {
 
 	// send stop signal to listener
 	select {
-	case <- l.stop: // already closed
+	case <-l.stop: // already closed
 	default:
 		close(l.stop)
 	}

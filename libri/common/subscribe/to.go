@@ -2,15 +2,16 @@ package subscribe
 
 import (
 	"fmt"
+	"io"
+	"math/rand"
+	"sync"
+	"time"
+
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"io"
-	"math/rand"
-	"sync"
-	"time"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -131,9 +132,9 @@ func NewTo(
 	new chan *KeyedPub,
 ) To {
 	return &to{
-		params: params,
-		logger: logger,
-		cb:     cb,
+		params:   params,
+		logger:   logger,
+		cb:       cb,
 		clientID: clientID,
 		sb: &subscriptionBeginnerImpl{
 			clientID: clientID,
@@ -228,7 +229,7 @@ func (t *to) Send(pub *api.Publication) error {
 		return err
 	}
 	select {
-	case <- t.end:
+	case <-t.end:
 		return errors.New("receive channel closed")
 	default:
 		t.received <- pvr

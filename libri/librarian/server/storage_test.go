@@ -4,13 +4,14 @@ import (
 	"math/rand"
 	"testing"
 
+	"errors"
+
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/golang/protobuf/proto"
-	"errors"
 	"github.com/stretchr/testify/assert"
 )
 

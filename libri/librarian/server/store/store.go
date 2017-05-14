@@ -76,7 +76,7 @@ func NewInitialResult(sr *search.Result) *Result {
 // Store contains things involved in storing a particular key/value pair.
 type Store struct {
 	// request used when querying peers
-	Request *api.StoreRequest  // TODO (drausin) make this a getRequest function instead
+	Request *api.StoreRequest // TODO (drausin) make this a getRequest function instead
 
 	// result of the store
 	Result *Result

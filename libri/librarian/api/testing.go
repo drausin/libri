@@ -65,8 +65,8 @@ func NewTestPage(rng *rand.Rand) *Page {
 // NewTestPublication generates a dummy Publication for use in testing.
 func NewTestPublication(rng *rand.Rand) *Publication {
 	return &Publication{
-		EnvelopeKey: RandBytes(rng, cid.Length),
-		EntryKey: RandBytes(rng, cid.Length),
+		EnvelopeKey:     RandBytes(rng, cid.Length),
+		EntryKey:        RandBytes(rng, cid.Length),
 		AuthorPublicKey: fakePubKey(rng),
 		ReaderPublicKey: fakePubKey(rng),
 	}

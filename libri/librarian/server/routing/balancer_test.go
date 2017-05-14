@@ -1,14 +1,15 @@
 package routing
 
 import (
-	"github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/drausin/libri/libri/librarian/server/peer"
-	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"net"
 	"testing"
 	"time"
+
+	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/server/peer"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestTableUniqueBalancer_Next_ok(t *testing.T) {
@@ -54,7 +55,7 @@ func TestTableUniqueBalancer_Next_err(t *testing.T) {
 	cb := NewClientBalancer(rt)
 
 	// check empty RT throws error
-	tableSampleRetryWait = 10 * time.Millisecond  // just for test
+	tableSampleRetryWait = 10 * time.Millisecond // just for test
 	lc, err := cb.Next()
 	assert.Equal(t, ErrNoNewClients, err)
 	assert.Nil(t, lc)

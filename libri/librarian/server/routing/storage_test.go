@@ -5,11 +5,12 @@ import (
 	"math/rand"
 	"testing"
 
+	"errors"
+
 	"github.com/drausin/libri/libri/common/db"
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/server/peer"
-	"errors"
 	"github.com/stretchr/testify/assert"
 )
 

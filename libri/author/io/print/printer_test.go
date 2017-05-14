@@ -8,13 +8,14 @@ import (
 
 	"fmt"
 
+	"errors"
+
 	"github.com/drausin/libri/libri/author/io/common"
 	"github.com/drausin/libri/libri/author/io/comp"
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/page"
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
-	"errors"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -7,8 +7,9 @@ import (
 	"io"
 	"mime"
 
-	"github.com/drausin/libri/libri/author/io/enc"
 	"errors"
+
+	"github.com/drausin/libri/libri/author/io/enc"
 )
 
 // Codec is a comp.codec.

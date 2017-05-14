@@ -2,10 +2,11 @@ package subscribe
 
 import (
 	"fmt"
-	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"testing"
+
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestToFromAPI(t *testing.T) {
@@ -69,7 +70,7 @@ func TestNewFPFilter(t *testing.T) {
 		}
 		measuredFP := float64(fpCount) / float64(nTrials)
 		info := fmt.Sprintf("target fp: %f, measured fp: %f", targetFP, measuredFP)
-		assert.True(t, measuredFP >= targetFP - tolerance, info)
+		assert.True(t, measuredFP >= targetFP-tolerance, info)
 	}
 
 }

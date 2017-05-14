@@ -2,9 +2,10 @@ package subscribe
 
 import (
 	"errors"
-	"go.uber.org/zap"
 	"math/rand"
 	"sync"
+
+	"go.uber.org/zap"
 )
 
 const (

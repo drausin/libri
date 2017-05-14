@@ -2,9 +2,10 @@ package subscribe
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewSubscription_ok(t *testing.T) {
