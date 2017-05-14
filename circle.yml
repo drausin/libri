@@ -39,11 +39,11 @@ compile:
 
 test:
   pre:
-    - mkdir $CIRCLE_ARTIFACTS/deploy/bin
+    - mkdir $CIRCLE_ARTIFACTS/deploy
   override:
     - case $CIRCLE_NODE_INDEX in 0) make test-cover acceptance ;; 1) make lint ;; esac:
         parallel: true
   post:
     - bash <(curl -s https://codecov.io/bash) -f test-coverage-merged.cov
     - cp acceptance.log $CIRCLE_ARTIFACTS
-    - cp deploy/bin $CIRCLE_ARTIFACTS/deploy/bin
+    - cp -r deploy/bin $CIRCLE_ARTIFACTS/deploy
