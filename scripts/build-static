@@ -15,7 +15,7 @@ set -eou pipefail
 OUTPUT_FILE=${0}
 
 GOOS=linux go build \
-    --ldflags '-extldflags "-lpthread -static"'
+    --ldflags '-extldflags "-lpthread -static"' \
     -a \
     -installsuffix cgo \
     -o ${OUTPUT_FILE} \
