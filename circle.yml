@@ -1,6 +1,8 @@
 machine:
   pre:
     - sudo apt-get install libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev
+  services:
+    - docker
   environment:
       # GOROOT is not set by default
       GOROOT: ""
@@ -27,8 +29,14 @@ dependencies:
     - ~/rocksdb-5.2.1
 
 compile:
+  pre:
+    - mkdir -p deploy/bin && mkdir -p $CIRCLE_ARTIFACTS/deploy/bin
   override:
-    - make build
+    - make build          # ensure everything builds ok
+    - make build-static   # build linux binary for Docker image
+    - make docker-image   # ensure Docker image builds ok, even though only used on deployment
+  post:
+    - cp -r deploy/bin/* $CIRCLE_ARTIFACTS/deploy/bin
 
 test:
   override:
@@ -37,3 +45,10 @@ test:
   post:
     - bash <(curl -s https://codecov.io/bash) -f test-coverage-merged.cov
     - cp acceptance.log $CIRCLE_ARTIFACTS
+
+deployment:
+  docker_hub:
+    branch: develop
+    commands:
+      - docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS
+      - docker push libri:latest
