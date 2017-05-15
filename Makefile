@@ -21,7 +21,7 @@ build-static:
 
 docker-image:
 	@echo "--> Building docker image"
-	@docker build --rm=false -t libri:latest deploy
+	@docker build --rm=false -t daedalus2718/libri:latest deploy
 
 fix:
 	@echo "--> Running goimports"
