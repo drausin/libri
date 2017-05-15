@@ -17,7 +17,6 @@ func TestDefaultConfig(t *testing.T) {
 	c := NewDefaultConfig()
 	assert.NotEmpty(t, c.LocalAddr)
 	assert.NotEmpty(t, c.PublicAddr)
-	assert.NotEmpty(t, c.LocalName)
 	assert.NotEmpty(t, c.PublicName)
 	assert.NotEmpty(t, c.DataDir)
 	assert.NotEmpty(t, c.DbDir)
@@ -46,13 +45,6 @@ func TestConfig_WithPublicAddr(t *testing.T) {
 		c1.PublicAddr,
 		c3.WithPublicAddr(ParseAddr("localhost", 1234)).PublicAddr,
 	)
-}
-
-func TestConfig_WithLocalName(t *testing.T) {
-	c1, c2, c3 := &Config{}, &Config{}, &Config{}
-	c1.WithDefaultLocalName()
-	assert.Equal(t, c1.LocalName, c2.WithLocalName("").LocalName)
-	assert.NotEqual(t, c1.LocalName, c3.WithLocalName("some other name").LocalName)
 }
 
 func TestConfig_WithPublicName(t *testing.T) {
