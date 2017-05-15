@@ -23,7 +23,7 @@ import (
 const (
 
 	// DefaultPort is the default port of both local and public addresses.
-	DefaultPort = 11000
+	DefaultPort = 20100
 
 	// DefaultIP is the default IP of both local and public addresses.
 	DefaultIP = "localhost"
@@ -46,23 +46,11 @@ type Config struct {
 	// PublicAddr is the public address clients make requests to.
 	PublicAddr *net.TCPAddr
 
-	// LocalName is the peer name on the particular box.
-	LocalName string
-
 	// PublicName is the public facing name of the peer.
 	PublicName string
 
 	// DataDir is the directory on the local machine where the state and output of all the
-	// peers running on that machine are stored. For example,
-	//
-	//	data
-	//	└── peer-fc593d11
-	//	    └── db
-	//	└── peer-f829ef46
-	//	    └── db
-	//	└── peer-765079fb
-	//	    └── db
-	//
+	// peer running on that machine are stored.
 	DataDir string
 
 	// DbDir is the local directory where this node's DB state is stored.
@@ -101,7 +89,6 @@ func NewDefaultConfig() *Config {
 	// should be set before config B
 	config.WithDefaultLocalAddr()
 	config.WithDefaultPublicAddr()
-	config.WithDefaultLocalName()
 	config.WithDefaultPublicName()
 	config.WithDefaultDataDir()
 	config.WithDefaultDBDir()
@@ -150,22 +137,6 @@ func (c *Config) WithDefaultPublicAddr() *Config {
 	return c
 }
 
-// WithLocalName sets the local name to the given value or the default if the given value is empty.
-func (c *Config) WithLocalName(localName string) *Config {
-	if localName == "" {
-		return c.WithDefaultLocalName()
-	}
-	c.LocalName = localName
-	return c
-}
-
-// WithDefaultLocalName sets the local name to the default value, which uses a hash of the
-// local address.
-func (c *Config) WithDefaultLocalName() *Config {
-	c.LocalName = nameFromAddr(c.LocalAddr)
-	return c
-}
-
 // WithPublicName sets the public name to the given value or the default if the given value is
 // empty.
 func (c *Config) WithPublicName(publicName string) *Config {
@@ -179,7 +150,7 @@ func (c *Config) WithPublicName(publicName string) *Config {
 // WithDefaultPublicName sets the public name to the default value, which uses a hash of the
 // public address.
 func (c *Config) WithDefaultPublicName() *Config {
-	c.PublicName = nameFromAddr(c.PublicAddr)
+	c.PublicName = NameFromAddr(c.PublicAddr)
 	return c
 }
 
@@ -213,7 +184,7 @@ func (c *Config) WithDBDir(dbDir string) *Config {
 
 // WithDefaultDBDir sets the DB dir to a local name subdir of the data dir.
 func (c *Config) WithDefaultDBDir() *Config {
-	c.DbDir = filepath.Join(c.DataDir, c.LocalName, DBSubDir)
+	c.DbDir = filepath.Join(c.DataDir, DBSubDir)
 	return c
 }
 
@@ -386,8 +357,8 @@ func parseIP(ip string) net.IP {
 	return net.ParseIP(ip)
 }
 
-// localPeerName gives the local name (on the host) of the node using the NodeIndex
-func nameFromAddr(localAddr fmt.Stringer) string {
+// NameFromAddr gives the local name (on the host) of the node using the NodeIndex
+func NameFromAddr(localAddr fmt.Stringer) string {
 	addrHash := md5.Sum([]byte(localAddr.String()))
 	return fmt.Sprintf("peer-%x", addrHash[:4])
 }

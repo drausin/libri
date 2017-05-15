@@ -16,7 +16,6 @@ var (
 	localPort      int
 	publicIP       string
 	publicPort     int
-	localName      string
 	publicName     string
 	dataDir        string
 	dbDir          string
@@ -52,8 +51,6 @@ func init() {
 		"public IPv4 address")
 	startLibrarianCmd.Flags().IntVarP(&publicPort, "public-port", "q", server.DefaultPort,
 		"public port")
-	startLibrarianCmd.Flags().StringVarP(&localName, "local-name", "l", "",
-		"local peer name")
 	startLibrarianCmd.Flags().StringVarP(&publicName, "public-name", "n", "",
 		"public peer name")
 	startLibrarianCmd.Flags().StringVarP(&dataDir, "data-dir", "d", "",
@@ -72,7 +69,6 @@ func getConfig() (*server.Config, *zap.Logger, error) {
 
 	config.WithLocalAddr(server.ParseAddr(localIP, localPort))
 	config.WithPublicAddr(server.ParseAddr(publicIP, publicPort))
-	config.WithLocalName(localName)
 	config.WithPublicName(publicName)
 	config.WithDataDir(dataDir)
 	config.WithDBDir(dbDir)

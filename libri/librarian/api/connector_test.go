@@ -11,7 +11,7 @@ import (
 )
 
 func TestConnector_Connect_ok(t *testing.T) {
-	addr := &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 11000}
+	addr := &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 20100}
 	conn := NewConnector(addr)
 	conn.(*connector).dialer = &fixedDialer{clientConn: &grpc.ClientConn{}}
 	assert.Nil(t, conn.(*connector).client)
@@ -28,7 +28,7 @@ func TestConnector_Connect_ok(t *testing.T) {
 }
 
 func TestConnector_Connect_err(t *testing.T) {
-	addr := &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 11000}
+	addr := &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 20100}
 	conn := NewConnector(addr)
 	conn.(*connector).dialer = &fixedDialer{dialErr: errors.New("some Dial error")}
 
@@ -40,7 +40,7 @@ func TestConnector_Connect_err(t *testing.T) {
 // hard to test Disconnect() b/c can't mock grpc.ClientConn
 
 func TestConnector_Address(t *testing.T) {
-	addr := &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 11000}
+	addr := &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 20100}
 	conn := NewConnector(addr)
 	assert.Equal(t, conn.Address(), addr)
 }

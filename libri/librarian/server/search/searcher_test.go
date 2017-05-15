@@ -345,7 +345,7 @@ func newPeerAddresses(rng *rand.Rand, n int) []*api.PeerAddress {
 			PeerId:   cid.NewPseudoRandom(rng).Bytes(),
 			PeerName: fmt.Sprintf("peer-%03d", i),
 			Ip:       "localhost",
-			Port:     uint32(11000 + i),
+			Port:     uint32(20100 + i),
 		}
 	}
 	return peerAddresses

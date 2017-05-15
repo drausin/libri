@@ -31,6 +31,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"path/filepath"
 )
 
 // things to add later
@@ -405,12 +406,14 @@ func newConfig(
 	searchParams := search.NewDefaultParameters()
 	searchParams.NClosestResponses = 3
 
+	localAddr := server.ParseAddr("localhost", port)
+	peerDataDir := filepath.Join(dataDir, server.NameFromAddr(localAddr))
+
 	return server.NewDefaultConfig().
-		WithLocalAddr(server.ParseAddr("localhost", port)).
+		WithLocalAddr(localAddr).
 		WithDefaultPublicAddr().
 		WithDefaultPublicName().
-		WithDefaultLocalName().
-		WithDataDir(dataDir).
+		WithDataDir(peerDataDir).
 		WithDefaultDBDir().
 		WithLogLevel(logLevel).
 		WithRouting(rtParams).

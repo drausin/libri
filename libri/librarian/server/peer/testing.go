@@ -34,7 +34,7 @@ func NewTestPeer(rng *rand.Rand, idx int) Peer {
 
 // NewTestPublicAddr creates a new net.TCPAddr given a particular peer index.
 func NewTestPublicAddr(idx int) *net.TCPAddr {
-	address, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("127.0.0.1:%v", 11000+idx))
+	address, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("127.0.0.1:%v", 20100+idx))
 	if err != nil {
 		panic(err)
 	}
@@ -65,7 +65,7 @@ func NewTestStoredPeer(rng *rand.Rand, idx int) *storage.Peer {
 		Name: fmt.Sprintf("peer-%d", idx+1),
 		PublicAddress: &storage.Address{
 			Ip:   "192.168.1.1",
-			Port: uint32(11000 + idx),
+			Port: uint32(20100 + idx),
 		},
 		QueryOutcomes: &storage.QueryOutcomes{
 			Responses: &storage.QueryTypeOutcomes{
