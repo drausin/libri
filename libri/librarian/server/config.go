@@ -357,7 +357,7 @@ func parseIP(ip string) net.IP {
 	return net.ParseIP(ip)
 }
 
-// localPeerName gives the local name (on the host) of the node using the NodeIndex
+// NameFromAddr gives the local name (on the host) of the node using the NodeIndex
 func NameFromAddr(localAddr fmt.Stringer) string {
 	addrHash := md5.Sum([]byte(localAddr.String()))
 	return fmt.Sprintf("peer-%x", addrHash[:4])
