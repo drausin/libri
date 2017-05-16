@@ -14,8 +14,16 @@ import (
 	"fmt"
 )
 
-// ErrKeychainExists indicates when a keychain file already exists.
-var ErrKeychainExists = errors.New("keychain already exists")
+var (
+	// ErrKeychainExists indicates when a keychain file already exists.
+	ErrKeychainExists = errors.New("keychain already exists")
+
+	errMissingAuthorKeychain = fmt.Errorf("missing %s, but have %s", authorKeychainFilename,
+		selfReaderKeychainFilename)
+
+	errMissingSelfReaderKeychain = fmt.Errorf("missing %s, but have %s",
+		selfReaderKeychainFilename, authorKeychainFilename)
+)
 
 // logger keys
 const (
@@ -140,17 +148,11 @@ func MissingKeychains(keychainDir string) (bool, error) {
 	}
 
 	if authorFileInfo == nil {
-		return true, fmt.Errorf("missing %s, but have %s",
-			authorKeychainFilename,
-			selfReaderKeychainFilename,
-		)
+		return true, errMissingAuthorKeychain
 	}
 
 	if selfReaderFileInfo == nil {
-		return true, fmt.Errorf("missing %s, but have %s",
-			selfReaderKeychainFilename,
-			authorKeychainFilename,
-		)
+		return true, errMissingSelfReaderKeychain
 	}
 
 	panic(errors.New("should never get here"))

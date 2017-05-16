@@ -7,7 +7,6 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc"
 	"net"
-	"log"
 )
 
 type envelopeKeySampler interface {
@@ -38,8 +37,10 @@ func (s *envelopeKeySamplerImpl) sample() ([]byte, []byte, *enc.Keys, error) {
 	return ecid.ToPublicKeyBytes(authorID), ecid.ToPublicKeyBytes(selfReaderID), keys, nil
 }
 
-var getLibrarianHealthClients = func(librarianAddrs []*net.TCPAddr) (
-	map[string]healthpb.HealthClient, error) {
+// use var so it's easy to replace for tests w/o a single-method interface
+var getLibrarianHealthClients = func(
+	librarianAddrs []*net.TCPAddr,
+) (map[string]healthpb.HealthClient, error) {
 
 	healthClients := make(map[string]healthpb.HealthClient)
 	for _, librarianAddr := range librarianAddrs {
@@ -50,6 +51,5 @@ var getLibrarianHealthClients = func(librarianAddrs []*net.TCPAddr) (
 		}
 		healthClients[addrStr] = healthpb.NewHealthClient(conn)
 	}
-	log.Printf("num health clients: %d", len(healthClients))
 	return healthClients, nil
 }

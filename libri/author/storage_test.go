@@ -160,6 +160,44 @@ func TestCreateKeychain(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func TestMissingKeychains(t *testing.T) {
+	testKeychainDir, err := ioutil.TempDir("", "author-test-keychains")
+	defer rmDir(testKeychainDir)
+	authorKCPath := path.Join(testKeychainDir, authorKeychainFilename)
+	selfReaderKCPath := path.Join(testKeychainDir, selfReaderKeychainFilename)
+	assert.Nil(t, err)
+
+	// check missing when neither file exists
+	missing, err := MissingKeychains(testKeychainDir)
+	assert.Nil(t, err)
+	assert.True(t, missing)
+
+	// check not missing with both files exist
+	_, err = os.Create(authorKCPath)
+	assert.Nil(t, err)
+	_, err = os.Create(selfReaderKCPath)
+	assert.Nil(t, err)
+	missing, err = MissingKeychains(testKeychainDir)
+	assert.Nil(t, err)
+	assert.False(t, missing)
+
+	// check error when only one file is missing
+	err = os.Remove(selfReaderKCPath)
+	assert.Nil(t, err)
+	missing, err = MissingKeychains(testKeychainDir)
+	assert.Equal(t, errMissingSelfReaderKeychain, err)
+	assert.True(t, missing)
+
+	// check error when only other file is missing
+	err = os.Remove(authorKCPath)
+	assert.Nil(t, err)
+	_, err = os.Create(selfReaderKCPath)
+	assert.Nil(t, err)
+	missing, err = MissingKeychains(testKeychainDir)
+	assert.Equal(t, errMissingAuthorKeychain, err)
+	assert.True(t, missing)
+}
+
 func rmDir(dir string) {
 	err := os.RemoveAll(dir)
 	if err != nil {
