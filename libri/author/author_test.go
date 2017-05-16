@@ -33,10 +33,13 @@ const (
 
 func TestNewAuthor(t *testing.T) {
 	// return empty map of health clients
+	orig := getLibrarianHealthClients
 	getLibrarianHealthClients = func(librarianAddrs []*net.TCPAddr) (
 		map[string]healthpb.HealthClient, error) {
 		return make(map[string]healthpb.HealthClient), nil
 	}
+	defer func() { getLibrarianHealthClients = orig }()
+
 	a1 := newTestAuthor()
 
 	clientID1 := a1.clientID
@@ -53,6 +56,7 @@ func TestNewAuthor(t *testing.T) {
 
 func TestAuthor_Healthcheck_ok(t *testing.T) {
 	// return fixed map of health clients
+	orig := getLibrarianHealthClients
 	getLibrarianHealthClients = func(librarianAddrs []*net.TCPAddr) (
 		map[string]healthpb.HealthClient, error) {
 		return map[string]healthpb.HealthClient{
@@ -68,6 +72,8 @@ func TestAuthor_Healthcheck_ok(t *testing.T) {
 			},
 		}, nil
 	}
+	defer func() { getLibrarianHealthClients = orig }()
+
 	a := newTestAuthor()
 
 	allHealthy, healthStatus := a.Healthcheck()
@@ -79,6 +85,7 @@ func TestAuthor_Healthcheck_ok(t *testing.T) {
 
 func TestAuthor_Healthcheck_err(t *testing.T) {
 	// return fixed map of health clients
+	orig := getLibrarianHealthClients
 	getLibrarianHealthClients = func(librarianAddrs []*net.TCPAddr) (
 		map[string]healthpb.HealthClient, error) {
 		return map[string]healthpb.HealthClient{
@@ -87,6 +94,8 @@ func TestAuthor_Healthcheck_err(t *testing.T) {
 			},
 		}, nil
 	}
+	defer func() { getLibrarianHealthClients = orig }()
+
 	a := newTestAuthor()
 
 	allHealthy, healthStatus := a.Healthcheck()
