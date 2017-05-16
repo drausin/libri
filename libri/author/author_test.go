@@ -8,9 +8,7 @@ import (
 	"math/rand"
 	"sync"
 	"testing"
-
 	"errors"
-
 	"github.com/drausin/libri/libri/author/io/common"
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/page"
@@ -19,15 +17,29 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/librarian/api"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap/zapcore"
+	"net"
+	"google.golang.org/grpc"
+	"golang.org/x/net/context"
 )
 
 const (
 	testKeychainAuth = "some secret passphrase"
 )
 
+
+
 func TestNewAuthor(t *testing.T) {
+	// return empty map of health clients
+	orig := getLibrarianHealthClients
+	getLibrarianHealthClients = func(librarianAddrs []*net.TCPAddr) (
+		map[string]healthpb.HealthClient, error) {
+		return make(map[string]healthpb.HealthClient), nil
+	}
+	defer func() { getLibrarianHealthClients = orig }()
+
 	a1 := newTestAuthor()
 
 	clientID1 := a1.clientID
@@ -40,6 +52,56 @@ func TestNewAuthor(t *testing.T) {
 	assert.Equal(t, clientID1, a2.clientID)
 	err = a2.CloseAndRemove()
 	assert.Nil(t, err)
+}
+
+func TestAuthor_Healthcheck_ok(t *testing.T) {
+	// return fixed map of health clients
+	orig := getLibrarianHealthClients
+	getLibrarianHealthClients = func(librarianAddrs []*net.TCPAddr) (
+		map[string]healthpb.HealthClient, error) {
+		return map[string]healthpb.HealthClient{
+			"peerAddr1" : &fixedHealthClient{
+				response: &healthpb.HealthCheckResponse{
+					Status: healthpb.HealthCheckResponse_SERVING,
+				},
+			},
+			"peerAddr2" : &fixedHealthClient{
+				response: &healthpb.HealthCheckResponse{
+					Status: healthpb.HealthCheckResponse_NOT_SERVING,
+				},
+			},
+		}, nil
+	}
+	defer func() { getLibrarianHealthClients = orig }()
+
+	a := newTestAuthor()
+
+	allHealthy, healthStatus := a.Healthcheck()
+	assert.False(t, allHealthy)
+	assert.Equal(t, 2, len(healthStatus))
+	assert.Equal(t, healthpb.HealthCheckResponse_SERVING, healthStatus["peerAddr1"])
+	assert.Equal(t, healthpb.HealthCheckResponse_NOT_SERVING, healthStatus["peerAddr2"])
+}
+
+func TestAuthor_Healthcheck_err(t *testing.T) {
+	// return fixed map of health clients
+	orig := getLibrarianHealthClients
+	getLibrarianHealthClients = func(librarianAddrs []*net.TCPAddr) (
+		map[string]healthpb.HealthClient, error) {
+		return map[string]healthpb.HealthClient{
+			"peerAddr1" : &fixedHealthClient{
+				err: errors.New("some Check error"),
+			},
+		}, nil
+	}
+	defer func() { getLibrarianHealthClients = orig }()
+
+	a := newTestAuthor()
+
+	allHealthy, healthStatus := a.Healthcheck()
+	assert.False(t, allHealthy)
+	assert.Equal(t, 1, len(healthStatus))
+	assert.Equal(t, healthpb.HealthCheckResponse_UNKNOWN, healthStatus["peerAddr1"])
 }
 
 func TestAuthor_Upload_ok(t *testing.T) {
@@ -271,6 +333,17 @@ func (f *fixedClientBalancer) Next() (api.LibrarianClient, error) {
 
 func (f *fixedClientBalancer) CloseAll() error {
 	return f.err
+}
+
+type fixedHealthClient struct {
+	response *healthpb.HealthCheckResponse
+	err error
+}
+
+func (f *fixedHealthClient) Check(
+	ctx context.Context, in *healthpb.HealthCheckRequest, opts ...grpc.CallOption,
+) (*healthpb.HealthCheckResponse, error) {
+	return f.response, f.err
 }
 
 type packTestCase struct {

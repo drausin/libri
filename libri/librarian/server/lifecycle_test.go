@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"net"
 	"testing"
-
 	"errors"
 	"time"
 

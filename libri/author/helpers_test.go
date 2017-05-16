@@ -12,6 +12,7 @@ import (
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/stretchr/testify/assert"
+	"net"
 )
 
 func TestEnvelopeKeySampler_Sample_ok(t *testing.T) {
@@ -73,6 +74,20 @@ func TestEnvelopeKeySampler_Sample_err(t *testing.T) {
 	assert.Nil(t, aPB)
 	assert.Nil(t, srPB)
 	assert.Nil(t, eK)
+}
+
+func TestGetLibrarianHealthClients(t *testing.T) {
+	librarianAddrs := []*net.TCPAddr{
+		{IP: net.ParseIP("127.0.0.1"), Port: 20100},
+		{IP: net.ParseIP("127.0.0.1"), Port: 20101},
+	}
+	healthClients, err := getLibrarianHealthClients(librarianAddrs)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(healthClients))
+	_, in := healthClients["127.0.0.1:20100"]
+	assert.True(t, in)
+	_, in = healthClients["127.0.0.1:20101"]
+	assert.True(t, in)
 }
 
 type fixedKeychain struct {

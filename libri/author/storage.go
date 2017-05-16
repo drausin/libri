@@ -11,10 +11,19 @@ import (
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/golang/protobuf/proto"
 	"go.uber.org/zap"
+	"fmt"
 )
 
-// ErrKeychainExists indicates when a keychain file already exists.
-var ErrKeychainExists = errors.New("keychain already exists")
+var (
+	// ErrKeychainExists indicates when a keychain file already exists.
+	ErrKeychainExists = errors.New("keychain already exists")
+
+	errMissingAuthorKeychain = fmt.Errorf("missing %s, but have %s", authorKeychainFilename,
+		selfReaderKeychainFilename)
+
+	errMissingSelfReaderKeychain = fmt.Errorf("missing %s, but have %s",
+		selfReaderKeychainFilename, authorKeychainFilename)
+)
 
 // logger keys
 const (
@@ -100,7 +109,7 @@ func loadKeychains(keychainDir, auth string) (keychain.Keychain, keychain.Keycha
 	return authorKeys, selfReaderKeys, nil
 }
 
-// CreateKeychains creas the author and self reader keychains in the given keychain directory with
+// CreateKeychains creates the author and self reader keychains in the given keychain directory with
 // the given authentication passphrase and Scrypt parameters.
 func CreateKeychains(logger *zap.Logger, keychainDir, auth string, scryptN, scryptP int) error {
 	if _, err := os.Stat(keychainDir); os.IsNotExist(err) {
@@ -118,6 +127,35 @@ func CreateKeychains(logger *zap.Logger, keychainDir, auth string, scryptN, scry
 		return err
 	}
 	return nil
+}
+
+// MissingKeychains determines whether the author and self-reader keychains are missing.
+func MissingKeychains(keychainDir string) (bool, error) {
+	if _, err := os.Stat(keychainDir); os.IsNotExist(err) {
+		return true, nil
+	}
+	authorFileInfo, _ := os.Stat(path.Join(keychainDir, authorKeychainFilename))
+	selfReaderFileInfo, _ := os.Stat(path.Join(keychainDir, selfReaderKeychainFilename))
+
+	if authorFileInfo == nil && selfReaderFileInfo == nil {
+		// neither file exists
+		return true, nil
+	}
+
+	if authorFileInfo != nil && selfReaderFileInfo != nil {
+		// both files exist
+		return false, nil
+	}
+
+	if authorFileInfo == nil {
+		return true, errMissingAuthorKeychain
+	}
+
+	if selfReaderFileInfo == nil {
+		return true, errMissingSelfReaderKeychain
+	}
+
+	panic(errors.New("should never get here"))
 }
 
 func createKeychain(logger *zap.Logger, filepath, auth string, scryptN, scryptP int) error {
