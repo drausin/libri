@@ -2,9 +2,7 @@ package author
 
 import (
 	"io"
-
 	"fmt"
-
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/pack"
 	"github.com/drausin/libri/libri/author/io/page"
@@ -17,7 +15,10 @@ import (
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"go.uber.org/zap"
+	"time"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -35,6 +36,10 @@ const (
 
 	// LoggerNPages is the logger key used for the number of pages in a document.
 	LoggerNPages = "n_pages"
+)
+
+var (
+	healthcheckTimeout = 2 * time.Second
 )
 
 // Author is the main client of the libri network. It can upload, download, and share documents with
@@ -68,6 +73,9 @@ type Author struct {
 
 	// load balancer for librarian clients
 	librarians api.ClientBalancer
+
+	// librarian address -> health check client for all librarians
+	librarianHealths map[string]healthpb.HealthClient
 
 	// creates entry documents from raw content
 	entryPacker pack.EntryPacker
@@ -121,6 +129,10 @@ func NewAuthor(config *Config, keychainAuth string, logger *zap.Logger) (*Author
 	if err != nil {
 		return nil, err
 	}
+	librarianHealths, err := getLibrarianHealthClients(config.LibrarianAddrs)
+	if err != nil {
+		return nil, err
+	}
 	signer := client.NewSigner(clientID.Key())
 
 	publisher := publish.NewPublisher(clientID, signer, config.Publish)
@@ -137,23 +149,24 @@ func NewAuthor(config *Config, keychainAuth string, logger *zap.Logger) (*Author
 	entryUnpacker := pack.NewEntryUnpacker(config.Print, mdEncDec, documentSL)
 
 	author := &Author{
-		clientID:       clientID,
-		config:         config,
-		authorKeys:     authorKeys,
-		selfReaderKeys: selfReaderKeys,
-		envelopeKeys:   envelopeKeys,
-		db:             rdb,
-		clientSL:       clientSL,
-		documentSL:     documentSL,
-		librarians:     librarians,
-		entryPacker:    entryPacker,
-		entryUnpacker:  entryUnpacker,
-		shipper:        shipper,
-		receiver:       receiver,
-		pageSL:         page.NewStorerLoader(documentSL),
-		signer:         signer,
-		logger:         logger,
-		stop:           make(chan struct{}),
+		clientID:         clientID,
+		config:           config,
+		authorKeys:       authorKeys,
+		selfReaderKeys:   selfReaderKeys,
+		envelopeKeys:     envelopeKeys,
+		db:               rdb,
+		clientSL:         clientSL,
+		documentSL:       documentSL,
+		librarians:       librarians,
+		librarianHealths: librarianHealths,
+		entryPacker:      entryPacker,
+		entryUnpacker:    entryUnpacker,
+		shipper:          shipper,
+		receiver:         receiver,
+		pageSL:           page.NewStorerLoader(documentSL),
+		signer:           signer,
+		logger:           logger,
+		stop:             make(chan struct{}),
 	}
 
 	// for now, this doesn't really do anything
@@ -164,6 +177,40 @@ func NewAuthor(config *Config, keychainAuth string, logger *zap.Logger) (*Author
 
 // TODO (drausin) Author methods
 // - Share()
+
+// Healthcheck executes and reports healthcheck status for all connected librarians.
+func (a *Author) Healthcheck() (bool, map[string]healthpb.HealthCheckResponse_ServingStatus) {
+	healthStatus := make(map[string]healthpb.HealthCheckResponse_ServingStatus)
+	allHealthy := true
+	for addrStr, healthClient := range a.librarianHealths {
+		ctx, cancel := context.WithTimeout(context.Background(), healthcheckTimeout)
+		rp, err := healthClient.Check(ctx, &healthpb.HealthCheckRequest{})
+		cancel()
+		if err != nil {
+			healthStatus[addrStr] = healthpb.HealthCheckResponse_UNKNOWN
+			allHealthy = false
+			a.logger.Info("librarian peer is not reachable",
+				zap.String("peer_address", addrStr),
+			)
+			continue
+		}
+
+		healthStatus[addrStr] = rp.Status
+		if rp.Status == healthpb.HealthCheckResponse_SERVING {
+			a.logger.Info("librarian peer is healthy",
+				zap.String("peer_address", addrStr),
+			)
+			continue
+		}
+
+		allHealthy = false
+		a.logger.Warn("librarian peer is not healthy",
+			zap.String("peer_address", addrStr),
+		)
+
+	}
+	return allHealthy, healthStatus
+}
 
 // Upload compresses, encrypts, and splits the content into pages and then stores them in the
 // libri network. It returns the uploaded envelope for self-storage and its key.

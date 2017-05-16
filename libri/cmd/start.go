@@ -29,7 +29,7 @@ var startLibrarianCmd = &cobra.Command{
 	Short: "start a librarian server",
 	Long:  `TODO (drausin) add longer description and examples here`,
 	Run: func(cmd *cobra.Command, args []string) {
-		config, logger, err := getConfig()
+		config, logger, err := getLibrarianConfig()
 		if err != nil {
 			os.Exit(1)
 		}
@@ -64,15 +64,14 @@ func init() {
 
 }
 
-func getConfig() (*server.Config, *zap.Logger, error) {
-	config := server.NewDefaultConfig()
-
-	config.WithLocalAddr(server.ParseAddr(localIP, localPort))
-	config.WithPublicAddr(server.ParseAddr(publicIP, publicPort))
-	config.WithPublicName(publicName)
-	config.WithDataDir(dataDir)
-	config.WithDBDir(dbDir)
-	config.WithLogLevel(getLogLevel())
+func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
+	config := server.NewDefaultConfig().
+		WithLocalAddr(server.ParseAddr(localIP, localPort)).
+		WithPublicAddr(server.ParseAddr(publicIP, publicPort)).
+		WithPublicName(publicName).
+		WithDataDir(dataDir).
+		WithDBDir(dbDir).
+		WithLogLevel(getLogLevel())
 	logger := clogging.NewDevLogger(config.LogLevel)
 
 	bootstrapNetAddrs, err := server.ParseAddrs(bootstrapAddrs)

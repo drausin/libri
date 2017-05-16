@@ -4,6 +4,10 @@ import (
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/ecid"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc"
+	"net"
+	"log"
 )
 
 type envelopeKeySampler interface {
@@ -32,4 +36,20 @@ func (s *envelopeKeySamplerImpl) sample() ([]byte, []byte, *enc.Keys, error) {
 		return nil, nil, nil, err
 	}
 	return ecid.ToPublicKeyBytes(authorID), ecid.ToPublicKeyBytes(selfReaderID), keys, nil
+}
+
+var getLibrarianHealthClients = func(librarianAddrs []*net.TCPAddr) (
+	map[string]healthpb.HealthClient, error) {
+
+	healthClients := make(map[string]healthpb.HealthClient)
+	for _, librarianAddr := range librarianAddrs {
+		addrStr := librarianAddr.String()
+		conn, err := grpc.Dial(addrStr, grpc.WithInsecure())
+		if err != nil {
+			return nil, err
+		}
+		healthClients[addrStr] = healthpb.NewHealthClient(conn)
+	}
+	log.Printf("num health clients: %d", len(healthClients))
+	return healthClients, nil
 }

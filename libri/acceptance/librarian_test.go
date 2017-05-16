@@ -73,10 +73,13 @@ func TestLibrarianCluster(t *testing.T) {
 	client, seedConfigs, peerConfigs, seeds, peers, author :=
 		setUp(rng, nSeeds, nPeers, logLevel)
 
+	// healthcheck
+	healthy, _ := author.Healthcheck()
+	assert.True(t, healthy)
+
 	// ensure each peer can respond to an introduce request
 	nIntroductions := 16
 	testIntroduce(t, rng, client, peerConfigs, peers, nIntroductions)
-
 	// put a bunch of random data from random peers
 	nPuts := 16
 	values := testPut(t, rng, client, peerConfigs, peers, nPuts)
