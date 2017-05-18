@@ -32,6 +32,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"path/filepath"
+	"github.com/drausin/libri/libri/common/subscribe"
 )
 
 // things to add later
@@ -68,9 +69,9 @@ func TestLibrarianCluster(t *testing.T) {
 
 	rng := rand.New(rand.NewSource(0))
 	nSeeds, nPeers := 3, 32
-	logLevel := zapcore.DebugLevel // handy for debugging test failures
-	//logLevel := zapcore.InfoLevel
-	client, seedConfigs, peerConfigs, seeds, peers, author :=
+	//logLevel := zapcore.DebugLevel // handy for debugging test failures
+	logLevel := zapcore.InfoLevel
+	client, seedConfigs, peerConfigs, seeds, peers, author, logger :=
 		setUp(rng, nSeeds, nPeers, logLevel)
 
 	// healthcheck
@@ -90,7 +91,7 @@ func TestLibrarianCluster(t *testing.T) {
 	// upload a bunch of random documents
 	nDocs := 16
 	contents, envelopeKeys := testUpload(t, rng, author, nDocs)
-	checkPublications(t, nDocs, peers)
+	checkPublications(t, nDocs, peers, logger)
 
 	// down the same ones
 	testDownload(t, author, contents, envelopeKeys)
@@ -246,7 +247,14 @@ func testDownload(t *testing.T, author *lauthor.Author, contents [][]byte, envel
 	}
 }
 
-func checkPublications(t *testing.T, nDocs int, peers []*server.Librarian) {
+func checkPublications(t *testing.T, nDocs int, peers []*server.Librarian, logger *zap.Logger) {
+
+	receiveWaitTime := 5 * time.Second
+	logger.Info("waiting for librarians to receive publications",
+		zap.Float64("n_seconds", receiveWaitTime.Seconds()),
+	)
+	time.Sleep(receiveWaitTime)
+
 	// check all peers have publications for all docs
 	for i, p := range peers {
 		info := fmt.Sprintf("peer %d", i)
@@ -269,13 +277,14 @@ func setUp(rng *rand.Rand, nSeeds, nPeers int, logLevel zapcore.Level) (
 	seeds []*server.Librarian,
 	peers []*server.Librarian,
 	author *lauthor.Author,
+	logger *zap.Logger,
 ) {
 	maxBucketPeers := uint(8)
 	seedConfigs, peerConfigs, authorConfig := newConfigs(nSeeds, nPeers, maxBucketPeers,
 		logLevel)
 	authorConfig.WithLogLevel(logLevel)
 	seeds, peers = make([]*server.Librarian, nSeeds), make([]*server.Librarian, nPeers)
-	logger := clogging.NewDevLogger(logLevel)
+	logger = clogging.NewDevLogger(logLevel)
 	seedsUp := make(chan *server.Librarian, 1)
 
 	// create & start seeds
@@ -336,7 +345,7 @@ func setUp(rng *rand.Rand, nSeeds, nPeers int, logLevel zapcore.Level) (
 		panic(err)
 	}
 
-	return client, seedConfigs, peerConfigs, seeds, peers, author
+	return client, seedConfigs, peerConfigs, seeds, peers, author, logger
 }
 
 func tearDown(
@@ -349,8 +358,10 @@ func tearDown(
 	author.CloseAndRemove()
 
 	// gracefully shut down peers and seeds
-	for _, p := range peers {
-		p.Close()
+	for _, p1 := range peers {
+		go func(p2 *server.Librarian) {
+			p2.Close()
+		}(p1)
 	}
 	for _, s := range seeds {
 		s.Close()
@@ -409,6 +420,9 @@ func newConfig(
 	searchParams := search.NewDefaultParameters()
 	searchParams.NClosestResponses = 3
 
+	subscribeToParams := subscribe.NewDefaultToParameters()
+	subscribeToParams.FPRate = 0.9
+
 	localAddr := server.ParseAddr("localhost", port)
 	peerDataDir := filepath.Join(dataDir, server.NameFromAddr(localAddr))
 
@@ -421,5 +435,6 @@ func newConfig(
 		WithLogLevel(logLevel).
 		WithRouting(rtParams).
 		WithIntroduce(introParams).
-		WithSearch(searchParams)
+		WithSearch(searchParams).
+		WithSubscribeTo(subscribeToParams)
 }
