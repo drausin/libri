@@ -56,7 +56,7 @@ type Config struct {
 	// DbDir is the local directory where this node's DB state is stored.
 	DbDir string
 
-	// BootstrapAddrs
+	// BootstrapAddrs is a list of addresses for bootstrap peers.
 	BootstrapAddrs []*net.TCPAddr
 
 	// Routing defines parameters for the server's routing table.

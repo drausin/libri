@@ -75,6 +75,7 @@ func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
 
 	// add bootstrapped peers to routing table
 	for _, p := range intro.Result.Responded {
+		// TODO (drausin) don't add bootstrap peers ?
 		l.rt.Push(p)
 	}
 	l.logger.Info("bootstrapped peers",
@@ -154,6 +155,8 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 
 // Close handles cleanup involved in closing down the server.
 func (l *Librarian) Close() error {
+
+	// TODO (drausin) https://husobee.github.io/golang/ecs/2016/05/19/ecs-graceful-go-shutdown.html
 
 	// end subscriptions to other peers
 	l.subscribeTo.End()
