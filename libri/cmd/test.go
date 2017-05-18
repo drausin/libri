@@ -6,14 +6,15 @@ import (
 	"github.com/drausin/libri/libri/author"
 	"github.com/drausin/libri/libri/librarian/server"
 	clogging "github.com/drausin/libri/libri/common/logging"
-	"log"
 	"github.com/drausin/libri/libri/author/keychain"
+	"github.com/spf13/viper"
+	"fmt"
 )
 
-var (
-	librarianAddrs []string
-	createKeychain bool
-	passphase      string
+const (
+	passphraseFlag = "passphrase"
+	librariansFlag = "librarians"
+	createKeychainFlag = "createKeychain"
 )
 
 // testCmd represents the test command
@@ -26,30 +27,43 @@ var testCmd = &cobra.Command{
 func init() {
 	RootCmd.AddCommand(testCmd)
 
-	testCmd.PersistentFlags().StringVarP(&passphase, "passphrase", "p", "atestpassphrase",
+	testCmd.PersistentFlags().StringP(passphraseFlag, "p", "SamplePassphrase",
 		"keychain passphrase")
-	testCmd.PersistentFlags().StringArrayVarP(&librarianAddrs, "librarian-addrs", "a", nil,
+	testCmd.PersistentFlags().StringArrayP(librariansFlag, "a", nil,
 		"comma-separated addresses (IPv4:Port) of librarian(s)")
-	testCmd.PersistentFlags().StringVarP(&dataDir, "data-dir", "d", "",
+	testCmd.PersistentFlags().StringP(dataDirFlag, "d", "",
 		"local data directory")
-	testCmd.PersistentFlags().StringVarP(&logLevel, "log-level", "v", zap.InfoLevel.String(),
+	testCmd.PersistentFlags().StringP(logLevelFlag, "v", zap.InfoLevel.String(),
 		"log level")
-	testCmd.PersistentFlags().BoolVarP(&createKeychain, "create-keychain", "k", true,
+	testCmd.PersistentFlags().BoolP(createKeychainFlag, "k", true,
 		"create a keychain if one doesn't exist")
+
+	// bind viper flags
+	viper.SetEnvPrefix("LIBRI")   // look for env vars with "LIBRI_" prefix
+	viper.AutomaticEnv()          // read in environment variables that match
+	if err := viper.BindPFlags(testCmd.Flags()); err != nil {
+		panic(err)
+	}
 }
 
 func getAuthorConfig() (*author.Config, *zap.Logger, error) {
 	config := author.NewDefaultConfig().
-		WithDataDir(dataDir).
+		WithDataDir(viper.GetString(dataDirFlag)).
 		WithLogLevel(getLogLevel())
+
 	logger := clogging.NewDevLogger(config.LogLevel)
-	librarianNetAddrs, err := server.ParseAddrs(librarianAddrs)
+	librarianNetAddrs, err := server.ParseAddrs(viper.GetStringSlice(librariansFlag))
 	if err != nil {
 		logger.Error("unable to parse librarian address", zap.Error(err))
 		return nil, logger, err
 	}
 	config.WithLibrarianAddrs(librarianNetAddrs)
 
+	logger.Info("test configuration",
+		zap.String(librariansFlag, fmt.Sprintf("%v", config.LibrarianAddrs)),
+		zap.String(dataDirFlag, config.DataDir),
+		zap.Stringer(logLevelFlag, config.LogLevel),
+	)
 	return config, logger, nil
 }
 
@@ -72,11 +86,11 @@ func getAuthor() (*author.Author, *zap.Logger, error) {
 	if err != nil {
 		return nil, logger, err
 	}
-	log.Print("about to maybe create keychain")
-	if err = maybeCreateKeychain(logger, config.KeychainDir, passphase); err != nil {
+	passphrase := viper.GetString(passphraseFlag)
+	if err = maybeCreateKeychain(logger, config.KeychainDir, passphrase); err != nil {
 		logger.Error("encountered error when creating keychain", zap.Error(err))
 		return nil, logger, err
 	}
-	a, err := author.NewAuthor(config, passphase, logger)
+	a, err := author.NewAuthor(config, passphrase, logger)
 	return a, logger, err
 }
