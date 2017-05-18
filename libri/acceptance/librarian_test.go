@@ -32,6 +32,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"path/filepath"
+	"github.com/drausin/libri/libri/common/subscribe"
 )
 
 // things to add later
@@ -419,6 +420,9 @@ func newConfig(
 	searchParams := search.NewDefaultParameters()
 	searchParams.NClosestResponses = 3
 
+	subscribeToParams := subscribe.NewDefaultToParameters()
+	subscribeToParams.FPRate = 0.9
+
 	localAddr := server.ParseAddr("localhost", port)
 	peerDataDir := filepath.Join(dataDir, server.NameFromAddr(localAddr))
 
@@ -431,5 +435,6 @@ func newConfig(
 		WithLogLevel(logLevel).
 		WithRouting(rtParams).
 		WithIntroduce(introParams).
-		WithSearch(searchParams)
+		WithSearch(searchParams).
+		WithSubscribeTo(subscribeToParams)
 }
