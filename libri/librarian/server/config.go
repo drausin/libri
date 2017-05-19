@@ -337,19 +337,9 @@ func (c *Config) isBootstrap() bool {
 	return false
 }
 
-// ParseAddr parses a net.TCPAddr from an IP address and port.
-func ParseAddr(ip string, port int) (*net.TCPAddr, error) {
-	if ip == "localhost" {
-		return &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: port}, nil
-	}
-	resolvedIPs, err := net.LookupIP(ip)
-	if err != nil {
-		return nil, err
-	}
-	if len(resolvedIPs) == 0 {
-		return nil, fmt.Errorf("unable to look up IP for %s", ip)
-	}
-	return &net.TCPAddr{IP: resolvedIPs[0], Port: port}, nil
+// ParseAddr parses a net.TCPAddr from a host address and port.
+func ParseAddr(host string, port int) (*net.TCPAddr, error) {
+	return net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", host, port))
 }
 
 // ParseAddrs parses an array of net.TCPAddrs from an array of IPv4:Port address strings.
