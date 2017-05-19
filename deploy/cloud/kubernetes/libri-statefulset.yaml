@@ -34,7 +34,7 @@ spec:
           args: ["librarian", "start"]
           env:
             - name: LIBRI_BOOTSTRAPS
-              value: "librarians-0.libri.default.svc.cluster.local"
+              value: "librarians-0.libri.default.svc.cluster.local:20100"
             - name: LIBRI_PUBLICIP
               valueFrom:
                 fieldRef:

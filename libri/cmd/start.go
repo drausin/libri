@@ -3,25 +3,26 @@ package cmd
 import (
 	"os"
 
+	"fmt"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/librarian/server"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"github.com/spf13/viper"
-	"fmt"
+	"log"
 )
 
 const (
-	localIPFlag = "localIP"
-	localPortFlag = "localPort"
-	publicIPFlag = "publicIP"
+	localIPFlag    = "localIP"
+	localPortFlag  = "localPort"
+	publicIPFlag   = "publicIP"
 	publicPortFlag = "publicPort"
 	publicNameFlag = "publicName"
-	dataDirFlag = "dataDir"
-	dbDirFlag = "dbDir"
+	dataDirFlag    = "dataDir"
+	dbDirFlag      = "dbDir"
 	bootstrapsFlag = "bootstraps"
-	logLevelFlag = "logLevel"
+	logLevelFlag   = "logLevel"
 )
 
 // startLibrarianCmd represents the librarian start command
@@ -64,27 +65,33 @@ func init() {
 		"log level")
 
 	// bind viper flags
-	viper.SetEnvPrefix("LIBRI")   // look for env vars with "LIBRI_" prefix
-	viper.AutomaticEnv()          // read in environment variables that match
+	viper.SetEnvPrefix("LIBRI") // look for env vars with "LIBRI_" prefix
+	viper.AutomaticEnv()        // read in environment variables that match
 	if err := viper.BindPFlags(startLibrarianCmd.Flags()); err != nil {
 		panic(err)
 	}
 }
 
 func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
+	localAddr, err := server.ParseAddr(
+		viper.GetString(localIPFlag),
+		viper.GetInt(localPortFlag),
+	)
+	if err != nil {
+		log.Printf("fatal error parsing local address: %v", err)
+		return nil, nil, err
+	}
+	publicAddr, err := server.ParseAddr(
+		viper.GetString(publicIPFlag),
+		viper.GetInt(publicPortFlag),
+	)
+	if err != nil {
+		log.Printf("fatal error parsing public address: %v", err)
+		return nil, nil, err
+	}
 	config := server.NewDefaultConfig().
-		WithLocalAddr(
-			server.ParseAddr(
-				viper.GetString(localIPFlag),
-				viper.GetInt(localPortFlag),
-			),
-		).
-		WithPublicAddr(
-			server.ParseAddr(
-				viper.GetString(publicIPFlag),
-				viper.GetInt(publicPortFlag),
-			),
-		).
+		WithLocalAddr(localAddr).
+		WithPublicAddr(publicAddr).
 		WithPublicName(viper.GetString(publicNameFlag)).
 		WithDataDir(viper.GetString(dataDirFlag)).
 		WithDBDir(viper.GetString(dbDirFlag)).

@@ -116,7 +116,12 @@ func (c *Config) WithLocalAddr(localAddr *net.TCPAddr) *Config {
 
 // WithDefaultLocalAddr sets the local address to the default value.
 func (c *Config) WithDefaultLocalAddr() *Config {
-	c.LocalAddr = ParseAddr(DefaultIP, DefaultPort)
+	addr, err := ParseAddr(DefaultIP, DefaultPort)
+	if err != nil {
+		// should never happen with default
+		panic(err)
+	}
+	c.LocalAddr = addr
 	return c
 }
 
@@ -202,7 +207,12 @@ func (c *Config) WithBootstrapAddrs(bootstrapAddrs []*net.TCPAddr) *Config {
 // and port.
 func (c *Config) WithDefaultBootstrapAddrs() *Config {
 	// default is itself
-	c.BootstrapAddrs = []*net.TCPAddr{ParseAddr(DefaultIP, DefaultPort)}
+	addr, err := ParseAddr(DefaultIP, DefaultPort)
+	if err != nil {
+		// should never happen with default
+		panic(err)
+	}
+	c.BootstrapAddrs = []*net.TCPAddr{addr}
 	return c
 }
 
@@ -328,8 +338,18 @@ func (c *Config) isBootstrap() bool {
 }
 
 // ParseAddr parses a net.TCPAddr from an IP address and port.
-func ParseAddr(ip string, port int) *net.TCPAddr {
-	return &net.TCPAddr{IP: parseIP(ip), Port: port}
+func ParseAddr(ip string, port int) (*net.TCPAddr, error) {
+	if ip == "localhost" {
+		return &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: port}, nil
+	}
+	resolvedIPs, err := net.LookupIP(ip)
+	if err != nil {
+		return nil, err
+	}
+	if len(resolvedIPs) == 0 {
+		return nil, fmt.Errorf("unable to look up IP for %s", ip)
+	}
+	return &net.TCPAddr{IP: resolvedIPs[0], Port: port}, nil
 }
 
 // ParseAddrs parses an array of net.TCPAddrs from an array of IPv4:Port address strings.
@@ -344,7 +364,10 @@ func ParseAddrs(addrs []string) ([]*net.TCPAddr, error) {
 		if err != nil {
 			return nil, err
 		}
-		netAddrs[i] = ParseAddr(parts[0], port)
+		netAddrs[i], err = ParseAddr(parts[0], port)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return netAddrs, nil
 }
