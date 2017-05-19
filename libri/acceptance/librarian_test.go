@@ -434,7 +434,11 @@ func newConfig(
 	subscribeToParams := subscribe.NewDefaultToParameters()
 	subscribeToParams.FPRate = 0.9
 
-	localAddr := server.ParseAddr("localhost", port)
+	localAddr, err := server.ParseAddr("localhost", port)
+	if err != nil {
+		// should never happen
+		panic(err)
+	}
 	peerDataDir := filepath.Join(dataDir, server.NameFromAddr(localAddr))
 
 	return server.NewDefaultConfig().
