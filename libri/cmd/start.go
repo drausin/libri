@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"log"
+	"net"
 )
 
 const (
@@ -98,6 +99,8 @@ func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
 		WithLogLevel(getLogLevel())
 
 	logger := clogging.NewDevLogger(config.LogLevel)
+	addr, err := net.ResolveTCPAddr("tcp4", viper.GetStringSlice(bootstrapsFlag)[0])
+	log.Printf("addr: %v, err: %v", addr, err)
 	bootstrapNetAddrs, err := server.ParseAddrs(viper.GetStringSlice(bootstrapsFlag))
 	if err != nil {
 		logger.Error("unable to parse bootstrap peer address", zap.Error(err))

@@ -31,20 +31,23 @@ spec:
     spec:
       containers:
       - name: libriarian
-        image: daedalus2718/libri:latest  # develop branch
-        args: ["librarian", "start"]
-        env:
-        - name: LIBRI_BOOTSTRAPS
-          value: "librarian-0.libri.default.svc.cluster.local:20100"
-        - name: LIBRI_PUBLICIP
-          valueFrom:
-            fieldRef:
-              fieldPath: status.podIP
-        - name: LIBRI_DATADIR
-          value: "/librarian-data"
-        ports:
-        - containerPort: 20100
-          name: grpc
+        image: daedalus2718/resolver:latest
+        args: ["librarian-0.libri.default.svc.cluster.local:20100"]
+#        imagePullPolicy: Always
+#        image: daedalus2718/libri:latest  # develop branch
+#        args: ["librarian", "start"]
+#        env:
+#        - name: LIBRI_BOOTSTRAPS
+#          value: "librarian-0.libri.default.svc.cluster.local:20100"
+#        - name: LIBRI_PUBLICIP
+#          valueFrom:
+#            fieldRef:
+#              fieldPath: status.podIP
+#        - name: LIBRI_DATADIR
+#          value: "/librarian-data"
+#        ports:
+#        - containerPort: 20100
+#          name: grpc
 #        volumeMounts:
 #        - name: librarian-data
 #          mountPath: /librarian-data
