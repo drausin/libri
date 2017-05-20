@@ -60,7 +60,7 @@ func init() {
 		"local data directory")
 	startLibrarianCmd.Flags().String(dbDirFlag, "",
 		"local DB directory")
-	startLibrarianCmd.Flags().StringArrayP(bootstrapsFlag, "b", nil,
+	startLibrarianCmd.Flags().StringSliceP(bootstrapsFlag, "b", nil,
 		"comma-separated addresses (IPv4:Port) of bootstrap peers")
 	startLibrarianCmd.Flags().StringP(logLevelFlag, "l", zap.InfoLevel.String(),
 		"log level")
@@ -99,7 +99,9 @@ func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
 		WithLogLevel(getLogLevel())
 
 	logger := clogging.NewDevLogger(config.LogLevel)
-	addr, err := net.ResolveTCPAddr("tcp4", viper.GetStringSlice(bootstrapsFlag)[0])
+	bsStr := viper.GetStringSlice(bootstrapsFlag)[0]
+	log.Printf("bsStr: %s", bsStr)
+	addr, err := net.ResolveTCPAddr("tcp4", bsStr)
 	log.Printf("addr: %v, err: %v", addr, err)
 	bootstrapNetAddrs, err := server.ParseAddrs(viper.GetStringSlice(bootstrapsFlag))
 	if err != nil {
