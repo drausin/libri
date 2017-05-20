@@ -6,11 +6,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
-
-	"errors"
-
 	"github.com/drausin/libri/libri/common/subscribe"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/routing"
@@ -346,15 +341,8 @@ func ParseAddr(host string, port int) (*net.TCPAddr, error) {
 func ParseAddrs(addrs []string) ([]*net.TCPAddr, error) {
 	netAddrs := make([]*net.TCPAddr, len(addrs))
 	for i, a := range addrs {
-		parts := strings.SplitN(a, ":", 2)
-		if len(parts) != 2 {
-			return nil, errors.New("address not delimited by ':'")
-		}
-		port, err := strconv.Atoi(parts[1])
-		if err != nil {
-			return nil, err
-		}
-		netAddrs[i], err = ParseAddr(parts[0], port)
+		netAddr, err := net.ResolveTCPAddr("tcp4", a)
+		netAddrs[i] = netAddr
 		if err != nil {
 			return nil, err
 		}
