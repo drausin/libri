@@ -29,7 +29,7 @@ func init() {
 
 	testCmd.PersistentFlags().StringP(passphraseFlag, "p", "SamplePassphrase",
 		"keychain passphrase")
-	testCmd.PersistentFlags().StringArrayP(librariansFlag, "a", nil,
+	testCmd.PersistentFlags().StringSliceP(librariansFlag, "a", nil,
 		"comma-separated addresses (IPv4:Port) of librarian(s)")
 	testCmd.PersistentFlags().StringP(dataDirFlag, "d", "",
 		"local data directory")
@@ -41,7 +41,7 @@ func init() {
 	// bind viper flags
 	viper.SetEnvPrefix("LIBRI")   // look for env vars with "LIBRI_" prefix
 	viper.AutomaticEnv()          // read in environment variables that match
-	if err := viper.BindPFlags(testCmd.Flags()); err != nil {
+	if err := viper.BindPFlags(testCmd.PersistentFlags()); err != nil {
 		panic(err)
 	}
 }
@@ -77,8 +77,8 @@ func maybeCreateKeychain(logger *zap.Logger, keychainDir string, keychainAuth st
 	}
 
 	logger.Info("creating new keychains")
-	return author.CreateKeychains(logger, keychainDir, keychainAuth, keychain.StandardScryptN,
-		keychain.StandardScryptP)
+	return author.CreateKeychains(logger, keychainDir, keychainAuth, keychain.LightScryptN,
+		keychain.LightScryptP)
 }
 
 func getAuthor() (*author.Author, *zap.Logger, error) {

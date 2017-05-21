@@ -15,9 +15,9 @@ import (
 )
 
 const (
-	localIPFlag    = "localIP"
+	localHostFlag  = "localHost"
 	localPortFlag  = "localPort"
-	publicIPFlag   = "publicIP"
+	publicHostFlag = "publicHost"
 	publicPortFlag = "publicPort"
 	publicNameFlag = "publicName"
 	dataDirFlag    = "dataDir"
@@ -46,12 +46,12 @@ var startLibrarianCmd = &cobra.Command{
 func init() {
 	librarianCmd.AddCommand(startLibrarianCmd)
 
-	startLibrarianCmd.Flags().String(localIPFlag, server.DefaultIP,
-		"local IPv4 address")
+	startLibrarianCmd.Flags().String(localHostFlag, server.DefaultIP,
+		"local host (IPv4 or URL)")
 	startLibrarianCmd.Flags().Int(localPortFlag, server.DefaultPort,
 		"local port")
-	startLibrarianCmd.Flags().StringP(publicIPFlag, "i", server.DefaultIP,
-		"public IPv4 address")
+	startLibrarianCmd.Flags().StringP(publicHostFlag, "i", server.DefaultIP,
+		"public host (IPv4 or URL)")
 	startLibrarianCmd.Flags().IntP(publicPortFlag, "p", server.DefaultPort,
 		"public port")
 	startLibrarianCmd.Flags().StringP(publicNameFlag, "n", "",
@@ -75,7 +75,7 @@ func init() {
 
 func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
 	localAddr, err := server.ParseAddr(
-		viper.GetString(localIPFlag),
+		viper.GetString(localHostFlag),
 		viper.GetInt(localPortFlag),
 	)
 	if err != nil {
@@ -83,7 +83,7 @@ func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
 		return nil, nil, err
 	}
 	publicAddr, err := server.ParseAddr(
-		viper.GetString(publicIPFlag),
+		viper.GetString(publicHostFlag),
 		viper.GetInt(publicPortFlag),
 	)
 	if err != nil {
