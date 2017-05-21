@@ -11,18 +11,19 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"log"
+	"github.com/drausin/libri/libri/common/subscribe"
 )
 
 const (
+	bootstrapsFlag = "bootstraps"
+	dataDirFlag    = "dataDir"
 	localHostFlag  = "localHost"
 	localPortFlag  = "localPort"
-	publicHostFlag = "publicHost"
-	publicPortFlag = "publicPort"
-	publicNameFlag = "publicName"
-	dataDirFlag    = "dataDir"
-	dbDirFlag      = "dbDir"
-	bootstrapsFlag = "bootstraps"
 	logLevelFlag   = "logLevel"
+	publicHostFlag = "publicHost"
+	publicNameFlag = "publicName"
+	publicPortFlag = "publicPort"
+	nSubscriptionsFlag = "nSubscriptions"
 )
 
 // startLibrarianCmd represents the librarian start command
@@ -53,16 +54,16 @@ func init() {
 		"public host (IPv4 or URL)")
 	startLibrarianCmd.Flags().IntP(publicPortFlag, "p", server.DefaultPort,
 		"public port")
+	startLibrarianCmd.Flags().StringSliceP(bootstrapsFlag, "b", nil,
+		"comma-separated addresses (IPv4:Port) of bootstrap peers")
 	startLibrarianCmd.Flags().StringP(publicNameFlag, "n", "",
 		"public peer name")
 	startLibrarianCmd.Flags().StringP(dataDirFlag, "d", "",
 		"local data directory")
-	startLibrarianCmd.Flags().String(dbDirFlag, "",
-		"local DB directory")
-	startLibrarianCmd.Flags().StringSliceP(bootstrapsFlag, "b", nil,
-		"comma-separated addresses (IPv4:Port) of bootstrap peers")
 	startLibrarianCmd.Flags().StringP(logLevelFlag, "l", zap.InfoLevel.String(),
 		"log level")
+	startLibrarianCmd.Flags().IntP(nSubscriptionsFlag, "s", subscribe.DefaultNSubscriptionsTo,
+		"number of active subscriptions to other peers to maintain")
 
 	// bind viper flags
 	viper.SetEnvPrefix("LIBRI") // look for env vars with "LIBRI_" prefix
@@ -94,8 +95,8 @@ func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
 		WithPublicAddr(publicAddr).
 		WithPublicName(viper.GetString(publicNameFlag)).
 		WithDataDir(viper.GetString(dataDirFlag)).
-		WithDBDir(viper.GetString(dbDirFlag)).
 		WithLogLevel(getLogLevel())
+	config.SubscribeTo.NSubscriptions = uint32(viper.GetInt(nSubscriptionsFlag))
 
 	logger := clogging.NewDevLogger(config.LogLevel)
 	bootstrapNetAddrs, err := server.ParseAddrs(viper.GetStringSlice(bootstrapsFlag))
@@ -112,8 +113,8 @@ func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
 		zap.String(bootstrapsFlag, fmt.Sprintf("%v", config.BootstrapAddrs)),
 		zap.String(publicNameFlag, config.PublicName),
 		zap.String(dataDirFlag, config.DataDir),
-		zap.String(dbDirFlag, config.DbDir),
 		zap.Stringer(logLevelFlag, config.LogLevel),
+		zap.Uint32(nSubscriptionsFlag, config.SubscribeTo.NSubscriptions),
 	)
 	return config, logger, nil
 }

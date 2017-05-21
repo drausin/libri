@@ -7,23 +7,23 @@
 apiVersion: v1
 kind: Service
 metadata:
+  labels:
+    app: libri
   name: libri
 spec:
+  clusterIP: None
   ports:
   - port: 20100
-    targetPort: 20100
-    name: grpc
-  clusterIP: None
   selector:
     app: libri
 ---
 apiVersion: apps/v1beta1
 kind: StatefulSet
 metadata:
-  name: librarian
+  name: librarians
 spec:
   serviceName: libri
-  replicas: 3
+  replicas: 2
   template:
     metadata:
       labels:
@@ -31,23 +31,26 @@ spec:
     spec:
       containers:
       - name: libriarian
-        image: daedalus2718/resolver:latest
-        args: ["librarian-0.libri.default.svc.cluster.local:20100"]
-#        imagePullPolicy: Always
-#        image: daedalus2718/libri:latest  # develop branch
-#        args: ["librarian", "start"]
-#        env:
-#        - name: LIBRI_BOOTSTRAPS
-#          value: "librarian-0.libri.default.svc.cluster.local:20100"
-#        - name: LIBRI_PUBLICIP
-#          valueFrom:
-#            fieldRef:
-#              fieldPath: status.podIP
+        image: daedalus2718/libri:latest  # develop branch
+        args: ["librarian", "start"]
+        env:
+        - name: GODEBUG         # ensure we use the pure Go (rather than CGO) DNS
+          value: netdns=go      # resolver (see https://golang.org/src/net/net.go)
+        - name: LIBRI_BOOTSTRAPS
+          value: "librarians-0.libri.default.svc.cluster.local:20100"
+        - name: LIBRI_LOCALHOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: LIBRI_PUBLICHOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
 #        - name: LIBRI_DATADIR
 #          value: "/librarian-data"
-#        ports:
-#        - containerPort: 20100
-#          name: grpc
+        ports:
+        - containerPort: 20100
+          name: grpc
 #        volumeMounts:
 #        - name: librarian-data
 #          mountPath: /librarian-data
