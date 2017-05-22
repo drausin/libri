@@ -349,7 +349,7 @@ func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutRespon
 		return nil, errors.New("store for key exhausted")
 	}
 
-	return nil, errors.New("unexpected store result")
+	return nil, fmt.Errorf("unexpected store result: %v", s.Result)
 }
 
 func debugLogSearchResult(message string, s *search.Search, logger *zap.Logger) {
