@@ -50,7 +50,7 @@ type Librarian struct {
 	// manages subscriptions to other peers
 	subscribeTo subscribe.To
 
-	// LRU cache of recent publications librarian has received
+	// RecentPubs is an LRU cache of recent publications librarian has received
 	RecentPubs subscribe.RecentPublications
 
 	// verifies requests from peers

@@ -9,15 +9,16 @@ import (
 	"github.com/drausin/libri/libri/author/io/common"
 	"math/rand"
 	"fmt"
-)
-
-var (
-	nEntries int
+	"github.com/spf13/viper"
 )
 
 const (
 	maxContentSize = 12 * 1024	// bytes
 	minContentSize = 32		// bytes
+)
+
+const (
+	nEntriesFlag = "nEntries"
 )
 
 // ioCmd represents the io command
@@ -31,7 +32,7 @@ var ioCmd = &cobra.Command{
 			logger.Error("fatal error while initializing author", zap.Error(err))
 			os.Exit(1)
 		}
-		if err := testIO(author); err != nil {
+		if err := testIO(author, logger); err != nil {
 			os.Exit(1)
 		}
 	},
@@ -40,12 +41,19 @@ var ioCmd = &cobra.Command{
 func init() {
 	testCmd.AddCommand(ioCmd)
 
-	ioCmd.Flags().IntVarP(&nEntries, "n-entries", "n", 8, "number of entries")
+	ioCmd.Flags().IntP(nEntriesFlag, "n", 8, "number of entries")
+
+	// bind viper flags
+	viper.SetEnvPrefix("LIBRI") // look for env vars with "LIBRI_" prefix
+	viper.AutomaticEnv()        // read in environment variables that match
+	if err := viper.BindPFlags(ioCmd.Flags()); err != nil {
+		panic(err)
+	}
 }
 
-func testIO(author *author.Author) error {
+func testIO(author *author.Author, logger *zap.Logger) error {
 	rng := rand.New(rand.NewSource(0))
-	for i := 0; i < nEntries; i++ {
+	for i := 0; i < viper.GetInt(nEntriesFlag); i++ {
 		nContentBytes := minContentSize +
 			int(rng.Int31n(int32(maxContentSize-minContentSize)))
 		contents := common.NewCompressableBytes(rng, nContentBytes).Bytes()
@@ -70,6 +78,10 @@ func testIO(author *author.Author) error {
 				len(contents), len(downloaded),
 			)
 		}
+		logger.Info("successfully uploaded & downloaded entry",
+			zap.Int("n_bytes", nContentBytes),
+			zap.Stringer("envelope_key", envelopeKey),
+		)
 	}
 
 	return nil

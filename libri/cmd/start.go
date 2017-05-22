@@ -5,24 +5,21 @@ import (
 
 	"fmt"
 	clogging "github.com/drausin/libri/libri/common/logging"
+	"github.com/drausin/libri/libri/common/subscribe"
 	"github.com/drausin/libri/libri/librarian/server"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	"log"
-	"github.com/drausin/libri/libri/common/subscribe"
 )
 
 const (
-	bootstrapsFlag = "bootstraps"
-	dataDirFlag    = "dataDir"
-	localHostFlag  = "localHost"
-	localPortFlag  = "localPort"
-	logLevelFlag   = "logLevel"
-	publicHostFlag = "publicHost"
-	publicNameFlag = "publicName"
-	publicPortFlag = "publicPort"
+	bootstrapsFlag     = "bootstraps"
+	localHostFlag      = "localHost"
+	localPortFlag      = "localPort"
+	publicHostFlag     = "publicHost"
+	publicNameFlag     = "publicName"
+	publicPortFlag     = "publicPort"
 	nSubscriptionsFlag = "nSubscriptions"
 )
 
@@ -58,10 +55,6 @@ func init() {
 		"comma-separated addresses (IPv4:Port) of bootstrap peers")
 	startLibrarianCmd.Flags().StringP(publicNameFlag, "n", "",
 		"public peer name")
-	startLibrarianCmd.Flags().StringP(dataDirFlag, "d", "",
-		"local data directory")
-	startLibrarianCmd.Flags().StringP(logLevelFlag, "l", zap.InfoLevel.String(),
-		"log level")
 	startLibrarianCmd.Flags().IntP(nSubscriptionsFlag, "s", subscribe.DefaultNSubscriptionsTo,
 		"number of active subscriptions to other peers to maintain")
 
@@ -117,13 +110,4 @@ func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
 		zap.Uint32(nSubscriptionsFlag, config.SubscribeTo.NSubscriptions),
 	)
 	return config, logger, nil
-}
-
-func getLogLevel() zapcore.Level {
-	var ll zapcore.Level
-	err := ll.Set(viper.GetString(logLevelFlag))
-	if err != nil {
-		panic(err)
-	}
-	return ll
 }

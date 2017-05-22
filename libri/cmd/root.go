@@ -3,11 +3,16 @@ package cmd
 import (
 	"fmt"
 	"os"
-
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"github.com/spf13/viper"
 )
 
-var cfgFile string
+const (
+	dataDirFlag    = "dataDir"
+	logLevelFlag   = "logLevel"
+)
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
@@ -25,12 +30,24 @@ func Execute() {
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
+	RootCmd.PersistentFlags().StringP(dataDirFlag, "d", "",
+		"local data directory")
+	RootCmd.PersistentFlags().StringP(logLevelFlag, "l", zap.InfoLevel.String(),
+		"log level")
 
-	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "",
-		"config file (default is $HOME/.libri.yml)")
+	// bind viper flags
+	viper.SetEnvPrefix("LIBRI") // look for env vars with "LIBRI_" prefix
+	viper.AutomaticEnv()        // read in environment variables that match
+	if err := viper.BindPFlags(RootCmd.PersistentFlags()); err != nil {
+		panic(err)
+	}
 }
 
-// initConfig reads in config file and ENV variables if set.
-func initConfig() {
+func getLogLevel() zapcore.Level {
+	var ll zapcore.Level
+	err := ll.Set(viper.GetString(logLevelFlag))
+	if err != nil {
+		panic(err)
+	}
+	return ll
 }
