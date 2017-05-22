@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"container/heap"
 	"sync"
-
 	"errors"
-
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 )
+
+// ErrTooManyFindErrors indicates when a search has encountered too many Find request errors.
+var ErrTooManyFindErrors = errors.New("too many Find errors")
 
 // Searcher executes searches for particular keys.
 type Searcher interface {
@@ -80,6 +81,9 @@ func (s *searcher) searchWork(search *Search, wg *sync.WaitGroup) {
 			search.mu.Lock()
 			search.Result.NErrors++
 			next.Recorder().Record(peer.Response, peer.Error)
+			if search.Result.NErrors > search.Params.NMaxErrors {
+				search.Result.FatalErr = ErrTooManyFindErrors
+			}
 			search.mu.Unlock()
 			continue
 		}

@@ -280,12 +280,13 @@ func TestResponseProcessor_Process_Addresses(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 
 	// create placeholder api.PeerAddresses for our mocked api.FindPeers response
-	nAddresses1 := 8
+	nAddresses1 := 6
 	peerAddresses1 := newPeerAddresses(rng, nAddresses1)
 
 	key := cid.NewPseudoRandom(rng)
 	rp := NewResponseProcessor(peer.NewFromer())
-	result := NewInitialResult(key, NewDefaultParameters())
+	params := NewDefaultParameters()
+	result := NewInitialResult(key, params)
 
 	// create response or nAddresses and process it
 	response1 := &api.FindResponse{

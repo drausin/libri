@@ -9,9 +9,14 @@ import (
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
+	"github.com/drausin/libri/libri/common/id"
 )
 
+// TODO (drausin) const?
 var (
+	// DefaultNReplicas is the numeber of
+	DefaultNReplicas = uint(3)
+
 	// DefaultNMaxErrors is the maximum number of errors tolerated during a search.
 	DefaultNMaxErrors = uint(3)
 
@@ -24,6 +29,9 @@ var (
 
 // Parameters defines the parameters of the store.
 type Parameters struct {
+	// NReplicas is the number of replicas to store
+	NReplicas uint
+
 	// maximum number of errors tolerated when querying peers during the store
 	NMaxErrors uint
 
@@ -37,6 +45,7 @@ type Parameters struct {
 // NewDefaultParameters creates an instance with default parameters.
 func NewDefaultParameters() *Parameters {
 	return &Parameters{
+		NReplicas:   DefaultNReplicas,
 		NMaxErrors:  DefaultNMaxErrors,
 		Concurrency: DefaultConcurrency,
 		Timeout:     DefaultQueryTimeout,
@@ -93,18 +102,26 @@ type Store struct {
 
 // NewStore creates a new Store instance for a given target, search type, and search parameters.
 func NewStore(
-	peerID ecid.ID, search *search.Search, value *api.Document, params *Parameters,
+	peerID ecid.ID,
+	key id.ID,
+	value *api.Document,
+	searchParams *search.Parameters,
+	storeParams *Parameters,
 ) *Store {
+	// if store has NMaxErrors, we still want to be able to store NReplicas with remainder of
+	// closest peers found during search
+	updatedSearchParams := *searchParams  // by value to avoid change original search params
+	updatedSearchParams.NClosestResponses = storeParams.NReplicas + storeParams.NMaxErrors
 	return &Store{
-		Request: client.NewStoreRequest(peerID, search.Key, value),
-		Search:  search,
-		Params:  params,
+		Request: client.NewStoreRequest(peerID, key, value),
+		Search:  search.NewSearch(peerID, key, &updatedSearchParams),
+		Params:  storeParams,
 	}
 }
 
 // Stored returns whether the store has stored sufficient replicas.
 func (s *Store) Stored() bool {
-	return uint(len(s.Result.Responded))+s.Result.NErrors == s.Search.Params.NClosestResponses
+	return uint(len(s.Result.Responded)) >= s.Params.NReplicas
 }
 
 // Exists returns whether the value already exists (and the search has found it).
@@ -126,7 +143,7 @@ func (s *Store) Exhausted() bool {
 func (s *Store) Finished() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.Stored() || s.Errored() || s.Exists()
+	return s.Stored() || s.Errored() || s.Exists() || s.Exhausted()
 }
 
 func (s *Store) moreUnqueried() bool {

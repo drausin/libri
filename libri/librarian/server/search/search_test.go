@@ -28,7 +28,7 @@ func TestSearch_FoundClosestPeers(t *testing.T) {
 	target, selfID := cid.FromInt64(0), ecid.NewPseudoRandom(rng)
 	nClosestResponses := uint(4)
 
-	search := NewSearch(selfID, target, &Parameters{
+	search := NewSearch(selfID, target, Parameters{
 		NClosestResponses: nClosestResponses,
 	})
 
@@ -64,7 +64,7 @@ func TestSearch_FoundClosestPeers(t *testing.T) {
 
 func TestSearch_FoundValue(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	search := NewSearch(ecid.NewPseudoRandom(rng), cid.FromInt64(0), NewDefaultParameters())
+	search := NewSearch(ecid.NewPseudoRandom(rng), cid.FromInt64(0), *NewDefaultParameters())
 
 	// hasn't been found yet because result.value is still nil
 	assert.False(t, search.FoundValue())
@@ -79,17 +79,17 @@ func TestSearch_Errored(t *testing.T) {
 	target, selfID := cid.FromInt64(0), ecid.NewPseudoRandom(rng)
 
 	// no-error state
-	search1 := NewSearch(selfID, target, NewDefaultParameters())
+	search1 := NewSearch(selfID, target, *NewDefaultParameters())
 	search1.Result.NErrors, search1.Result.FatalErr = 0, nil
 	assert.False(t, search1.Errored())
 
 	// errored state b/c of too many errors
-	search2 := NewSearch(selfID, target, NewDefaultParameters())
+	search2 := NewSearch(selfID, target, *NewDefaultParameters())
 	search2.Result.NErrors = search2.Params.NMaxErrors
 	assert.True(t, search2.Errored())
 
 	// errored state b/c of a fatal error
-	search3 := NewSearch(selfID, target, NewDefaultParameters())
+	search3 := NewSearch(selfID, target, *NewDefaultParameters())
 	search3.Result.FatalErr = errors.New("test fatal error")
 	assert.True(t, search3.Errored())
 }
@@ -99,13 +99,13 @@ func TestSearch_Exhausted(t *testing.T) {
 	target, selfID := cid.FromInt64(0), ecid.NewPseudoRandom(rng)
 
 	// not exhausted b/c it has unqueried peers
-	search1 := NewSearch(selfID, target, NewDefaultParameters())
+	search1 := NewSearch(selfID, target, *NewDefaultParameters())
 	err := search1.Result.Unqueried.SafePush(peer.New(cid.FromInt64(1), "", nil))
 	assert.Nil(t, err)
 	assert.False(t, search1.Exhausted())
 
 	// exhausted b/c it doesn't have unqueried peers
-	search2 := NewSearch(selfID, target, NewDefaultParameters())
+	search2 := NewSearch(selfID, target, *NewDefaultParameters())
 	err = search2.Result.Unqueried.SafePush(peer.New(cid.FromInt64(1), "", nil))
 	assert.Nil(t, err)
 	assert.False(t, search1.Exhausted())

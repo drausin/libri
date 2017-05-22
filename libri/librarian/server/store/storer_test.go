@@ -50,7 +50,7 @@ func NewTestStorer(peerID ecid.ID, peersMap map[string]peer.Peer) Storer {
 }
 
 func TestStorer_Store_ok(t *testing.T) {
-	n, nClosestResponses := 32, uint(8)
+	n, nReplicas := 32, uint(3)
 	rng := rand.New(rand.NewSource(int64(n)))
 	peers, peersMap, selfPeerIdxs, selfID := ssearch.NewTestPeers(rng, n)
 
@@ -60,16 +60,17 @@ func TestStorer_Store_ok(t *testing.T) {
 
 	for concurrency := uint(1); concurrency <= 3; concurrency++ {
 
-		search := ssearch.NewSearch(selfID, key, &ssearch.Parameters{
-			NClosestResponses: nClosestResponses,
+		searchParams := &ssearch.Parameters{
 			NMaxErrors:        DefaultNMaxErrors,
 			Concurrency:       concurrency,
 			Timeout:           DefaultQueryTimeout,
-		})
-		store := NewStore(selfID, search, value, &Parameters{
+		}
+		storeParams := &Parameters{
+			NReplicas: nReplicas,
 			NMaxErrors:  DefaultNMaxErrors,
 			Concurrency: concurrency,
-		})
+		}
+		store := NewStore(selfID, key, value, searchParams, storeParams)
 
 		// init the seeds of our search: usually this comes from the routing.Table.Peak()
 		// method, but we'll just allocate directly
@@ -87,8 +88,8 @@ func TestStorer_Store_ok(t *testing.T) {
 		assert.True(t, store.Stored())
 		assert.False(t, store.Errored())
 
-		assert.Equal(t, nClosestResponses, uint(len(store.Result.Responded)))
-		assert.Equal(t, 0, len(store.Result.Unqueried))
+		assert.True(t, uint(len(store.Result.Responded)) >= nReplicas)
+		assert.True(t, uint(len(store.Result.Unqueried)) <= storeParams.NMaxErrors)
 		assert.Equal(t, uint(0), store.Result.NErrors)
 		assert.Nil(t, store.Result.FatalErr)
 	}
@@ -126,6 +127,7 @@ func TestStorer_Store_connectorErr(t *testing.T) {
 	assert.True(t, store.Exhausted()) // since we can't connect to any of the peers
 	assert.False(t, store.Stored())
 	assert.False(t, store.Errored())
+	assert.True(t, store.Finished())
 
 	assert.Equal(t, 0, len(store.Result.Responded))
 	assert.Equal(t, 0, len(store.Result.Unqueried))
@@ -157,7 +159,7 @@ func TestStorer_Store_queryErr(t *testing.T) {
 }
 
 func newTestStore() (Storer, *Store, []int, []peer.Peer, cid.ID) {
-	n, nClosestResponses := 32, uint(8)
+	n := 32
 	rng := rand.New(rand.NewSource(int64(n)))
 	peers, peersMap, selfPeerIdxs, selfID := ssearch.NewTestPeers(rng, n)
 
@@ -166,16 +168,17 @@ func newTestStore() (Storer, *Store, []int, []peer.Peer, cid.ID) {
 	storerImpl := NewTestStorer(selfID, peersMap)
 
 	concurrency := uint(1)
-	search := ssearch.NewSearch(selfID, key, &ssearch.Parameters{
-		NClosestResponses: nClosestResponses,
-		NMaxErrors:        DefaultNMaxErrors,
+	searchParams := &ssearch.Parameters{
+		NMaxErrors:        ssearch.DefaultNMaxErrors,
 		Concurrency:       concurrency,
 		Timeout:           DefaultQueryTimeout,
-	})
-	store := NewStore(selfID, search, value, &Parameters{
+	}
+	storeParams := &Parameters{
+		NReplicas: DefaultNReplicas,
 		NMaxErrors:  DefaultNMaxErrors,
 		Concurrency: concurrency,
-	})
+	}
+	store := NewStore(selfID, key, value, searchParams, storeParams)
 
 	return storerImpl, store, selfPeerIdxs, peers, key
 }
@@ -227,10 +230,8 @@ func TestStorer_query_err(t *testing.T) {
 	clientConn := api.NewConnector(nil) // won't actually be used since we're mocking the finder
 	value, key := api.NewTestDocument(rng)
 	selfID := ecid.NewPseudoRandom(rng)
-	search := ssearch.NewSearch(selfID, key, &ssearch.Parameters{
-		Timeout: DefaultQueryTimeout,
-	})
-	store := NewStore(selfID, search, value, &Parameters{})
+	searchParams := &ssearch.Parameters{Timeout: DefaultQueryTimeout}
+	store := NewStore(selfID, key, value, searchParams, &Parameters{})
 
 	s1 := &storer{
 		signer: &client.TestNoOpSigner{},
