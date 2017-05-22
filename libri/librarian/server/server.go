@@ -236,9 +236,9 @@ func (l *Librarian) Store(ctx context.Context, rq *api.StoreRequest) (
 	}
 
 	l.logger.Debug("stored",
-		zap.String("self_id", l.selfID.String()),
 		zap.String("key", fmt.Sprintf("032%x", rq.Key)),
 		zap.String("request_id", fmt.Sprintf("032%x", rq.Metadata.RequestId)),
+		zap.String("self_id", l.selfID.String()),
 	)
 	return &api.StoreResponse{
 		Metadata: l.NewResponseMetadata(rq.Metadata),
@@ -380,7 +380,6 @@ func debugLogStoreResult(message string, s *store.Store, logger *zap.Logger) {
 		zap.Uint("n_errors", s.Result.NErrors),
 	)
 }
-
 
 // Subscribe begins a subscription to the peer's publication stream (from its own subscriptions to
 // other peers).
