@@ -29,10 +29,11 @@ var ioCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		author, logger, err := getAuthor()
 		if err != nil {
-			logger.Error("fatal error while initializing author", zap.Error(err))
+			logger.Error("error while initializing author", zap.Error(err))
 			os.Exit(1)
 		}
 		if err := testIO(author, logger); err != nil {
+			logger.Error("error while testing io", zap.Error(err))
 			os.Exit(1)
 		}
 	},
