@@ -362,7 +362,7 @@ func debugLogSearchResult(message string, s *search.Search, logger *zap.Logger) 
 		zap.Int("n_closest", s.Result.Closest.Len()),
 		zap.Int("n_unqueried", s.Result.Unqueried.Len()),
 		zap.Int("n_responded", len(s.Result.Responded)),
-		zap.Uint("n_errors", s.Result.NErrors),
+		zap.Int("n_errors", len(s.Result.Errored)),
 		zap.Uint("param_n_closest_responses", s.Params.NClosestResponses),
 	)
 }

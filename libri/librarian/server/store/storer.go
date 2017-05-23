@@ -49,8 +49,8 @@ func NewDefaultStorer(peerID ecid.ID) Storer {
 
 func (s *storer) Store(store *Store, seeds []peer.Peer) error {
 	if err := s.searcher.Search(store.Search, seeds); err != nil {
-		store.Result.FatalErr = err
-		return store.Result.FatalErr
+		store.Result = NewFatalResult(err)
+		return err
 	}
 	store.Result = NewInitialResult(store.Search.Result)
 

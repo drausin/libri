@@ -81,6 +81,7 @@ func TestLibrarianCluster(t *testing.T) {
 	// ensure each peer can respond to an introduce request
 	nIntroductions := 16
 	testIntroduce(t, rng, client, peerConfigs, peers, nIntroductions)
+
 	// put a bunch of random data from random peers
 	nPuts := 16
 	values := testPut(t, rng, client, peerConfigs, peers, nPuts)
@@ -122,14 +123,14 @@ func testIntroduce(t *testing.T, rng *rand.Rand, client *testClient, peerConfigs
 		)
 		rp, err := q.Query(ctx, conn, rq)
 		cancel()
-		client.logger.Debug("received Introduce response",
-			zap.String("from_peer", conn.Address().String()),
-			zap.Int("num_peers", len(rp.Peers)),
-		)
 
 		// check everything went fine
 		assert.Nil(t, err)
 		assert.Equal(t, int(rq.NumPeers), len(rp.Peers))
+		client.logger.Debug("received Introduce response",
+			zap.String("from_peer", conn.Address().String()),
+			zap.Int("num_peers", len(rp.Peers)),
+		)
 	}
 }
 
@@ -159,16 +160,16 @@ func testPut(t *testing.T, rng *rand.Rand, client *testClient, peerConfigs []*se
 		)
 		rp, err := q.Query(ctx, conn, rq)
 		cancel()
+
+		// check everything went fine
+		assert.Nil(t, err)
+		assert.Equal(t, api.PutOperation_STORED, rp.Operation)
+		assert.True(t, uint32(peerConfigs[i].Search.NClosestResponses) <= rp.NReplicas)
 		client.logger.Debug("received Put response",
 			zap.String("from_peer", conn.Address().String()),
 			zap.String("operation", rp.Operation.String()),
 			zap.Int("n_replicas", int(rp.NReplicas)),
 		)
-
-		// check everything went fine
-		assert.Nil(t, err)
-		assert.Equal(t, api.PutOperation_STORED, rp.Operation)
-		assert.Equal(t, uint32(peerConfigs[i].Search.NClosestResponses), rp.NReplicas)
 	}
 
 	return values
@@ -289,13 +290,19 @@ func setUp(rng *rand.Rand, nSeeds, nPeers int, logLevel zapcore.Level) (
 
 	// create & start seeds
 	for c := 0; c < nSeeds; c++ {
-		logger.Info("starting seed", zap.String("seed_name", seedConfigs[c].PublicName))
+		logger.Info("starting seed",
+			zap.String("seed_name", seedConfigs[c].PublicName),
+			zap.String("seed_address", seedConfigs[c].PublicAddr.String()),
+		)
 		go func() { server.Start(logger, seedConfigs[c], seedsUp) }()
 		seeds[c] = <-seedsUp // wait for seed to come up
 	}
 
 	// create & start other peers
 	nShards := 4 // should be factor of nPeers
+	if nPeers % nShards != 0 {
+		nShards = 1
+	}
 	nPeersPerShard := nPeers / nShards
 	var wg sync.WaitGroup
 	for b := 0; b < nShards; b++ {
@@ -305,6 +312,11 @@ func setUp(rng *rand.Rand, nSeeds, nPeers int, logLevel zapcore.Level) (
 			shardPeersUp := make(chan *server.Librarian, 1)
 			for c := 0; c < nPeersPerShard; c++ {
 				i := s*nPeersPerShard + c
+				logger.Info("starting peer",
+					zap.String("peer_name", peerConfigs[i].PublicName),
+					zap.String("peer_address",
+						peerConfigs[i].PublicAddr.String()),
+				)
 				go func(j int) {
 					server.Start(logger, peerConfigs[j], shardPeersUp)
 				}(i)
@@ -418,7 +430,6 @@ func newConfig(
 	introParams.TargetNumIntroductions = 16
 
 	searchParams := search.NewDefaultParameters()
-	searchParams.NClosestResponses = 3
 
 	subscribeToParams := subscribe.NewDefaultToParameters()
 	subscribeToParams.FPRate = 0.9

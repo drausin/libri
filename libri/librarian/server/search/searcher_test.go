@@ -55,7 +55,7 @@ func TestSearcher_Search_ok(t *testing.T) {
 		assert.True(t, search.FoundClosestPeers())
 		assert.False(t, search.Errored())
 		assert.False(t, search.Exhausted())
-		assert.Equal(t, uint(0), search.Result.NErrors)
+		assert.Equal(t, 0, len(search.Result.Errored))
 		assert.Equal(t, int(nClosestResponses), search.Result.Closest.Len())
 		assert.True(t, search.Result.Closest.Len() <= len(search.Result.Responded))
 
@@ -79,29 +79,6 @@ func TestSearcher_Search_ok(t *testing.T) {
 	}
 }
 
-func TestSearcher_Search_connectorErr(t *testing.T) {
-	searcher, search, selfPeerIdxs, peers := newTestSearch()
-	for i, p := range peers {
-		// replace peer with connector that errors
-		peers[i] = peer.New(p.ID(), "", &peer.TestErrConnector{})
-	}
-
-	seeds := NewTestSeeds(peers, selfPeerIdxs)
-
-	// do the search!
-	err := searcher.Search(search, seeds)
-
-	// checks
-	assert.Nil(t, err)
-	assert.True(t, search.Exhausted()) // since we can't connect to any of the peers
-	assert.True(t, search.Finished())
-	assert.False(t, search.FoundClosestPeers())
-	assert.False(t, search.Errored())
-	assert.Equal(t, uint(0), search.Result.NErrors)
-	assert.Equal(t, 0, search.Result.Closest.Len())
-	assert.Equal(t, 0, len(search.Result.Responded))
-}
-
 func TestSearcher_Search_queryErr(t *testing.T) {
 	searcherImpl, search, selfPeerIdxs, peers := newTestSearch()
 	seeds := NewTestSeeds(peers, selfPeerIdxs)
@@ -113,12 +90,12 @@ func TestSearcher_Search_queryErr(t *testing.T) {
 	err := searcherImpl.Search(search, seeds)
 
 	// checks
-	assert.Nil(t, err)
+	assert.Equal(t, ErrTooManyFindErrors, err)
 	assert.True(t, search.Errored())    // since all of the queries return errors
 	assert.False(t, search.Exhausted()) // since NMaxErrors < len(Unqueried)
 	assert.True(t, search.Finished())
 	assert.False(t, search.FoundClosestPeers())
-	assert.Equal(t, search.Params.NMaxErrors, search.Result.NErrors)
+	assert.Equal(t, int(search.Params.NMaxErrors), len(search.Result.Errored) - 1)
 	assert.Equal(t, 0, search.Result.Closest.Len())
 	assert.True(t, 0 < search.Result.Unqueried.Len())
 	assert.Equal(t, 0, len(search.Result.Responded))
@@ -147,7 +124,7 @@ func TestSearcher_Search_rpErr(t *testing.T) {
 	assert.False(t, search.Exhausted())
 	assert.True(t, search.Finished())
 	assert.False(t, search.FoundClosestPeers())
-	assert.Equal(t, uint(0), search.Result.NErrors)
+	assert.Equal(t, 0, len(search.Result.Errored))
 	assert.Equal(t, 0, search.Result.Closest.Len())
 	assert.True(t, 0 < search.Result.Unqueried.Len())
 	assert.Equal(t, 0, len(search.Result.Responded))

@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 )
@@ -15,6 +16,9 @@ var (
 	// new clients were found in the table.
 	ErrNoNewClients = errors.New("no new LibrarianClients found in routing table")
 
+	// ErrClientMissingFromSet indicates when a client ID is expected to be in a set but isn't.
+	ErrClientMissingFromSet = errors.New("client missing from set")
+
 	tableSampleRetryWait = 2 * time.Second
 	numRetries           = 16
 	sampleBatchSize      = uint(8)
@@ -22,24 +26,24 @@ var (
 
 // NewClientBalancer returns a new api.ClientBalancer that uses the routing tables's Sample()
 // method and returns a unique client on every Next() call.
-func NewClientBalancer(rt Table) api.ClientBalancer {
-	return &tableUniqueBalancer{
-		rt:       rt,
-		rng:      rand.New(rand.NewSource(0)),
-		returned: make(map[string]struct{}),
-		cache:    make([]peer.Peer, 0),
+func NewClientBalancer(rt Table) api.ClientSetBalancer {
+	return &tableSetBalancer{
+		rt:    rt,
+		rng:   rand.New(rand.NewSource(0)),
+		set:   make(map[string]struct{}),
+		cache: make([]peer.Peer, 0),
 	}
 }
 
-type tableUniqueBalancer struct {
-	rt       Table
-	rng      *rand.Rand
-	returned map[string]struct{}
-	cache    []peer.Peer
-	mu       sync.Mutex
+type tableSetBalancer struct {
+	rt    Table
+	rng   *rand.Rand
+	set   map[string]struct{}
+	cache []peer.Peer
+	mu    sync.Mutex
 }
 
-func (b *tableUniqueBalancer) Next() (api.LibrarianClient, error) {
+func (b *tableSetBalancer) AddNext() (api.LibrarianClient, id.ID, error) {
 	for c := 0; c < numRetries; c++ {
 		b.mu.Lock()
 		if len(b.cache) == 0 {
@@ -53,21 +57,25 @@ func (b *tableUniqueBalancer) Next() (api.LibrarianClient, error) {
 		}
 		nextPeer := b.cache[0]
 		b.cache = b.cache[1:]
-		if _, in := b.returned[nextPeer.ID().String()]; !in {
-			// update internal state & return connection to new peer
-			b.returned[nextPeer.ID().String()] = struct{}{}
+		if _, in := b.set[nextPeer.ID().String()]; !in {
+			// update current state & return connection to new peer
+			b.set[nextPeer.ID().String()] = struct{}{}
 			b.mu.Unlock()
-			return nextPeer.Connector().Connect()
+			lc, err := nextPeer.Connector().Connect()
+			return lc, nextPeer.ID(), err
 		}
 		b.mu.Unlock()
 
 		// wait for routing table to possibly fill up a bit
 		time.Sleep(tableSampleRetryWait)
 	}
-	return nil, ErrNoNewClients
+	return nil, nil, ErrNoNewClients
 }
 
-func (b *tableUniqueBalancer) CloseAll() error {
-	// let the routing table handle closing its peers
+func (b *tableSetBalancer) Remove(peerID id.ID) error {
+	if _, in := b.set[peerID.String()]; !in {
+		return ErrClientMissingFromSet
+	}
+	delete(b.set, peerID.String())
 	return nil
 }

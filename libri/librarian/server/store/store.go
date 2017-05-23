@@ -82,6 +82,13 @@ func NewInitialResult(sr *search.Result) *Result {
 	}
 }
 
+// NewFatalResult creates a new Result object with a fatal error.
+func NewFatalResult(fatalErr error) *Result {
+	return &Result {
+		FatalErr: fatalErr,
+	}
+}
+
 // Store contains things involved in storing a particular key/value pair.
 type Store struct {
 	// request used when querying peers

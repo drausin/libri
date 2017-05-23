@@ -64,8 +64,8 @@ type Result struct {
 	// map of all peers that responded during search
 	Responded map[string]peer.Peer
 
-	// number of errors encountered while querying peers
-	NErrors uint
+	// Errored contains the errors received by each peer (via string representation of peer ID)
+	Errored map[string]error
 
 	// fatal error that occurred during the search
 	FatalErr error
@@ -78,7 +78,7 @@ func NewInitialResult(key cid.ID, params *Parameters) *Result {
 		Closest:   newFarthestPeers(key, params.NClosestResponses),
 		Unqueried: newClosestPeers(key, params.NClosestResponses * params.Concurrency),
 		Responded: make(map[string]peer.Peer),
-		NErrors:   0,
+		Errored:   make(map[string]error),
 	}
 }
 
@@ -132,7 +132,7 @@ func (s *Search) FoundValue() bool {
 
 // Errored returns whether the search has encountered too many errors when querying the peers.
 func (s *Search) Errored() bool {
-	return s.Result.NErrors >= s.Params.NMaxErrors || s.Result.FatalErr != nil
+	return uint(len(s.Result.Errored)) > s.Params.NMaxErrors || s.Result.FatalErr != nil
 }
 
 // Exhausted returns whether the search has exhausted all unqueried peers close to the target.

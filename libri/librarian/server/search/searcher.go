@@ -12,7 +12,9 @@ import (
 )
 
 // ErrTooManyFindErrors indicates when a search has encountered too many Find request errors.
-var ErrTooManyFindErrors = errors.New("too many Find errors")
+var (
+	ErrTooManyFindErrors = errors.New("too many Find errors")
+)
 
 // Searcher executes searches for particular keys.
 type Searcher interface {
@@ -68,20 +70,24 @@ func (s *searcher) searchWork(search *Search, wg *sync.WaitGroup) {
 		// get next peer to query
 		search.mu.Lock()
 		next := heap.Pop(search.Result.Unqueried).(peer.Peer)
-		search.mu.Unlock()
-		if _, err := next.Connector().Connect(); err != nil {
-			// if we have issues connecting, skip to next peer
+		if _, in := search.Result.Responded[next.ID().String()]; in {
+			search.mu.Unlock()
 			continue
 		}
+		if _, in := search.Result.Errored[next.ID().String()]; in {
+			search.mu.Unlock()
+			continue
+		}
+		search.mu.Unlock()
 
 		// do the query
 		response, err := s.query(next.Connector(), search)
 		if err != nil {
 			// if we had an issue querying, skip to next peer
 			search.mu.Lock()
-			search.Result.NErrors++
+			search.Result.Errored[next.ID().String()] = err
 			next.Recorder().Record(peer.Response, peer.Error)
-			if search.Result.NErrors > search.Params.NMaxErrors {
+			if search.Errored() {
 				search.Result.FatalErr = ErrTooManyFindErrors
 			}
 			search.mu.Unlock()
