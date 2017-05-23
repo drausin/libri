@@ -1,4 +1,5 @@
-# later
+# TODO
+# - separate service for each pod
 # - persistent volumes
 # - readiness probe
 # - lifecycle pre-stop + server graceful stop
@@ -23,7 +24,7 @@ metadata:
   name: librarians
 spec:
   serviceName: libri
-  replicas: 2
+  replicas: 3
   template:
     metadata:
       labels:
@@ -32,12 +33,15 @@ spec:
       containers:
       - name: libriarian
         image: daedalus2718/libri:latest  # develop branch
-        args: ["librarian", "start"]
+        args: [
+          "librarian", "start",
+          "--bootstraps", "librarians-0.libri.default.svc.cluster.local:20100",
+          "--nSubscriptions", "0",
+          "-l", "debug"
+        ]
         env:
         - name: GODEBUG         # ensure we use the pure Go (rather than CGO) DNS
           value: netdns=go      # resolver (see https://golang.org/src/net/net.go)
-        - name: LIBRI_BOOTSTRAPS
-          value: "librarians-0.libri.default.svc.cluster.local:20100"
         - name: LIBRI_LOCALHOST
           valueFrom:
             fieldRef:
@@ -46,8 +50,6 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-#        - name: LIBRI_DATADIR
-#          value: "/librarian-data"
         ports:
         - containerPort: 20100
           name: grpc
