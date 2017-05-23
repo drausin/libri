@@ -98,9 +98,14 @@ func TestRoutingTableBalancer_Remove(t *testing.T) {
 	assert.NotNil(t, peerID)
 	assert.Equal(t, 1, len(csb.(*tableSetBalancer).set))
 
+	// check removing peer from set works as expected
 	err = csb.Remove(peerID)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(csb.(*tableSetBalancer).set))
+
+	// check removing peer not in set errors
+	err = csb.Remove(id.NewPseudoRandom(rng))
+	assert.Equal(t, ErrClientMissingFromSet, err)
 }
 
 type fixedConnector struct {

@@ -83,6 +83,9 @@ func TestSearcher_Search_queryErr(t *testing.T) {
 	searcherImpl, search, selfPeerIdxs, peers := newTestSearch()
 	seeds := NewTestSeeds(peers, selfPeerIdxs)
 
+	// duplicate seeds so we cover branch of hitting errored peer more than once
+	seeds = append(seeds, seeds[0])
+
 	// all queries return errors as if they'd timed out
 	searcherImpl.(*searcher).querier = &timeoutQuerier{}
 

@@ -189,8 +189,7 @@ func (t *to) Begin() error {
 				case errs <- t.sb.begin(lc, sub, t.received, errs, t.end):
 				}
 				if err := t.csb.Remove(peerID); err != nil {
-					fatal <- err
-					return
+					panic(err)  // should never happen
 				}
 			}
 		}(c)
@@ -216,7 +215,7 @@ func (t *to) End() {
 		close(t.received)
 	}
 	select {
-	case <- t.end:
+	case <- t.end:  // already closed
 	default:
 		close(t.end)
 	}

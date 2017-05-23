@@ -49,8 +49,7 @@ func NewDefaultSearcher(signer client.Signer) Searcher {
 
 func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
 	if err := search.Result.Unqueried.SafePushMany(seeds); err != nil {
-		search.Result.FatalErr = err
-		return search.Result.FatalErr
+		panic(err)  // should never happen
 	}
 
 	var wg sync.WaitGroup
@@ -70,11 +69,12 @@ func (s *searcher) searchWork(search *Search, wg *sync.WaitGroup) {
 		// get next peer to query
 		search.mu.Lock()
 		next := heap.Pop(search.Result.Unqueried).(peer.Peer)
-		if _, in := search.Result.Responded[next.ID().String()]; in {
+		nextIDStr := next.ID().String()
+		if _, in := search.Result.Responded[nextIDStr]; in {
 			search.mu.Unlock()
 			continue
 		}
-		if _, in := search.Result.Errored[next.ID().String()]; in {
+		if _, in := search.Result.Errored[nextIDStr]; in {
 			search.mu.Unlock()
 			continue
 		}
@@ -85,7 +85,7 @@ func (s *searcher) searchWork(search *Search, wg *sync.WaitGroup) {
 		if err != nil {
 			// if we had an issue querying, skip to next peer
 			search.mu.Lock()
-			search.Result.Errored[next.ID().String()] = err
+			search.Result.Errored[nextIDStr] = err
 			next.Recorder().Record(peer.Response, peer.Error)
 			if search.Errored() {
 				search.Result.FatalErr = ErrTooManyFindErrors
@@ -113,16 +113,13 @@ func (s *searcher) searchWork(search *Search, wg *sync.WaitGroup) {
 		err = search.Result.Closest.SafePush(next)
 		search.mu.Unlock()
 		if err != nil {
-			search.mu.Lock()
-			search.Result.FatalErr = err
-			search.mu.Unlock()
-			return
+			panic(err)  // should never happen
 		}
 
 		// add next peer to set of peers that responded
 		search.mu.Lock()
-		if _, in := search.Result.Responded[next.ID().String()]; !in {
-			search.Result.Responded[next.ID().String()] = next
+		if _, in := search.Result.Responded[nextIDStr]; !in {
+			search.Result.Responded[nextIDStr] = next
 		}
 		search.mu.Unlock()
 	}
@@ -179,7 +176,7 @@ func (frp *responseProcessor) Process(rp *api.FindResponse, result *Result) erro
 				// only add discovered peers that we haven't already seen
 				newPeer := frp.fromer.FromAPI(pa)
 				if err := result.Unqueried.SafePush(newPeer); err != nil {
-					return err
+					panic(err)  // should never happen
 				}
 			}
 		}
