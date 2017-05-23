@@ -9,14 +9,16 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
-	"github.com/drausin/libri/libri/librarian/server/routing"
 )
 
-var (
-	// DefaultNMaxErrors is the maximum number of errors tolerated during a search.
+const (
+	// DefaultNClosestResponses is the default number of peers to find closest to the key.
+	DefaultNClosestResponses = uint(3)
+
+	// DefaultNMaxErrors is the default maximum number of errors tolerated during a search.
 	DefaultNMaxErrors = uint(3)
 
-	// DefaultConcurrency is the number of parallel search workers.
+	// DefaultConcurrency is the default number of parallel search workers.
 	DefaultConcurrency = uint(3)
 
 	// DefaultQueryTimeout is the timeout for each query to a peer.
@@ -41,7 +43,7 @@ type Parameters struct {
 // NewDefaultParameters creates an instance with default parameters.
 func NewDefaultParameters() *Parameters {
 	return &Parameters{
-		NClosestResponses: routing.DefaultMaxActivePeers,
+		NClosestResponses: DefaultNClosestResponses,
 		NMaxErrors:        DefaultNMaxErrors,
 		Concurrency:       DefaultConcurrency,
 		Timeout:           DefaultQueryTimeout,
@@ -62,8 +64,8 @@ type Result struct {
 	// map of all peers that responded during search
 	Responded map[string]peer.Peer
 
-	// number of errors encountered while querying peers
-	NErrors uint
+	// Errored contains the errors received by each peer (via string representation of peer ID)
+	Errored map[string]error
 
 	// fatal error that occurred during the search
 	FatalErr error
@@ -74,9 +76,9 @@ func NewInitialResult(key cid.ID, params *Parameters) *Result {
 	return &Result{
 		Value:     nil,
 		Closest:   newFarthestPeers(key, params.NClosestResponses),
-		Unqueried: newClosestPeers(key, params.NClosestResponses),
+		Unqueried: newClosestPeers(key, params.NClosestResponses * params.Concurrency),
 		Responded: make(map[string]peer.Peer),
-		NErrors:   0,
+		Errored:   make(map[string]error),
 	}
 }
 
@@ -114,12 +116,12 @@ func NewSearch(selfID ecid.ID, key cid.ID, params *Parameters) *Search {
 func (s *Search) FoundClosestPeers() bool {
 	if s.Result.Unqueried.Len() == 0 {
 		// if we have no unqueried peers, just make sure closest peers heap is full
-		return uint(s.Result.Closest.Len()) == s.Params.NClosestResponses
+		return uint(s.Result.Closest.Len()) >= s.Params.NClosestResponses
 	}
 
 	// closest peers heap should be full and have a max distance less than the min unqueried
 	// distance
-	return uint(s.Result.Closest.Len()) == s.Params.NClosestResponses &&
+	return uint(s.Result.Closest.Len()) >= s.Params.NClosestResponses &&
 		s.Result.Closest.PeakDistance().Cmp(s.Result.Unqueried.PeakDistance()) <= 0
 }
 
@@ -130,7 +132,7 @@ func (s *Search) FoundValue() bool {
 
 // Errored returns whether the search has encountered too many errors when querying the peers.
 func (s *Search) Errored() bool {
-	return s.Result.NErrors >= s.Params.NMaxErrors || s.Result.FatalErr != nil
+	return uint(len(s.Result.Errored)) > s.Params.NMaxErrors || s.Result.FatalErr != nil
 }
 
 // Exhausted returns whether the search has exhausted all unqueried peers close to the target.

@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"net"
 	"sync"
+	"github.com/drausin/libri/libri/common/id"
 )
 
 // ErrEmptyLibrarianAddresses indicates that the librarian addresses is empty.
@@ -17,6 +18,17 @@ type ClientBalancer interface {
 
 	// CloseAll closes all LibrarianClient connections.
 	CloseAll() error
+}
+
+// ClientSetBalancer load balances between librarian clients, ensuring that a new librarian is
+// always returned.
+type ClientSetBalancer interface {
+	// AddNext selects the next LibrarianClient, adds it to the set, and returns it along with
+	// its peer ID.
+	AddNext() (LibrarianClient, id.ID, error)
+
+	// Remove removes the librarian from the set.
+	Remove(peerID id.ID) error
 }
 
 type uniformRandBalancer struct {

@@ -3,9 +3,7 @@ package store
 import (
 	"math/rand"
 	"testing"
-
 	"errors"
-
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -26,24 +24,13 @@ func TestStore_Stored(t *testing.T) {
 	peerID := ecid.NewPseudoRandom(rng)
 	value, key := api.NewTestDocument(rng)
 
-	// create search with result of closest peers
-	nClosestResponse := uint(4)
-	search := ssearch.NewSearch(peerID, key, &ssearch.Parameters{
-		NClosestResponses: nClosestResponse,
-	})
-
-	closest := make([]peer.Peer, 4)
-	for i := uint(0); i < nClosestResponse; i++ {
-		closest[i] = peer.New(cid.FromInt64(int64(i)+1), "", nil)
-	}
-	err := search.Result.Closest.SafePushMany(closest)
-	assert.Nil(t, err)
-
 	// create store with search
-	store := NewStore(peerID, search, value, &Parameters{
+	store := NewStore(peerID, key, value, &ssearch.Parameters{}, &Parameters{
+		NReplicas: 3,
 		NMaxErrors: 3,
 	})
-	store.Result = NewInitialResult(search.Result)
+	store.Result = NewInitialResult(store.Search.Result)
+	store.Result.Unqueried = []peer.Peer{nil}  // just needs to be non-zero length
 
 	// not stored yet b/c have no peers that have responded to store query
 	assert.False(t, store.Stored())
@@ -54,8 +41,8 @@ func TestStore_Stored(t *testing.T) {
 	assert.False(t, store.Stored())
 	assert.False(t, store.Finished())
 
-	// once we receive responses from enough peers, it's stored
-	store.Result.Responded = append(store.Result.Responded, closest[:2]...)
+	// once we receive responses from enough peers (here, faked w/ nils), it's stored
+	store.Result.Responded = append(store.Result.Responded, nil, nil, nil)
 	assert.True(t, store.Stored())
 	assert.True(t, store.Finished())
 }
@@ -75,10 +62,14 @@ func TestStore_Errored(t *testing.T) {
 		NMaxErrors: 3,
 	})
 	s := &Store{
-		Params: &Parameters{NMaxErrors: 3},
+		Params: &Parameters{
+			NReplicas: 3,
+			NMaxErrors: 3,
+		},
 		Result: NewInitialResult(searchResult),
 		Search: search,
 	}
+	s.Result.Unqueried = []peer.Peer{nil}  // just needs to be non-zero length
 
 	// haven't received any errors yet
 	assert.False(t, s.Errored())

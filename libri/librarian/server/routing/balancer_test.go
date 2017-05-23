@@ -14,39 +14,42 @@ import (
 
 func TestTableUniqueBalancer_Next_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	lc := api.NewLibrarianClient(nil)
+	origLC := api.NewLibrarianClient(nil)
 	rt := NewEmpty(id.NewPseudoRandom(rng), NewDefaultParameters())
 	rt.Push(
 		peer.New(
 			id.NewPseudoRandom(rng),
 			"test-peer-1",
-			&fixedConnector{connectLC: lc},
+			&fixedConnector{connectLC: origLC},
 		),
 	)
-	cb := NewClientBalancer(rt)
+	csb := NewClientBalancer(rt)
 
 	// check Next() returns inner LibrarianClient
-	lc, err := cb.Next()
+	lc, peerID, err := csb.AddNext()
 	assert.Nil(t, err)
 	assert.NotNil(t, lc)
+	assert.NotNil(t, peerID)
 
 	// check second sample returns error b/c no more unique clients
 	tableSampleRetryWait = 10 * time.Millisecond // for testing
-	lc1, err := cb.Next()
+	lc, peerID, err = csb.AddNext()
 	assert.Equal(t, ErrNoNewClients, err)
-	assert.Nil(t, lc1)
+	assert.Nil(t, lc)
+	assert.Nil(t, peerID)
 
 	// add another peer, and we should be able to call Next() without error again
 	rt.Push(
 		peer.New(
 			id.NewPseudoRandom(rng),
 			"test-peer-2",
-			&fixedConnector{connectLC: lc},
+			&fixedConnector{connectLC: origLC},
 		),
 	)
-	lc2, err := cb.Next()
+	lc, peerID, err = csb.AddNext()
 	assert.Nil(t, err)
-	assert.NotNil(t, lc2)
+	assert.NotNil(t, lc)
+	assert.NotNil(t, peerID)
 }
 
 func TestTableUniqueBalancer_Next_err(t *testing.T) {
@@ -56,9 +59,10 @@ func TestTableUniqueBalancer_Next_err(t *testing.T) {
 
 	// check empty RT throws error
 	tableSampleRetryWait = 10 * time.Millisecond // just for test
-	lc, err := cb.Next()
+	lc, peerID, err := cb.AddNext()
 	assert.Equal(t, ErrNoNewClients, err)
 	assert.Nil(t, lc)
+	assert.Nil(t, peerID)
 
 	rt.Push(
 		peer.New(
@@ -69,14 +73,39 @@ func TestTableUniqueBalancer_Next_err(t *testing.T) {
 			},
 		),
 	)
-	lc, err = cb.Next()
+	lc, peerID, err = cb.AddNext()
 	assert.Nil(t, err)
 	assert.NotNil(t, lc)
+	assert.NotNil(t, peerID)
 }
-func TestRoutingTableBalancer_CloseAll(t *testing.T) {
-	cb := NewClientBalancer(nil)
-	err := cb.CloseAll()
+
+func TestRoutingTableBalancer_Remove(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	lc1 := api.NewLibrarianClient(nil)
+	rt := NewEmpty(id.NewPseudoRandom(rng), NewDefaultParameters())
+	rt.Push(
+		peer.New(
+			id.NewPseudoRandom(rng),
+			"test-peer-1",
+			&fixedConnector{connectLC: lc1},
+		),
+	)
+	csb := NewClientBalancer(rt)
+
+	lc2, peerID, err := csb.AddNext()
 	assert.Nil(t, err)
+	assert.Equal(t, lc1, lc2)
+	assert.NotNil(t, peerID)
+	assert.Equal(t, 1, len(csb.(*tableSetBalancer).set))
+
+	// check removing peer from set works as expected
+	err = csb.Remove(peerID)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(csb.(*tableSetBalancer).set))
+
+	// check removing peer not in set errors
+	err = csb.Remove(id.NewPseudoRandom(rng))
+	assert.Equal(t, ErrClientMissingFromSet, err)
 }
 
 type fixedConnector struct {

@@ -305,8 +305,9 @@ func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutRespon
 	key := cid.FromBytes(rq.Key)
 	s := store.NewStore(
 		l.selfID,
-		search.NewSearch(l.selfID, key, l.config.Search),
+		key,
 		rq.Value,
+		l.config.Search,
 		l.config.Store,
 	)
 	seeds := l.rt.Peak(key, s.Search.Params.Concurrency)
@@ -314,6 +315,7 @@ func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutRespon
 	if err != nil {
 		return nil, err
 	}
+	debugLogStoreResult("store result", s, l.logger)
 	for _, p := range s.Result.Responded {
 		l.rt.Push(p)
 	}
@@ -343,9 +345,42 @@ func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutRespon
 		// TODO (drausin) better collect and surface errors from queries
 		return nil, errors.New("received error during search or store operations")
 	}
+	if s.Exhausted() {
+		return nil, errors.New("store for key exhausted")
+	}
 
 	return nil, errors.New("unexpected store result")
 }
+
+func debugLogSearchResult(message string, s *search.Search, logger *zap.Logger) {
+	logger.Debug(message,
+		zap.Bool("finished", s.Finished()),
+		zap.Bool("errored", s.Errored()),
+		zap.Bool("exhausted", s.Exhausted()),
+		zap.Bool("found_value", s.FoundValue()),
+		zap.Bool("found_closest_peers", s.FoundClosestPeers()),
+		zap.Int("n_closest", s.Result.Closest.Len()),
+		zap.Int("n_unqueried", s.Result.Unqueried.Len()),
+		zap.Int("n_responded", len(s.Result.Responded)),
+		zap.Int("n_errors", len(s.Result.Errored)),
+		zap.Uint("param_n_closest_responses", s.Params.NClosestResponses),
+	)
+}
+
+func debugLogStoreResult(message string, s *store.Store, logger *zap.Logger) {
+	debugLogSearchResult(fmt.Sprintf("search %s", message), s.Search, logger)
+	logger.Debug(message,
+		zap.Bool("finished", s.Finished()),
+		zap.Bool("stored", s.Stored()),
+		zap.Bool("errored", s.Errored()),
+		zap.Bool("exhausted", s.Exhausted()),
+		zap.Bool("exists", s.Exists()),
+		zap.Int("n_unqueried", len(s.Result.Unqueried)),
+		zap.Int("n_responded", len(s.Result.Responded)),
+		zap.Uint("n_errors", s.Result.NErrors),
+	)
+}
+
 
 // Subscribe begins a subscription to the peer's publication stream (from its own subscriptions to
 // other peers).

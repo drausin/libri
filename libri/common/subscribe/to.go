@@ -78,7 +78,7 @@ type ToParameters struct {
 	// history of responses (c.f., errQueueSize).
 	MaxErrRate float32
 
-	// NRecentCacheSize is the size of the LRU cache used in deduplicating and grouping
+	// RecentCacheSize is the size of the LRU cache used in deduplicating and grouping
 	// publications.
 	RecentCacheSize uint32
 }
@@ -112,7 +112,7 @@ type to struct {
 	params   *ToParameters
 	logger   *zap.Logger
 	clientID ecid.ID
-	cb       api.ClientBalancer
+	csb      api.ClientSetBalancer
 	sb       subscriptionBeginner
 	recent   RecentPublications
 	received chan *pubValueReceipt
@@ -126,7 +126,7 @@ func NewTo(
 	params *ToParameters,
 	logger *zap.Logger,
 	clientID ecid.ID,
-	cb api.ClientBalancer,
+	csb api.ClientSetBalancer,
 	signer client.Signer,
 	recent RecentPublications,
 	new chan *KeyedPub,
@@ -134,7 +134,7 @@ func NewTo(
 	return &to{
 		params:   params,
 		logger:   logger,
-		cb:       cb,
+		csb:      csb,
 		clientID: clientID,
 		sb: &subscriptionBeginnerImpl{
 			clientID: clientID,
@@ -169,7 +169,7 @@ func (t *to) Begin() error {
 		go func(i uint32) {
 			rng, fp := rand.New(rand.NewSource(int64(i))), float64(t.params.FPRate)
 			for {
-				lc, err := t.cb.Next()
+				lc, peerID, err := t.csb.AddNext()
 				if err != nil {
 					fatal <- err
 					return
@@ -187,6 +187,9 @@ func (t *to) Begin() error {
 				case <-t.end:
 					return
 				case errs <- t.sb.begin(lc, sub, t.received, errs, t.end):
+				}
+				if err := t.csb.Remove(peerID); err != nil {
+					panic(err)  // should never happen
 				}
 			}
 		}(c)
@@ -206,8 +209,17 @@ func (t *to) Begin() error {
 
 func (t *to) End() {
 	t.logger.Info("ending subscriptions")
-	close(t.received)
-	close(t.end)
+	select {
+	case <-t.received:  // already closed
+	default:
+		close(t.received)
+	}
+	select {
+	case <- t.end:  // already closed
+	default:
+		close(t.end)
+	}
+	t.logger.Debug("ended subscriptions")
 }
 
 func (t *to) Send(pub *api.Publication) error {

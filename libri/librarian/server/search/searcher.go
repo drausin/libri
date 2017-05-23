@@ -4,13 +4,16 @@ import (
 	"bytes"
 	"container/heap"
 	"sync"
-
 	"errors"
-
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
+)
+
+// ErrTooManyFindErrors indicates when a search has encountered too many Find request errors.
+var (
+	ErrTooManyFindErrors = errors.New("too many Find errors")
 )
 
 // Searcher executes searches for particular keys.
@@ -46,8 +49,7 @@ func NewDefaultSearcher(signer client.Signer) Searcher {
 
 func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
 	if err := search.Result.Unqueried.SafePushMany(seeds); err != nil {
-		search.Result.FatalErr = err
-		return search.Result.FatalErr
+		panic(err)  // should never happen
 	}
 
 	var wg sync.WaitGroup
@@ -67,19 +69,27 @@ func (s *searcher) searchWork(search *Search, wg *sync.WaitGroup) {
 		// get next peer to query
 		search.mu.Lock()
 		next := heap.Pop(search.Result.Unqueried).(peer.Peer)
-		search.mu.Unlock()
-		if _, err := next.Connector().Connect(); err != nil {
-			// if we have issues connecting, skip to next peer
+		nextIDStr := next.ID().String()
+		if _, in := search.Result.Responded[nextIDStr]; in {
+			search.mu.Unlock()
 			continue
 		}
+		if _, in := search.Result.Errored[nextIDStr]; in {
+			search.mu.Unlock()
+			continue
+		}
+		search.mu.Unlock()
 
 		// do the query
 		response, err := s.query(next.Connector(), search)
 		if err != nil {
 			// if we had an issue querying, skip to next peer
 			search.mu.Lock()
-			search.Result.NErrors++
+			search.Result.Errored[nextIDStr] = err
 			next.Recorder().Record(peer.Response, peer.Error)
+			if search.Errored() {
+				search.Result.FatalErr = ErrTooManyFindErrors
+			}
 			search.mu.Unlock()
 			continue
 		}
@@ -103,16 +113,13 @@ func (s *searcher) searchWork(search *Search, wg *sync.WaitGroup) {
 		err = search.Result.Closest.SafePush(next)
 		search.mu.Unlock()
 		if err != nil {
-			search.mu.Lock()
-			search.Result.FatalErr = err
-			search.mu.Unlock()
-			return
+			panic(err)  // should never happen
 		}
 
 		// add next peer to set of peers that responded
 		search.mu.Lock()
-		if _, in := search.Result.Responded[next.ID().String()]; !in {
-			search.Result.Responded[next.ID().String()] = next
+		if _, in := search.Result.Responded[nextIDStr]; !in {
+			search.Result.Responded[nextIDStr] = next
 		}
 		search.mu.Unlock()
 	}
@@ -169,7 +176,7 @@ func (frp *responseProcessor) Process(rp *api.FindResponse, result *Result) erro
 				// only add discovered peers that we haven't already seen
 				newPeer := frp.fromer.FromAPI(pa)
 				if err := result.Unqueried.SafePush(newPeer); err != nil {
-					return err
+					panic(err)  // should never happen
 				}
 			}
 		}

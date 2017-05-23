@@ -75,7 +75,6 @@ func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
 
 	// add bootstrapped peers to routing table
 	for _, p := range intro.Result.Responded {
-		// TODO (drausin) don't add bootstrap peers ?
 		l.rt.Push(p)
 	}
 	l.logger.Info("bootstrapped peers",

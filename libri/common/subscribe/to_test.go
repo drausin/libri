@@ -16,6 +16,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+	"github.com/drausin/libri/libri/common/id"
 )
 
 func TestTo_BeginEnd(t *testing.T) {
@@ -24,7 +25,7 @@ func TestTo_BeginEnd(t *testing.T) {
 	clientID := ecid.NewPseudoRandom(rng)
 	lg := clogging.NewDevInfoLogger()
 	params.NSubscriptions = 2
-	cb := &fixedClientBalancer{}
+	cb := &fixedClientSetBalancer{}
 	recent, err := NewRecentPublications(2)
 	assert.Nil(t, err)
 	newPubs := make(chan *KeyedPub, 1)
@@ -131,14 +132,14 @@ func TestTo_Begin_err(t *testing.T) {
 	lg := clogging.NewDevInfoLogger()
 	clientID := ecid.NewPseudoRandom(rng)
 	recent, err := NewRecentPublications(2)
-	cb := &fixedClientBalancer{}
+	csb := &fixedClientSetBalancer{}
 	assert.Nil(t, err)
 	newPubs := make(chan *KeyedPub, 1)
 
-	// check cb.Next() error bubbles up
+	// check csb.Next() error bubbles up
 	nextErr := errors.New("some Next() error")
-	cb1 := &fixedClientBalancer{err: nextErr}
-	toImpl1 := NewTo(params, lg, clientID, cb1, nil, recent, newPubs).(*to)
+	csb1 := &fixedClientSetBalancer{err: nextErr}
+	toImpl1 := NewTo(params, lg, clientID, csb1, nil, recent, newPubs).(*to)
 	toImpl1.sb = &fixedSubscriptionBeginner{subscribeErr: errors.New("some subscribe error")}
 	err = toImpl1.Begin()
 	assert.Equal(t, nextErr, err)
@@ -146,7 +147,7 @@ func TestTo_Begin_err(t *testing.T) {
 	// check NewFPSubscription error bubbles up
 	params2 := NewDefaultToParameters()
 	params2.FPRate = 0.0 // will trigger error
-	toImpl2 := NewTo(params2, lg, clientID, cb, nil, recent, newPubs).(*to)
+	toImpl2 := NewTo(params2, lg, clientID, csb, nil, recent, newPubs).(*to)
 	toImpl2.sb = &fixedSubscriptionBeginner{subscribeErr: errors.New("some subscribe error")}
 	err = toImpl2.Begin()
 	assert.Equal(t, ErrOutOfBoundsFPRate, err)
@@ -154,7 +155,7 @@ func TestTo_Begin_err(t *testing.T) {
 	// check running error count above threshold triggers error
 	received := make(chan *pubValueReceipt)
 	errs := make(chan error)
-	toImpl3 := NewTo(params, lg, clientID, cb, nil, recent, newPubs).(*to)
+	toImpl3 := NewTo(params, lg, clientID, csb, nil, recent, newPubs).(*to)
 	toImpl3.sb = &fixedSubscriptionBeginner{
 		received:     received,
 		errs:         errs,
@@ -455,15 +456,15 @@ func (f *fixedSubscriptionBeginner) begin(lc api.Subscriber, sub *api.Subscripti
 	return f.subscribeErr
 }
 
-type fixedClientBalancer struct {
+type fixedClientSetBalancer struct {
 	err error
 }
 
-func (f *fixedClientBalancer) Next() (api.LibrarianClient, error) {
-	return nil, f.err
+func (f *fixedClientSetBalancer) AddNext() (api.LibrarianClient, id.ID, error) {
+	return nil, nil, f.err
 }
 
-func (f *fixedClientBalancer) CloseAll() error {
+func (f *fixedClientSetBalancer) Remove(id.ID) error {
 	return nil
 }
 
