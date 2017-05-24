@@ -34,16 +34,20 @@ func TestConfig_WithLocalAddr(t *testing.T) {
 	c1, c2, c3 := &Config{}, &Config{}, &Config{}
 	c1.WithDefaultLocalAddr()
 	assert.Equal(t, c1.LocalAddr, c2.WithLocalAddr(nil).LocalAddr)
-	assert.NotEqual(t, c1.LocalAddr, c3.WithLocalAddr(ParseAddr("localhost", 1234)).LocalAddr)
+	c3Addr, err := ParseAddr("localhost", 1234)
+	assert.Nil(t, err)
+	assert.NotEqual(t, c1.LocalAddr, c3.WithLocalAddr(c3Addr).LocalAddr)
 }
 
 func TestConfig_WithPublicAddr(t *testing.T) {
 	c1, c2, c3 := &Config{}, &Config{}, &Config{}
 	c1.WithDefaultPublicAddr()
 	assert.Equal(t, c1.PublicAddr, c2.WithPublicAddr(nil).PublicAddr)
+	c3Addr, err := ParseAddr("localhost", 1234)
+	assert.Nil(t, err)
 	assert.NotEqual(t,
 		c1.PublicAddr,
-		c3.WithPublicAddr(ParseAddr("localhost", 1234)).PublicAddr,
+		c3.WithPublicAddr(c3Addr).PublicAddr,
 	)
 }
 
@@ -72,9 +76,11 @@ func TestConfig_WithBootstrapAddrs(t *testing.T) {
 	c1, c2, c3 := &Config{}, &Config{}, &Config{}
 	c1.WithDefaultBootstrapAddrs()
 	assert.Equal(t, c1.BootstrapAddrs, c2.WithBootstrapAddrs(nil).BootstrapAddrs)
+	c3Addr, err := ParseAddr("localhost", 1234)
+	assert.Nil(t, err)
 	assert.NotEqual(t,
 		c1.BootstrapAddrs,
-		c3.WithBootstrapAddrs([]*net.TCPAddr{ParseAddr("localhost", 1234)}).BootstrapAddrs,
+		c3.WithBootstrapAddrs([]*net.TCPAddr{c3Addr}).BootstrapAddrs,
 	)
 }
 
@@ -152,22 +158,26 @@ func TestConfig_isBootstrap(t *testing.T) {
 	config := NewDefaultConfig()
 	assert.True(t, config.isBootstrap())
 
-	config.WithPublicAddr(ParseAddr("localhost", DefaultPort+1))
+	addr, err := ParseAddr("localhost", DefaultPort+1)
+	assert.Nil(t, err)
+	config.WithPublicAddr(addr)
 	assert.False(t, config.isBootstrap())
 }
 
 func TestParseAddr(t *testing.T) {
 	cases := []struct {
-		ip      string
-		port    int
-		netAddr *net.TCPAddr
+		ip       string
+		port     int
+		expected *net.TCPAddr
 	}{
 		{"192.168.1.1", 20100, &net.TCPAddr{IP: net.ParseIP("192.168.1.1"), Port: 20100}},
 		{"192.168.1.1", 11001, &net.TCPAddr{IP: net.ParseIP("192.168.1.1"), Port: 11001}},
 		{"localhost", 20100, &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 20100}},
 	}
 	for _, c := range cases {
-		assert.Equal(t, c.netAddr, ParseAddr(c.ip, c.port))
+		actual, err := ParseAddr(c.ip, c.port)
+		assert.Nil(t, err)
+		assert.Equal(t, c.expected, actual)
 	}
 }
 

@@ -1,0 +1,68 @@
+# TODO
+# - separate service for each pod
+# - persistent volumes
+# - readiness probe
+# - lifecycle pre-stop + server graceful stop
+# - separate bootstrap StatefulSet/IPs
+# - load-balanced endpoint for authors
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: libri
+  name: libri
+spec:
+  clusterIP: None
+  ports:
+  - port: 20100
+  selector:
+    app: libri
+---
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: librarians
+spec:
+  serviceName: libri
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: libri
+    spec:
+      containers:
+      - name: libriarian
+        image: daedalus2718/libri:latest  # develop branch
+        args: [
+          "librarian", "start",
+          "--bootstraps", "librarians-0.libri.default.svc.cluster.local:20100",
+          "--nSubscriptions", "0",
+          "-l", "debug"
+        ]
+        env:
+        - name: GODEBUG         # ensure we use the pure Go (rather than CGO) DNS
+          value: netdns=go      # resolver (see https://golang.org/src/net/net.go)
+        - name: LIBRI_LOCALHOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: LIBRI_PUBLICHOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        ports:
+        - containerPort: 20100
+          name: grpc
+#        volumeMounts:
+#        - name: librarian-data
+#          mountPath: /librarian-data
+#    volumeClaimTemplates:
+#    - metadata:
+#        name: cassandra-data
+#        annotations:
+#          volume.beta.kubernetes.io/storage-class: fast
+#      spec:
+#        accessModes: [ "ReadWriteOnce" ]
+#        resources:
+#          requests:
+#            storage: 1Gi

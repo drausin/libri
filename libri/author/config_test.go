@@ -47,11 +47,11 @@ func TestConfig_WithBootstrapAddrs(t *testing.T) {
 	c1, c2, c3 := &Config{}, &Config{}, &Config{}
 	c1.WithDefaultLibrarianAddrs()
 	assert.Equal(t, c1.LibrarianAddrs, c2.WithLibrarianAddrs(nil).LibrarianAddrs)
+	c3Addr, err := server.ParseAddr("localhost", 1234)
+	assert.Nil(t, err)
 	assert.NotEqual(t,
 		c1.LibrarianAddrs,
-		c3.WithLibrarianAddrs(
-			[]*net.TCPAddr{server.ParseAddr("localhost", 1234)},
-		).LibrarianAddrs,
+		c3.WithLibrarianAddrs([]*net.TCPAddr{c3Addr}).LibrarianAddrs,
 	)
 }
 

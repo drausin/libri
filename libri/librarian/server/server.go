@@ -50,7 +50,7 @@ type Librarian struct {
 	// manages subscriptions to other peers
 	subscribeTo subscribe.To
 
-	// LRU cache of recent publications librarian has received
+	// RecentPubs is an LRU cache of recent publications librarian has received
 	RecentPubs subscribe.RecentPublications
 
 	// verifies requests from peers
@@ -236,9 +236,9 @@ func (l *Librarian) Store(ctx context.Context, rq *api.StoreRequest) (
 	}
 
 	l.logger.Debug("stored",
-		zap.String("self_id", l.selfID.String()),
 		zap.String("key", fmt.Sprintf("032%x", rq.Key)),
 		zap.String("request_id", fmt.Sprintf("032%x", rq.Metadata.RequestId)),
+		zap.String("self_id", l.selfID.String()),
 	)
 	return &api.StoreResponse{
 		Metadata: l.NewResponseMetadata(rq.Metadata),
@@ -349,7 +349,7 @@ func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutRespon
 		return nil, errors.New("store for key exhausted")
 	}
 
-	return nil, errors.New("unexpected store result")
+	return nil, fmt.Errorf("unexpected store result: %v", s.Result)
 }
 
 func debugLogSearchResult(message string, s *search.Search, logger *zap.Logger) {
@@ -380,7 +380,6 @@ func debugLogStoreResult(message string, s *store.Store, logger *zap.Logger) {
 		zap.Uint("n_errors", s.Result.NErrors),
 	)
 }
-
 
 // Subscribe begins a subscription to the peer's publication stream (from its own subscriptions to
 // other peers).

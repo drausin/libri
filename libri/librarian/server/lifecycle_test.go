@@ -76,7 +76,9 @@ func TestStart_bootstrapPeersErr(t *testing.T) {
 	config.WithBootstrapAddrs(make([]*net.TCPAddr, 0))
 
 	// configure bootstrap peer to be non-existent peer
-	config.BootstrapAddrs = append(config.BootstrapAddrs, ParseAddr(DefaultIP, DefaultPort+1))
+	publicAddr, err := ParseAddr(DefaultIP, DefaultPort+1)
+	assert.Nil(t, err)
+	config.BootstrapAddrs = append(config.BootstrapAddrs, publicAddr)
 
 	// check that bootstrap error bubbles up
 	assert.NotNil(t, Start(zap.NewNop(), config, make(chan *Librarian, 1)))
@@ -156,8 +158,10 @@ func TestLibrarian_bootstrapPeers_noResponsesErr(t *testing.T) {
 	// define out fixed introduction result with no responses
 	fixedResult := introduce.NewInitialResult()
 
+	publicAddr, err := ParseAddr(DefaultIP, DefaultPort+1)
+	assert.Nil(t, err)
 	l := &Librarian{
-		config: NewDefaultConfig().WithPublicAddr(ParseAddr(DefaultIP, DefaultPort+1)),
+		config: NewDefaultConfig().WithPublicAddr(publicAddr),
 		introducer: &fixedIntroducer{
 			result: fixedResult,
 		},
@@ -165,7 +169,7 @@ func TestLibrarian_bootstrapPeers_noResponsesErr(t *testing.T) {
 		logger: clogging.NewDevInfoLogger(),
 	}
 
-	err := l.bootstrapPeers(seeds)
+	err = l.bootstrapPeers(seeds)
 	assert.NotNil(t, err)
 }
 

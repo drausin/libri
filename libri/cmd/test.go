@@ -1,19 +1,19 @@
 package cmd
 
 import (
-	"go.uber.org/zap"
-	"github.com/spf13/cobra"
-	"github.com/drausin/libri/libri/author"
-	"github.com/drausin/libri/libri/librarian/server"
-	clogging "github.com/drausin/libri/libri/common/logging"
-	"github.com/drausin/libri/libri/author/keychain"
-	"github.com/spf13/viper"
 	"fmt"
+	"github.com/drausin/libri/libri/author"
+	"github.com/drausin/libri/libri/author/keychain"
+	clogging "github.com/drausin/libri/libri/common/logging"
+	"github.com/drausin/libri/libri/librarian/server"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"go.uber.org/zap"
 )
 
 const (
-	passphraseFlag = "passphrase"
-	librariansFlag = "librarians"
+	passphraseFlag     = "passphrase"
+	librariansFlag     = "librarians"
 	createKeychainFlag = "createKeychain"
 )
 
@@ -29,19 +29,15 @@ func init() {
 
 	testCmd.PersistentFlags().StringP(passphraseFlag, "p", "SamplePassphrase",
 		"keychain passphrase")
-	testCmd.PersistentFlags().StringArrayP(librariansFlag, "a", nil,
+	testCmd.PersistentFlags().StringSliceP(librariansFlag, "a", nil,
 		"comma-separated addresses (IPv4:Port) of librarian(s)")
-	testCmd.PersistentFlags().StringP(dataDirFlag, "d", "",
-		"local data directory")
-	testCmd.PersistentFlags().StringP(logLevelFlag, "v", zap.InfoLevel.String(),
-		"log level")
 	testCmd.PersistentFlags().BoolP(createKeychainFlag, "k", true,
 		"create a keychain if one doesn't exist")
 
 	// bind viper flags
-	viper.SetEnvPrefix("LIBRI")   // look for env vars with "LIBRI_" prefix
-	viper.AutomaticEnv()          // read in environment variables that match
-	if err := viper.BindPFlags(testCmd.Flags()); err != nil {
+	viper.SetEnvPrefix("LIBRI") // look for env vars with "LIBRI_" prefix
+	viper.AutomaticEnv()        // read in environment variables that match
+	if err := viper.BindPFlags(testCmd.PersistentFlags()); err != nil {
 		panic(err)
 	}
 }
@@ -77,8 +73,8 @@ func maybeCreateKeychain(logger *zap.Logger, keychainDir string, keychainAuth st
 	}
 
 	logger.Info("creating new keychains")
-	return author.CreateKeychains(logger, keychainDir, keychainAuth, keychain.StandardScryptN,
-		keychain.StandardScryptP)
+	return author.CreateKeychains(logger, keychainDir, keychainAuth, keychain.LightScryptN,
+		keychain.LightScryptP)
 }
 
 func getAuthor() (*author.Author, *zap.Logger, error) {
@@ -87,6 +83,7 @@ func getAuthor() (*author.Author, *zap.Logger, error) {
 		return nil, logger, err
 	}
 	passphrase := viper.GetString(passphraseFlag)
+	// TODO (drausin) make this optional
 	if err = maybeCreateKeychain(logger, config.KeychainDir, passphrase); err != nil {
 		logger.Error("encountered error when creating keychain", zap.Error(err))
 		return nil, logger, err

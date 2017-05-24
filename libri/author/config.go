@@ -137,9 +137,12 @@ func (c *Config) WithLibrarianAddrs(librarianAddrs []*net.TCPAddr) *Config {
 // WithDefaultLibrarianAddrs sets the librarian addresses to a single address of the default IP
 // and port.
 func (c *Config) WithDefaultLibrarianAddrs() *Config {
-	c.LibrarianAddrs = []*net.TCPAddr{
-		server.ParseAddr(DefaultLibrarianIP, DefaultLibrarianPort),
+	addr, err := server.ParseAddr(DefaultLibrarianIP, DefaultLibrarianPort)
+	if err != nil {
+		// should never happen
+		panic(err)
 	}
+	c.LibrarianAddrs = []*net.TCPAddr{addr}
 	return c
 }
 
