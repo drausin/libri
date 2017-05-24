@@ -54,7 +54,8 @@ func init() {
 
 func testIO(author *author.Author, logger *zap.Logger) error {
 	rng := rand.New(rand.NewSource(0))
-	for i := 0; i < viper.GetInt(nEntriesFlag); i++ {
+	nEntries := viper.GetInt(nEntriesFlag)
+	for i := 0; i < nEntries; i++ {
 		nContentBytes := minContentSize +
 			int(rng.Int31n(int32(maxContentSize-minContentSize)))
 		contents := common.NewCompressableBytes(rng, nContentBytes).Bytes()
@@ -79,11 +80,10 @@ func testIO(author *author.Author, logger *zap.Logger) error {
 				len(contents), len(downloaded),
 			)
 		}
-		logger.Info("successfully uploaded & downloaded entry",
-			zap.Int("n_bytes", nContentBytes),
-			zap.Stringer("envelope_key", envelopeKey),
-		)
 	}
 
+	logger.Info("successfully uploaded & downloaded all entries",
+		zap.Int("n_entries", nEntries),
+	)
 	return nil
 }

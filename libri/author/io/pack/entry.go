@@ -18,7 +18,7 @@ type EntryPacker interface {
 	// Pack prints pages from the content, encrypts their metadata, and binds them together
 	// into an entry *api.Document.
 	Pack(content io.Reader, mediaType string, keys *enc.Keys, authorPub []byte) (
-		*api.Document, error)
+		*api.Document, error)  // TODO (drausin) return metadata as well
 }
 
 // NewEntryPacker creates a new Packer instance.
@@ -64,6 +64,7 @@ type EntryUnpacker interface {
 	// Unpack extracts the individual pages from a document and stitches them together to write
 	// to the content io.Writer.
 	Unpack(content io.Writer, entry *api.Document, keys *enc.Keys) error
+	// TODO (drausin) return metadata as well
 }
 
 type entryUnpacker struct {
