@@ -18,7 +18,7 @@ type EntryPacker interface {
 	// Pack prints pages from the content, encrypts their metadata, and binds them together
 	// into an entry *api.Document.
 	Pack(content io.Reader, mediaType string, keys *enc.Keys, authorPub []byte) (
-		*api.Document, error)  // TODO (drausin) return metadata as well
+		*api.Document, *api.Metadata, error)
 }
 
 // NewEntryPacker creates a new Packer instance.
@@ -46,25 +46,25 @@ type entryPacker struct {
 }
 
 func (p *entryPacker) Pack(content io.Reader, mediaType string, keys *enc.Keys, authorPub []byte) (
-	*api.Document, error) {
+	*api.Document, *api.Metadata, error) {
 
 	pageKeys, metadata, err := p.printer.Print(content, mediaType, keys, authorPub)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	encMetadata, err := p.metadataEnc.Encrypt(metadata, keys)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return newEntryDoc(authorPub, pageKeys, encMetadata, p.docL)
+	doc, err := newEntryDoc(authorPub, pageKeys, encMetadata, p.docL)
+	return doc, metadata, err
 }
 
 // EntryUnpacker writes individual pages to the content io.Writer.
 type EntryUnpacker interface {
 	// Unpack extracts the individual pages from a document and stitches them together to write
 	// to the content io.Writer.
-	Unpack(content io.Writer, entry *api.Document, keys *enc.Keys) error
-	// TODO (drausin) return metadata as well
+	Unpack(content io.Writer, entry *api.Document, keys *enc.Keys) (*api.Metadata, error)
 }
 
 type entryUnpacker struct {
@@ -88,17 +88,18 @@ func NewEntryUnpacker(
 	}
 }
 
-func (u *entryUnpacker) Unpack(content io.Writer, entry *api.Document, keys *enc.Keys) error {
+func (u *entryUnpacker) Unpack(content io.Writer, entry *api.Document, keys *enc.Keys) (
+	*api.Metadata, error) {
 	encMetadata, err := enc.NewEncryptedMetadata(
 		entry.Contents.(*api.Document_Entry).Entry.MetadataCiphertext,
 		entry.Contents.(*api.Document_Entry).Entry.MetadataCiphertextMac,
 	)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	metadata, err := u.metadataDec.Decrypt(encMetadata, keys)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var pageKeys []id.ID
@@ -106,16 +107,16 @@ func (u *entryUnpacker) Unpack(content io.Writer, entry *api.Document, keys *enc
 	case *api.Entry_PageKeys:
 		pageKeys, err = api.GetEntryPageKeys(entry)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	case *api.Entry_Page:
 		_, docKey, err := api.GetPageDocument(ec.Page)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		pageKeys = []id.ID{docKey}
 	}
-	return u.scanner.Scan(content, pageKeys, keys, metadata)
+	return metadata, u.scanner.Scan(content, pageKeys, keys, metadata)
 }
 
 func newEntryDoc(

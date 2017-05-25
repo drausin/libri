@@ -30,16 +30,27 @@ func TestEntryPacker_Pack_ok(t *testing.T) {
 	mediaType := "application/x-pdf"
 
 	// test works with single-page content
-	content1 := common.NewCompressableBytes(rng, int(params.PageSize/2))
-	doc, err := p.Pack(content1, mediaType, keys, authorPub)
+	uncompressedSize1 := int(params.PageSize/2)
+	content1 := common.NewCompressableBytes(rng, uncompressedSize1)
+	doc, metadata, err := p.Pack(content1, mediaType, keys, authorPub)
 	assert.Nil(t, err)
 	assert.NotNil(t, doc)
+	assert.NotNil(t, metadata)
+	origSize, in := metadata.GetUncompressedSize()
+	assert.True(t, in)
+	assert.Equal(t, uint64(uncompressedSize1), origSize)
+
 
 	// test works with multi-page content
-	content2 := common.NewCompressableBytes(rng, int(params.PageSize*5))
-	doc, err = p.Pack(content2, mediaType, keys, authorPub)
+	uncompressedSize2 := int(params.PageSize*5)
+	content2 := common.NewCompressableBytes(rng, uncompressedSize2)
+	doc, metadata, err = p.Pack(content2, mediaType, keys, authorPub)
 	assert.Nil(t, err)
 	assert.NotNil(t, doc)
+	assert.NotNil(t, metadata)
+	origSize, in = metadata.GetUncompressedSize()
+	assert.True(t, in)
+	assert.Equal(t, uint64(uncompressedSize2), origSize)
 	pageKeys, err := api.GetEntryPageKeys(doc)
 	assert.Nil(t, err)
 	assert.True(t, len(pageKeys) > 1)
@@ -57,14 +68,16 @@ func TestEntryPacker_Pack_err(t *testing.T) {
 	keys, authorPub, _ := enc.NewPseudoRandomKeys(rng)
 
 	// check error from bad mediaType bubbles up
-	doc, err := p.Pack(content, "application x-pdf", keys, authorPub)
+	doc, metadata, err := p.Pack(content, "application x-pdf", keys, authorPub)
 	assert.NotNil(t, err)
 	assert.Nil(t, doc)
+	assert.Nil(t, metadata)
 
 	// check Encrypt error from bad author key bubbles up
-	doc, err = p.Pack(content, mediaType, keys, []byte{})
+	doc, metadata, err = p.Pack(content, mediaType, keys, []byte{})
 	assert.NotNil(t, err)
 	assert.Nil(t, doc)
+	assert.Nil(t, metadata)
 
 	errDocSL := &fixedDocStorerLoader{
 		stored:  make(map[string]*api.Document),
@@ -73,9 +86,10 @@ func TestEntryPacker_Pack_err(t *testing.T) {
 	p2 := NewEntryPacker(params, enc.NewMetadataEncrypterDecrypter(), errDocSL)
 
 	// check error from missing page bubbles up
-	doc, err = p2.Pack(content, mediaType, keys, []byte{})
+	doc, metadata, err = p2.Pack(content, mediaType, keys, []byte{})
 	assert.NotNil(t, err)
 	assert.Nil(t, doc)
+	assert.Nil(t, metadata)
 
 }
 
@@ -85,14 +99,26 @@ func TestEntryUnpacker_Unpack_ok(t *testing.T) {
 	docSL := &fixedDocStorerLoader{
 		stored: make(map[string]*api.Document),
 	}
+	keys, _, _ := enc.NewPseudoRandomKeys(rng)
 	content := new(bytes.Buffer)
 	doc, _ := api.NewTestDocument(rng)
-	keys, _, _ := enc.NewPseudoRandomKeys(rng)
-
-	u := NewEntryUnpacker(params, &fixedMetadataDecrypter{}, docSL)
-	u.(*entryUnpacker).scanner = &fixedScanner{}
-	err := u.Unpack(content, doc, keys)
+	metadata1, err := api.NewEntryMetadata(
+		"application/x-pdf",
+		1,
+		api.RandBytes(rng, 32),
+		2,
+		api.RandBytes(rng, 32),
+	)
 	assert.Nil(t, err)
+
+	metadataDec := &fixedMetadataDecrypter{
+		metadata: metadata1,
+	}
+	u := NewEntryUnpacker(params, metadataDec, docSL)
+	u.(*entryUnpacker).scanner = &fixedScanner{}
+	metadata, err := u.Unpack(content, doc, keys)
+	assert.Nil(t, err)
+	assert.NotNil(t, metadata)
 }
 
 func TestEntryUnpacker_Unpack_err(t *testing.T) {
@@ -109,8 +135,9 @@ func TestEntryUnpacker_Unpack_err(t *testing.T) {
 	u1 := NewEntryUnpacker(params, &fixedMetadataDecrypter{}, docSL)
 	doc1, _ := api.NewTestDocument(rng)
 	doc1.Contents.(*api.Document_Entry).Entry.MetadataCiphertextMac = nil
-	err := u1.Unpack(content, doc1, keys)
+	metadata, err := u1.Unpack(content, doc1, keys)
 	assert.NotNil(t, err)
+	assert.Nil(t, metadata)
 
 	// check decryption error bubbles up
 	u2 := NewEntryUnpacker(
@@ -118,16 +145,18 @@ func TestEntryUnpacker_Unpack_err(t *testing.T) {
 		&fixedMetadataDecrypter{err: errors.New("some Decrypt error")},
 		docSL,
 	)
-	err = u2.Unpack(content, doc, keys)
+	metadata, err = u2.Unpack(content, doc, keys)
 	assert.NotNil(t, err)
+	assert.Nil(t, metadata)
 
 	// check scanner error bubbles up
 	u3 := NewEntryUnpacker(params, &fixedMetadataDecrypter{}, docSL)
 	u3.(*entryUnpacker).scanner = &fixedScanner{
 		err: errors.New("some Scan error"),
 	}
-	err = u3.Unpack(content, doc, keys)
+	metadata, err = u3.Unpack(content, doc, keys)
 	assert.NotNil(t, err)
+	assert.Nil(t, metadata)
 }
 
 func TestEntryPackUnpack(t *testing.T) {
@@ -164,14 +193,20 @@ func TestEntryPackUnpack(t *testing.T) {
 		assert.Nil(t, err)
 		u := NewEntryUnpacker(unpackParams, metadataEncDec, docSL)
 
-		doc, err := p.Pack(content1, c.mediaType, keys, authorPub)
+		doc, metadata1, err := p.Pack(content1, c.mediaType, keys, authorPub)
 		assert.Nil(t, err)
 		assert.NotNil(t, doc)
+		uncompressedSize1, in := metadata1.GetUncompressedSize()
+		assert.True(t, in)
+		assert.Equal(t, c.uncompressedSize, int(uncompressedSize1))
 
 		content2 := new(bytes.Buffer)
-		err = u.Unpack(content2, doc, keys)
+		metadata2, err := u.Unpack(content2, doc, keys)
 		assert.Nil(t, err)
 		assert.Equal(t, content1Bytes, content2.Bytes())
+		uncompressedSize2, in := metadata2.GetUncompressedSize()
+		assert.True(t, in)
+		assert.Equal(t, c.uncompressedSize, int(uncompressedSize2))
 	}
 }
 
