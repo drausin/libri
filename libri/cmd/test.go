@@ -12,9 +12,8 @@ import (
 )
 
 const (
-	passphraseFlag     = "passphrase"
-	librariansFlag     = "librarians"
-	createKeychainFlag = "createKeychain"
+	librariansFlag = "librarians"
+	envVarPrefix   = "LIBRI"
 )
 
 // testCmd represents the test command
@@ -27,16 +26,12 @@ var testCmd = &cobra.Command{
 func init() {
 	RootCmd.AddCommand(testCmd)
 
-	testCmd.PersistentFlags().StringP(passphraseFlag, "p", "SamplePassphrase",
-		"keychain passphrase")
 	testCmd.PersistentFlags().StringSliceP(librariansFlag, "a", nil,
 		"comma-separated addresses (IPv4:Port) of librarian(s)")
-	testCmd.PersistentFlags().BoolP(createKeychainFlag, "k", true,
-		"create a keychain if one doesn't exist")
 
 	// bind viper flags
-	viper.SetEnvPrefix("LIBRI") // look for env vars with "LIBRI_" prefix
-	viper.AutomaticEnv()        // read in environment variables that match
+	viper.SetEnvPrefix(envVarPrefix) // look for env vars with "LIBRI_" prefix
+	viper.AutomaticEnv()             // read in environment variables that match
 	if err := viper.BindPFlags(testCmd.PersistentFlags()); err != nil {
 		panic(err)
 	}
@@ -63,31 +58,14 @@ func getAuthorConfig() (*author.Config, *zap.Logger, error) {
 	return config, logger, nil
 }
 
-func maybeCreateKeychain(logger *zap.Logger, keychainDir string, keychainAuth string) error {
-	missing, err := author.MissingKeychains(keychainDir)
-	if err != nil {
-		return err
-	}
-	if !missing {
-		return nil
-	}
-
-	logger.Info("creating new keychains")
-	return author.CreateKeychains(logger, keychainDir, keychainAuth, keychain.LightScryptN,
-		keychain.LightScryptP)
-}
-
 func getAuthor() (*author.Author, *zap.Logger, error) {
 	config, logger, err := getAuthorConfig()
 	if err != nil {
 		return nil, logger, err
 	}
-	passphrase := viper.GetString(passphraseFlag)
-	// TODO (drausin) make this optional
-	if err = maybeCreateKeychain(logger, config.KeychainDir, passphrase); err != nil {
-		logger.Error("encountered error when creating keychain", zap.Error(err))
-		return nil, logger, err
-	}
-	a, err := author.NewAuthor(config, passphrase, logger)
+	// since we're just doing tests, no need to worry about saving encrypted keychains and
+	// generating more than one key on each
+	authorKeys, selfReaderKeys := keychain.New(1), keychain.New(1)
+	a, err := author.NewAuthor(config, authorKeys, selfReaderKeys, logger)
 	return a, logger, err
 }

@@ -23,13 +23,12 @@ import (
 	"net"
 	"google.golang.org/grpc"
 	"golang.org/x/net/context"
+	"github.com/drausin/libri/libri/author/keychain"
 )
 
 const (
 	testKeychainAuth = "some secret passphrase"
 )
-
-
 
 func TestNewAuthor(t *testing.T) {
 	// return empty map of health clients
@@ -46,7 +45,12 @@ func TestNewAuthor(t *testing.T) {
 	err := a1.Close()
 	assert.Nil(t, err)
 
-	a2, err := NewAuthor(a1.config, testKeychainAuth, clogging.NewDevInfoLogger())
+	a2, err := NewAuthor(
+		a1.config,
+		a1.authorKeys,
+		a1.selfReaderKeys,
+		clogging.NewDevInfoLogger(),
+	)
 
 	assert.Nil(t, err)
 	assert.Equal(t, clientID1, a2.clientID)
@@ -395,7 +399,8 @@ func newTestAuthor() *Author {
 		panic(err)
 	}
 
-	author, err := NewAuthor(config, testKeychainAuth, logger)
+	authorKeys, selfReaderKeys := keychain.New(nInitialKeys), keychain.New(nInitialKeys)
+	author, err := NewAuthor(config, authorKeys, selfReaderKeys, logger)
 	if err != nil {
 		panic(err)
 	}
