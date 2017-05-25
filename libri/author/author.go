@@ -19,6 +19,7 @@ import (
 	"go.uber.org/zap"
 	"time"
 	"golang.org/x/net/context"
+	"github.com/dustin/go-humanize"
 )
 
 const (
@@ -223,7 +224,7 @@ func (a *Author) Upload(content io.Reader, mediaType string) (*api.Document, id.
 	a.logger.Debug("packing content",
 		zap.String(LoggerAuthorPub, fmt.Sprintf("%065x", authorPub)),
 	)
-	entry, err := a.entryPacker.Pack(content, mediaType, keys, authorPub)
+	entry, metadata, err := a.entryPacker.Pack(content, mediaType, keys, authorPub)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -241,9 +242,13 @@ func (a *Author) Upload(content io.Reader, mediaType string) (*api.Document, id.
 	// - delete pages from local storage
 
 	entryKeyBytes := envelope.Contents.(*api.Document_Envelope).Envelope.EntryKey
+	uncompressedSize, _ := metadata.GetUncompressedSize()
+	ciphertextSize, _ := metadata.GetCiphertextSize()
 	a.logger.Info("successfully uploaded document",
 		zap.String(LoggerEnvelopeKey, envelopeKey.String()),
 		zap.String(LoggerEntryKey, id.FromBytes(entryKeyBytes).String()),
+		zap.String("original_size", humanize.Bytes(uncompressedSize)),
+		zap.String("uploaded_size", humanize.Bytes(ciphertextSize)),
 	)
 	return envelope, envelopeKey, nil
 }
@@ -265,16 +270,21 @@ func (a *Author) Download(content io.Writer, envelopeKey id.ID) error {
 		zap.String(LoggerEntryKey, entryKey.String()),
 		zap.Int(LoggerNPages, nPages),
 	)
-	if err := a.entryUnpacker.Unpack(content, entry, keys); err != nil {
+	metadata, err := a.entryUnpacker.Unpack(content, entry, keys)
+	if err != nil {
 		return err
 	}
 
 	// TODO (drausin)
 	// - delete pages from local storage
 
+	uncompressedSize, _ := metadata.GetUncompressedSize()
+	ciphertextSize, _ := metadata.GetCiphertextSize()
 	a.logger.Info("successfully downloaded document",
 		zap.String(LoggerEnvelopeKey, envelopeKey.String()),
 		zap.String(LoggerEntryKey, entryKey.String()),
+		zap.String("downloaded_size", humanize.Bytes(ciphertextSize)),
+		zap.String("original_size", humanize.Bytes(uncompressedSize)),
 	)
 	return nil
 }

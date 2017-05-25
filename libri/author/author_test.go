@@ -107,7 +107,17 @@ func TestAuthor_Healthcheck_err(t *testing.T) {
 func TestAuthor_Upload_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	a := newTestAuthor()
-	a.entryPacker = &fixedEntryPacker{}
+	metadata, err := api.NewEntryMetadata(
+		"application/x-pdf",
+		1,
+		api.RandBytes(rng, 32),
+		2,
+		api.RandBytes(rng, 32),
+	)
+	assert.Nil(t, err)
+	a.entryPacker = &fixedEntryPacker{
+		metadata: metadata,
+	}
 	expectedEntryKey := id.NewPseudoRandom(rng)
 	a.shipper = &fixedShipper{
 		envelope: &api.Document{
@@ -155,12 +165,20 @@ func TestAuthor_Upload_err(t *testing.T) {
 func TestAuthor_Download_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	doc, docKey := api.NewTestDocument(rng)
+	metadata, err := api.NewEntryMetadata(
+		"application/x-pdf",
+		1,
+		api.RandBytes(rng, 32),
+		2,
+		api.RandBytes(rng, 32),
+	)
+	assert.Nil(t, err)
 	a := &Author{
 		logger:        clogging.NewDevInfoLogger(),
 		receiver:      &fixedReceiver{entry: doc},
-		entryUnpacker: &fixedUnpacker{},
+		entryUnpacker: &fixedUnpacker{metadata: metadata},
 	}
-	err := a.Download(nil, docKey)
+	err = a.Download(nil, docKey)
 	assert.Nil(t, err)
 }
 
@@ -260,13 +278,14 @@ func (f *fixedMLPublisher) Publish(docKeys []id.ID, cb api.ClientBalancer) error
 
 type fixedEntryPacker struct {
 	entry *api.Document
+	metadata *api.Metadata
 	err   error
 }
 
 func (f *fixedEntryPacker) Pack(
 	content io.Reader, mediaType string, keys *enc.Keys, authorPub []byte,
-) (*api.Document, error) {
-	return f.entry, f.err
+) (*api.Document, *api.Metadata, error) {
+	return f.entry, f.metadata, f.err
 }
 
 type fixedShipper struct {
@@ -291,11 +310,13 @@ func (f *fixedReceiver) Receive(envelopeKey id.ID) (*api.Document, *enc.Keys, er
 }
 
 type fixedUnpacker struct {
+	metadata *api.Metadata
 	err error
 }
 
-func (f *fixedUnpacker) Unpack(content io.Writer, entry *api.Document, keys *enc.Keys) error {
-	return f.err
+func (f *fixedUnpacker) Unpack(content io.Writer, entry *api.Document, keys *enc.Keys) (
+	*api.Metadata, error) {
+	return f.metadata, f.err
 }
 
 type memPublisherAcquirer struct {
