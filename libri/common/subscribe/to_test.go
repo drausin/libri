@@ -17,6 +17,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"github.com/drausin/libri/libri/common/id"
+	"time"
 )
 
 func TestTo_BeginEnd(t *testing.T) {
@@ -103,6 +104,7 @@ func TestTo_BeginEnd(t *testing.T) {
 
 	toImpl.End()
 	newPub, ended = getNewPub(newPubs, toImpl.end)
+	time.Sleep(50 * time.Millisecond)  // occasionally channels need a bit of time to close
 	assert.Nil(t, newPub)
 	assert.True(t, ended)
 
