@@ -68,7 +68,7 @@ func TestLoadKeychains(t *testing.T) {
 	assert.Nil(t, err)
 
 	// check our keychains load properly and have the expected length
-	authorKeys, selfReaderKeys, err := loadKeychains(testKeychainDir, auth)
+	authorKeys, selfReaderKeys, err := LoadKeychains(testKeychainDir, auth)
 	assert.Nil(t, err)
 	assert.Equal(t, nInitialKeys, authorKeys.Len())
 	assert.Equal(t, nInitialKeys, selfReaderKeys.Len())
@@ -78,7 +78,7 @@ func TestLoadKeychains(t *testing.T) {
 	assert.Nil(t, err)
 
 	// check missing self reader keychain file triggers error
-	authorKeys, selfReaderKeys, err = loadKeychains(testKeychainDir, auth)
+	authorKeys, selfReaderKeys, err = LoadKeychains(testKeychainDir, auth)
 	assert.NotNil(t, err)
 	assert.Nil(t, authorKeys)
 	assert.Nil(t, selfReaderKeys)
@@ -88,7 +88,7 @@ func TestLoadKeychains(t *testing.T) {
 	assert.Nil(t, err)
 
 	// check missing author keychain file triggers error
-	authorKeys, selfReaderKeys, err = loadKeychains(testKeychainDir, auth)
+	authorKeys, selfReaderKeys, err = LoadKeychains(testKeychainDir, auth)
 	assert.NotNil(t, err)
 	assert.Nil(t, authorKeys)
 	assert.Nil(t, selfReaderKeys)

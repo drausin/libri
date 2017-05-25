@@ -102,7 +102,12 @@ type Author struct {
 
 // NewAuthor creates a new *Author from the Config, decrypting the keychains with the supplied
 // auth string.
-func NewAuthor(config *Config, keychainAuth string, logger *zap.Logger) (*Author, error) {
+func NewAuthor(
+	config *Config,
+	authorKeys keychain.Keychain,
+	selfReaderKeys keychain.Keychain,
+	logger *zap.Logger) (*Author, error) {
+
 	rdb, err := db.NewRocksDB(config.DbDir)
 	if err != nil {
 		logger.Error("unable to init RocksDB", zap.Error(err))
@@ -117,10 +122,6 @@ func NewAuthor(config *Config, keychainAuth string, logger *zap.Logger) (*Author
 		return nil, err
 	}
 
-	authorKeys, selfReaderKeys, err := loadKeychains(config.KeychainDir, keychainAuth)
-	if err != nil {
-		return nil, err
-	}
 	envelopeKeys := &envelopeKeySamplerImpl{
 		authorKeys:     authorKeys,
 		selfReaderKeys: selfReaderKeys,
