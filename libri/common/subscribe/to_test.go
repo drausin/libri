@@ -17,7 +17,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"github.com/drausin/libri/libri/common/id"
-	"time"
 )
 
 func TestTo_BeginEnd(t *testing.T) {
@@ -103,7 +102,13 @@ func TestTo_BeginEnd(t *testing.T) {
 	assert.False(t, ended)
 
 	toImpl.End()
-	time.Sleep(250 * time.Millisecond)  // occasionally channels need a bit of time to close
+
+	// sometimes toImpl.end doesn't register as closed in getNewPub unless we explicitly try to
+	// select from it beforehand...weird, but the next 4 lines seem to fix it
+	select {
+	case <-toImpl.end:
+	default:
+	}
 	newPub, ended = getNewPub(newPubs, toImpl.end)
 	assert.Nil(t, newPub)
 	assert.True(t, ended)
