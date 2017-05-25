@@ -103,8 +103,8 @@ func TestTo_BeginEnd(t *testing.T) {
 	assert.False(t, ended)
 
 	toImpl.End()
-	newPub, ended = getNewPub(newPubs, toImpl.end)
 	time.Sleep(50 * time.Millisecond)  // occasionally channels need a bit of time to close
+	newPub, ended = getNewPub(newPubs, toImpl.end)
 	assert.Nil(t, newPub)
 	assert.True(t, ended)
 
