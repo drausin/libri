@@ -75,6 +75,9 @@ spec:
             ]
           initialDelaySeconds: 15
           periodSeconds: 30
+        volumeMounts:
+        - name: librarian-data
+          mountPath: /librarian-data
 
       initContainers:
       - image: devth/k8s-labeler
@@ -88,4 +91,16 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+
+    volumeClaimTemplates:
+    - metadata:
+        name: librarian-data
+        annotations:
+          volume.beta.kubernetes.io/storage-class: anything
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 1Gi
+
 
