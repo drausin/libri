@@ -15,6 +15,8 @@ import (
 	"google.golang.org/grpc"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
+	"os/signal"
+	"syscall"
 )
 
 const (
@@ -114,6 +116,17 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 		l.logger.Info("gracefully stopping server", zap.Int(LoggerPortKey,
 			l.config.LocalAddr.Port))
 		s.GracefulStop()
+	}()
+
+	// handle stop stopSignals from outside world
+	stopSignals := make(chan os.Signal, 3)
+	signal.Notify(stopSignals, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+	go func() {
+		<-stopSignals
+		if err := l.Close(); err != nil {
+			// don't try to recover
+			panic(err)
+		}
 	}()
 
 	// long-running goroutine managing subscriptions from other peers
