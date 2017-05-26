@@ -123,7 +123,10 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 	signal.Notify(stopSignals, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	go func() {
 		<-stopSignals
-		l.Close()
+		if err := l.Close(); err != nil {
+			// don't try to recover
+			panic(err)
+		}
 	}()
 
 	// long-running goroutine managing subscriptions from other peers
