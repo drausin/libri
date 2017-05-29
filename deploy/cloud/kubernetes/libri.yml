@@ -6,7 +6,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: libri-headless
+  name: libri
 spec:
   clusterIP: None
   ports:
@@ -25,7 +25,7 @@ spec:
   - port: 20100
     nodePort: 30100
   selector:
-    nameLabel: librarians-0
+    hostname: librarians-0
 ---
 # NodePort service exposing the librarians-1 node to the outside world
 apiVersion: v1
@@ -38,7 +38,7 @@ spec:
   - port: 20100
     nodePort: 30101
   selector:
-    nameLabel: librarians-1
+    hostname: librarians-1
 ---
 # NodePort service exposing the librarians-2 node to the outside world
 apiVersion: v1
@@ -51,7 +51,7 @@ spec:
   - port: 20100
     nodePort: 30102
   selector:
-    nameLabel: librarians-2
+    hostname: librarians-2
 ---
 # StatefulSet of 3 librarians
 apiVersion: apps/v1beta1
@@ -66,6 +66,7 @@ spec:
       labels:
         app: libri
     spec:
+
       containers:
       - name: libriarian
         image: daedalus2718/libri:latest  # develop branch
@@ -89,9 +90,25 @@ spec:
               fieldPath: status.podIP
         ports:
         - containerPort: 20100
+        livenessProbe:
+          exec:
+            command: [
+              "sh", "-c",
+              "libri", "test", "health",
+              "-a", "$(hostname).libri.default.svc.cluster.local:20100"
+            ]
+          initialDelaySeconds: 15
+          periodSeconds: 30
 
-# TODO
-# - separate bootstrap StatefulSet/IPs
-# - after creating librarians StatefulSet, add name (e.g., "name": "librarians-0") label to each
-#   --> shell cmd
-
+      initContainers:
+      - image: devth/k8s-labeler
+        name: labeler
+        env:
+        - name: KUBE_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: KUBE_LABEL_hostname
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name

@@ -6,7 +6,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: libri-headless
+  name: libri
 spec:
   clusterIP: None
   ports:
@@ -26,7 +26,7 @@ spec:
   - port: {{ $localPort }}
     nodePort: {{ $librarian.PublicPort }}
   selector:
-    nameLabel: librarians-{{ $index }}
+    hostname: librarians-{{ $index }}
 ---
 {{ end -}}
 # StatefulSet of {{ .Librarians | len }} librarians
@@ -42,13 +42,14 @@ spec:
       labels:
         app: libri
     spec:
+
       containers:
       - name: libriarian
         image: daedalus2718/libri:latest  # develop branch
         args: [
           "librarian", "start",
           "--nSubscriptions", "2",
-          "--bootstraps", "librarians-0.libri.default.svc.cluster.local:20100",
+          "--bootstraps", "librarians-0.libri.default.svc.cluster.local:{{ $localPort }}",
         ]
         env:
         - name: GODEBUG         # ensure we use the pure Go (rather than CGO) DNS
@@ -65,3 +66,26 @@ spec:
               fieldPath: status.podIP
         ports:
         - containerPort: {{ $localPort }}
+        livenessProbe:
+          exec:
+            command: [
+              "sh", "-c",
+              "libri", "test", "health",
+              "-a", "$(hostname).libri.default.svc.cluster.local:{{ $localPort }}"
+            ]
+          initialDelaySeconds: 15
+          periodSeconds: 30
+
+      initContainers:
+      - image: devth/k8s-labeler
+        name: labeler
+        env:
+        - name: KUBE_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: KUBE_LABEL_hostname  # used to identify individual pods to each NodePort service
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+
