@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/spf13/cobra"
 	"log"
 	"os"
 	"path/filepath"
 	"text/template"
+
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -25,16 +26,18 @@ var (
 	localPort        int
 )
 
-type Librarian struct {
-	PublicPort int
-}
-
+// Config contains the configuration to apply to the template.
 type Config struct {
 	LocalPort  int
 	Librarians []Librarian
 }
 
-var GenCmd = &cobra.Command{
+// Librarian contains the public-facing configuration for an individual librarian.
+type Librarian struct {
+	PublicPort int
+}
+
+var genCmd = &cobra.Command{
 	Use:   "gen",
 	Short: "generate libri Kubernetes YML config",
 	Long:  `generate libri Kubernetes YML config`,
@@ -70,20 +73,20 @@ var GenCmd = &cobra.Command{
 }
 
 func init() {
-	GenCmd.Flags().StringVarP(&templateFilepath, "template-file", "t", defaultTemplateFilepath,
+	genCmd.Flags().StringVarP(&templateFilepath, "templateFile", "t", defaultTemplateFilepath,
 		"template YML filepath")
-	GenCmd.Flags().StringVarP(&outFilepath, "out-file", "o", defaultOutputFilepath,
+	genCmd.Flags().StringVarP(&outFilepath, "outFile", "o", defaultOutputFilepath,
 		"output YML filepath")
-	GenCmd.Flags().IntVarP(&nReplicas, "n-replicas", "n", defaultNReplicas,
+	genCmd.Flags().IntVarP(&nReplicas, "nReplicas", "n", defaultNReplicas,
 		"number of librarian replicas")
-	GenCmd.Flags().IntVarP(&publicPortStart, "public-port", "p", defaultPublicPortStart,
+	genCmd.Flags().IntVarP(&publicPortStart, "publicPort", "p", defaultPublicPortStart,
 		"starting public port for librarians")
-	GenCmd.Flags().IntVarP(&localPort, "local-port", "l", defaultLocalPort,
+	genCmd.Flags().IntVarP(&localPort, "localPort", "l", defaultLocalPort,
 		"local port for librarian node")
 }
 
 func main() {
-	if err := GenCmd.Execute(); err != nil {
+	if err := genCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(-1)
 	}

@@ -6,7 +6,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: libri
+  name: libri-headless
 spec:
   clusterIP: None
   ports:
@@ -47,7 +47,7 @@ spec:
         image: daedalus2718/libri:latest  # develop branch
         args: [
           "librarian", "start",
-#          "--nSubscriptions", "0",  # for now
+          "--nSubscriptions", "2",
           "--bootstraps", "librarians-0.libri.default.svc.cluster.local:20100",
         ]
         env:
@@ -65,9 +65,3 @@ spec:
               fieldPath: status.podIP
         ports:
         - containerPort: {{ $localPort }}
-
-# TODO
-# - separate bootstrap StatefulSet/IPs
-# - after creating librarians StatefulSet, add name (e.g., "name": "librarians-0") label to each
-#   --> shell cmd
-
