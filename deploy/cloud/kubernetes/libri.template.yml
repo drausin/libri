@@ -1,0 +1,73 @@
+{{/* the next line is obviously just for the generated file, not this template */}}
+# This file is generated from libri.template.yml. Please edit that instead!
+{{ $localPort := .LocalPort }}
+---
+# headless service for internal DNS networking
+apiVersion: v1
+kind: Service
+metadata:
+  name: libri
+spec:
+  clusterIP: None
+  ports:
+  - port: {{ $localPort }}
+  selector:
+    app: libri
+---
+{{ range $index, $librarian := .Librarians -}}
+# NodePort service exposing the librarians-{{ $index }} node to the outside world
+apiVersion: v1
+kind: Service
+metadata:
+  name: librarians-{{ $index }}
+spec:
+  type: NodePort
+  ports:
+  - port: {{ $localPort }}
+    nodePort: {{ $librarian.PublicPort }}
+  selector:
+    nameLabel: librarians-{{ $index }}
+---
+{{ end -}}
+# StatefulSet of {{ .Librarians | len }} librarians
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: librarians
+spec:
+  serviceName: libri
+  replicas: {{ .Librarians | len }}
+  template:
+    metadata:
+      labels:
+        app: libri
+    spec:
+      containers:
+      - name: libriarian
+        image: daedalus2718/libri:latest  # develop branch
+        args: [
+          "librarian", "start",
+#          "--nSubscriptions", "0",  # for now
+          "--bootstraps", "librarians-0.libri.default.svc.cluster.local:20100",
+        ]
+        env:
+        - name: GODEBUG         # ensure we use the pure Go (rather than CGO) DNS
+          value: netdns=go      # resolver (see https://golang.org/src/net/net.go)
+        - name: LIBRI_LOCALHOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: LIBRI_PUBLICHOST
+        # TODO external peers once k8s v1.7.0 is available (with status.hostIP support)
+        # - move librarians to use hostIP:30100+ ports for public addresses
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        ports:
+        - containerPort: {{ $localPort }}
+
+# TODO
+# - separate bootstrap StatefulSet/IPs
+# - after creating librarians StatefulSet, add name (e.g., "name": "librarians-0") label to each
+#   --> shell cmd
+

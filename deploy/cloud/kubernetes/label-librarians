@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+# Label each librarian with its name (in nameLabel) for individual NodePort services
+#
+# This command is idempotent.
+
+kubectl get pods -l app=libri -o jsonpath='{.items[*].metadata.name}' | \
+    tr ' ' '\n' | \
+    xargs -I {} \
+    kubectl label pods --overwrite {} nameLabel={}
