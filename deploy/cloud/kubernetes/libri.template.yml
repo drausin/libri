@@ -3,8 +3,8 @@
 {{ $localPort := .LocalPort }}
 ---
 # headless service for internal DNS networking
-apiVersion: v1
 kind: Service
+apiVersion: v1
 metadata:
   name: libri
 spec:
@@ -16,8 +16,8 @@ spec:
 ---
 {{ range $index, $librarian := .Librarians -}}
 # NodePort service exposing the librarians-{{ $index }} node to the outside world
-apiVersion: v1
 kind: Service
+apiVersion: v1
 metadata:
   name: librarians-{{ $index }}
 spec:
@@ -27,6 +27,37 @@ spec:
     nodePort: {{ $librarian.PublicPort }}
   selector:
     hostname: librarians-{{ $index }}
+---
+# PersistentVolume for librarian {{ $index }}'s /data dir
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: data-{{ $index }}
+  labels:
+    app: libri
+  annotations:
+    volume.beta.kubernetes.io/storage-class: default
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes: ["ReadWriteOnce"]
+  hostPath:
+    path: "/data/data-librarians-{{ $index }}"
+---
+# PersistentVolumeClaim for librarian {{ $index }}'s PersistentVolume
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: data-librarians-{{ $index }}
+  labels:
+    app: libri
+  annotations:
+    volume.beta.kubernetes.io/storage-class: default
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 1Gi
 ---
 {{ end -}}
 # StatefulSet of {{ .Librarians | len }} librarians
@@ -49,6 +80,7 @@ spec:
         args: [
           "librarian", "start",
           "--nSubscriptions", "2",
+          "--dataDir", "/data",
           "--bootstraps", "librarians-0.libri.default.svc.cluster.local:{{ $localPort }}",
         ]
         env:
@@ -75,6 +107,9 @@ spec:
             ]
           initialDelaySeconds: 15
           periodSeconds: 30
+        volumeMounts:
+        - name: data
+          mountPath: /data
 
       initContainers:
       - image: devth/k8s-labeler
@@ -89,3 +124,11 @@ spec:
             fieldRef:
               fieldPath: metadata.name
 
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: data
+
+  volumeClaimTemplates:
+  - metadata:
+      name: data

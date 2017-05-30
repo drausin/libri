@@ -40,7 +40,8 @@ const (
 	 *   0.3	40		99.9999%
 	 */
 
-	// DefaultNSubscriptionsTo is the default number of subscriptions to other peers to maintain.
+	// DefaultNSubscriptionsTo is the default number of subscriptions to other peers to
+	// maintain.
 	DefaultNSubscriptionsTo = 10
 
 	// DefaultFPRate is the default false positive rate for each subscription to another peer.
