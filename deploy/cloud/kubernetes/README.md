@@ -33,26 +33,11 @@ Start the cluster with
 
 and examine the pods with
 
-    $ kubectl get pods -o wide --show-labels
-    NAME           READY     STATUS    RESTARTS   AGE       IP           NODE       LABELS
-    librarians-0   1/1       Running   0          10s       172.17.0.6   minikube   app=libri
-    librarians-1   1/1       Running   0          8s        172.17.0.7   minikube   app=libri
-    librarians-2   1/1       Running   0          3s        172.17.0.8   minikube   app=libri
-    
-Label each pod with its name to make it visible to its individual `NodePort` service
-
-    $ ./label-librarians
-    pod "librarians-0" labeled
-    pod "librarians-1" labeled
-    pod "librarians-2" labeled
-
-Examine the pods again
-
     kubectl get pods -o wide --show-labels
     NAME           READY     STATUS    RESTARTS   AGE       IP           NODE       LABELS
-    librarians-0   1/1       Running   0          1m        172.17.0.6   minikube   app=libri,nameLabel=librarians-0
-    librarians-1   1/1       Running   0          1m        172.17.0.7   minikube   app=libri,nameLabel=librarians-1
-    librarians-2   1/1       Running   0          1m        172.17.0.8   minikube   app=libri,nameLabel=librarians-2
+    librarians-0   1/1       Running   0          1m        172.17.0.6   minikube   app=libri,hostname=librarians-0
+    librarians-1   1/1       Running   0          1m        172.17.0.7   minikube   app=libri,hostname=librarians-1
+    librarians-2   1/1       Running   0          1m        172.17.0.8   minikube   app=libri,hostname=librarians-2
 
 Get the external address for one of the services
 
