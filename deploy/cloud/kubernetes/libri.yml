@@ -3,8 +3,8 @@
 
 ---
 # headless service for internal DNS networking
-apiVersion: v1
 kind: Service
+apiVersion: v1
 metadata:
   name: libri
 spec:
@@ -15,8 +15,8 @@ spec:
     app: libri
 ---
 # NodePort service exposing the librarians-0 node to the outside world
-apiVersion: v1
 kind: Service
+apiVersion: v1
 metadata:
   name: librarians-0
 spec:
@@ -27,9 +27,40 @@ spec:
   selector:
     hostname: librarians-0
 ---
-# NodePort service exposing the librarians-1 node to the outside world
+# PersistentVolume for librarian 0's /data dir
+kind: PersistentVolume
 apiVersion: v1
+metadata:
+  name: data-0
+  labels:
+    app: libri
+  annotations:
+    volume.beta.kubernetes.io/storage-class: default
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes: ["ReadWriteOnce"]
+  hostPath:
+    path: "/data/data-librarians-0"
+---
+# PersistentVolumeClaim for librarian 0's PersistentVolume
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: data-librarians-0
+  labels:
+    app: libri
+  annotations:
+    volume.beta.kubernetes.io/storage-class: default
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 1Gi
+---
+# NodePort service exposing the librarians-1 node to the outside world
 kind: Service
+apiVersion: v1
 metadata:
   name: librarians-1
 spec:
@@ -40,9 +71,40 @@ spec:
   selector:
     hostname: librarians-1
 ---
-# NodePort service exposing the librarians-2 node to the outside world
+# PersistentVolume for librarian 1's /data dir
+kind: PersistentVolume
 apiVersion: v1
+metadata:
+  name: data-1
+  labels:
+    app: libri
+  annotations:
+    volume.beta.kubernetes.io/storage-class: default
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes: ["ReadWriteOnce"]
+  hostPath:
+    path: "/data/data-librarians-1"
+---
+# PersistentVolumeClaim for librarian 1's PersistentVolume
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: data-librarians-1
+  labels:
+    app: libri
+  annotations:
+    volume.beta.kubernetes.io/storage-class: default
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 1Gi
+---
+# NodePort service exposing the librarians-2 node to the outside world
 kind: Service
+apiVersion: v1
 metadata:
   name: librarians-2
 spec:
@@ -52,6 +114,37 @@ spec:
     nodePort: 30102
   selector:
     hostname: librarians-2
+---
+# PersistentVolume for librarian 2's /data dir
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: data-2
+  labels:
+    app: libri
+  annotations:
+    volume.beta.kubernetes.io/storage-class: default
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes: ["ReadWriteOnce"]
+  hostPath:
+    path: "/data/data-librarians-2"
+---
+# PersistentVolumeClaim for librarian 2's PersistentVolume
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: data-librarians-2
+  labels:
+    app: libri
+  annotations:
+    volume.beta.kubernetes.io/storage-class: default
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 1Gi
 ---
 # StatefulSet of 3 librarians
 apiVersion: apps/v1beta1
@@ -73,6 +166,7 @@ spec:
         args: [
           "librarian", "start",
           "--nSubscriptions", "2",
+          "--dataDir", "/data",
           "--bootstraps", "librarians-0.libri.default.svc.cluster.local:20100",
         ]
         env:
@@ -99,6 +193,9 @@ spec:
             ]
           initialDelaySeconds: 15
           periodSeconds: 30
+        volumeMounts:
+        - name: data
+          mountPath: /data
 
       initContainers:
       - image: devth/k8s-labeler
@@ -108,7 +205,16 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        - name: KUBE_LABEL_hostname
+        - name: KUBE_LABEL_hostname  # used to identify individual pods to each NodePort service
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: data
+
+  volumeClaimTemplates:
+  - metadata:
+      name: data

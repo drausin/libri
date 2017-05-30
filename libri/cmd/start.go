@@ -21,6 +21,7 @@ const (
 	publicNameFlag     = "publicName"
 	publicPortFlag     = "publicPort"
 	nSubscriptionsFlag = "nSubscriptions"
+	fpRateFlag         = "fpRateFlag"
 )
 
 // startLibrarianCmd represents the librarian start command
@@ -57,6 +58,8 @@ func init() {
 		"public peer name")
 	startLibrarianCmd.Flags().IntP(nSubscriptionsFlag, "s", subscribe.DefaultNSubscriptionsTo,
 		"number of active subscriptions to other peers to maintain")
+	startLibrarianCmd.Flags().Float32P(fpRateFlag, "f", subscribe.DefaultFPRate,
+		"false positive rate for subscriptions to other peers")
 
 	// bind viper flags
 	viper.SetEnvPrefix("LIBRI") // look for env vars with "LIBRI_" prefix
@@ -88,8 +91,10 @@ func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
 		WithPublicAddr(publicAddr).
 		WithPublicName(viper.GetString(publicNameFlag)).
 		WithDataDir(viper.GetString(dataDirFlag)).
+		WithDefaultDBDir().  // depends on DataDir
 		WithLogLevel(getLogLevel())
 	config.SubscribeTo.NSubscriptions = uint32(viper.GetInt(nSubscriptionsFlag))
+	config.SubscribeTo.FPRate = float32(viper.GetFloat64(fpRateFlag))
 
 	logger := clogging.NewDevLogger(config.LogLevel)
 	bootstrapNetAddrs, err := server.ParseAddrs(viper.GetStringSlice(bootstrapsFlag))
@@ -108,6 +113,7 @@ func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
 		zap.String(dataDirFlag, config.DataDir),
 		zap.Stringer(logLevelFlag, config.LogLevel),
 		zap.Uint32(nSubscriptionsFlag, config.SubscribeTo.NSubscriptions),
+		zap.Float32(fpRateFlag, config.SubscribeTo.FPRate),
 	)
 	return config, logger, nil
 }

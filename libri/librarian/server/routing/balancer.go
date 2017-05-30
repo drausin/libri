@@ -19,8 +19,8 @@ var (
 	// ErrClientMissingFromSet indicates when a client ID is expected to be in a set but isn't.
 	ErrClientMissingFromSet = errors.New("client missing from set")
 
-	tableSampleRetryWait = 2 * time.Second
-	numRetries           = 16
+	tableSampleRetryWait = 15 * time.Second
+	numRetries           = 32
 	sampleBatchSize      = uint(8)
 )
 
