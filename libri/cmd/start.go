@@ -32,10 +32,12 @@ var startLibrarianCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		config, logger, err := getLibrarianConfig()
 		if err != nil {
+			fmt.Println(err)
 			os.Exit(1)
 		}
 		up := make(chan *server.Librarian, 1)
 		if err = server.Start(logger, config, up); err != nil {
+			fmt.Println(err)
 			os.Exit(1)
 		}
 	},

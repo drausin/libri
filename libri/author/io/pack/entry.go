@@ -52,6 +52,9 @@ func (p *entryPacker) Pack(content io.Reader, mediaType string, keys *enc.Keys, 
 	if err != nil {
 		return nil, nil, err
 	}
+	// TODO (drausin) add additional metadata K/V here
+	// - relative filepath
+	// - file mode permissions
 	encMetadata, err := p.metadataEnc.Encrypt(metadata, keys)
 	if err != nil {
 		return nil, nil, err

@@ -1,11 +1,8 @@
 package cmd
 
 import (
-	"fmt"
 	"github.com/drausin/libri/libri/author"
 	"github.com/drausin/libri/libri/author/keychain"
-	clogging "github.com/drausin/libri/libri/common/logging"
-	"github.com/drausin/libri/libri/librarian/server"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -13,7 +10,6 @@ import (
 
 const (
 	librariansFlag = "librarians"
-	envVarPrefix   = "LIBRI"
 )
 
 // testCmd represents the test command
@@ -37,28 +33,7 @@ func init() {
 	}
 }
 
-func getAuthorConfig() (*author.Config, *zap.Logger, error) {
-	config := author.NewDefaultConfig().
-		WithDataDir(viper.GetString(dataDirFlag)).
-		WithLogLevel(getLogLevel())
-
-	logger := clogging.NewDevLogger(config.LogLevel)
-	librarianNetAddrs, err := server.ParseAddrs(viper.GetStringSlice(librariansFlag))
-	if err != nil {
-		logger.Error("unable to parse librarian address", zap.Error(err))
-		return nil, logger, err
-	}
-	config.WithLibrarianAddrs(librarianNetAddrs)
-
-	logger.Info("test configuration",
-		zap.String(librariansFlag, fmt.Sprintf("%v", config.LibrarianAddrs)),
-		zap.String(dataDirFlag, config.DataDir),
-		zap.Stringer(logLevelFlag, config.LogLevel),
-	)
-	return config, logger, nil
-}
-
-func getAuthor() (*author.Author, *zap.Logger, error) {
+func getTestAuthor() (*author.Author, *zap.Logger, error) {
 	config, logger, err := getAuthorConfig()
 	if err != nil {
 		return nil, logger, err
