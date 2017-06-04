@@ -27,7 +27,7 @@ var ioCmd = &cobra.Command{
 	Short: "check ability to upload and download entries",
 	Long: `TODO(drausin)`,
 	Run: func(cmd *cobra.Command, args []string) {
-		author, logger, err := getTestAuthor()
+		author, logger, err := newTestAuthorGetter().get()
 		if err != nil {
 			logger.Error("error while initializing author", zap.Error(err))
 			os.Exit(1)

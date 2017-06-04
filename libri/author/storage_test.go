@@ -74,7 +74,7 @@ func TestLoadKeychains(t *testing.T) {
 	assert.Equal(t, nInitialKeys, selfReaderKeys.Len())
 
 	// delete self reader keychain to trigger error
-	err = os.Remove(path.Join(testKeychainDir, selfReaderKeychainFilename))
+	err = os.Remove(path.Join(testKeychainDir, SelfReaderKeychainFilename))
 	assert.Nil(t, err)
 
 	// check missing self reader keychain file triggers error
@@ -84,7 +84,7 @@ func TestLoadKeychains(t *testing.T) {
 	assert.Nil(t, selfReaderKeys)
 
 	// delete author keychain to trigger error
-	err = os.Remove(path.Join(testKeychainDir, authorKeychainFilename))
+	err = os.Remove(path.Join(testKeychainDir, AuthorKeychainFilename))
 	assert.Nil(t, err)
 
 	// check missing author keychain file triggers error
@@ -118,7 +118,7 @@ func TestCreateKeychains_err(t *testing.T) {
 	assert.Nil(t, err)
 	auth := "some secret passphrase"
 
-	selfReaderKeysFP := path.Join(testKeychainDir, selfReaderKeychainFilename)
+	selfReaderKeysFP := path.Join(testKeychainDir, SelfReaderKeychainFilename)
 	err = ioutil.WriteFile(selfReaderKeysFP, []byte("some random stuff"), os.ModePerm)
 	assert.Nil(t, err)
 
@@ -137,10 +137,10 @@ func TestCreateKeychain(t *testing.T) {
 	testKeychainDir, err := ioutil.TempDir("", "author-test-keychains")
 	defer rmDir(testKeychainDir)
 	assert.Nil(t, err)
-	authorKeychainFP := path.Join(testKeychainDir, authorKeychainFilename)
+	authorKeychainFP := path.Join(testKeychainDir, AuthorKeychainFilename)
 	auth := "some secret passphrase"
 
-	err = createKeychain(clogging.NewDevInfoLogger(), authorKeychainFP, auth,
+	err = CreateKeychain(clogging.NewDevInfoLogger(), authorKeychainFP, auth,
 		veryLightScryptN, veryLightScryptP)
 	assert.Nil(t, err)
 
@@ -150,21 +150,21 @@ func TestCreateKeychain(t *testing.T) {
 	assert.NotNil(t, info)
 
 	// check attempt to create keychain in same file returns error
-	err = createKeychain(clogging.NewDevInfoLogger(), authorKeychainFP, auth,
+	err = CreateKeychain(clogging.NewDevInfoLogger(), authorKeychainFP, auth,
 		veryLightScryptN, veryLightScryptP)
 	assert.Equal(t, ErrKeychainExists, err)
 
 	// check save error bubbles up
 	otherAuthorKeychainFP := path.Join(testKeychainDir, "other-author.keys")
-	err = createKeychain(clogging.NewDevInfoLogger(), otherAuthorKeychainFP, auth, -1, -1)
+	err = CreateKeychain(clogging.NewDevInfoLogger(), otherAuthorKeychainFP, auth, -1, -1)
 	assert.NotNil(t, err)
 }
 
 func TestMissingKeychains(t *testing.T) {
 	testKeychainDir, err := ioutil.TempDir("", "author-test-keychains")
 	defer rmDir(testKeychainDir)
-	authorKCPath := path.Join(testKeychainDir, authorKeychainFilename)
-	selfReaderKCPath := path.Join(testKeychainDir, selfReaderKeychainFilename)
+	authorKCPath := path.Join(testKeychainDir, AuthorKeychainFilename)
+	selfReaderKCPath := path.Join(testKeychainDir, SelfReaderKeychainFilename)
 	assert.Nil(t, err)
 
 	// check missing when neither file exists

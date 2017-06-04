@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 	"fmt"
 	"github.com/drausin/libri/libri/author/keychain"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 const (
@@ -37,8 +38,22 @@ func init() {
 	}
 }
 
-func getAuthor(authorKeys, selfReaderKeys keychain.Keychain) (*author.Author, *zap.Logger, error) {
-	config, logger, err := getAuthorConfig()
+type authorGetter interface {
+	get(authorKeys, selfReaderKeys keychain.Keychain) (*author.Author, *zap.Logger, error)
+}
+
+type authorGetterImpl struct {
+	acg authorConfigGetter
+}
+
+func newAuthorGetter() authorGetter {
+	return &authorGetterImpl{&authorConfigGetterImpl{}}
+}
+
+func (g *authorGetterImpl) get(authorKeys, selfReaderKeys keychain.Keychain) (
+	*author.Author, *zap.Logger, error) {
+
+	config, logger, err := g.acg.get()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -46,7 +61,13 @@ func getAuthor(authorKeys, selfReaderKeys keychain.Keychain) (*author.Author, *z
 	return a, logger, err
 }
 
-func getAuthorConfig() (*author.Config, *zap.Logger, error) {
+type authorConfigGetter interface {
+	get() (*author.Config, *zap.Logger, error)
+}
+
+type authorConfigGetterImpl struct {}
+
+func (*authorConfigGetterImpl) get() (*author.Config, *zap.Logger, error) {
 	config := author.NewDefaultConfig().
 		WithDataDir(viper.GetString(dataDirFlag)).
 		WithLogLevel(getLogLevel())
@@ -65,4 +86,16 @@ func getAuthorConfig() (*author.Config, *zap.Logger, error) {
 		zap.Stringer(logLevelFlag, config.LogLevel),
 	)
 	return config, logger, nil
+}
+
+type passphraseGetter interface {
+	get() (string, error)
+}
+
+type terminalPassphraseGetter struct {}
+
+func (*terminalPassphraseGetter) get() (string, error) {
+	fmt.Print("Enter keychains passphrase: ")
+	passphraseBytes, err := terminal.ReadPassword(0)
+	return string(passphraseBytes), err
 }

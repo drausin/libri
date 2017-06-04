@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"golang.org/x/crypto/ssh/terminal"
 	lauthor "github.com/drausin/libri/libri/author"
 	"github.com/pkg/errors"
 	"github.com/drausin/libri/libri/author/keychain"
@@ -33,7 +32,7 @@ var uploadCmd = &cobra.Command{
 	Short: "upload a local file to the libri network",
 	Long: `TODO (drausin) add longer description and examples here`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if err := uploadFile(); err != nil {
+		if err := newFileUploader().upload(); err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
@@ -58,21 +57,39 @@ func init() {
 	}
 }
 
-func uploadFile() error {
+type fileUploader interface {
+	upload() error
+}
+
+type fileUploaderImpl struct {
+	ag authorGetter
+	mtg mediaTypeGetter
+	kc keychainsGetter
+}
+
+func newFileUploader() fileUploader {
+	return &fileUploaderImpl{
+		ag: newAuthorGetter(),
+		mtg: &mediaTypeGetterImpl{},
+		kc: &keychainsGetterImpl{},
+	}
+}
+
+func (u *fileUploaderImpl) upload() error {
 	upFilepath := viper.GetString(filepathFlag)
 	if upFilepath == "" {
 		return errMissingFilepath
 	}
-	mediaType, err := getMediaType(upFilepath)
+	mediaType, err := u.mtg.get(upFilepath)
 	file, err := os.Open(upFilepath)
 	if err != nil {
 		return err
 	}
-	authorKeys, selfReaderKeys, err := getKeychains()
+	authorKeys, selfReaderKeys, err := u.kc.get()
 	if err != nil {
 		return err
 	}
-	author, logger, err := getAuthor(authorKeys, selfReaderKeys)
+	author, logger, err := u.ag.get(authorKeys, selfReaderKeys)
 
 	logger.Info("uploading document",
 		zap.String("filepath", upFilepath),
@@ -82,7 +99,13 @@ func uploadFile() error {
 	return err
 }
 
-func getMediaType(upFilepath string) (string, error) {
+type mediaTypeGetter interface {
+	get(upFilepath string) (string, error)
+}
+
+type mediaTypeGetterImpl struct {}
+
+func (*mediaTypeGetterImpl) get(upFilepath string) (string, error) {
 	file, err := os.Open(upFilepath)
 	if err != nil {
 		return "", err
@@ -93,22 +116,30 @@ func getMediaType(upFilepath string) (string, error) {
 	if err != nil && err != io.EOF {
 		return "", err
 	}
-	mediaType1 := http.DetectContentType(head)
-	if mediaType1 != octetMediaType {
+	mediaType := http.DetectContentType(head)
+	if mediaType != octetMediaType {
 		// sniffing head of file worked
-		return mediaType1, nil
+		return mediaType, nil
 	}
-	mediaType2 := mime.TypeByExtension(filepath.Ext(upFilepath))
-	if mediaType2 != "" {
-		// sniffing extension worked
-		return mediaType2, nil
+	mediaType = mime.TypeByExtension(filepath.Ext(upFilepath))
+	if mediaType != "" {
+		// get by extension worked
+		return mediaType, nil
 	}
 
 	// fallback
 	return octetMediaType, nil
 }
 
-func getKeychains() (keychain.Keychain, keychain.Keychain, error) {
+type keychainsGetter interface {
+	get() (keychain.Keychain, keychain.Keychain, error)
+}
+
+type keychainsGetterImpl struct {
+	pg passphraseGetter
+}
+
+func (g *keychainsGetterImpl) get() (keychain.Keychain, keychain.Keychain, error) {
 	keychainDir := viper.GetString(keychainDirFlag)
 	if keychainDir == "" {
 		return nil, nil, errMissingKeychainDir
@@ -120,22 +151,14 @@ func getKeychains() (keychain.Keychain, keychain.Keychain, error) {
 	if missing {
 		return nil, nil, errKeychainsNotExist
 	}
-	passphrase, err := getPassphrase()
-	if err != nil {
-		return nil, nil, err
+	passphrase := viper.GetString(passphraseVar) // intentionally not bound to flag
+	if passphrase == "" {
+		// get passphrase from terminal
+		passphrase, err = g.pg.get()
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 	return lauthor.LoadKeychains(keychainDir, passphrase)
 }
 
-func getPassphrase() (string, error) {
-	passphrase := viper.GetString(passphraseVar) // intentionally not bound to flag
-	if passphrase != "" {
-		return passphrase, nil
-	}
-	fmt.Print("Enter keychains passphrase: ")
-	passphraseBytes, err := terminal.ReadPassword(0)
-	if err != nil {
-		return "", err
-	}
-	return string(passphraseBytes), nil
-}

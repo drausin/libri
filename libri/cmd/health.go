@@ -12,7 +12,7 @@ var healthCmd = &cobra.Command{
 	Short: "check health of librarian peers",
 	Long: `TODO (drausin) more detailed description`,
 	Run: func(cmd *cobra.Command, args []string) {
-		author, logger, err := getTestAuthor()
+		author, logger, err := newTestAuthorGetter().get()
 		if err != nil {
 			logger.Error("fatal error while initializing author", zap.Error(err))
 			os.Exit(1)

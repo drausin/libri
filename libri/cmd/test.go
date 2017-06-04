@@ -33,8 +33,20 @@ func init() {
 	}
 }
 
-func getTestAuthor() (*author.Author, *zap.Logger, error) {
-	config, logger, err := getAuthorConfig()
+type testAuthorGetter interface {
+	get() (*author.Author, *zap.Logger, error)
+}
+
+type testAuthorGetterImpl struct {
+	authorConfig authorConfigGetter
+}
+
+func newTestAuthorGetter() testAuthorGetter {
+	return &testAuthorGetterImpl{&authorConfigGetterImpl{}}
+}
+
+func (g *testAuthorGetterImpl) get() (*author.Author, *zap.Logger, error) {
+	config, logger, err := g.authorConfig.get()
 	if err != nil {
 		return nil, logger, err
 	}

@@ -1,0 +1,86 @@
+package cmd
+
+import (
+	"testing"
+	"github.com/spf13/viper"
+	"go.uber.org/zap"
+	"strings"
+	"github.com/stretchr/testify/assert"
+	"github.com/drausin/libri/libri/author"
+	"github.com/drausin/libri/libri/common/logging"
+	"github.com/drausin/libri/libri/author/keychain"
+	"github.com/pkg/errors"
+	"log"
+)
+
+func TestAuthorGetter_get_ok(t *testing.T) {
+	config, logger1 := author.NewDefaultConfig(), server.NewDevInfoLogger()
+	ag := authorGetterImpl{
+		acg: &fixedAuthorConfigGetter{
+			config: config,
+			logger: logger1,
+		},
+	}
+	authorKeys, selfReaderKeys := keychain.New(1), keychain.New(1)
+
+	author2, logger2, err := ag.get(authorKeys, selfReaderKeys)
+	assert.Nil(t, err)
+	assert.NotNil(t, author2)
+	assert.Equal(t, logger1, logger2)
+}
+
+func TestAuthorGetter_get_err(t *testing.T) {
+	ag := authorGetterImpl{
+		acg: &fixedAuthorConfigGetter{
+			err: errors.New("some config get error"),
+		},
+	}
+	authorKeys, selfReaderKeys := keychain.New(1), keychain.New(1)
+
+	author2, logger2, err := ag.get(authorKeys, selfReaderKeys)
+	assert.NotNil(t, err)
+	assert.Nil(t, author2)
+	assert.Nil(t, logger2)
+}
+
+func TestAuthorConfigGetter_get_ok(t *testing.T) {
+	dataDir, logLevel:= "some/data/dir", zap.DebugLevel
+	libAddrs := []string{"127.0.0.1:1234", "127.0.0.1:5678"}
+	libAddrsArg := strings.Join(libAddrs, " ")
+	log.Print(libAddrsArg)
+	viper.Set(dataDirFlag, dataDir)
+	viper.Set(logLevelFlag, logLevel)
+	viper.Set(librariansFlag, libAddrsArg)
+	acg := &authorConfigGetterImpl{}
+
+	config, logger, err := acg.get()
+
+	assert.Nil(t, err)
+	assert.Equal(t, logLevel, config.LogLevel)
+	assert.Equal(t, len(libAddrs), len(config.LibrarianAddrs))
+	for i, la := range config.LibrarianAddrs {
+		assert.Equal(t, libAddrs[i], la.String())
+	}
+	assert.NotNil(t, logger)
+}
+
+func TestAuthorConfigGetter_get_err(t *testing.T) {
+	viper.Set(librariansFlag, "not an address")
+	acg := &authorConfigGetterImpl{}
+
+	config, logger, err := acg.get()
+
+	assert.NotNil(t, err)
+	assert.Nil(t, config)
+	assert.NotNil(t, logger)  // still should have been created
+}
+
+type fixedAuthorConfigGetter struct {
+	config *author.Config
+	logger *zap.Logger
+	err error
+}
+
+func (f *fixedAuthorConfigGetter) get() (*author.Config, *zap.Logger, error) {
+	return f.config, f.logger, f.err
+}
