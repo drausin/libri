@@ -42,9 +42,9 @@ var uploadCmd = &cobra.Command{
 func init() {
 	authorCmd.AddCommand(uploadCmd)
 
-	testCmd.Flags().StringSliceP(librariansFlag, "a", nil,
+	uploadCmd.Flags().StringSliceP(librariansFlag, "a", nil,
 		"comma-separated addresses (IPv4:Port) of librarian(s)")
-	testCmd.Flags().Uint32P(parallelismFlag, "n", 3,
+	uploadCmd.Flags().Uint32P(parallelismFlag, "n", 3,
 		"number of parallel processes")
 	uploadCmd.Flags().StringP(filepathFlag, "f", "",
 		"path of local file to upload")
@@ -52,7 +52,7 @@ func init() {
 	// bind viper flags
 	viper.SetEnvPrefix(envVarPrefix) // look for env vars with "LIBRI_" prefix
 	viper.AutomaticEnv()             // read in environment variables that match
-	if err := viper.BindPFlags(testCmd.PersistentFlags()); err != nil {
+	if err := viper.BindPFlags(uploadCmd.Flags()); err != nil {
 		panic(err)
 	}
 }
@@ -71,7 +71,9 @@ func newFileUploader() fileUploader {
 	return &fileUploaderImpl{
 		ag: newAuthorGetter(),
 		mtg: &mediaTypeGetterImpl{},
-		kc: &keychainsGetterImpl{},
+		kc: &keychainsGetterImpl{
+			pg: &terminalPassphraseGetter{},
+		},
 	}
 }
 

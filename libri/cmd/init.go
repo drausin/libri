@@ -42,6 +42,7 @@ func init() {
 func createKeychains() error {
 	keychainDir := viper.GetString(keychainDirFlag)
 	if keychainDir == "" {
+		// TODO (drausin) use/define default ???
 		return errMissingKeychainDir
 	}
 	missing, err := author.MissingKeychains(keychainDir)
