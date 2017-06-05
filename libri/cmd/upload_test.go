@@ -77,7 +77,6 @@ func TestMediaTypeGetter_get_err(t *testing.T) {
 
 func TestKeychainsGetter_get_ok(t *testing.T) {
 	keychainDir, err := ioutil.TempDir("", "test-keychains")
-	defer maybePanic(os.RemoveAll(keychainDir))
 	assert.Nil(t, err)
 	logger := server.NewDevInfoLogger()
 	passphrase := "some test passphrase"
@@ -102,11 +101,13 @@ func TestKeychainsGetter_get_ok(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, authorKeys)
 	assert.NotNil(t, selfReaderKeys)
+
+	err = os.RemoveAll(keychainDir)
+	assert.Nil(t, err)
 }
 
 func TestKeychainsGetter_get_err(t *testing.T) {
 	keychainDir, err := ioutil.TempDir("", "test-keychains")
-	defer maybePanic(os.RemoveAll(keychainDir))
 	assert.Nil(t, err)
 	logger := server.NewDevInfoLogger()
 	passphrase := "some test passphrase"
@@ -149,6 +150,9 @@ func TestKeychainsGetter_get_err(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Nil(t, authorKeys)
 	assert.Nil(t, selfReaderKeys)
+
+	err = os.RemoveAll(keychainDir)
+	assert.Nil(t, err)
 }
 
 func maybePanic(err error) {
