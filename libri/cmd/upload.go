@@ -83,6 +83,9 @@ func (u *fileUploaderImpl) upload() error {
 		return errMissingFilepath
 	}
 	mediaType, err := u.mtg.get(upFilepath)
+	if err != nil {
+		return err
+	}
 	file, err := os.Open(upFilepath)
 	if err != nil {
 		return err
@@ -92,6 +95,9 @@ func (u *fileUploaderImpl) upload() error {
 		return err
 	}
 	author, logger, err := u.ag.get(authorKeys, selfReaderKeys)
+	if err != nil {
+		return err
+	}
 
 	logger.Info("uploading document",
 		zap.String("filepath", upFilepath),
@@ -114,8 +120,10 @@ func (*mediaTypeGetterImpl) get(upFilepath string) (string, error) {
 	}
 	head := make([]byte, 512)
 	_, err = file.Read(head)
-	file.Close()
 	if err != nil && err != io.EOF {
+		return "", err
+	}
+	if err = file.Close(); err != nil {
 		return "", err
 	}
 	mediaType := http.DetectContentType(head)

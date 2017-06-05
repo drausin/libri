@@ -29,8 +29,10 @@ func TestMediaTypeGetter_get_ok(t *testing.T) {
 
 	// should infer media type from header bytes of file
 	compressedFile, err := ioutil.TempFile("", "compressed-file")
-	compressedFile.Close()
+	assert.Nil(t, err)
+	err = compressedFile.Close()
 	defer maybePanic(os.Remove(compressedFile.Name()))
+	assert.Nil(t, err)
 	err = ioutil.WriteFile(compressedFile.Name(), compressed.Bytes(), 0666)
 	assert.Nil(t, err)
 
@@ -79,7 +81,9 @@ func TestKeychainsGetter_get_ok(t *testing.T) {
 	assert.Nil(t, err)
 	logger := server.NewDevInfoLogger()
 	passphrase := "some test passphrase"
-	author.CreateKeychains(logger, keychainDir, passphrase, veryLightScryptN, veryLightScryptP)
+	err = author.CreateKeychains(logger, keychainDir, passphrase,
+		veryLightScryptN, veryLightScryptP)
+	assert.Nil(t, err)
 	viper.Set(keychainDirFlag, keychainDir)
 
 	// check getting passphrase from (mocked) terminal
@@ -117,14 +121,16 @@ func TestKeychainsGetter_get_err(t *testing.T) {
 
 	// should error on one missing keychain
 	keychainFilepath := path.Join(keychainDir, author.AuthorKeychainFilename)
-	author.CreateKeychain(logger, keychainFilepath, passphrase,
+	err = author.CreateKeychain(logger, keychainFilepath, passphrase,
 		veryLightScryptN, veryLightScryptP)
+	assert.Nil(t, err)
 	kg2 := &keychainsGetterImpl{}
 	authorKeys, selfReaderKeys, err = kg2.get()
 	assert.NotNil(t, err)
 	assert.Nil(t, authorKeys)
 	assert.Nil(t, selfReaderKeys)
-	os.Remove(keychainFilepath)
+	err = os.Remove(keychainFilepath)
+	assert.Nil(t, err)
 
 	// should error on both missing keychains
 	viper.Set(keychainDirFlag, keychainDir)
