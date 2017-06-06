@@ -2,35 +2,34 @@ package cmd
 
 import (
 	"fmt"
+	lauthor "github.com/drausin/libri/libri/author"
+	"github.com/drausin/libri/libri/author/keychain"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	lauthor "github.com/drausin/libri/libri/author"
-	"github.com/pkg/errors"
-	"github.com/drausin/libri/libri/author/keychain"
 	"go.uber.org/zap"
-	"os"
-	"net/http"
 	"io"
-	"path/filepath"
 	"mime"
+	"net/http"
+	"os"
+	"path/filepath"
 )
 
 const (
-	filepathFlag = "filepath"
+	filepathFlag   = "filepath"
 	octetMediaType = "application/octet-stream"
 )
 
 var (
 	errKeychainsNotExist = errors.New("no keychains exist in the keychain directory")
-	errMissingFilepath = errors.New("missing filepath")
+	errMissingFilepath   = errors.New("missing filepath")
 )
-
 
 // uploadCmd represents the upload command
 var uploadCmd = &cobra.Command{
 	Use:   "upload",
 	Short: "upload a local file to the libri network",
-	Long: `TODO (drausin) add longer description and examples here`,
+	Long:  `TODO (drausin) add longer description and examples here`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if err := newFileUploader().upload(); err != nil {
 			fmt.Println(err)
@@ -62,14 +61,16 @@ type fileUploader interface {
 }
 
 type fileUploaderImpl struct {
-	ag authorGetter
+	ag  authorGetter
+	au  authorUploader
 	mtg mediaTypeGetter
-	kc keychainsGetter
+	kc  keychainsGetter
 }
 
 func newFileUploader() fileUploader {
 	return &fileUploaderImpl{
-		ag: newAuthorGetter(),
+		ag:  newAuthorGetter(),
+		au: &authorUploaderImpl{},
 		mtg: &mediaTypeGetterImpl{},
 		kc: &keychainsGetterImpl{
 			pg: &terminalPassphraseGetter{},
@@ -86,10 +87,14 @@ func (u *fileUploaderImpl) upload() error {
 	if err != nil {
 		return err
 	}
+	if _, err = os.Stat(upFilepath); err != nil {
+		return err
+	}
 	file, err := os.Open(upFilepath)
 	if err != nil {
 		return err
 	}
+	defer maybePanic(file.Close())
 	authorKeys, selfReaderKeys, err := u.kc.get()
 	if err != nil {
 		return err
@@ -103,7 +108,26 @@ func (u *fileUploaderImpl) upload() error {
 		zap.String("filepath", upFilepath),
 		zap.String("media_type", mediaType),
 	)
-	_, _, err = author.Upload(file, mediaType)
+	return u.au.upload(author, file, mediaType)
+}
+
+func maybePanic(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+// authorUploader just wraps an *author.Author Upload call that is hard to mock b/c *author.Author
+// is a struct rather than an interface
+type authorUploader interface {
+	upload(author *lauthor.Author, content io.Reader, mediaType string) error
+}
+
+type authorUploaderImpl struct{}
+
+func (*authorUploaderImpl) upload(author *lauthor.Author, content io.Reader, mediaType string) (
+	error) {
+	_, _, err := author.Upload(content, mediaType)
 	return err
 }
 
@@ -111,7 +135,7 @@ type mediaTypeGetter interface {
 	get(upFilepath string) (string, error)
 }
 
-type mediaTypeGetterImpl struct {}
+type mediaTypeGetterImpl struct{}
 
 func (*mediaTypeGetterImpl) get(upFilepath string) (string, error) {
 	file, err := os.Open(upFilepath)
@@ -164,6 +188,7 @@ func (g *keychainsGetterImpl) get() (keychain.Keychain, keychain.Keychain, error
 	passphrase := viper.GetString(passphraseVar) // intentionally not bound to flag
 	if passphrase == "" {
 		// get passphrase from terminal
+		fmt.Print("Enter keychains passphrase: ")
 		passphrase, err = g.pg.get()
 		if err != nil {
 			return nil, nil, err
@@ -171,4 +196,3 @@ func (g *keychainsGetterImpl) get() (keychain.Keychain, keychain.Keychain, error
 	}
 	return lauthor.LoadKeychains(keychainDir, passphrase)
 }
-

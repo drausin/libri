@@ -95,7 +95,6 @@ type passphraseGetter interface {
 type terminalPassphraseGetter struct {}
 
 func (*terminalPassphraseGetter) get() (string, error) {
-	fmt.Print("Enter keychains passphrase: ")
 	passphraseBytes, err := terminal.ReadPassword(0)
 	return string(passphraseBytes), err
 }

@@ -13,6 +13,7 @@ import (
 	"log"
 )
 
+
 func TestAuthorGetter_get_ok(t *testing.T) {
 	config, logger1 := author.NewDefaultConfig(), server.NewDevInfoLogger()
 	ag := authorGetterImpl{
