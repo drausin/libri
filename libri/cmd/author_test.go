@@ -51,10 +51,10 @@ func TestAuthorConfigGetter_get_ok(t *testing.T) {
 	log.Print(libAddrsArg)
 	viper.Set(dataDirFlag, dataDir)
 	viper.Set(logLevelFlag, logLevel)
-	viper.Set(librariansFlag, libAddrsArg)
+	viper.Set(authorLibrariansFlag, libAddrsArg)
 	acg := &authorConfigGetterImpl{}
 
-	config, logger, err := acg.get()
+	config, logger, err := acg.get(authorLibrariansFlag)
 
 	assert.Nil(t, err)
 	assert.Equal(t, logLevel, config.LogLevel)
@@ -66,10 +66,10 @@ func TestAuthorConfigGetter_get_ok(t *testing.T) {
 }
 
 func TestAuthorConfigGetter_get_err(t *testing.T) {
-	viper.Set(librariansFlag, "not an address")
+	viper.Set(authorLibrariansFlag, "not an address")
 	acg := &authorConfigGetterImpl{}
 
-	config, logger, err := acg.get()
+	config, logger, err := acg.get(authorLibrariansFlag)
 
 	assert.NotNil(t, err)
 	assert.Nil(t, config)
@@ -82,6 +82,6 @@ type fixedAuthorConfigGetter struct {
 	err error
 }
 
-func (f *fixedAuthorConfigGetter) get() (*author.Config, *zap.Logger, error) {
+func (f *fixedAuthorConfigGetter) get(librariansFlag string) (*author.Config, *zap.Logger, error) {
 	return f.config, f.logger, f.err
 }

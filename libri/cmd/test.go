@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	librariansFlag = "librarians"
+	testLibrariansFlag = "testLibrarians"
 )
 
 // testCmd represents the test command
@@ -22,7 +22,7 @@ var testCmd = &cobra.Command{
 func init() {
 	RootCmd.AddCommand(testCmd)
 
-	testCmd.PersistentFlags().StringSliceP(librariansFlag, "a", nil,
+	testCmd.PersistentFlags().StringSliceP(testLibrariansFlag, "a", nil,
 		"comma-separated addresses (IPv4:Port) of librarian(s)")
 
 	// bind viper flags
@@ -38,15 +38,19 @@ type testAuthorGetter interface {
 }
 
 type testAuthorGetterImpl struct {
-	authorConfig authorConfigGetter
+	acg            authorConfigGetter
+	librariansFlag string
 }
 
 func newTestAuthorGetter() testAuthorGetter {
-	return &testAuthorGetterImpl{&authorConfigGetterImpl{}}
+	return &testAuthorGetterImpl{
+		acg: &authorConfigGetterImpl{},
+		librariansFlag: testLibrariansFlag,
+	}
 }
 
 func (g *testAuthorGetterImpl) get() (*author.Author, *zap.Logger, error) {
-	config, logger, err := g.authorConfig.get()
+	config, logger, err := g.acg.get(g.librariansFlag)
 	if err != nil {
 		return nil, logger, err
 	}

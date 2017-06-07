@@ -12,6 +12,7 @@ import (
 
 const (
 	envelopeKeyFlag = "envelopeKey"
+	downFilepathFlag = "downFilepath"
 )
 
 var (
@@ -24,19 +25,19 @@ var downloadCmd = &cobra.Command{
 	Short: "A brief description of your command",
 	Long: `TODO (drausin) add long description and examples`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// TODO: Work your own magic here
-		fmt.Println("download called")
+		if err := newFileDownloader().download(); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 	},
 }
 
 func init() {
 	authorCmd.AddCommand(downloadCmd)
 
-	downloadCmd.Flags().StringSliceP(librariansFlag, "a", nil,
-		"comma-separated addresses (IPv4:Port) of librarian(s)")
 	downloadCmd.Flags().Uint32P(parallelismFlag, "n", 3,
 		"number of parallel processes")
-	downloadCmd.Flags().StringP(filepathFlag, "f", "",
+	downloadCmd.Flags().StringP(downFilepathFlag, "f", "",
 		"path of local file to write downloaded contents to")
 	downloadCmd.Flags().StringP(envelopeKeyFlag, "e", "",
 		"key of envelope to download")
@@ -78,7 +79,7 @@ func (d *fileDownloaderImpl) download() error {
 	if err != nil {
 		return err
 	}
-	downFilepath := viper.GetString(filepathFlag)
+	downFilepath := viper.GetString(downFilepathFlag)
 	if downFilepath == "" {
 		return errMissingFilepath
 	}
@@ -90,14 +91,17 @@ func (d *fileDownloaderImpl) download() error {
 	if err != nil {
 		return err
 	}
-	file, err := os.Open(downFilepath)
+	file, err := os.Create(downFilepath)
 	if err != nil {
 		return err
 	}
-	defer maybePanic(file.Close())
 	logger.Info("downloading document",
 		zap.Stringer("envelope_key", envelopeKey),
 		zap.String("filepath", downFilepath),
 	)
-	return d.ad.download(author, file, envelopeKey)
+	err = d.ad.download(author, file, envelopeKey)
+	if err != nil {
+		return err
+	}
+	return file.Close()
 }

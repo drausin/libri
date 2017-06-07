@@ -43,7 +43,7 @@ func TestFileUploader_upload_ok(t *testing.T) {
 	assert.Nil(t, err)
 	err = toUploadFile.Close()
 	assert.Nil(t, err)
-	viper.Set(filepathFlag, toUploadFile.Name())
+	viper.Set(upFilepathFlag, toUploadFile.Name())
 
 	err = u.upload()
 	assert.Nil(t, err)
@@ -56,7 +56,7 @@ func TestFileUploader_upload_err(t *testing.T) {
 
 	// should error on missing filepath
 	u1 := &fileUploaderImpl{}
-	viper.Set(filepathFlag, "")
+	viper.Set(upFilepathFlag, "")
 	err := u1.upload()
 	assert.Equal(t, errMissingFilepath, err)
 
@@ -64,7 +64,7 @@ func TestFileUploader_upload_err(t *testing.T) {
 	u2 := &fileUploaderImpl{
 		mtg: &fixedMediaTypeGetter{err: errors.New("some get error")},
 	}
-	viper.Set(filepathFlag, "some/upload/filepath")
+	viper.Set(upFilepathFlag, "some/upload/filepath")
 	err = u2.upload()
 	assert.NotNil(t, err)
 
@@ -72,7 +72,7 @@ func TestFileUploader_upload_err(t *testing.T) {
 	u3 := &fileUploaderImpl{
 		mtg: &fixedMediaTypeGetter{}, // ok that mediaType is nil since passing to mock
 	}
-	viper.Set(filepathFlag, "some/upload/filepath")
+	viper.Set(upFilepathFlag, "some/upload/filepath")
 	err = u3.upload()
 	assert.NotNil(t, err)
 
@@ -80,7 +80,7 @@ func TestFileUploader_upload_err(t *testing.T) {
 	toUploadFile, err := ioutil.TempFile("", "to-upload")
 	assert.Nil(t, err)
 	err = toUploadFile.Close()
-	viper.Set(filepathFlag, toUploadFile.Name())
+	viper.Set(upFilepathFlag, toUploadFile.Name())
 	u4 := &fileUploaderImpl{
 		mtg: &fixedMediaTypeGetter{}, // ok that mediaType is nil since passing to mock
 		kc:  &fixedKeychainsGetter{err: errors.New("some get error")},
@@ -89,7 +89,7 @@ func TestFileUploader_upload_err(t *testing.T) {
 	assert.NotNil(t, err)
 
 	// error getting author should bubble up
-	viper.Set(filepathFlag, toUploadFile.Name())
+	viper.Set(upFilepathFlag, toUploadFile.Name())
 	u5 := &fileUploaderImpl{
 		ag: &fixedAuthorGetter{err: errors.New("some get error")},
 		mtg: &fixedMediaTypeGetter{}, // ok that mediaType is nil since passing to mock
@@ -99,7 +99,7 @@ func TestFileUploader_upload_err(t *testing.T) {
 	assert.NotNil(t, err)
 
 	// upload error should bubble up
-	viper.Set(filepathFlag, toUploadFile.Name())
+	viper.Set(upFilepathFlag, toUploadFile.Name())
 	u6 := &fileUploaderImpl{
 		ag: &fixedAuthorGetter{
 			author: nil, // ok since we're passing it into a mocked method anyway

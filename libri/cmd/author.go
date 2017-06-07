@@ -3,10 +3,10 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	lauthor "github.com/drausin/libri/libri/author"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/author"
 	"github.com/drausin/libri/libri/librarian/server"
-	lauthor "github.com/drausin/libri/libri/author"
 	"go.uber.org/zap"
 	"fmt"
 	"github.com/drausin/libri/libri/author/keychain"
@@ -19,6 +19,7 @@ const (
 	parallelismFlag = "parallelism"
 	keychainDirFlag = "keychainsDir"
 	passphraseVar = "passphrase"
+	authorLibrariansFlag = "authorLibrarians"
 )
 
 // authorCmd represents the author command
@@ -32,6 +33,8 @@ func init() {
 	RootCmd.AddCommand(authorCmd)
 
 	authorCmd.PersistentFlags().StringP(keychainDirFlag, "k", "", "local keychains directory")
+	authorCmd.PersistentFlags().StringSliceP(authorLibrariansFlag, "a", nil,
+		"comma-separated addresses (IPv4:Port) of librarian(s)")
 
 	// bind viper flags
 	viper.SetEnvPrefix(envVarPrefix) // look for env vars with "LIBRI_" prefix
@@ -47,16 +50,20 @@ type authorGetter interface {
 
 type authorGetterImpl struct {
 	acg authorConfigGetter
+	librariansFlag string
 }
 
 func newAuthorGetter() authorGetter {
-	return &authorGetterImpl{&authorConfigGetterImpl{}}
+	return &authorGetterImpl{
+		acg: &authorConfigGetterImpl{},
+		librariansFlag: authorLibrariansFlag,
+	}
 }
 
 func (g *authorGetterImpl) get(authorKeys, selfReaderKeys keychain.Keychain) (
 	*author.Author, *zap.Logger, error) {
 
-	config, logger, err := g.acg.get()
+	config, logger, err := g.acg.get(g.librariansFlag)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -65,12 +72,12 @@ func (g *authorGetterImpl) get(authorKeys, selfReaderKeys keychain.Keychain) (
 }
 
 type authorConfigGetter interface {
-	get() (*author.Config, *zap.Logger, error)
+	get(librariansFlag string) (*author.Config, *zap.Logger, error)
 }
 
 type authorConfigGetterImpl struct {}
 
-func (*authorConfigGetterImpl) get() (*author.Config, *zap.Logger, error) {
+func (*authorConfigGetterImpl) get(librariansFlag string) (*author.Config, *zap.Logger, error) {
 	config := author.NewDefaultConfig().
 		WithDataDir(viper.GetString(dataDirFlag)).
 		WithLogLevel(getLogLevel())

@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	filepathFlag   = "filepath"
+	upFilepathFlag = "upFilepath"
 	octetMediaType = "application/octet-stream"
 )
 
@@ -41,11 +41,9 @@ var uploadCmd = &cobra.Command{
 func init() {
 	authorCmd.AddCommand(uploadCmd)
 
-	uploadCmd.Flags().StringSliceP(librariansFlag, "a", nil,
-		"comma-separated addresses (IPv4:Port) of librarian(s)")
 	uploadCmd.Flags().Uint32P(parallelismFlag, "n", 3,
 		"number of parallel processes")
-	uploadCmd.Flags().StringP(filepathFlag, "f", "",
+	uploadCmd.Flags().StringP(upFilepathFlag, "f", "",
 		"path of local file to upload")
 
 	// bind viper flags
@@ -79,7 +77,7 @@ func newFileUploader() fileUploader {
 }
 
 func (u *fileUploaderImpl) upload() error {
-	upFilepath := viper.GetString(filepathFlag)
+	upFilepath := viper.GetString(upFilepathFlag)
 	if upFilepath == "" {
 		return errMissingFilepath
 	}
@@ -94,7 +92,6 @@ func (u *fileUploaderImpl) upload() error {
 	if err != nil {
 		return err
 	}
-	defer maybePanic(file.Close())
 	authorKeys, selfReaderKeys, err := u.kc.get()
 	if err != nil {
 		return err
@@ -108,8 +105,10 @@ func (u *fileUploaderImpl) upload() error {
 		zap.String("filepath", upFilepath),
 		zap.String("media_type", mediaType),
 	)
-	_, err = u.au.upload(author, file, mediaType)
-	return err
+	if _, err = u.au.upload(author, file, mediaType); err != nil {
+		return err
+	}
+	return file.Close()
 }
 
 func maybePanic(err error) {

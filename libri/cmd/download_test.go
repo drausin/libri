@@ -31,7 +31,7 @@ func TestFileDownloader_download_ok(t *testing.T) {
 	assert.Nil(t, err)
 	err = toDownloadFile.Close()
 	assert.Nil(t, err)
-	viper.Set(filepathFlag, toDownloadFile.Name())
+	viper.Set(downFilepathFlag, toDownloadFile.Name())
 	viper.Set(envelopeKeyFlag, id.LowerBound.String())
 
 	err = d.download()
@@ -57,15 +57,15 @@ func TestFileDownloader_download_err(t *testing.T) {
 	// should error on missing filepath
 	d3 := &fileDownloaderImpl{}
 	viper.Set(envelopeKeyFlag, id.LowerBound.String())
-	viper.Set(filepathFlag, "")
+	viper.Set(downFilepathFlag, "")
 	err = d3.download()
 	assert.Equal(t, errMissingFilepath, err)
 
 	// error getting author keys should bubble up
-	toDownloadFile, err := ioutil.TempFile("", "to-download")
+	toDownloadFile, err := ioutil.TempFile("", "to-download")  // TODO (drausin) change to tempDir
 	assert.Nil(t, err)
 	err = toDownloadFile.Close()
-	viper.Set(filepathFlag, toDownloadFile.Name())
+	viper.Set(downFilepathFlag, toDownloadFile.Name())
 	d4 := &fileDownloaderImpl{
 		kc: &fixedKeychainsGetter{err: errors.New("some get error")},
 	}
@@ -73,7 +73,7 @@ func TestFileDownloader_download_err(t *testing.T) {
 	assert.NotNil(t, err)
 
 	// error getting author should bubble up
-	viper.Set(filepathFlag, toDownloadFile.Name())
+	viper.Set(downFilepathFlag, toDownloadFile.Name())
 	d5 := &fileDownloaderImpl{
 		ag: &fixedAuthorGetter{err: errors.New("some get error")},
 		kc: &fixedKeychainsGetter{}, // ok that KCs are null since passing to mock
@@ -82,7 +82,7 @@ func TestFileDownloader_download_err(t *testing.T) {
 	assert.NotNil(t, err)
 
 	// download error should bubble up
-	viper.Set(filepathFlag, toDownloadFile.Name())
+	viper.Set(downFilepathFlag, toDownloadFile.Name())
 	d6 := &fileDownloaderImpl{
 		ag: &fixedAuthorGetter{
 			author: nil, // ok since we're passing it into a mocked method anyway
