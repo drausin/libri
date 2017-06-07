@@ -16,6 +16,7 @@ import (
 	"os"
 	"path"
 	"testing"
+	"github.com/drausin/libri/libri/common/id"
 )
 
 const (
@@ -252,12 +253,13 @@ func TestKeychainsGetter_get_err(t *testing.T) {
 }
 
 type fixedAuthorUploader struct {
+	envelopeKey id.ID
 	err error
 }
 
 func (f *fixedAuthorUploader) upload(author *lauthor.Author, content io.Reader, mediaType string) (
-	error) {
-	return f.err
+	id.ID, error) {
+	return f.envelopeKey, f.err
 }
 
 type fixedAuthorGetter struct {

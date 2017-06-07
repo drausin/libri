@@ -6,10 +6,13 @@ import (
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/author"
 	"github.com/drausin/libri/libri/librarian/server"
+	lauthor "github.com/drausin/libri/libri/author"
 	"go.uber.org/zap"
 	"fmt"
 	"github.com/drausin/libri/libri/author/keychain"
 	"golang.org/x/crypto/ssh/terminal"
+	"github.com/drausin/libri/libri/common/id"
+	"io"
 )
 
 const (
@@ -97,4 +100,31 @@ type terminalPassphraseGetter struct {}
 func (*terminalPassphraseGetter) get() (string, error) {
 	passphraseBytes, err := terminal.ReadPassword(0)
 	return string(passphraseBytes), err
+}
+
+// authorUploader just wraps an *author.Author Upload call that is hard to mock b/c *author.Author
+// is a struct rather than an interface
+type authorUploader interface {
+	upload(author *lauthor.Author, content io.Reader, mediaType string) (id.ID, error)
+}
+
+type authorUploaderImpl struct {}
+
+func (*authorUploaderImpl) upload(author *lauthor.Author, content io.Reader, mediaType string) (
+	id.ID, error) {
+	_, envelopeKey, err := author.Upload(content, mediaType)
+	return envelopeKey, err
+}
+
+// authorDownloader just wraps an *author.Author Download call for the same reason as authorUploader
+type authorDownloader interface {
+	download(author *lauthor.Author, content io.Writer, envelopeKey id.ID) error
+}
+
+type authorDownloaderImpl struct {}
+
+func (*authorDownloaderImpl) download(
+	author *lauthor.Author, content io.Writer, envelopeKey id.ID,
+) error {
+	return author.Download(content, envelopeKey)
 }

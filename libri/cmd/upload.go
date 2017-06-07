@@ -108,27 +108,14 @@ func (u *fileUploaderImpl) upload() error {
 		zap.String("filepath", upFilepath),
 		zap.String("media_type", mediaType),
 	)
-	return u.au.upload(author, file, mediaType)
+	_, err = u.au.upload(author, file, mediaType)
+	return err
 }
 
 func maybePanic(err error) {
 	if err != nil {
 		panic(err)
 	}
-}
-
-// authorUploader just wraps an *author.Author Upload call that is hard to mock b/c *author.Author
-// is a struct rather than an interface
-type authorUploader interface {
-	upload(author *lauthor.Author, content io.Reader, mediaType string) error
-}
-
-type authorUploaderImpl struct{}
-
-func (*authorUploaderImpl) upload(author *lauthor.Author, content io.Reader, mediaType string) (
-	error) {
-	_, _, err := author.Upload(content, mediaType)
-	return err
 }
 
 type mediaTypeGetter interface {

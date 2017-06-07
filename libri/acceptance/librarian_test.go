@@ -219,7 +219,7 @@ func testUpload(t *testing.T, rng *rand.Rand, author *lauthor.Author, nDocs int)
 
 	contents = make([][]byte, nDocs)
 	envelopeKeys = make([]id.ID, nDocs)
-	maxContentSize := 12 * 1024
+	maxContentSize := 12 * 1024 * 1024
 	minContentSize := 32
 	var err error
 	for i := 0; i < nDocs; i++ {
@@ -351,8 +351,14 @@ func setUp(rng *rand.Rand, nSeeds, nPeers int, logLevel zapcore.Level) (
 		panic(err)
 	}
 
+	authorKeys, selfReaderKeys, err := lauthor.LoadKeychains(authorConfig.KeychainDir,
+		authorKeychainAuth)
+	if err != nil {
+		panic(err)
+	}
+
 	// create author
-	author, err = lauthor.NewAuthor(authorConfig, authorKeychainAuth, logger)
+	author, err = lauthor.NewAuthor(authorConfig, authorKeys, selfReaderKeys, logger)
 	if err != nil {
 		panic(err)
 	}
@@ -413,7 +419,6 @@ func newConfigs(nSeeds, nPeers int, maxBucketPeers uint, logLevel zapcore.Level)
 		WithDefaultDBDir().
 		WithDefaultKeychainDir().
 		WithLogLevel(logLevel)
-	authorConfig.Print.PageSize = 1024 // default is large, 2 MB
 	page.MinSize = 128                 // just for testing
 
 	return seedConfigs, peerConfigs, authorConfig
