@@ -77,10 +77,10 @@ func (f *fixedAuthorUploaderDownloader) upload(
 		return nil, f.uploadErr
 	}
 	buf := new(bytes.Buffer)
-	buf.ReadFrom(content)
+	_, err := buf.ReadFrom(content)
 	key := id.NewPseudoRandom(f.rng)
 	f.uploaded[key.String()] = buf
-	return key, nil
+	return key, err
 }
 
 func (f *fixedAuthorUploaderDownloader) download(
