@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	mrand "math/rand"
+	"encoding/hex"
 )
 
 const (
@@ -25,7 +26,6 @@ var (
 
 // ID is an identifier of arbitrary byte length
 type ID interface {
-	// String() returns the string representation
 	fmt.Stringer
 
 	// Bytes returns the byte representation
@@ -73,22 +73,35 @@ func (x *id) Distance(y ID) *big.Int {
 }
 
 // FromInt creates an ID from a *big.Int.
-func FromInt(intVal *big.Int) ID {
-	return &id{intVal: intVal}
+func FromInt(value *big.Int) ID {
+	return &id{intVal: value}
 }
 
 // FromInt64 creates an ID from an int64.
-func FromInt64(x int64) ID {
-	return FromInt(big.NewInt(x))
+func FromInt64(value int64) ID {
+	return FromInt(big.NewInt(value))
 }
 
 // FromBytes creates an ID from a big-endian byte array.
-func FromBytes(bytes []byte) ID {
-	if len(bytes) > Length {
-		panic(fmt.Errorf("ID byte length too long: received %v, expected <= %v", len(bytes),
+func FromBytes(value []byte) ID {
+	if len(value) > Length {
+		panic(fmt.Errorf("ID byte length too long: received %v, expected <= %v", len(value),
 			Length))
 	}
-	return FromInt(new(big.Int).SetBytes(bytes))
+	return FromInt(new(big.Int).SetBytes(value))
+}
+
+// FromString creates an ID from a hex-encoded string.
+func FromString(value string) (ID, error) {
+	if len(value) != Length * 2 {
+		return nil, fmt.Errorf("%s (len: %d) is not a valid %d-byte hex string", value,
+			len(value), Length)
+	}
+	bytesID, err := hex.DecodeString(value)
+	if err != nil {
+		return nil, err
+	}
+	return FromBytes(bytesID), nil
 }
 
 // NewRandomID returns a random 32-byte ID using local machine's local random number generator.

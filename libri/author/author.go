@@ -179,6 +179,7 @@ func NewAuthor(
 
 // TODO (drausin) Author methods
 // - Share()
+// - Subscribe()
 
 // Healthcheck executes and reports healthcheck status for all connected librarians.
 func (a *Author) Healthcheck() (bool, map[string]healthpb.HealthCheckResponse_ServingStatus) {
@@ -217,6 +218,7 @@ func (a *Author) Healthcheck() (bool, map[string]healthpb.HealthCheckResponse_Se
 // Upload compresses, encrypts, and splits the content into pages and then stores them in the
 // libri network. It returns the uploaded envelope for self-storage and its key.
 func (a *Author) Upload(content io.Reader, mediaType string) (*api.Document, id.ID, error) {
+	startTime := time.Now()
 	authorPub, readerPub, keys, err := a.envelopeKeys.sample()
 	if err != nil {
 		return nil, nil, err
@@ -242,14 +244,19 @@ func (a *Author) Upload(content io.Reader, mediaType string) (*api.Document, id.
 	// TODO (drausin)
 	// - delete pages from local storage
 
+	elapsedTime := time.Since(startTime)
 	entryKeyBytes := envelope.Contents.(*api.Document_Envelope).Envelope.EntryKey
 	uncompressedSize, _ := metadata.GetUncompressedSize()
 	ciphertextSize, _ := metadata.GetCiphertextSize()
+	speedMbps := float32(uncompressedSize) / float32(elapsedTime.Seconds()) / float32(2 << 20)
 	a.logger.Info("successfully uploaded document",
 		zap.String(LoggerEnvelopeKey, envelopeKey.String()),
 		zap.String(LoggerEntryKey, id.FromBytes(entryKeyBytes).String()),
-		zap.String("original_size", humanize.Bytes(uncompressedSize)),
-		zap.String("uploaded_size", humanize.Bytes(ciphertextSize)),
+		zap.Uint64("original_size", uncompressedSize),
+		zap.String("original_size_human", humanize.Bytes(uncompressedSize)),
+		zap.Uint64("uploaded_size", ciphertextSize),
+		zap.String("uploaded_size_human", humanize.Bytes(ciphertextSize)),
+		zap.Float32("speed_Mbps", speedMbps),
 	)
 	return envelope, envelopeKey, nil
 }

@@ -18,11 +18,11 @@ var (
 	// ErrKeychainExists indicates when a keychain file already exists.
 	ErrKeychainExists = errors.New("keychain already exists")
 
-	errMissingAuthorKeychain = fmt.Errorf("missing %s, but have %s", authorKeychainFilename,
-		selfReaderKeychainFilename)
+	errMissingAuthorKeychain = fmt.Errorf("missing %s, but have %s", AuthorKeychainFilename,
+		SelfReaderKeychainFilename)
 
 	errMissingSelfReaderKeychain = fmt.Errorf("missing %s, but have %s",
-		selfReaderKeychainFilename, authorKeychainFilename)
+		SelfReaderKeychainFilename, AuthorKeychainFilename)
 )
 
 // logger keys
@@ -38,11 +38,11 @@ const (
 )
 
 const (
-	// authorKeychainFilename defines the author keychain filename
-	authorKeychainFilename = "author.keys"
+	// AuthorKeychainFilename defines the author keychain filename
+	AuthorKeychainFilename = "author.keys"
 
-	// selfReaderKeychainFilename defines the self reader keychain filename
-	selfReaderKeychainFilename = "self-reader.keys"
+	// SelfReaderKeychainFilename defines the self reader keychain filename
+	SelfReaderKeychainFilename = "self-reader.keys"
 
 	// nInitialKeys is the number of keys to generate on a keychain
 	nInitialKeys = 64
@@ -93,13 +93,13 @@ func saveClientID(ns storage.NamespaceStorer, clientID ecid.ID) error {
 // LoadKeychains loads the author and self-reader keychains from a directory on the local
 // filesystem.
 func LoadKeychains(keychainDir, auth string) (keychain.Keychain, keychain.Keychain, error) {
-	authorKeychainFilepath := path.Join(keychainDir, authorKeychainFilename)
+	authorKeychainFilepath := path.Join(keychainDir, AuthorKeychainFilename)
 	authorKeys, err := keychain.Load(authorKeychainFilepath, auth)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	selfReaderKeychainPath := path.Join(keychainDir, selfReaderKeychainFilename)
+	selfReaderKeychainPath := path.Join(keychainDir, SelfReaderKeychainFilename)
 	selfReaderKeys, err := keychain.Load(selfReaderKeychainPath, auth)
 	if err != nil {
 		return nil, nil, err
@@ -117,14 +117,32 @@ func CreateKeychains(logger *zap.Logger, keychainDir, auth string, scryptN, scry
 			return err
 		}
 	}
-	authorKeychainFP := path.Join(keychainDir, authorKeychainFilename)
-	if err := createKeychain(logger, authorKeychainFP, auth, scryptN, scryptP); err != nil {
+	authorKeychainFP := path.Join(keychainDir, AuthorKeychainFilename)
+	if err := CreateKeychain(logger, authorKeychainFP, auth, scryptN, scryptP); err != nil {
 		return err
 	}
-	selfReaderKeysFP := path.Join(keychainDir, selfReaderKeychainFilename)
-	if err := createKeychain(logger, selfReaderKeysFP, auth, scryptN, scryptP); err != nil {
+	selfReaderKeysFP := path.Join(keychainDir, SelfReaderKeychainFilename)
+	if err := CreateKeychain(logger, selfReaderKeysFP, auth, scryptN, scryptP); err != nil {
 		return err
 	}
+	return nil
+}
+
+// CreateKeychain creates a keychain in the given filepath with the given auth and Scrypt params.
+func CreateKeychain(logger *zap.Logger, filepath, auth string, scryptN, scryptP int) error {
+	if info, _ := os.Stat(filepath); info != nil {
+		logger.Error("keychain already exists",
+			zap.String(LoggerKeychainFilepath, filepath))
+		return ErrKeychainExists
+	}
+
+	keys := keychain.New(nInitialKeys)
+	err := keychain.Save(filepath, auth, keys, scryptN, scryptP)
+	if err != nil {
+		return err
+	}
+	logger.Info("saved new keychain", zap.String(LoggerKeychainFilepath, filepath),
+		zap.Int(LoggerKeychainNKeys, nInitialKeys))
 	return nil
 }
 
@@ -133,8 +151,8 @@ func MissingKeychains(keychainDir string) (bool, error) {
 	if _, err := os.Stat(keychainDir); os.IsNotExist(err) {
 		return true, nil
 	}
-	authorFileInfo, _ := os.Stat(path.Join(keychainDir, authorKeychainFilename))
-	selfReaderFileInfo, _ := os.Stat(path.Join(keychainDir, selfReaderKeychainFilename))
+	authorFileInfo, _ := os.Stat(path.Join(keychainDir, AuthorKeychainFilename))
+	selfReaderFileInfo, _ := os.Stat(path.Join(keychainDir, SelfReaderKeychainFilename))
 
 	if authorFileInfo == nil && selfReaderFileInfo == nil {
 		// neither file exists
@@ -155,21 +173,4 @@ func MissingKeychains(keychainDir string) (bool, error) {
 	}
 
 	panic(errors.New("should never get here"))
-}
-
-func createKeychain(logger *zap.Logger, filepath, auth string, scryptN, scryptP int) error {
-	if info, _ := os.Stat(filepath); info != nil {
-		logger.Error("keychain already exists",
-			zap.String(LoggerKeychainFilepath, filepath))
-		return ErrKeychainExists
-	}
-
-	keys := keychain.New(nInitialKeys)
-	err := keychain.Save(filepath, auth, keys, scryptN, scryptP)
-	if err != nil {
-		return err
-	}
-	logger.Info("saved new keychain", zap.String(LoggerKeychainFilepath, filepath),
-		zap.Int(LoggerKeychainNKeys, nInitialKeys))
-	return nil
 }

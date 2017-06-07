@@ -12,6 +12,7 @@ import (
 const (
 	dataDirFlag    = "dataDir"
 	logLevelFlag   = "logLevel"
+	envVarPrefix   = "LIBRI"
 )
 
 // RootCmd represents the base command when called without any subcommands
