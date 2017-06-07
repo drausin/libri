@@ -102,7 +102,7 @@ func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
 	bootstrapNetAddrs, err := server.ParseAddrs(viper.GetStringSlice(bootstrapsFlag))
 	if err != nil {
 		logger.Error("unable to parse bootstrap peer address", zap.Error(err))
-		return nil, logger, err
+		return nil, nil, err
 
 	}
 	config.WithBootstrapAddrs(bootstrapNetAddrs)
