@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"fmt"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -21,9 +22,8 @@ func TestID_FromBytes_ok(t *testing.T) {
 		{in: bytes.Repeat([]byte{0}, Length), out: FromInt(big.NewInt(0))},
 		{
 			// 256 one bits, or 2^256 - 1
-			in: bytes.Repeat([]byte{255}, Length),
-			out: FromInt(big.NewInt(0).Sub(big.NewInt(0).Lsh(big.NewInt(1), 256),
-				big.NewInt(1))),
+			in:  bytes.Repeat([]byte{255}, Length),
+			out: UpperBound,
 		},
 	}
 	for _, c := range cases {
@@ -42,6 +42,48 @@ func TestFromBytes_panic(t *testing.T) {
 		assert.Panics(t, func() {
 			FromBytes(c)
 		})
+	}
+}
+
+func TestFromString_ok(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	randID := NewPseudoRandom(rng)
+	cases := []struct {
+		in  string
+		out ID
+	}{
+		{in: strings.Repeat("0", 64), out: LowerBound},          // 0
+		{in: strings.Repeat("f", 64), out: UpperBound},          // 1
+		{in: strings.Repeat("F", 64), out: UpperBound},          // 2
+		{in: strings.Repeat("0", 62) + "01", out: FromInt64(1)}, // 3
+		{in: randID.String(), out: randID},                      // 4
+	}
+	for i, c := range cases {
+		info := fmt.Sprintf("case: %d", i)
+		id, err := FromString(c.in)
+		assert.Nil(t, err, info)
+		assert.Equal(t, 0, c.out.Cmp(id), info)
+	}
+}
+
+func TestFromString_err(t *testing.T) {
+	cases := []struct {
+		in string
+	}{
+		{in: "0"},                      // 0
+		{in: strings.Repeat("0", 32)},  // 1
+		{in: strings.Repeat("0", 128)}, // 2
+		{in: "F"},                      // 3
+		{in: strings.Repeat("F", 32)},  // 4
+		{in: strings.Repeat("F", 128)}, // 5
+		{in: strings.Repeat("g", 64)},  // 6
+		{in: strings.Repeat("G", 64)},  // 7
+	}
+	for i, c := range cases {
+		info := fmt.Sprintf("case: %d", i)
+		id, err := FromString(c.in)
+		assert.NotNil(t, err, info)
+		assert.Nil(t, id, info)
 	}
 }
 
