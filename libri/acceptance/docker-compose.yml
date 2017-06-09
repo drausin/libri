@@ -39,3 +39,9 @@ services:
     ]
     ports:
      - "20102:20102"
+  tester:
+    image: daedalus2718/libri:latest
+    command: ["test", "-h"]
+  author:
+    image: daedalus2718/libri:latest
+    command: ["author", "-h"]
