@@ -10,6 +10,7 @@ import (
 
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
+	cbackoff "github.com/cenkalti/backoff"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -21,6 +22,7 @@ import (
 
 const (
 	postListenNotifyWait = 100 * time.Millisecond
+	backoffMaxElapsedTime = 5 * time.Second
 )
 
 const (
@@ -34,6 +36,8 @@ const (
 	// during a bootstrap operation.
 	LoggerNBootstrappedPeers = "n_peers"
 )
+
+var errNoBootstrappedPeers = errors.New("failed to bootstrap any other peers")
 
 // Start is the entry point for a Librarian server. It bootstraps peers for the Librarians's
 // routing table and then begins listening for and handling requests. It notifies the up channel
@@ -59,20 +63,30 @@ func Start(logger *zap.Logger, config *Config, up chan *Librarian) error {
 }
 
 func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
-	intro := introduce.NewIntroduction(l.selfID, l.apiSelf, l.config.Introduce)
 	bootstraps, bootstrapAddrStrs := makeBootstrapPeers(bootstrapAddrs, l.config.PublicAddr)
 	l.logger.Info("beginning peer bootstrap", zap.Strings(LoggerSeeds, bootstrapAddrStrs))
 
-	err := l.introducer.Introduce(intro, bootstraps)
-	if err != nil {
-		l.logger.Error("encountered fatal error while bootsrapping", zap.Error(err))
-		return err
+	var intro *introduce.Introduction
+	operation := func() error {
+		intro = introduce.NewIntroduction(l.selfID, l.apiSelf, l.config.Introduce)
+		if err := l.introducer.Introduce(intro, bootstraps); err != nil {
+			return err
+		}
+		if !l.config.isBootstrap() && len(intro.Result.Responded) == 0 {
+			// if we're not a libri bootstrap peer, error if couldn't find any
+			return errNoBootstrappedPeers
+		}
+		return nil
 	}
-	if !l.config.isBootstrap() && len(intro.Result.Responded) == 0 {
-		// if we're not a libri bootstrap peer, error if couldn't find any
-		err := errors.New("failed to bootstrap any other peers")
-		l.logger.Error("failed to bootstrap any other peers")
-		return err
+
+	backoff := cbackoff.NewExponentialBackOff()
+	backoff.MaxElapsedTime = backoffMaxElapsedTime
+	if err := cbackoff.Retry(operation, backoff); err != nil {
+		l.logger.Error("encountered fatal error while bootstrapping",
+			zap.Error(err),
+			zap.Stringer("self_id", l.selfID),
+			zap.String("public_name", l.config.PublicName),
+		)
 	}
 
 	// add bootstrapped peers to routing table
@@ -167,8 +181,6 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 
 // Close handles cleanup involved in closing down the server.
 func (l *Librarian) Close() error {
-
-	// TODO (drausin) https://husobee.github.io/golang/ecs/2016/05/19/ecs-graceful-go-shutdown.html
 
 	// end subscriptions to other peers
 	l.subscribeTo.End()

@@ -81,14 +81,9 @@ func (s *storer) storeWork(store *Store, wg *sync.WaitGroup) {
 		next := store.Result.Unqueried[0]
 		store.Result.Unqueried = store.Result.Unqueried[1:]
 		store.mu.Unlock()
-		if _, err := next.Connector().Connect(); err != nil {
-			// if we have issues connecting, skip to next peer
-			continue
-		}
 
 		// do the query
-		_, err := s.query(next.Connector(), store)
-		if err != nil {
+		if _, err := s.query(next.Connector(), store); err != nil {
 			// if we had an issue querying, skip to next peer
 			store.wrapLock(func() {
 				store.Result.NErrors++
@@ -108,12 +103,12 @@ func (s *storer) storeWork(store *Store, wg *sync.WaitGroup) {
 func (s *storer) query(pConn api.Connector, store *Store) (*api.StoreResponse, error) {
 	ctx, cancel, err := client.NewSignedTimeoutContext(s.signer, store.Request,
 		store.Params.Timeout)
-	defer cancel()
 	if err != nil {
 		return nil, err
 	}
 
 	rp, err := s.querier.Query(ctx, pConn, store.Request)
+	cancel()
 	if err != nil {
 		return nil, err
 	}

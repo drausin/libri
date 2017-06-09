@@ -75,10 +75,6 @@ func (i *introducer) introduceWork(intro *Introduction, wg *sync.WaitGroup) {
 			// no more unqueried peers
 			continue
 		}
-		if _, err := next.Connector().Connect(); err != nil {
-			// if we have issues connecting, skip to next peer
-			continue
-		}
 
 		// do the query
 		response, err := i.query(next.Connector(), intro)
@@ -113,12 +109,11 @@ func (i *introducer) query(pConn api.Connector, intro *Introduction) (*api.Intro
 	error) {
 	rq := intro.NewRequest()
 	ctx, cancel, err := client.NewSignedTimeoutContext(i.signer, rq, intro.Params.Timeout)
-	defer cancel()
 	if err != nil {
 		return nil, err
 	}
-
 	rp, err := i.querier.Query(ctx, pConn, rq)
+	cancel()
 	if err != nil {
 		return nil, err
 	}

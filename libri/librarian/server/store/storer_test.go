@@ -104,37 +104,6 @@ func (s *fixedSearcher) Search(search *ssearch.Search, seeds []peer.Peer) error 
 	return nil
 }
 
-func TestStorer_Store_connectorErr(t *testing.T) {
-	storerImpl, store, selfPeerIdxs, peers, key := newTestStore()
-	seeds := ssearch.NewTestSeeds(peers, selfPeerIdxs)
-
-	// define fixed closest peers in search result, used by mocked searcher
-	fixed := ssearch.NewInitialResult(key, store.Search.Params)
-	for c := uint(0); c < store.Search.Params.NClosestResponses; c++ {
-		badPeer := peer.New(peers[c].ID(), "", &peer.TestErrConnector{})
-		err := fixed.Closest.SafePush(badPeer)
-		assert.Nil(t, err)
-	}
-	storerImpl.(*storer).searcher = &fixedSearcher{
-		fixed: fixed,
-	}
-
-	// do the search!
-	err := storerImpl.Store(store, seeds)
-
-	// checks
-	assert.Nil(t, err)
-	assert.True(t, store.Exhausted()) // since we can't connect to any of the peers
-	assert.False(t, store.Stored())
-	assert.False(t, store.Errored())
-	assert.True(t, store.Finished())
-
-	assert.Equal(t, 0, len(store.Result.Responded))
-	assert.Equal(t, 0, len(store.Result.Unqueried))
-	assert.Equal(t, uint(0), store.Result.NErrors)
-	assert.Nil(t, store.Result.FatalErr)
-}
-
 func TestStorer_Store_queryErr(t *testing.T) {
 	storerImpl, store, selfPeerIdxs, peers, _ := newTestStore()
 	seeds := ssearch.NewTestSeeds(peers, selfPeerIdxs)
