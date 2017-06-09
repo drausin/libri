@@ -11,11 +11,20 @@ import (
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/pkg/errors"
 	"log"
+	"io/ioutil"
+	"os"
 )
 
 
 func TestAuthorGetter_get_ok(t *testing.T) {
-	config, logger1 := author.NewDefaultConfig(), server.NewDevInfoLogger()
+	keychainDir, err := ioutil.TempDir("", "test-author")
+	assert.Nil(t, err)
+	config := author.NewDefaultConfig().
+		WithDataDir(keychainDir).
+		WithDefaultDBDir().
+		WithDefaultKeychainDir()
+	logger1 := server.NewDevInfoLogger()
+
 	ag := authorGetterImpl{
 		acg: &fixedAuthorConfigGetter{
 			config: config,
@@ -28,6 +37,8 @@ func TestAuthorGetter_get_ok(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, author2)
 	assert.Equal(t, logger1, logger2)
+
+	assert.Nil(t, os.RemoveAll(keychainDir))
 }
 
 func TestAuthorGetter_get_err(t *testing.T) {
