@@ -87,6 +87,7 @@ func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
 			zap.Stringer("self_id", l.selfID),
 			zap.String("public_name", l.config.PublicName),
 		)
+		return err
 	}
 
 	// add bootstrapped peers to routing table

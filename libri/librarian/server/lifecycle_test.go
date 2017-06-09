@@ -81,7 +81,7 @@ func TestStart_bootstrapPeersErr(t *testing.T) {
 	config.BootstrapAddrs = append(config.BootstrapAddrs, publicAddr)
 
 	// check that bootstrap error bubbles up
-	assert.NotNil(t, Start(zap.NewNop(), config, make(chan *Librarian, 1)))
+	assert.NotNil(t, Start(clogging.NewDevInfoLogger(), config, make(chan *Librarian, 1)))
 }
 
 func TestLibrarian_bootstrapPeers_ok(t *testing.T) {
