@@ -128,12 +128,12 @@ func (s *searcher) searchWork(search *Search, wg *sync.WaitGroup) {
 func (s *searcher) query(pConn api.Connector, search *Search) (*api.FindResponse, error) {
 	ctx, cancel, err := client.NewSignedTimeoutContext(s.signer, search.Request,
 		search.Params.Timeout)
-	defer cancel()
 	if err != nil {
 		return nil, err
 	}
 
 	rp, err := s.querier.Query(ctx, pConn, search.Request)
+	cancel()
 	if err != nil {
 		return nil, err
 	}

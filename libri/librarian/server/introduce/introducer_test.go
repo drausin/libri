@@ -70,27 +70,6 @@ func TestIntroducer_Introduce_ok(t *testing.T) {
 	}
 }
 
-func TestIntroducer_Introduce_connectorErr(t *testing.T) {
-	introducer, intro, selfPeerIdxs, peers := newTestIntros(1)
-	for i, p := range peers {
-		// replace peer with connector that errors
-		peers[i] = peer.New(p.ID(), "", &peer.TestErrConnector{})
-	}
-	seeds := search.NewTestSeeds(peers, selfPeerIdxs)
-
-	// do the intro!
-	err := introducer.Introduce(intro, seeds)
-
-	// checks
-	assert.Nil(t, err)
-	assert.True(t, intro.Finished())
-	assert.True(t, intro.Exhausted()) // b/c can't connect to any of the peers
-	assert.False(t, intro.ReachedTarget())
-	assert.False(t, intro.Errored())
-	assert.Equal(t, uint(0), intro.Result.NErrors)
-	assert.Equal(t, 0, len(intro.Result.Responded))
-}
-
 func TestIntroducer_Introduce_queryErr(t *testing.T) {
 	introducerImpl, intro, selfPeerIdxs, peers := newTestIntros(1)
 	seeds := search.NewTestSeeds(peers, selfPeerIdxs)

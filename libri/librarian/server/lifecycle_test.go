@@ -19,6 +19,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+	"github.com/drausin/libri/libri/common/ecid"
 )
 
 func TestStart_ok(t *testing.T) {
@@ -81,7 +82,7 @@ func TestStart_bootstrapPeersErr(t *testing.T) {
 	config.BootstrapAddrs = append(config.BootstrapAddrs, publicAddr)
 
 	// check that bootstrap error bubbles up
-	assert.NotNil(t, Start(zap.NewNop(), config, make(chan *Librarian, 1)))
+	assert.NotNil(t, Start(clogging.NewDevInfoLogger(), config, make(chan *Librarian, 1)))
 }
 
 func TestLibrarian_bootstrapPeers_ok(t *testing.T) {
@@ -132,6 +133,7 @@ func TestLibrarian_bootstrapPeers_introduceErr(t *testing.T) {
 
 	l := &Librarian{
 		config: NewDefaultConfig(),
+		selfID: ecid.NewPseudoRandom(rng),
 		introducer: &fixedIntroducer{
 			err: errors.New("some fatal introduce error"),
 		},
@@ -162,6 +164,7 @@ func TestLibrarian_bootstrapPeers_noResponsesErr(t *testing.T) {
 	assert.Nil(t, err)
 	l := &Librarian{
 		config: NewDefaultConfig().WithPublicAddr(publicAddr),
+		selfID: ecid.NewPseudoRandom(rng),
 		introducer: &fixedIntroducer{
 			result: fixedResult,
 		},
