@@ -67,7 +67,7 @@ type Author struct {
 	db db.KVDB
 
 	// SL for client data
-	clientSL storage.NamespaceStorerLoader
+	clientSL storage.NamespaceSL
 
 	// SL for locally stored documents
 	documentSL storage.DocumentStorerLoader
@@ -114,8 +114,8 @@ func NewAuthor(
 		logger.Error("unable to init RocksDB", zap.Error(err))
 		return nil, err
 	}
-	clientSL := storage.NewClientKVDBStorerLoader(rdb)
-	documentSL := storage.NewDocumentKVDBStorerLoader(rdb)
+	clientSL := storage.NewClientSL(rdb)
+	documentSL := storage.NewDocumentSLD(rdb)
 
 	// get client ID and immediately save it so subsequent restarts have it
 	clientID, err := loadOrCreateClientID(logger, clientSL)
@@ -299,6 +299,10 @@ func (a *Author) Download(content io.Writer, envelopeKey id.ID) error {
 		zap.Float32("speed_Mbps", speedMbps),
 	)
 	return nil
+}
+
+func (a *Author) Share(readerKey id.ID) error {
+
 }
 
 func getEntryInfo(entry *api.Document) (id.ID, int, error) {

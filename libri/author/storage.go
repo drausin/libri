@@ -52,7 +52,7 @@ var (
 	clientIDKey = []byte("ClientID")
 )
 
-func loadOrCreateClientID(logger *zap.Logger, nsl storage.NamespaceStorerLoader) (ecid.ID, error) {
+func loadOrCreateClientID(logger *zap.Logger, nsl storage.NamespaceSL) (ecid.ID, error) {
 	bytes, err := nsl.Load(clientIDKey)
 	if err != nil {
 		logger.Error("error loading client ID", zap.Error(err))

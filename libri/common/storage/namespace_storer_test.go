@@ -28,8 +28,8 @@ func TestServerClientStorerLoader_StoreLoad_ok(t *testing.T) {
 	defer cleanup()
 	defer kvdb.Close()
 	assert.Nil(t, err)
-	ssl := NewServerKVDBStorerLoader(kvdb)
-	csl := NewClientKVDBStorerLoader(kvdb)
+	ssl := NewServerSL(kvdb)
+	csl := NewClientSL(kvdb)
 
 	for _, c := range cases {
 		err := ssl.Store(c.key, c.value)
@@ -63,8 +63,8 @@ func TestServerClientStorerLoader_Store_err(t *testing.T) {
 	defer cleanup()
 	defer kvdb.Close()
 	assert.Nil(t, err)
-	ssl := NewServerKVDBStorerLoader(kvdb)
-	csl := NewClientKVDBStorerLoader(kvdb)
+	ssl := NewServerSL(kvdb)
+	csl := NewClientSL(kvdb)
 
 	for _, c := range cases {
 		err := ssl.Store(c.key, c.value)
@@ -88,8 +88,8 @@ func TestServerClientStorerLoader_Load_err(t *testing.T) {
 	defer cleanup()
 	defer kvdb.Close()
 	assert.Nil(t, err)
-	ssl := NewServerKVDBStorerLoader(kvdb)
-	csl := NewServerKVDBStorerLoader(kvdb)
+	ssl := NewServerSL(kvdb)
+	csl := NewServerSL(kvdb)
 
 	for _, c := range cases {
 		_, err = ssl.Load(c.key)
@@ -104,7 +104,7 @@ func TestDocumentNamespaceStorerLoader_StoreLoad_ok(t *testing.T) {
 	defer cleanup()
 	defer kvdb.Close()
 	assert.Nil(t, err)
-	dsl := NewDocumentKVDBStorerLoader(kvdb)
+	dsl := NewDocumentSLD(kvdb)
 
 	rng := rand.New(rand.NewSource(0))
 	value1, key := api.NewTestDocument(rng)
@@ -124,7 +124,7 @@ func TestDocumentNamespaceStorerLoader_Store_err(t *testing.T) {
 	defer cleanup()
 	defer kvdb.Close()
 	assert.Nil(t, err)
-	dsl := NewDocumentKVDBStorerLoader(kvdb)
+	dsl := NewDocumentSLD(kvdb)
 
 	// check invalid document returns error
 	value1, _ := api.NewTestDocument(rng)
@@ -158,7 +158,7 @@ func (fsl *fixedStorerLoader) Load(namespace []byte, key []byte) ([]byte, error)
 func TestDocumentStorerLoader_Load_empty(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	key := cid.NewPseudoRandom(rng)
-	dsl1 := NewDocumentStorerLoader(&fixedStorerLoader{
+	dsl1 := NewDocumentStorerLoaderDeleter(&fixedStorerLoader{
 		loadValue: nil, // simulates empty/missing value
 	})
 
@@ -171,7 +171,7 @@ func TestDocumentStorerLoader_Load_empty(t *testing.T) {
 func TestDocumentStorerLoader_Load_loadErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	key := cid.NewPseudoRandom(rng)
-	dsl1 := NewDocumentStorerLoader(&fixedStorerLoader{
+	dsl1 := NewDocumentStorerLoaderDeleter(&fixedStorerLoader{
 		loadErr: errors.New("some load error"),
 	})
 
@@ -188,7 +188,7 @@ func TestDocumentStorerLoader_Load_checkErr(t *testing.T) {
 	defer cleanup()
 	defer kvdb.Close()
 	assert.Nil(t, err)
-	dsl := NewDocumentKVDBStorerLoader(kvdb)
+	dsl := NewDocumentSLD(kvdb)
 
 	// hackily put a value with a non-hash key; should never happen in the wild
 	valueBytes, err := proto.Marshal(value)
@@ -210,7 +210,7 @@ func TestDocumentStorerLoader_Load_validateDocumentErr(t *testing.T) {
 	defer cleanup()
 	defer kvdb.Close()
 	assert.Nil(t, err)
-	dsl := NewDocumentKVDBStorerLoader(kvdb)
+	dsl := NewDocumentSLD(kvdb)
 
 	// hackily put a value with a non-hash key; should never happen in the wild
 	valueBytes, err := proto.Marshal(value)

@@ -8,10 +8,10 @@ import (
 )
 
 const (
-	// MaxNamespaceKeyLength is the max key length (in bytes) for a NamespaceStorerLoader.
+	// MaxNamespaceKeyLength is the max key length (in bytes) for a NamespaceSL.
 	MaxNamespaceKeyLength = 32
 
-	// MaxNamespaceValueLength is the max value length for a NamespaceStorerLoader.
+	// MaxNamespaceValueLength is the max value length for a NamespaceSL.
 	MaxNamespaceValueLength = 2 * 1024 * 1024 // 2 MB
 
 	// EntriesKeyLength is the fixed length (in bytes) of all entry keys.
@@ -37,11 +37,6 @@ var (
 // Namespace denotes a storage namespace, which reduces to a key prefix.
 type Namespace []byte
 
-// Bytes returns the namespace byte encoding.
-func (n Namespace) Bytes() []byte {
-	return []byte(n)
-}
-
 // NamespaceStorer stores a value to durable storage under the configured namespace.
 type NamespaceStorer interface {
 	// Store a value for the key in the configured namespace.
@@ -54,23 +49,61 @@ type NamespaceLoader interface {
 	Load(key []byte) ([]byte, error)
 }
 
-// NamespaceStorerLoader both stores and loads values in a configured namespace.
-type NamespaceStorerLoader interface {
+// NamespaceDeleter deletes a value in the configured namespace from the durable storage.
+type NamespaceDeleter interface {
+	Delete(key []byte) error
+}
+
+// NamespaceSL both stores and loads values in a configured namespace.
+type NamespaceSL interface {
 	NamespaceStorer
 	NamespaceLoader
 }
 
-type namespaceStorerLoader struct {
-	ns Namespace
-	sl StorerLoader
+type NamespaceSLD interface {
+	NamespaceSL
+	NamespaceDeleter
 }
 
-func (nsl *namespaceStorerLoader) Store(key []byte, value []byte) error {
-	return nsl.sl.Store(nsl.ns.Bytes(), key, value)
+type namespaceSLD struct {
+	ns  Namespace
+	sld StorerLoaderDeleter
 }
 
-func (nsl *namespaceStorerLoader) Load(key []byte) ([]byte, error) {
-	return nsl.sl.Load(nsl.ns.Bytes(), key)
+// NewServerSL creates a new NamespaceSL for the "server" namespace backed by a db.KVDB instance.
+func NewServerSL(kvdb db.KVDB) NamespaceSL {
+	return &namespaceSLD{
+		ns: Server,
+		sld: NewKVDBStorerLoaderDeleter(
+			kvdb,
+			NewMaxLengthChecker(MaxNamespaceKeyLength),
+			NewMaxLengthChecker(MaxNamespaceValueLength),
+		),
+	}
+}
+
+// NewClientSL creates a new NamespaceSL for the "client" namespace backed by a db.KVDB instance.
+func NewClientSL(kvdb db.KVDB) NamespaceSL {
+	return &namespaceSLD{
+		ns: Client,
+		sld: NewKVDBStorerLoaderDeleter(
+			kvdb,
+			NewMaxLengthChecker(MaxNamespaceKeyLength),
+			NewMaxLengthChecker(MaxNamespaceValueLength),
+		),
+	}
+}
+
+func (nsl *namespaceSLD) Store(key []byte, value []byte) error {
+	return nsl.sld.Store(nsl.ns, key, value)
+}
+
+func (nsl *namespaceSLD) Load(key []byte) ([]byte, error) {
+	return nsl.sld.Load(nsl.ns, key)
+}
+
+func (nsl *namespaceSLD) Delete(key []byte) error {
+	return nsl.sld.Delete(nsl.ns, key)
 }
 
 // DocumentStorer stores api.Document values.
@@ -85,20 +118,40 @@ type DocumentLoader interface {
 	Load(key cid.ID) (*api.Document, error)
 }
 
-// DocumentStorerLoader stores and loads api.Document values.
-type DocumentStorerLoader interface {
-	DocumentStorer
-	DocumentLoader
+type DocumentDeleter interface {
+	Delete(key cid.ID) error
 }
 
-// keyHashNamespaceStorerLoader checks that the key equals the hash of the value before storing it.
-type documentStorerLoader struct {
-	nsl NamespaceStorerLoader
+// DocumentSLD stores, loads, & deletes api.Document values.
+type DocumentSLD interface {
+	DocumentStorer
+	DocumentLoader
+	DocumentDeleter
+}
+
+type documentSLD struct {
+	sld NamespaceSLD
 	c   KeyValueChecker
 }
 
+// NewDocumentSLD creates a new NamespaceSL for the "entries" namespace
+// backed by a db.KVDB instance.
+func NewDocumentSLD(kvdb db.KVDB) DocumentSLD {
+	return &documentSLD{
+		sld: &namespaceSLD{
+			ns: Documents,
+			sld: NewKVDBStorerLoaderDeleter(
+				kvdb,
+				NewExactLengthChecker(EntriesKeyLength),
+				NewMaxLengthChecker(MaxEntriesValueLength),
+			),
+		},
+		c: NewHashKeyValueChecker(),
+	}
+}
+
 // Store checks that the key equals the SHA256 hash of the value before storing it.
-func (dnsl *documentStorerLoader) Store(key cid.ID, value *api.Document) error {
+func (dsld *documentSLD) Store(key cid.ID, value *api.Document) error {
 	if err := api.ValidateDocument(value); err != nil {
 		return err
 	}
@@ -107,22 +160,22 @@ func (dnsl *documentStorerLoader) Store(key cid.ID, value *api.Document) error {
 		return err
 	}
 	keyBytes := key.Bytes()
-	if err := dnsl.c.Check(keyBytes, valueBytes); err != nil {
+	if err := dsld.c.Check(keyBytes, valueBytes); err != nil {
 		return err
 	}
-	return dnsl.nsl.Store(keyBytes, valueBytes)
+	return dsld.sld.Store(keyBytes, valueBytes)
 }
 
-func (dnsl *documentStorerLoader) Load(key cid.ID) (*api.Document, error) {
+func (dsld *documentSLD) Load(key cid.ID) (*api.Document, error) {
 	keyBytes := key.Bytes()
-	valueBytes, err := dnsl.nsl.Load(keyBytes)
+	valueBytes, err := dsld.sld.Load(keyBytes)
 	if err != nil {
 		return nil, err
 	}
 	if valueBytes == nil {
 		return nil, nil
 	}
-	if err := dnsl.c.Check(keyBytes, valueBytes); err != nil {
+	if err := dsld.c.Check(keyBytes, valueBytes); err != nil {
 		// should never happen b/c we check on Store, but being defensive just in case
 		return nil, err
 	}
@@ -137,65 +190,6 @@ func (dnsl *documentStorerLoader) Load(key cid.ID) (*api.Document, error) {
 	return doc, nil
 }
 
-// NewServerStorerLoader creates a new NamespaceStorerLoader for the "server" namespace.
-func NewServerStorerLoader(sl StorerLoader) NamespaceStorerLoader {
-	return &namespaceStorerLoader{
-		ns: Server,
-		sl: sl,
-	}
-}
-
-// NewServerKVDBStorerLoader creates a new NamespaceStorerLoader for the "server" namespace backed
-// by a db.KVDB instance.
-func NewServerKVDBStorerLoader(kvdb db.KVDB) NamespaceStorerLoader {
-	return NewServerStorerLoader(
-		NewKVDBStorerLoader(
-			kvdb,
-			NewMaxLengthChecker(MaxNamespaceKeyLength),
-			NewMaxLengthChecker(MaxNamespaceValueLength),
-		),
-	)
-}
-
-// NewClientStorerLoader creates a new NamespaceStorerLoader for the "client" namespace.
-func NewClientStorerLoader(sl StorerLoader) NamespaceStorerLoader {
-	return &namespaceStorerLoader{
-		ns: Client,
-		sl: sl,
-	}
-}
-
-// NewClientKVDBStorerLoader creates a new NamespaceStorerLoader for the "client" namespace backed
-// by a db.KVDB instance.
-func NewClientKVDBStorerLoader(kvdb db.KVDB) NamespaceStorerLoader {
-	return NewClientStorerLoader(
-		NewKVDBStorerLoader(
-			kvdb,
-			NewMaxLengthChecker(MaxNamespaceKeyLength),
-			NewMaxLengthChecker(MaxNamespaceValueLength),
-		),
-	)
-}
-
-// NewDocumentStorerLoader creates a new DocumentStorerLoader for the "documents" namespace.
-func NewDocumentStorerLoader(sl StorerLoader) DocumentStorerLoader {
-	return &documentStorerLoader{
-		nsl: &namespaceStorerLoader{
-			ns: Documents,
-			sl: sl,
-		},
-		c: NewHashKeyValueChecker(),
-	}
-}
-
-// NewDocumentKVDBStorerLoader creates a new NamespaceStorerLoader for the "entries" namespace
-// backed by a db.KVDB instance.
-func NewDocumentKVDBStorerLoader(kvdb db.KVDB) DocumentStorerLoader {
-	return NewDocumentStorerLoader(
-		NewKVDBStorerLoader(
-			kvdb,
-			NewExactLengthChecker(EntriesKeyLength),
-			NewMaxLengthChecker(MaxEntriesValueLength),
-		),
-	)
+func (dsld *documentSLD) Delete(key cid.ID) error {
+	return dsld.sld.Delete(key.Bytes())
 }
