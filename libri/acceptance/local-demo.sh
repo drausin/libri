@@ -22,7 +22,7 @@ LIBRI_PASSPHRASE="test passphrase"
 N_LIBRARIANS=3
 
 # clean up any existing libri containers
-docker ps | grep -e 'libri' | awk '{print $1}' | xargs docker stop -t 3
+docker ps | grep 'libri' | awk '{print $1}' | xargs docker stop -t 3
 
 echo "starting librarian peers..."
 librarian_addrs=""
