@@ -3,14 +3,31 @@
 set -eou pipefail
 #set -x  # useful for debugging
 
+# local and filesystem constants
+LOCAL_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+LOCAL_TEST_DATA_DIR="${LOCAL_DIR}/data"
+LOCAL_TEST_LOGS_DIR="${LOCAL_DIR}/logs"
+mkdir -p "${LOCAL_TEST_LOGS_DIR}"
 
+# get test data if it doesn't exist
+if [[ ! -e "${LOCAL_TEST_DATA_DIR}" ]]; then
+    ./get-test-data.sh
+fi
+
+# container command contants
 IMAGE="daedalus2718/libri:latest"
+KEYCHAIN_DIR="~/.libri/keychains"  # inside container
+CONTAINER_TEST_DATA_DIR="/test-data"
+LIBRI_PASSPHRASE="test passphrase"
+N_LIBRARIANS=3
 
-# start local libri librarian peers
-echo "\nstarting librarians..."
+# clean up any existing libri containers
+docker ps | grep -e 'libri' | awk '{print $1}' | xargs docker stop -t 3
+
+echo "starting librarian peers..."
 librarian_addrs=""
 librarian_containers=""
-for c in $(seq 0 2); do
+for c in $(seq 0 $((${N_LIBRARIANS} - 1))); do
     port=$((20100+c))
     name="librarian-${c}"
     docker run --rm --name "${name}" --net=host -d -p ${port}:${port} ${IMAGE} \
@@ -18,40 +35,32 @@ for c in $(seq 0 2); do
         --nSubscriptions 2 \
         --publicPort ${port} \
         --localPort ${port} \
-        --publicHost localhost \
         --bootstraps localhost:20100
     librarian_addrs="localhost:${port} ${librarian_addrs}"
     librarian_containers="${librarian_containers} ${name}"
 done
 
-echo "\ntesting librarians health..."
+echo
+echo "testing librarians health..."
 docker run --rm --net=host ${IMAGE} test health -a "${librarian_addrs}"
 
-echo "\ntesting librarians upload/download..."
-docker run --rm --net=host ${IMAGE} test io -a "${librarian_addrs}"
+echo
+echo "testing librarians upload/download..."
+docker run --rm --net=host ${IMAGE} test io -a "${librarian_addrs}" -n 4
 
-KEYCHAIN_DIR="~/.libri/keychains"  # inside container
-LOCAL_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-LOCAL_TEST_DATA_DIR="${LOCAL_DIR}/data"
-LOCAL_TEST_LOGS_DIR="${LOCAL_DIR}/logs"
-mkdir -p "${LOCAL_TEST_LOGS_DIR}"
-
-CONTAINER_TEST_DATA_DIR="/test-data"
-LIBRI_PASSPHRASE="test passphrase"
-
-# start author container
-echo "\nstarting author container..."
+echo
+echo "starting author container..."
 docker run -d --rm --name author --net=host \
     -v ${LOCAL_TEST_DATA_DIR}:${CONTAINER_TEST_DATA_DIR} \
     -e LIBRI_PASSPHRASE="${LIBRI_PASSPHRASE}" \
-    --entrypoint=sleep ${IMAGE} 3600
+    --entrypoint=sleep ${IMAGE} 3600  # use sleep just to keep it running
 
-# init keychains using pre-stored passphrase in env var
-echo "\ninitializing author..."
-docker exec author libri author init -k "${KEYCHAIN_DIR}"
+echo
+echo "initializing author..."
+docker exec author libri author init -k "${KEYCHAIN_DIR}"  # uses pre-stored passphrase in env var
 
-# upload all files in test data dir
-echo "\nuploading & downloading local files..."
+echo
+echo "uploading & downloading local files..."
 for file in $(ls ${LOCAL_TEST_DATA_DIR}); do
     up_file="${CONTAINER_TEST_DATA_DIR}/${file}"
     docker exec author libri author upload \
@@ -75,10 +84,11 @@ for file in $(ls ${LOCAL_TEST_DATA_DIR}); do
     [[ "${up_md5}" = "${down_md5}" ]]
 done
 
-# clean up
-echo "\ncleaning up..."
+echo
+echo "cleaning up..."
 rm ${LOCAL_TEST_DATA_DIR}/downloaded.*
 rm ${LOCAL_TEST_LOGS_DIR}/*
-docker stop author ${librarian_containers}
+docker stop -t 3 author ${librarian_containers}
 
-echo "\nAll tests passed."
+echo
+echo "All tests passed."
