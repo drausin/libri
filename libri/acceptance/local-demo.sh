@@ -11,7 +11,7 @@ mkdir -p "${LOCAL_TEST_LOGS_DIR}"
 
 # get test data if it doesn't exist
 if [[ ! -e "${LOCAL_TEST_DATA_DIR}" ]]; then
-    ./get-test-data.sh
+    ${LOCAL_DIR}/get-test-data.sh
 fi
 
 # container command contants
