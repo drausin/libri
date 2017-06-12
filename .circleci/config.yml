@@ -59,8 +59,8 @@ jobs:
           path: acceptance.log
 
       - deploy:
-        command:
-          if [ "${CIRCLE_BRANCH}" == "develop" ]; then
-            docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS
-            docker push daedalus2718/libri:latest
-          fi
+          command:
+            if [ "${CIRCLE_BRANCH}" == "develop" ]; then
+              docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS
+              docker push daedalus2718/libri:latest
+            fi
