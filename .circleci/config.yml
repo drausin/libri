@@ -1,13 +1,13 @@
 version: 2
 jobs:
   build:
+    working_directory: /go/src/github.com/drausin/libri
     docker:
       - image: circleci/golang:1.8.1
-    environment:
-      - GOROOT: ""
-      - PATH: "/usr/local/go/bin:/usr/local/go_workspace/bin:${HOME}/.go_workspace/bin:${PATH}"
-      - GOPATH: "${HOME}/.go_workspace:/usr/local/go_workspace:${HOME}/.go_project"
-    working_directory: ~/libri
+#    environment:
+#      - GOROOT: ""
+#      - PATH: "/usr/local/go/bin:/usr/local/go_workspace/bin:${HOME}/.go_workspace/bin:${PATH}"
+#      - GOPATH: "${HOME}/.go_workspace:/usr/local/go_workspace:${HOME}/.go_project"
     steps:
       - checkout
       # TODO restore cache for ~/.go_workspace && RocksDB
