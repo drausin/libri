@@ -26,12 +26,12 @@ jobs:
           name: build-rocksdb
           command: |
             sudo apt-get install libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev
-            if [ ! -d "${HOME}/rocksdb-5.2.1" ]; then
+            if [ ! -d "${HOME}/rocksdb-5.4.5" ]; then
               cd ~
-              wget https://github.com/facebook/rocksdb/archive/v5.2.1.zip
-              unzip ~/v5.2.1.zip -d ~
+              wget https://github.com/facebook/rocksdb/archive/v5.4.5.zip
+              unzip ~/v5.4.5.zip -d ~
             fi
-            cd ~/rocksdb-5.2.1 && make static_lib && sudo make install
+            cd ~/rocksdb-5.4.5 && make static_lib && sudo make install
             CGO_CFLAGS="-I/usr/local/include/rocksdb" \
               CGO_LDFLAGS="-L/usr/local/lib/librocksdb.a -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy"  \
               go get github.com/tecbot/gorocksdb
