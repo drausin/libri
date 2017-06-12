@@ -4,43 +4,49 @@ jobs:
     working_directory: /go/src/github.com/drausin/libri
     docker:
       - image: circleci/golang:1.8.1
-#    environment:
+    environment:
+      - ROCKSDB_VERSION: 5.4.5
 #      - GOROOT: ""
 #      - PATH: "/usr/local/go/bin:/usr/local/go_workspace/bin:${HOME}/.go_workspace/bin:${PATH}"
-#      - GOPATH: "${HOME}/.go_workspace:/usr/local/go_workspace:${HOME}/.go_project"
+#      - GOPATH: "${HOME}/.go_workspace:/usr/local/go_workspace:${HOME}/.go_project
     steps:
       - checkout
+      - restore_cache:
+          key: rocksdb-bin-{{ .Environment.ROCKSDB_VERSION }}
+
       # TODO restore cache for ~/.go_workspace && RocksDB
+#      - run:
+#          name: symlink project
+#          command: |
+#            mkdir -p ~/.go_project/src/github.com/drausin
+#            ln -s ~/libri ~/.go_project/src/github.com/drausin/libri
       - run:
-          name: symlink-project
-          command: |
-            mkdir -p ~/.go_project/src/github.com/drausin
-            ln -s ~/libri ~/.go_project/src/github.com/drausin/libri
-      - run:
-          name: install-deps
+          name: install deps
           command: |
             go get -t -d -v ./...
             make tools
 
       - run:
-          name: build-rocksdb
+          name: build rocksdb
           command: |
             sudo apt-get install libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev
-            if [ ! -d "${HOME}/rocksdb-5.4.5" ]; then
+            if [ ! -d "${HOME}/rocksdb-${ROCKSDB_VERSION}" ]; then
               cd ~
-              wget https://github.com/facebook/rocksdb/archive/v5.4.5.zip
-              unzip ~/v5.4.5.zip -d ~
+              wget https://github.com/facebook/rocksdb/archive/v${ROCKSDB_VERSION}.zip
+              unzip ~/v${ROCKSDB_VERSION}.zip -d ~
             fi
-            cd ~/rocksdb-5.4.5 && make static_lib && sudo make install
+            cd ~/rocksdb-${ROCKSDB_VERSION} && make static_lib && sudo make install
             CGO_CFLAGS="-I/usr/local/include/rocksdb" \
               CGO_LDFLAGS="-L/usr/local/lib/librocksdb.a -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy"  \
               go get github.com/tecbot/gorocksdb
-      # TODO save cache for ~/.go_workspace && RocksDB
+      - save_cache:
+          paths: ~/v${ROCKSDB_VERSION}
+          key: rocksdb-bin-{{ .Environment.ROCKSDB_VERSION }}
 
       - run:
           name: build
           command: |
-            mkdir -p deploy/bin && mkdir -p $CIRCLE_ARTIFACTS/deploy/bin
+#            mkdir -p deploy/bin && mkdir -p $CIRCLE_ARTIFACTS/deploy/bin
             make build          # ensure everything builds ok
             make build-static   # build linux binary for Docker image
             make docker-image   # ensure Docker image builds ok, even though only used on deployment
