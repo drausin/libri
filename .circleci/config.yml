@@ -11,8 +11,8 @@ jobs:
 #      - GOPATH: "${HOME}/.go_workspace:/usr/local/go_workspace:${HOME}/.go_project
     steps:
       - checkout
-#      - restore_cache:
-#          key: rocksdb-bin-{{ .Environment.ROCKSDB_VERSION }}
+      - restore_cache:
+          key: rocksdb-bin-{{ .Environment.ROCKSDB_VERSION }}
 
       # TODO restore cache for ~/.go_workspace && RocksDB
 #      - run:
@@ -20,11 +20,14 @@ jobs:
 #          command: |
 #            mkdir -p ~/.go_project/src/github.com/drausin
 #            ln -s ~/libri ~/.go_project/src/github.com/drausin/libri
+
+      # TODO (restore deps cache?)
       - run:
           name: install deps
           command: |
             go get -t -d -v ./...
             make tools
+      # TODO save deps cache?
 
       - run:
           name: build rocksdb
