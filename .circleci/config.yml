@@ -11,8 +11,8 @@ jobs:
 #      - GOPATH: "${HOME}/.go_workspace:/usr/local/go_workspace:${HOME}/.go_project
     steps:
       - checkout
-      - restore_cache:
-          key: rocksdb-bin-{{ .Environment.ROCKSDB_VERSION }}
+#      - restore_cache:
+#          key: rocksdb-bin-{{ .Environment.ROCKSDB_VERSION }}
 
       # TODO restore cache for ~/.go_workspace && RocksDB
 #      - run:
@@ -46,7 +46,6 @@ jobs:
       - run:
           name: build
           command: |
-#            mkdir -p deploy/bin && mkdir -p $CIRCLE_ARTIFACTS/deploy/bin
             make build          # ensure everything builds ok
             make build-static   # build linux binary for Docker image
             make docker-image   # ensure Docker image builds ok, even though only used on deployment
