@@ -1,0 +1,66 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: circleci/golang:1.8.1
+    environment:
+      - GOROOT: ""
+      - PATH: "/usr/local/go/bin:/usr/local/go_workspace/bin:${HOME}/.go_workspace/bin:${PATH}"
+      - GOPATH: "${HOME}/.go_workspace:/usr/local/go_workspace:${HOME}/.go_project"
+    working_directory: ~/libri
+    steps:
+      - checkout
+      # TODO restore cache for ~/.go_workspace && RocksDB
+      - run:
+          name: symlink-project
+          command: |
+            mkdir -p ~/.go_project/src/github.com/drausin
+            ln -s ~/libri ~/.go_project/src/github.com/drausin/libri
+      - run:
+          name: install-deps
+          command: |
+            go get -t -d -v ./...
+            make tools
+
+      - run:
+          name: build-rocksdb
+          command: |
+            sudo apt-get install libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev
+            if [ ! -d "${HOME}/rocksdb-5.2.1" ]; then
+              cd ~
+              wget https://github.com/facebook/rocksdb/archive/v5.2.1.zip
+              unzip ~/v5.2.1.zip -d ~
+            fi
+            cd ~/rocksdb-5.2.1 && make static_lib && sudo make install
+            CGO_CFLAGS="-I/usr/local/include/rocksdb" \
+              CGO_LDFLAGS="-L/usr/local/lib/librocksdb.a -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy"  \
+              go get github.com/tecbot/gorocksdb
+      # TODO save cache for ~/.go_workspace && RocksDB
+
+      - run:
+          name: build
+          command: |
+            mkdir -p deploy/bin && mkdir -p $CIRCLE_ARTIFACTS/deploy/bin
+            make build          # ensure everything builds ok
+            make build-static   # build linux binary for Docker image
+            make docker-image   # ensure Docker image builds ok, even though only used on deployment
+      - store_artifacts:
+          path: deploy/bin
+
+      - run:
+          name: test
+          command: |
+            case $CIRCLE_NODE_INDEX in
+              0) make test-cover && make acceptance ;;
+              1) make lint ;;
+            esac
+            bash <(curl -s https://codecov.io/bash) -f test-coverage-merged.cov
+      - store_artifacts:
+          path: acceptance.log
+
+      - deploy:
+        command:
+          if [ "${CIRCLE_BRANCH}" == "develop" ]; then
+            docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS
+            docker push daedalus2718/libri:latest
+          fi
