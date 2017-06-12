@@ -11,8 +11,19 @@ jobs:
 #      - GOPATH: "${HOME}/.go_workspace:/usr/local/go_workspace:${HOME}/.go_project
     steps:
       - checkout
+      - setup_remote_docker
+      - run:
+          # TODO (move to custom build image)
+          name: install Docker client
+          command: |
+            set -x
+            VER="17.03.0-ce"
+            curl -L -o /tmp/docker-$VER.tgz https://get.docker.com/builds/Linux/x86_64/docker-$VER.tgz
+            tar -xz -C /tmp -f /tmp/docker-$VER.tgz
+            mv /tmp/docker/* /usr/bin
       - restore_cache:
-          key: rocksdb-bin-{{ .Environment.ROCKSDB_VERSION }}
+          # hardcode until https://discuss.circleci.com/t/cannot-use-circle-yml-environment-variables-in-cache-keys/10994/6 is resolved
+          key: rocksdb-bin-5.4.5
 
       # TODO restore cache for ~/.go_workspace && RocksDB
 #      - run:
@@ -44,7 +55,7 @@ jobs:
               go get github.com/tecbot/gorocksdb
       - save_cache:
           paths: ~/v${ROCKSDB_VERSION}
-          key: rocksdb-bin-{{ .Environment.ROCKSDB_VERSION }}
+          key: rocksdb-bin-v5.4.5
 
       - run:
           name: build
