@@ -50,11 +50,11 @@ Get the external address for one of the services
 For convenience (and speed), you can run testing commands from an ephemeral container. Test the 
 health of a librarian with
 
-    $ docker run --rm daedalus2718/libri test health -a '192.168.99.100:30100'
+    $ docker run --rm daedalus2718/libri:latest test health -a '192.168.99.100:30100'
 
 Test uploading/downloading entries from the cluster with
 
-    $ docker run --rm daedalus2718/libri test io -a '192.168.99.100:30100'
+    $ docker run --rm daedalus2718/libri:latest test io -a '192.168.99.100:30100'
 
 
 #### Terminating the cluster

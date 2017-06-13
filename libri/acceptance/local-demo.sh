@@ -16,14 +16,17 @@ fi
 
 # container command contants
 IMAGE="daedalus2718/libri:latest"
-KEYCHAIN_DIR="~/.libri/keychains"  # inside container
+KEYCHAIN_DIR="/keychains"  # inside container
 CONTAINER_TEST_DATA_DIR="/test-data"
-LIBRI_PASSPHRASE="test passphrase"
+LIBRI_PASSPHRASE="test passphrase"  # bypass command-line entry
 N_LIBRARIANS=3
 
 # clean up any existing libri containers
-docker ps | grep 'libri' | awk '{print $1}' | xargs -I {} docker stop -t 3 {} || true
+echo "cleaning up existing containers..."
+docker ps | grep 'libri' | awk '{print $1}' | xargs -I {} docker stop {} || true
+docker ps -a | grep 'libri' | awk '{print $1}' | xargs -I {} docker rm {} || true
 
+echo
 echo "starting librarian peers..."
 librarian_addrs=""
 librarian_containers=""
@@ -39,6 +42,7 @@ for c in $(seq 0 $((${N_LIBRARIANS} - 1))); do
     librarian_addrs="localhost:${port} ${librarian_addrs}"
     librarian_containers="${librarian_containers} ${name}"
 done
+sleep 5  # TODO (drausin) add retry to healthcheck
 
 echo
 echo "testing librarians health..."
@@ -49,34 +53,44 @@ echo "testing librarians upload/download..."
 docker run --rm --net=host ${IMAGE} test io -a "${librarian_addrs}" -n 4
 
 echo
-echo "starting author container..."
-docker run -d --rm --name author --net=host \
+echo "initializing author..."
+docker run \
+    --name author-data \
+    -v ${KEYCHAIN_DIR} \
     -v ${LOCAL_TEST_DATA_DIR}:${CONTAINER_TEST_DATA_DIR} \
     -e LIBRI_PASSPHRASE="${LIBRI_PASSPHRASE}" \
-    --entrypoint=sleep ${IMAGE} 3600  # use sleep just to keep it running
-
-echo
-echo "initializing author..."
-docker exec author libri author init -k "${KEYCHAIN_DIR}"  # uses pre-stored passphrase in env var
+    --entrypoint true \
+    ${IMAGE}
+docker run \
+    --rm \
+    --volumes-from author-data \
+    -e LIBRI_PASSPHRASE="${LIBRI_PASSPHRASE}" \
+    ${IMAGE} \
+    author init -k "${KEYCHAIN_DIR}"
 
 echo
 echo "uploading & downloading local files..."
 for file in $(ls ${LOCAL_TEST_DATA_DIR}); do
     up_file="${CONTAINER_TEST_DATA_DIR}/${file}"
-    docker exec author libri author upload \
-        -k "${KEYCHAIN_DIR}" \
-        -a "${librarian_addrs}" \
-        -f "${up_file}" |& \
+    docker run \
+        --rm \
+        --net=host \
+        --volumes-from author-data \
+        -e LIBRI_PASSPHRASE="${LIBRI_PASSPHRASE}" \
+        ${IMAGE} \
+        author upload -k "${KEYCHAIN_DIR}" -a "${librarian_addrs}" -f "${up_file}" |& \
         tee ${LOCAL_TEST_LOGS_DIR}/${file}.log
 
     log_file="${LOCAL_TEST_LOGS_DIR}/${file}.log"
     down_file="${CONTAINER_TEST_DATA_DIR}/downloaded.${file}"
     envelope_key=$(grep envelope_key ${log_file} | sed -r 's/^.*"envelope_key": "(\w+)".*$/\1/g')
-    docker exec author libri author download \
-        -k "${KEYCHAIN_DIR}" \
-        -a "${librarian_addrs}" \
-        -f "${down_file}" \
-        -e "${envelope_key}"
+    docker run \
+        --rm \
+        --net=host \
+        --volumes-from author-data \
+        -e LIBRI_PASSPHRASE="${LIBRI_PASSPHRASE}" \
+        ${IMAGE} \
+        author download -k "${KEYCHAIN_DIR}" -a "${librarian_addrs}" -f "${down_file}" -e "${envelope_key}"
 
     # verify md5s (locally, since it's simpler)
     up_md5=$(md5sum "${LOCAL_TEST_DATA_DIR}/${file}" | awk '{print $1}')
@@ -88,7 +102,8 @@ echo
 echo "cleaning up..."
 rm ${LOCAL_TEST_DATA_DIR}/downloaded.*
 rm ${LOCAL_TEST_LOGS_DIR}/*
-docker stop -t 3 author ${librarian_containers}
+docker stop ${librarian_containers}
+docker rm author-data
 
 echo
 echo "All tests passed."
