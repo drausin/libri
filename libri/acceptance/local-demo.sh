@@ -33,7 +33,7 @@ librarian_containers=""
 for c in $(seq 0 $((${N_LIBRARIANS} - 1))); do
     port=$((20100+c))
     name="librarian-${c}"
-    docker run --rm --name "${name}" --net=host -d -p ${port}:${port} ${IMAGE} \
+    docker run --name "${name}" --net=host -d -p ${port}:${port} ${IMAGE} \
         librarian start \
         --nSubscriptions 2 \
         --publicPort ${port} \
@@ -102,8 +102,8 @@ echo
 echo "cleaning up..."
 rm ${LOCAL_TEST_DATA_DIR}/downloaded.*
 rm ${LOCAL_TEST_LOGS_DIR}/*
-docker stop ${librarian_containers}
-docker rm author-data
+docker ps | grep 'libri' | awk '{print $1}' | xargs -I {} docker stop {} || true
+docker ps -a | grep 'libri' | awk '{print $1}' | xargs -I {} docker rm {} || true
 
 echo
 echo "All tests passed."
