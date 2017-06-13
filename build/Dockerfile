@@ -1,22 +1,9 @@
-FROM golang:1.8.3-alpine
+# use stretch (debian) b/c `go test -race` requires glibc, which isn't in the alpine variant
+FROM golang:1.8.3-stretch
 
-RUN apk add --update \
-    build-base linux-headers git cmake bash wget mercurial g++ autoconf cmake \
-    zlib zlib-dev bzip2 bzip2-dev snappy snappy-dev lz4 lz4 jemalloc coreutils
-
-# install gflags
-ENV GFLAGS_VERSION '2.2.0'
-RUN wget https://github.com/gflags/gflags/archive/v${GFLAGS_VERSION}.tar.gz -O /tmp/gflags-${GFLAGS_VERSION}.tar.gz && \
-    tar xzf /tmp/gflags-${GFLAGS_VERSION}.tar.gz -C /tmp && \
-    cd /tmp/gflags-${GFLAGS_VERSION} && \
-    mkdir build && \
-    cd build && \
-    cmake -DBUILD_SHARED_LIBS=1 -DGFLAGS_INSTALL_SHARED_LIBS=1 .. && \
-    make install && \
-    cd /tmp && \
-    rm /tmp/gflags-${GFLAGS_VERSION}.tar.gz && \
-    rm -r /tmp/gflags-${GFLAGS_VERSION}
-
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev cmake zip unzip tar gzip
 
 # install RocksDB
 ENV ROCKSDB_VERSION '5.4.5'
@@ -29,7 +16,7 @@ RUN wget https://github.com/facebook/rocksdb/archive/v${ROCKSDB_VERSION}.zip -O 
     rm /tmp/rocksdb-${ROCKSDB_VERSION}.zip && \
     rm -r /tmp/rocksdb-${ROCKSDB_VERSION}
 
-# compile gorocksdb
+# build & install gorocksdb
 RUN CGO_CFLAGS="-I/usr/local/include/rocksdb" \
     CGO_LDFLAGS="-L/usr/local/lib/librocksdb.a -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy" \
     go get github.com/tecbot/gorocksdb
@@ -44,4 +31,6 @@ RUN wget https://get.docker.com/builds/Linux/x86_64/docker-${DOCKER_VERSION}.tgz
 
 RUN mkdir -p "${GOPATH}/src/github.com/drausin/libri"
 WORKDIR "${GOPATH}/src/github.com/drausin/libri"
+
+# default entrypoint is make so that calling `docker run ...` behaves like vanilla `make`
 ENTRYPOINT ["make"]
