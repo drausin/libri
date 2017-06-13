@@ -21,7 +21,7 @@ const (
 	publicNameFlag     = "publicName"
 	publicPortFlag     = "publicPort"
 	nSubscriptionsFlag = "nSubscriptions"
-	fpRateFlag         = "fpRateFlag"
+	fpRateFlag         = "fpRate"
 )
 
 // startLibrarianCmd represents the librarian start command
