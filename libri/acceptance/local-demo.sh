@@ -100,8 +100,8 @@ done
 
 echo
 echo "cleaning up..."
-rm ${LOCAL_TEST_DATA_DIR}/downloaded.*
-rm ${LOCAL_TEST_LOGS_DIR}/*
+rm -f ${LOCAL_TEST_DATA_DIR}/downloaded.*
+rm -f ${LOCAL_TEST_LOGS_DIR}/*
 docker ps | grep 'libri' | awk '{print $1}' | xargs -I {} docker stop {} || true
 docker ps -a | grep 'libri' | awk '{print $1}' | xargs -I {} docker rm {} || true
 
