@@ -3,35 +3,10 @@ jobs:
   build:
     working_directory: /go/src/github.com/drausin/libri
     docker:
-      - image: circleci/golang:1.8.1
-    environment:
-      - ROCKSDB_VERSION: 5.4.5
-#      - GOROOT: ""
-#      - PATH: "/usr/local/go/bin:/usr/local/go_workspace/bin:${HOME}/.go_workspace/bin:${PATH}"
-#      - GOPATH: "${HOME}/.go_workspace:/usr/local/go_workspace:${HOME}/.go_project
+      - image: daedalus2718/libri-build
     steps:
       - checkout
       - setup_remote_docker
-      - run:
-          # TODO (move to custom build image)
-          name: install Docker client
-          command: |
-            set -x
-            VER="17.03.0-ce"
-            curl -L -o /tmp/docker-$VER.tgz https://get.docker.com/builds/Linux/x86_64/docker-$VER.tgz
-            tar -xz -C /tmp -f /tmp/docker-$VER.tgz
-            mv /tmp/docker/* /usr/bin
-      - restore_cache:
-          # hardcode until https://discuss.circleci.com/t/cannot-use-circle-yml-environment-variables-in-cache-keys/10994/6 is resolved
-          key: rocksdb-bin-5.4.5
-
-      # TODO restore cache for ~/.go_workspace && RocksDB
-#      - run:
-#          name: symlink project
-#          command: |
-#            mkdir -p ~/.go_project/src/github.com/drausin
-#            ln -s ~/libri ~/.go_project/src/github.com/drausin/libri
-
       # TODO (restore deps cache?)
       - run:
           name: install deps
@@ -39,24 +14,6 @@ jobs:
             go get -t -d -v ./...
             make tools
       # TODO save deps cache?
-
-      - run:
-          name: build rocksdb
-          command: |
-            sudo apt-get install libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev
-            if [ ! -d "~/rocksdb-${ROCKSDB_VERSION}" ]; then
-              cd ~
-              wget https://github.com/facebook/rocksdb/archive/v${ROCKSDB_VERSION}.zip
-              unzip ~/v${ROCKSDB_VERSION}.zip -d ~
-            fi
-            cd ~/rocksdb-${ROCKSDB_VERSION} && make static_lib && sudo make install
-            CGO_CFLAGS="-I/usr/local/include/rocksdb" \
-              CGO_LDFLAGS="-L/usr/local/lib/librocksdb.a -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy"  \
-              go get github.com/tecbot/gorocksdb
-      - save_cache:
-          paths: ~/v${ROCKSDB_VERSION}
-          key: rocksdb-bin-v5.4.5
-
       - run:
           name: build
           command: |
@@ -65,7 +22,6 @@ jobs:
             make docker-image   # ensure Docker image builds ok, even though only used on deployment
       - store_artifacts:
           path: deploy/bin
-
       - run:
           name: test
           command: |
@@ -78,8 +34,8 @@ jobs:
           path: acceptance.log
 
       - deploy:
-          command:
+          command: |
             if [ "${CIRCLE_BRANCH}" == "develop" ]; then
-              docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS
+              docker login -e ${DOCKER_EMAIL} -u $D{OCKER_USER} -p ${DOCKER_PASS}
               docker push daedalus2718/libri:latest
             fi
