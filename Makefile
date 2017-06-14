@@ -1,6 +1,5 @@
 GOTOOLS= github.com/alecthomas/gometalinter \
-	 github.com/wadey/gocovmerge \
-	 github.com/mattn/goveralls
+	 github.com/wadey/gocovmerge
 VETARGS?=-asmdecl -atomic -bool -buildtags -copylocks -methods \
          -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
 ALL_PKGS=$(shell go list ./... | sed -r 's|github.com/drausin/libri/||g' | sort)
@@ -15,6 +14,11 @@ acceptance:
 build:
 	@echo "--> Running go build"
 	@go build ./...
+
+docker-build-image:
+	# TODO gen deps
+	# go list -f '{{join .Deps "\n"}}' | xargs go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}' | grep -v github.com/drausin/libri > build/godeps.txt
+	@docker build -t daedalus2718/libri-build:latest build
 
 build-static:
 	@echo "--> Running go build for static binary"
