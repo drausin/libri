@@ -217,7 +217,7 @@ func TestSubscriptionBeginnerImpl_Begin_ok(t *testing.T) {
 		signer:   &fixedSigner{signature: "some.signature.jtw"},
 		params:   NewDefaultToParameters(),
 	}
-	responses := make(chan *api.SubscribeResponse)
+	responses := make(chan *api.SubscribeResponse, 1)
 	responseErrs := make(chan error, 1)
 	lc := &fixedSubscriber{
 		client: &fixedLibrarianSubscribeClient{
@@ -231,11 +231,6 @@ func TestSubscriptionBeginnerImpl_Begin_ok(t *testing.T) {
 	errs := make(chan error)
 	end := make(chan struct{})
 
-	go func() {
-		beginErr := sb.begin(lc, sub, received, errs, end)
-		assert.Nil(t, beginErr)
-	}()
-
 	value := api.NewTestPublication(rng)
 	key, err := api.GetKey(value)
 	assert.Nil(t, err)
@@ -247,6 +242,11 @@ func TestSubscriptionBeginnerImpl_Begin_ok(t *testing.T) {
 		Value: value,
 	}
 	responseErrs <- nil
+
+	go func() {
+		beginErr := sb.begin(lc, sub, received, errs, end)
+		assert.Nil(t, beginErr)
+	}()
 
 	receivedPub := <-received
 	err = <-errs
