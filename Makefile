@@ -16,8 +16,6 @@ build:
 	@go build ./...
 
 docker-build-image:
-	# TODO gen deps
-	# go list -f '{{join .Deps "\n"}}' | xargs go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}' | grep -v github.com/drausin/libri > build/godeps.txt
 	@docker build -t daedalus2718/libri-build:latest build
 
 build-static:
@@ -56,7 +54,7 @@ proto:
 
 test-cover:
 	@echo "--> Running go test with coverage"
-	@./scripts/test-cover
+	@./scripts/test-cover.sh
 
 test:
 	@echo "--> Running go test"

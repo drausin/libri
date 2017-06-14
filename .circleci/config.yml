@@ -17,6 +17,7 @@ jobs:
       - run:
           name: build
           command: |
+            set -e
             make build          # ensure everything builds ok
             make build-static   # build linux binary for Docker image
             make docker-image   # ensure Docker image builds ok, even though only used on deployment
@@ -25,6 +26,7 @@ jobs:
       - run:
           name: test
           command: |
+            set -e
             case $CIRCLE_NODE_INDEX in
               0) make test-cover && make acceptance ;;
               1) make lint ;;
@@ -35,6 +37,7 @@ jobs:
 
       - deploy:
           command: |
+            set -e
             if [ "${CIRCLE_BRANCH}" == "develop" ]; then
               docker login -e ${DOCKER_EMAIL} -u $D{OCKER_USER} -p ${DOCKER_PASS}
               docker push daedalus2718/libri:latest
