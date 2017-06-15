@@ -2,7 +2,6 @@ package client
 
 import (
 	"time"
-
 	"errors"
 
 	"github.com/golang/protobuf/proto"
