@@ -9,13 +9,13 @@ jobs:
       - setup_remote_docker
       # TODO (restore deps cache?)
       - run:
-          name: install deps
+          name: Install dependencies
           command: |
             go get -d -u -v ./... || true
             make tools
       # TODO save deps cache?
       - run:
-          name: build
+          name: Build
           command: |
             make build          # ensure everything builds ok
             make build-static   # build linux binary for Docker image
@@ -23,9 +23,8 @@ jobs:
       - store_artifacts:
           path: deploy/bin
       - run:
-          name: test
+          name: Test
           command: |
-            set -euo pipefail
             case ${CIRCLE_NODE_INDEX} in
               0)
                 make test-cover
@@ -41,7 +40,7 @@ jobs:
           path: acceptance.log
 
       - deploy:
-          name: push docker image
+          name: Publish docker image
           command: |
             if [ "${CIRCLE_BRANCH}" == "develop" ]; then
               docker login -e ${DOCKER_EMAIL} -u $D{OCKER_USER} -p ${DOCKER_PASS}
