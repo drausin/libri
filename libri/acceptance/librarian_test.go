@@ -428,6 +428,7 @@ func newConfigs(nSeeds, nPeers int, maxBucketPeers uint, logLevel zapcore.Level)
 		WithDefaultDBDir().
 		WithDefaultKeychainDir().
 		WithLogLevel(logLevel)
+	authorConfig.Publish.PutTimeout = 10 * time.Second
 	page.MinSize = 128                 // just for testing
 
 	return seedConfigs, peerConfigs, authorConfig
