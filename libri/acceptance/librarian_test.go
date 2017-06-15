@@ -250,7 +250,7 @@ func testDownload(t *testing.T, author *lauthor.Author, contents [][]byte, envel
 
 func checkPublications(t *testing.T, nDocs int, peers []*server.Librarian, logger *zap.Logger) {
 
-	receiveWaitTime := 5 * time.Second
+	receiveWaitTime := 10 * time.Second
 	logger.Info("waiting for librarians to receive publications",
 		zap.Float64("n_seconds", receiveWaitTime.Seconds()),
 	)
@@ -259,7 +259,7 @@ func checkPublications(t *testing.T, nDocs int, peers []*server.Librarian, logge
 	// check all peers have publications for all docs
 	for i, p := range peers {
 		info := fmt.Sprintf("peer %d", i)
-		assert.True(t, p.RecentPubs.Len() >= nDocs - 1, info)  // allow 1 doc buffer
+		assert.True(t, p.RecentPubs.Len() >= nDocs - 2, info)  // TODO (drausin) avoid buffer
 	}
 }
 
@@ -447,7 +447,7 @@ func newConfig(
 	searchParams := search.NewDefaultParameters()
 
 	subscribeToParams := subscribe.NewDefaultToParameters()
-	subscribeToParams.FPRate = 1.0
+	subscribeToParams.FPRate = 0.9
 
 	localAddr, err := server.ParseAddr("localhost", port)
 	if err != nil {
