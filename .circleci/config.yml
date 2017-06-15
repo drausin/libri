@@ -25,7 +25,7 @@ jobs:
       - run:
           name: test
           command: |
-            set -e
+            set -euo pipefail
             case ${CIRCLE_NODE_INDEX} in
               0)
                 make test-cover

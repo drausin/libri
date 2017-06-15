@@ -447,7 +447,7 @@ func newConfig(
 	searchParams := search.NewDefaultParameters()
 
 	subscribeToParams := subscribe.NewDefaultToParameters()
-	subscribeToParams.FPRate = 0.9
+	subscribeToParams.FPRate = 1.0
 
 	localAddr, err := server.ParseAddr("localhost", port)
 	if err != nil {

@@ -5,6 +5,7 @@ VETARGS?=-asmdecl -atomic -bool -buildtags -copylocks -methods \
 ALL_PKGS=$(shell go list ./... | sed -r 's|github.com/drausin/libri/||g' | sort)
 GIT_STATUS_PKGS=$(shell git status --porcelain | grep -e '\.go$$' | sed -r 's|^...(.+)/[^/]+\.go$$|\1|' | sort | uniq)
 CHANGED_PKGS=$(shell echo $(ALL_PKGS) $(GIT_STATUS_PKGS) | tr " " "\n" | sort | uniq -d)
+SHELL=/bin/bash -eoo pipefail
 
 acceptance:
 	@echo "--> Running acceptance tests"
