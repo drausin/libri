@@ -70,10 +70,14 @@ func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
 	operation := func() error {
 		intro = introduce.NewIntroduction(l.selfID, l.apiSelf, l.config.Introduce)
 		if err := l.introducer.Introduce(intro, bootstraps); err != nil {
+			l.logger.Debug("introduction error", zap.String("error", err.Error()))
 			return err
 		}
 		if !l.config.isBootstrap() && len(intro.Result.Responded) == 0 {
 			// if we're not a libri bootstrap peer, error if couldn't find any
+			l.logger.Debug("no bootstrapped peers",
+				zap.String("error", errNoBootstrappedPeers.Error()),
+			)
 			return errNoBootstrappedPeers
 		}
 		return nil

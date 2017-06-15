@@ -33,6 +33,7 @@ jobs:
                 ;;
               1)
                 make lint
+                make demo
                 ;;
             esac
       - store_artifacts:

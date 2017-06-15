@@ -13,22 +13,32 @@ const (
 	signatureKey = "signature"
 )
 
+var (
+	errContextMissingMetadata = errors.New("context unexpectedly missing metadata")
+	errContextMissingSignature = errors.New("metadata signature key unexpectedly does not exist")
+)
+
+
 // NewSignatureContext creates a new context with the signed JSON web token (JWT) string.
 func NewSignatureContext(ctx context.Context, signedJWT string) context.Context {
-	md := metadata.MD{}
-	md[signatureKey] = []string{signedJWT}
-	return metadata.NewIncomingContext(ctx, md)
+	return metadata.NewOutgoingContext(ctx, metadata.Pairs(signatureKey, signedJWT))
+}
+
+// NewIncomingSignatureContext creates a new context with the signed JSON web token (JWT) string
+// in the incoming metadata field. This function should only be used for testing.
+func NewIncomingSignatureContext(ctx context.Context, signedJWT string) context.Context {
+	return metadata.NewIncomingContext(ctx, metadata.Pairs(signatureKey, signedJWT))
 }
 
 // FromSignatureContext extracts the signed JSON web token from the context.
 func FromSignatureContext(ctx context.Context) (string, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return "", errors.New("context unexpectedly missing metadata")
+		return "", errContextMissingMetadata
 	}
 	signedJWTs, exists := md[signatureKey]
 	if !exists {
-		return "", errors.New("metadata signature key unexpectedly does not exist")
+		return "", errContextMissingSignature
 	}
 	return signedJWTs[0], nil
 }

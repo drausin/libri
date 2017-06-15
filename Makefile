@@ -9,11 +9,14 @@ CHANGED_PKGS=$(shell echo $(ALL_PKGS) $(GIT_STATUS_PKGS) | tr " " "\n" | sort | 
 acceptance:
 	@echo "--> Running acceptance tests"
 	@go test -tags acceptance -v github.com/drausin/libri/libri/acceptance 2>&1 | tee acceptance.log
-	@./libri/acceptance/local-demo.sh
 
 build:
 	@echo "--> Running go build"
 	@go build ./...
+
+demo:
+	@echo "--> Running demo"
+	@./libri/acceptance/local-demo.sh
 
 docker-build-image:
 	@docker build -t daedalus2718/libri-build:latest build

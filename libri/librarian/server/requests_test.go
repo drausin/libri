@@ -28,8 +28,9 @@ func TestRequestVerifier_Verify_ok(t *testing.T) {
 	}
 
 	rng := rand.New(rand.NewSource(0))
-	ctx := client.NewSignatureContext(context.Background(), "dummy.signed.token")
+	ctx := client.NewIncomingSignatureContext(context.Background(), "dummy.signed.token")
 	meta := client.NewRequestMetadata(ecid.NewPseudoRandom(rng))
+
 
 	assert.Nil(t, rv.Verify(ctx, nil, meta))
 }
@@ -42,7 +43,7 @@ func TestRequestVerifier_Verify_err(t *testing.T) {
 	assert.NotNil(t, rv.Verify(context.Background(), nil, nil)) // no signature in context
 
 	rng := rand.New(rand.NewSource(0))
-	ctx := client.NewSignatureContext(context.Background(), "dummy.signed.token")
+	ctx := client.NewIncomingSignatureContext(context.Background(), "dummy.signed.token")
 
 	assert.NotNil(t, rv.Verify(ctx, nil, &api.RequestMetadata{
 		PubKey: []byte{255, 254, 253}, // bad pub key

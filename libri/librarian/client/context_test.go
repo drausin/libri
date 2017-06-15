@@ -13,10 +13,22 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-func TestNewFromSignatureContext(t *testing.T) {
+func TestNewSignatureContext(t *testing.T) {
 	ctx := context.Background()
 	signedToken1 := "some.signed.token"
 	signedCtx := NewSignatureContext(ctx, signedToken1)
+	md, ok := metadata.FromOutgoingContext(signedCtx)
+	assert.True(t, ok)
+	signedTokens2, in := md[signatureKey]
+	assert.True(t, in)
+	assert.True(t, len(signedTokens2) == 1)
+	assert.Equal(t, signedToken1, signedTokens2[0])
+}
+
+func TestNewFromSignatureContext(t *testing.T) {
+	ctx := context.Background()
+	signedToken1 := "some.signed.token"
+	signedCtx := NewIncomingSignatureContext(ctx, signedToken1)
 	signedToken2, err := FromSignatureContext(signedCtx)
 	assert.Equal(t, signedToken1, signedToken2)
 	assert.Nil(t, err)
@@ -43,7 +55,7 @@ func TestNewSignedTimeoutContext_ok(t *testing.T) {
 	)
 	assert.NotNil(t, ctx)
 
-	md, in := metadata.FromContext(ctx)
+	md, in := metadata.FromOutgoingContext(ctx)
 	assert.True(t, in)
 	assert.NotNil(t, md[signatureKey])
 	assert.NotNil(t, cancel)
