@@ -18,12 +18,12 @@ const (
 func NewSignatureContext(ctx context.Context, signedJWT string) context.Context {
 	md := metadata.MD{}
 	md[signatureKey] = []string{signedJWT}
-	return metadata.NewContext(ctx, md)
+	return metadata.NewIncomingContext(ctx, md)
 }
 
 // FromSignatureContext extracts the signed JSON web token from the context.
 func FromSignatureContext(ctx context.Context) (string, error) {
-	md, ok := metadata.FromContext(ctx)
+	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return "", errors.New("context unexpectedly missing metadata")
 	}

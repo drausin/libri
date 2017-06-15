@@ -11,7 +11,7 @@ jobs:
       - run:
           name: install deps
           command: |
-            go get -t -d -v ./...
+            go get -d -u ./...
             make tools
       # TODO save deps cache?
       - run:
@@ -26,12 +26,14 @@ jobs:
           name: test
           command: |
             case ${CIRCLE_NODE_INDEX} in
-            0)
-              make test-cover
-              make acceptance
-              bash <(curl -s https://codecov.io/bash) -f test-coverage-merged.cov
-              ;;
-              1) make lint ;;
+              0)
+                make test-cover
+                make acceptance
+                bash <(curl -s https://codecov.io/bash) -f test-coverage-merged.cov
+                ;;
+              1)
+                make lint
+                ;;
             esac
       - store_artifacts:
           path: acceptance.log
