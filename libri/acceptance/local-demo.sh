@@ -43,13 +43,13 @@ for c in $(seq 0 $((${N_LIBRARIANS} - 1))); do
         --localHost ${host} \
         --bootstraps "${host}:20100"
     librarian_addrs="${host}:${port} ${librarian_addrs}"
-    librarian_containers="${name},${librarian_containers}"
+    librarian_containers="${name} ${librarian_containers}"
 done
 sleep 5  # TODO (drausin) add retry to healthcheck
 
 echo
 echo "testing librarians health..."
-docker run --rm --net=host ${IMAGE} test health -a "${librarian_addrs}"
+docker run --rm --net=host ${IMAGE} test health -a "${host}:20100 ${host}:20101 ${host}:20102"
 
 echo
 echo "testing librarians upload/download..."
