@@ -4,7 +4,7 @@
 Fork the project and clone to your development machine. Get the Golang dependencies onto your local
 development machine via
 ```bash
-make get-dependencies
+make get-deps
 ```
 You will also need Docker installed.
 

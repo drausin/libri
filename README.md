@@ -14,11 +14,44 @@ libri is currently under active development and not yet ready for primetime
 
 
 #### Design
+
+*Peers*
 The peers of the network are called librarians. Each librarian exposes a set of simple endpoints, 
 descripted in [librarian.proto](https://github.com/drausin/libri/blob/develop/libri/librarian/api/librarian.proto) 
 for getting and putting documents, described in [documents.proto](https://github.com/drausin/libri/blob/develop/libri/librarian/api/documents.proto).
+ 
+*Clients*
+The clients of the network are called authors. Each other connects to one or more librarian peers
+to upload/download documents and receive publications when others upload documents they are 
+interested in.
 
-Each librarian uses [RocksDB](https://github.com/facebook/rocksdb) for local storage.
+This simple architecture looks something like
+```
+                       ┌───────────┐
+                       │┌──────────┴┐
+                       └┤ librarian │
+                        └───────────┘
+                              ▲
+                              │
+           ┌───────────┐      │    ┌───────────┐
+           │┌──────────┴┐     │    │┌──────────┴┐
+           └┤ librarian │◀────┴────▶┤ librarian │
+            └───────────┘           └───────────┘
+                  ▲                       ▲
+                  │                       │        public libri network
+─ ─ ─ ─ ─ ─ ─ ─ ─ ┼ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┼ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+            ┌─────┴────┐                  │             private clients
+            │          │                  │
+            ▼          ▼                  ▼
+       ┌────────┐ ┌────────┐         ┌────────┐
+       │ author │ │ author │         │ author │
+       └────────┘ └────────┘         └────────┘
+```
+Currently, we have only a Golang author implementation, but we expect to develop other 
+implementations (e.g., Javascript) soon. 
+
+*Storage*
+Each librarian and author uses [RocksDB](https://github.com/facebook/rocksdb) for local storage.
 
 #### Containers
 Libri relies heavily on Docker containers, both for development and deployment. The development 
