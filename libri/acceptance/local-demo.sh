@@ -30,6 +30,7 @@ echo
 echo "starting librarian peers..."
 librarian_addrs=""
 librarian_containers=""
+host='127.0.0.1'
 for c in $(seq 0 $((${N_LIBRARIANS} - 1))); do
     port=$((20100+c))
     name="librarian-${c}"
@@ -37,9 +38,11 @@ for c in $(seq 0 $((${N_LIBRARIANS} - 1))); do
         librarian start \
         --nSubscriptions 2 \
         --publicPort ${port} \
+        --publicHost ${host} \
         --localPort ${port} \
-        --bootstraps localhost:20100
-    librarian_addrs="localhost:${port} ${librarian_addrs}"
+        --localHost ${host} \
+        --bootstraps "${host}:20100"
+    librarian_addrs="${host}:${port} ${librarian_addrs}"
     librarian_containers="${librarian_containers} ${name}"
 done
 sleep 5  # TODO (drausin) add retry to healthcheck
