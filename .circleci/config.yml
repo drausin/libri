@@ -7,13 +7,13 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker
-      # TODO (restore deps cache?)
+      # TODO (restore deps cache once using glide)
       - run:
           name: Install dependencies
           command: |
             go get -d -u -v ./... || true
             make tools
-      # TODO save deps cache?
+      # TODO save deps cache once using glide
       - run:
           name: Build
           command: |
@@ -42,7 +42,7 @@ jobs:
       - deploy:
           name: Publish docker image
           command: |
-            if [ "${CIRCLE_BRANCH}" == "develop" ]; then
+            if [ ${CIRCLE_NODE_INDEX} -eq 0 && "${CIRCLE_BRANCH}" == "develop" ]; then
               docker login -e ${DOCKER_EMAIL} -u $D{OCKER_USER} -p ${DOCKER_PASS}
               docker push daedalus2718/libri:latest
             fi
