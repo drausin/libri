@@ -3,7 +3,8 @@ FROM golang:1.8.3-stretch
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev cmake zip unzip tar gzip
+    libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev cmake zip unzip tar gzip \
+    vim emacs bash-completion
 
 # install RocksDB
 ENV ROCKSDB_VERSION '5.4.5'

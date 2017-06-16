@@ -17,17 +17,23 @@ binaries (e.g., RocksDB) already installed and linked. The build container mount
 ```bash
 ./scripts/run-build-container.sh
 ```
-which brings you into the build container. From there you can run most of the `make` targets except
+which brings you into the build container. From there you can run most things you'd care about
+except those requiring `docker run` (which you can't do from within a container)
 - `make demo`
-- `make acceptance`
-- 'make'
+- `./libri/acceptance/local-demo.sh` 
 
+If you want to run these locally, you'll have to also do the local installation (see below).
+
+The most common `make` targets are
+- `make test`: run all tests
+- `make acceptance`: run the acceptance tests
+- `make lint-diff`: lint the uncommitted changes
+- `make lint`: lint the entire repo
 
 #### Local OSX installation
 
-We use RocksDB, which you'll need to [install](https://github.com/facebook/rocksdb/blob/master/INSTALL.md) 
-before running the tests. After installing, build the [gorocksdb](https://github.com/tecbot/gorocksdb) driver. 
-On OSX, this looks like
+First [install RocksDB](https://github.com/facebook/rocksdb/blob/master/INSTALL.md).
+Then build the [gorocksdb](https://github.com/tecbot/gorocksdb) driver.
 ```$bash
 CGO_CFLAGS="-I/usr/local/include/rocksdb" \
 CGO_LDFLAGS="-L/usr/local/opt/rocksdb -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy -llz4" \
