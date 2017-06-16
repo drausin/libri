@@ -45,11 +45,12 @@ for c in $(seq 0 $((${N_LIBRARIANS} - 1))); do
     librarian_addrs="${host}:${port} ${librarian_addrs}"
     librarian_containers="${name} ${librarian_containers}"
 done
+librarian_addrs=${librarian_addrs::-1}  # remove trailing space
 sleep 5  # TODO (drausin) add retry to healthcheck
 
 echo
 echo "testing librarians health..."
-docker run --rm --net=host ${IMAGE} test health -a "${host}:20100 ${host}:20101 ${host}:20102"
+docker run --rm --net=host ${IMAGE} test health -a "${librarian_addrs}"
 
 echo
 echo "testing librarians upload/download..."
@@ -57,13 +58,13 @@ docker run --rm --net=host ${IMAGE} test io -a "${librarian_addrs}" -n 4
 
 echo
 echo "initializing author..."
-docker run \
+docker create \
     --name author-data \
     -v ${KEYCHAIN_DIR} \
-    -v ${LOCAL_TEST_DATA_DIR}:${CONTAINER_TEST_DATA_DIR} \
+    -v ${CONTAINER_TEST_DATA_DIR} \
     -e LIBRI_PASSPHRASE="${LIBRI_PASSPHRASE}" \
-    --entrypoint true \
     ${IMAGE}
+docker cp ${LOCAL_TEST_DATA_DIR}/* author-data:${CONTAINER_TEST_DATA_DIR}
 docker run \
     --rm \
     --volumes-from author-data \
@@ -94,6 +95,7 @@ for file in $(ls ${LOCAL_TEST_DATA_DIR}); do
         -e LIBRI_PASSPHRASE="${LIBRI_PASSPHRASE}" \
         ${IMAGE} \
         author download -k "${KEYCHAIN_DIR}" -a "${librarian_addrs}" -f "${down_file}" -e "${envelope_key}"
+    docker cp "author-data:${down_file}" "${LOCAL_TEST_DATA_DIR}/downloaded.${file}"
 
     # verify md5s (locally, since it's simpler)
     up_md5=$(md5sum "${LOCAL_TEST_DATA_DIR}/${file}" | awk '{print $1}')
