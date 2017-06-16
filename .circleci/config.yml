@@ -19,8 +19,12 @@ jobs:
           name: Build
           command: |
             make build          # ensure everything builds ok
-            make build-static   # build linux binary for Docker image
-            make docker-image   # ensure Docker image builds ok, even though only used on deployment
+            case ${CIRCLE_NODE_INDEX} in
+              0)
+                make build-static   # build linux binary for Docker image
+                make docker-image   # ensure Docker image builds ok, even though only used on deployment
+                ;;
+            esac
       - store_artifacts:
           path: deploy/bin
       - run:
