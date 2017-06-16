@@ -10,7 +10,7 @@ LOCAL_TEST_LOGS_DIR="${LOCAL_DIR}/logs"
 mkdir -p "${LOCAL_TEST_LOGS_DIR}"
 
 # get test data if it doesn't exist
-if [[ ! -e "${LOCAL_TEST_DATA_DIR}" ]]; then
+if [[ ! -d "${LOCAL_TEST_DATA_DIR}" ]]; then
     ${LOCAL_DIR}/get-test-data.sh
 fi
 
