@@ -44,7 +44,7 @@ jobs:
           path: acceptance.log
       - run:
           name: Lint
-          command: if ${CIRCLE_NODE_INDEX} -eq 1; then make lint; fi
+          command: if [[ ${CIRCLE_NODE_INDEX} -eq 1 ]]; then make lint; fi
 
       - deploy:
           name: Publish docker image
