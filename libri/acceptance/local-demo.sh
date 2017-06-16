@@ -10,7 +10,7 @@ LOCAL_TEST_LOGS_DIR="${LOCAL_DIR}/logs"
 mkdir -p "${LOCAL_TEST_LOGS_DIR}"
 
 # get test data if it doesn't exist
-if [[ ! -e "${LOCAL_TEST_DATA_DIR}" ]]; then
+if [[ ! -d "${LOCAL_TEST_DATA_DIR}" ]]; then
     ${LOCAL_DIR}/get-test-data.sh
 fi
 
@@ -30,6 +30,7 @@ echo
 echo "starting librarian peers..."
 librarian_addrs=""
 librarian_containers=""
+host='127.0.0.1'
 for c in $(seq 0 $((${N_LIBRARIANS} - 1))); do
     port=$((20100+c))
     name="librarian-${c}"
@@ -37,11 +38,14 @@ for c in $(seq 0 $((${N_LIBRARIANS} - 1))); do
         librarian start \
         --nSubscriptions 2 \
         --publicPort ${port} \
+        --publicHost ${host} \
         --localPort ${port} \
-        --bootstraps localhost:20100
-    librarian_addrs="localhost:${port} ${librarian_addrs}"
-    librarian_containers="${librarian_containers} ${name}"
+        --localHost ${host} \
+        --bootstraps "${host}:20100"
+    librarian_addrs="${host}:${port} ${librarian_addrs}"
+    librarian_containers="${name} ${librarian_containers}"
 done
+librarian_addrs=${librarian_addrs::-1}  # remove trailing space
 sleep 5  # TODO (drausin) add retry to healthcheck
 
 echo
@@ -54,13 +58,13 @@ docker run --rm --net=host ${IMAGE} test io -a "${librarian_addrs}" -n 4
 
 echo
 echo "initializing author..."
-docker run \
+docker create \
     --name author-data \
     -v ${KEYCHAIN_DIR} \
-    -v ${LOCAL_TEST_DATA_DIR}:${CONTAINER_TEST_DATA_DIR} \
+    -v ${CONTAINER_TEST_DATA_DIR} \
     -e LIBRI_PASSPHRASE="${LIBRI_PASSPHRASE}" \
-    --entrypoint true \
     ${IMAGE}
+docker cp ${LOCAL_TEST_DATA_DIR}/* author-data:${CONTAINER_TEST_DATA_DIR}
 docker run \
     --rm \
     --volumes-from author-data \
@@ -93,6 +97,7 @@ for file in $(ls ${LOCAL_TEST_DATA_DIR}); do
         author download -k "${KEYCHAIN_DIR}" -a "${librarian_addrs}" -f "${down_file}" -e "${envelope_key}"
 
     # verify md5s (locally, since it's simpler)
+    docker cp "author-data:${down_file}" "${LOCAL_TEST_DATA_DIR}/downloaded.${file}"
     up_md5=$(md5sum "${LOCAL_TEST_DATA_DIR}/${file}" | awk '{print $1}')
     down_md5=$(md5sum "${LOCAL_TEST_DATA_DIR}/downloaded.${file}" | awk '{print $1}')
     [[ "${up_md5}" = "${down_md5}" ]]

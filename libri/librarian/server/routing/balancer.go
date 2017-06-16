@@ -76,6 +76,8 @@ func (b *tableSetBalancer) Remove(peerID id.ID) error {
 	if _, in := b.set[peerID.String()]; !in {
 		return ErrClientMissingFromSet
 	}
+	b.mu.Lock()
 	delete(b.set, peerID.String())
+	b.mu.Unlock()
 	return nil
 }

@@ -2,8 +2,8 @@
 
 set -eou pipefail
 
-# this will only work on CircleCI
-cd ~/.go_project/src/github.com/drausin/libri
+# this will only work on CircleCI/in build container
+cd /go/src/github.com/drausin/libri
 mkdir -p .cover
 
 PKGS=$(go list ./... | grep -v vendor)

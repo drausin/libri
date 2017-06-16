@@ -82,8 +82,6 @@ func TestLibrarian_Ping(t *testing.T) {
 	assert.Equal(t, r.Message, "pong")
 }
 
-// TestLibrarian_Identify verifies that we get the expected response from a an identification
-// request.
 func TestLibrarian_Introduce_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	peerName, serverPeerIdx := "server", 0
@@ -129,7 +127,9 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 
 func TestLibrarian_Introduce_checkRequestErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	l := &Librarian{}
+	l := &Librarian{
+		logger:      clogging.NewDevInfoLogger(),
+	}
 	rq := &api.IntroduceRequest{
 		Metadata: client.NewRequestMetadata(ecid.NewPseudoRandom(rng)),
 	}
@@ -148,6 +148,7 @@ func TestLibrarian_Introduce_peerIDErr(t *testing.T) {
 		fromer: peer.NewFromer(),
 		rt:     rt,
 		rqv:    &alwaysRequestVerifier{},
+		logger:      clogging.NewDevInfoLogger(),
 	}
 
 	clientID, clientPeerIdx := ecid.NewPseudoRandom(rng), 1

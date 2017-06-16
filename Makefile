@@ -5,19 +5,21 @@ VETARGS?=-asmdecl -atomic -bool -buildtags -copylocks -methods \
 ALL_PKGS=$(shell go list ./... | sed -r 's|github.com/drausin/libri/||g' | sort)
 GIT_STATUS_PKGS=$(shell git status --porcelain | grep -e '\.go$$' | sed -r 's|^...(.+)/[^/]+\.go$$|\1|' | sort | uniq)
 CHANGED_PKGS=$(shell echo $(ALL_PKGS) $(GIT_STATUS_PKGS) | tr " " "\n" | sort | uniq -d)
+SHELL=/bin/bash -eou pipefail
 
 acceptance:
 	@echo "--> Running acceptance tests"
 	@go test -tags acceptance -v github.com/drausin/libri/libri/acceptance 2>&1 | tee acceptance.log
-	@./libri/acceptance/local-demo.sh
 
 build:
 	@echo "--> Running go build"
 	@go build ./...
 
+demo:
+	@echo "--> Running demo"
+	@./libri/acceptance/local-demo.sh
+
 docker-build-image:
-	# TODO gen deps
-	# go list -f '{{join .Deps "\n"}}' | xargs go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}' | grep -v github.com/drausin/libri > build/godeps.txt
 	@docker build -t daedalus2718/libri-build:latest build
 
 build-static:
@@ -56,7 +58,7 @@ proto:
 
 test-cover:
 	@echo "--> Running go test with coverage"
-	@./scripts/test-cover
+	@./scripts/test-cover.sh
 
 test:
 	@echo "--> Running go test"

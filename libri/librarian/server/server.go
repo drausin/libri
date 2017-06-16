@@ -158,10 +158,12 @@ func (l *Librarian) Ping(ctx context.Context, rq *api.PingRequest) (*api.PingRes
 // Introduce receives and gives identifying information about the peer in the network.
 func (l *Librarian) Introduce(ctx context.Context, rq *api.IntroduceRequest) (
 	*api.IntroduceResponse, error) {
+	l.logger.Debug("received introduce request")
 
 	// check request
 	requesterID, err := l.checkRequest(ctx, rq, rq.Metadata)
 	if err != nil {
+		l.logger.Debug("check request error", zap.String("error", err.Error()))
 		return nil, err
 	}
 	requester := l.fromer.FromAPI(rq.Self)
