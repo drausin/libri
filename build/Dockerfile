@@ -3,7 +3,8 @@ FROM golang:1.8.3-stretch
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev cmake zip unzip tar gzip
+    libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev cmake zip unzip tar gzip \
+    vim emacs bash-completion
 
 # install RocksDB
 ENV ROCKSDB_VERSION '5.4.5'
@@ -29,8 +30,12 @@ RUN wget https://get.docker.com/builds/Linux/x86_64/docker-${DOCKER_VERSION}.tgz
     rm /tmp/docker-${DOCKER_VERSION}.tgz && \
     rm -r /tmp/docker
 
+# set lang as UTF-8
+RUN apt-get install -y locales && rm -rf /var/lib/apt/lists/* && \
+    localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8
+ENV LANG en_US.utf8
+
 RUN mkdir -p "${GOPATH}/src/github.com/drausin/libri"
 WORKDIR "${GOPATH}/src/github.com/drausin/libri"
 
-# default entrypoint is make so that calling `docker run ...` behaves like vanilla `make`
-ENTRYPOINT ["make"]
+ENTRYPOINT ["/bin/bash"]

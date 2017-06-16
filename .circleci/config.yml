@@ -12,8 +12,7 @@ jobs:
       - run:
           name: Install dependencies
           command: |
-            go get -d -u -v ./... || true
-            make tools
+            make get-deps
       # TODO save deps cache once using glide
       - run:
           name: Build

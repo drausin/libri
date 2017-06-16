@@ -30,7 +30,7 @@ echo
 echo "starting librarian peers..."
 librarian_addrs=""
 librarian_containers=""
-host='127.0.0.1'
+host='localhost'
 for c in $(seq 0 $((${N_LIBRARIANS} - 1))); do
     port=$((20100+c))
     name="librarian-${c}"

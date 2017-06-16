@@ -1,2 +1,6 @@
 .cover
 acceptance.log
+
+# Intellij files
+.idea/
+*.iml
