@@ -8,27 +8,38 @@ make get-dependencies
 ```
 You will also need Docker installed.
 
+#### Exploring
+
+The [acceptance tests](libri/acceptance/librarian_test.go) and 
+[librarian type](libri/librarian/server/server.go) are good places from which to start exploring 
+the codebase. See the [libri librarian start](libri/cmd/start.go) and 
+[libri author upload](libri/cmd/upload.go) commands for example the CLI entrypoints. 
+
 #### Testing
 The simplest way to run the tests is from within a build container, which has all the required
 binaries (e.g., RocksDB) already installed and linked. The build container mounts
 - `~/.go/src`, so your libri code and its dependencies are available
-- `~/.bashrc`, so your build container shell is nice and familier
+- `~/.bashrc`, so your build container shell is nice and familiar
 - `~/.gitconfig`, so you can do all your favorite git things
 ```bash
 ./scripts/run-build-container.sh
 ```
-which brings you into the build container. From there you can run most things you'd care about
-except those requiring `docker run` (which you can't do from within a container)
-- `make demo`
-- `./libri/acceptance/local-demo.sh` 
-
-If you want to run these locally, you'll have to also do the local installation (see below).
-
+which brings you into the build container. From there you can run most things you'd care about.
 The most common `make` targets are
 - `make test`: run all tests
 - `make acceptance`: run the acceptance tests
 - `make lint-diff`: lint the uncommitted changes
 - `make lint`: lint the entire repo
+- `make fix`: run `goimports` & `go fmt` on repo
+Of course you can also run normal `go` tool commands or any other shell command you like.
+
+You won't be able to run things requiring `docker run` (which you can't do from within a container), 
+including
+- `make demo` (or the underlying [local-demo.sh](libri/acceptance/local-demo.sh))
+- starting a local Kubernetes cluster from `deloy/cloud/kubernetes/libri.yml` 
+
+If you want to run tests locally (i.e., not in the build container), you'll have do the local 
+installation (see below).
 
 #### Local OSX installation
 
