@@ -32,5 +32,4 @@ RUN wget https://get.docker.com/builds/Linux/x86_64/docker-${DOCKER_VERSION}.tgz
 RUN mkdir -p "${GOPATH}/src/github.com/drausin/libri"
 WORKDIR "${GOPATH}/src/github.com/drausin/libri"
 
-# default entrypoint is make so that calling `docker run ...` behaves like vanilla `make`
-ENTRYPOINT ["make"]
+ENTRYPOINT ["/bin/bash"]

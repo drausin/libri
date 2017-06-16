@@ -15,16 +15,16 @@ build:
 	@echo "--> Running go build"
 	@go build ./...
 
+build-static:
+	@echo "--> Running go build for static binary"
+	@./scripts/build-static deploy/bin/libri
+
 demo:
 	@echo "--> Running demo"
 	@./libri/acceptance/local-demo.sh
 
 docker-build-image:
 	@docker build -t daedalus2718/libri-build:latest build
-
-build-static:
-	@echo "--> Running go build for static binary"
-	@./scripts/build-static deploy/bin/libri
 
 docker-image:
 	@echo "--> Building docker image"
@@ -35,6 +35,12 @@ fix:
 	@find . -name *.go | xargs goimports -l -w
 	@echo "--> Running go fmt"
 	@go fmt ./...
+
+get-deps:
+	@echo "--> Getting dependencies"
+	@go get -u -d -v ./... || true
+	@go get -u -v $(GOTOOLS)
+	@gometalinter --install
 
 lint:
 	@echo "--> Running gometalinter"
@@ -64,7 +70,4 @@ test:
 	@echo "--> Running go test"
 	@go test -race ./... --cover
 
-tools:
-	go get -u $(GOTOOLS)
-	gometalinter --install
 

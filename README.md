@@ -20,12 +20,6 @@ The [acceptance tests](https://github.com/drausin/libri/blob/develop/libri/accep
 
 #### contributing
 
-We use RocksDB v5.2.1, which you'll need to [install](https://github.com/facebook/rocksdb/blob/master/INSTALL.md) before running the tests. After installing, build the [gorocksdb](https://github.com/tecbot/gorocksdb) driver. On OSX, this looks like
-```$bash
-CGO_CFLAGS="-I/usr/local/include/rocksdb" \
-CGO_LDFLAGS="-L/usr/local/opt/rocksdb -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy -llz4" \
-  go get github.com/tecbot/gorocksdb
-```
 
 Run the tests with
 ```$bash
