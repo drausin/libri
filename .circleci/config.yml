@@ -38,11 +38,13 @@ jobs:
                 ;;
               1)
                 make demo
-                make lint
                 ;;
             esac
       - store_artifacts:
           path: acceptance.log
+      - run:
+          name: Lint
+          command: if ${CIRCLE_NODE_INDEX} -eq 1; then make lint; fi
 
       - deploy:
           name: Publish docker image

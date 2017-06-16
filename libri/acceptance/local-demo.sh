@@ -95,9 +95,9 @@ for file in $(ls ${LOCAL_TEST_DATA_DIR}); do
         -e LIBRI_PASSPHRASE="${LIBRI_PASSPHRASE}" \
         ${IMAGE} \
         author download -k "${KEYCHAIN_DIR}" -a "${librarian_addrs}" -f "${down_file}" -e "${envelope_key}"
-    docker cp "author-data:${down_file}" "${LOCAL_TEST_DATA_DIR}/downloaded.${file}"
 
     # verify md5s (locally, since it's simpler)
+    docker cp "author-data:${down_file}" "${LOCAL_TEST_DATA_DIR}/downloaded.${file}"
     up_md5=$(md5sum "${LOCAL_TEST_DATA_DIR}/${file}" | awk '{print $1}')
     down_md5=$(md5sum "${LOCAL_TEST_DATA_DIR}/downloaded.${file}" | awk '{print $1}')
     [[ "${up_md5}" = "${down_md5}" ]]
