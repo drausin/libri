@@ -4,6 +4,7 @@ jobs:
     working_directory: /go/src/github.com/drausin/libri
     docker:
       - image: daedalus2718/libri-build
+    parallelism: 2
     steps:
       - checkout
       - setup_remote_docker
