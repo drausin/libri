@@ -43,7 +43,7 @@ for c in $(seq 0 $((${N_LIBRARIANS} - 1))); do
         --localHost ${host} \
         --bootstraps "${host}:20100"
     librarian_addrs="${host}:${port} ${librarian_addrs}"
-    librarian_containers="${librarian_containers} ${name}"
+    librarian_containers="${name},${librarian_containers}"
 done
 sleep 5  # TODO (drausin) add retry to healthcheck
 
