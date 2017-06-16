@@ -300,38 +300,14 @@ func setUp(rng *rand.Rand, nSeeds, nPeers int, logLevel zapcore.Level) (
 
 	// create & start other peers
 	nShards := 4 // should be factor of nPeers
-	if nPeers % nShards != 0 {
+	if nPeers%nShards != 0 {
 		nShards = 1
 	}
 	nPeersPerShard := nPeers / nShards
 	var wg sync.WaitGroup
-	errs := make(chan error, nShards)
-	for b := 0; b < nShards; b++ {
+	for s := 0; s < nShards; s++ {
 		wg.Add(1)
-		go func(wg *sync.WaitGroup, s int) {
-			defer wg.Done()
-			shardPeersUp := make(chan *server.Librarian, 1)
-			for c := 0; c < nPeersPerShard; c++ {
-				i := s*nPeersPerShard + c
-				logger.Info("starting peer",
-					zap.String("peer_name", peerConfigs[i].PublicName),
-					zap.String("peer_address",
-						peerConfigs[i].PublicAddr.String()),
-				)
-				go func(j int) {
-					if err := server.Start(logger, peerConfigs[j], shardPeersUp); err != nil {
-						errs <- err
-					}
-
-				}(i)
-				select {
-				case err := <- errs:
-					panic(err)
-				case peers[i] = <-shardPeersUp:
-					// continue
-				}
-			}
-		}(&wg, b)
+		go startLibrariansShard(&wg, s, nPeersPerShard, peers, peerConfigs, logger)
 	}
 	wg.Wait()
 
@@ -373,6 +349,39 @@ func setUp(rng *rand.Rand, nSeeds, nPeers int, logLevel zapcore.Level) (
 	}
 
 	return client, seedConfigs, peerConfigs, seeds, peers, author, logger
+}
+
+func startLibrariansShard(
+	wg *sync.WaitGroup,
+	shardIdx int,
+	nPeersPerShard int,
+	peers []*server.Librarian,
+	peerConfigs []*server.Config,
+	logger *zap.Logger,
+) {
+	defer wg.Done()
+	shardPeersUp := make(chan *server.Librarian, 1)
+	errs := make(chan error, 1)
+	for c := 0; c < nPeersPerShard; c++ {
+		i := shardIdx*nPeersPerShard + c
+		logger.Info("starting peer",
+			zap.String("peer_name", peerConfigs[i].PublicName),
+			zap.String("peer_address",
+				peerConfigs[i].PublicAddr.String()),
+		)
+		go func(j int) {
+			if err := server.Start(logger, peerConfigs[j], shardPeersUp); err != nil {
+				errs <- err
+			}
+
+		}(i)
+		select {
+		case err := <-errs:
+			panic(err)
+		case peers[i] = <-shardPeersUp:
+			// continue
+		}
+	}
 }
 
 func tearDown(
@@ -429,7 +438,7 @@ func newConfigs(nSeeds, nPeers int, maxBucketPeers uint, logLevel zapcore.Level)
 		WithDefaultKeychainDir().
 		WithLogLevel(logLevel)
 	authorConfig.Publish.PutTimeout = 10 * time.Second
-	page.MinSize = 128                 // just for testing
+	page.MinSize = 128 // just for testing
 
 	return seedConfigs, peerConfigs, authorConfig
 }
