@@ -60,6 +60,7 @@ func TestKEK_EncryptDecrypt_ok(t *testing.T) {
 	eekCiphertext, eekCiphertextMAC, err := kek.Encrypt(eek1)
 	assert.Nil(t, err)
 	eek2, err := kek.Decrypt(eekCiphertext, eekCiphertextMAC)
+	assert.Nil(t, err)
 
 	assert.Equal(t, eek1, eek2)
 }

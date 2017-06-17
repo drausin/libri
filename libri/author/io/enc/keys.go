@@ -25,6 +25,8 @@ var ErrReaderOffCurve = errors.New("reader public key point not on expected elli
 // the required number of bytes for the encryption keys.
 var ErrIncompleteKeyDefinition = errors.New("incomplete key definition")
 
+// ErrInsufficientEEKBytes indicates when the crypto random number generator is unable to generate
+// the sufficient number of bytes for the EEK key.
 var ErrInsufficientEEKBytes = errors.New("insufficient EEK bytes")
 
 // KEK (key encryption keys) are used to encrypt an EEK.
