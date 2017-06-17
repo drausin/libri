@@ -92,8 +92,8 @@ func TestKEK_Decrypt_err(t *testing.T) {
 	assert.Nil(t, eek)
 
 	kek3, _, _ := NewPseudoRandomKEK(rng)
-	kek3.IV = nil  // will cause gcmCiper.Open to error
-	eek, err = kek3.Decrypt(eekCiphertext, eekCiphertextMAC)
+	eekCiphertext3 := api.RandBytes(rng, 4)  // too small, will cause Open() error
+	eek, err = kek3.Decrypt(eekCiphertext3, eekCiphertextMAC)
 	assert.NotNil(t, err)
 	assert.Nil(t, eek)
 }
@@ -107,23 +107,26 @@ func TestMarshallUnmarshallKEK_ok(t *testing.T) {
 }
 
 func TestUnmarshalKEK_err(t *testing.T) {
-	_, err := UnmarshalEEK([]byte{})
+	_, err := UnmarshalKEK([]byte{})
 	assert.NotNil(t, err)
 }
 
 func TestNewEEK_ok(t *testing.T) {
-	k1, err := NewEEK()
-	assert.Nil(t, err)
+	// do many b/c sometimes crypto random number generator is exhausted
+	for c := 0; c < 64; c++ {
+		eek, err := NewEEK()
+		assert.Nil(t, err)
 
-	assert.NotNil(t, k1.AESKey)
-	assert.NotNil(t, k1.PageIVSeed)
-	assert.NotNil(t, k1.HMACKey)
-	assert.NotNil(t, k1.MetadataIV)
+		assert.NotNil(t, eek.AESKey)
+		assert.NotNil(t, eek.PageIVSeed)
+		assert.NotNil(t, eek.HMACKey)
+		assert.NotNil(t, eek.MetadataIV)
 
-	// check that first 8 bytes of adjacent fields are different
-	assert.NotEqual(t, k1.AESKey[:8], k1.PageIVSeed[:8])
-	assert.NotEqual(t, k1.PageIVSeed[:8], k1.HMACKey[:8])
-	assert.NotEqual(t, k1.HMACKey[:8], k1.MetadataIV[:8])
+		// check that first 8 bytes of adjacent fields are different
+		assert.NotEqual(t, eek.AESKey[:8], eek.PageIVSeed[:8])
+		assert.NotEqual(t, eek.PageIVSeed[:8], eek.HMACKey[:8])
+		assert.NotEqual(t, eek.HMACKey[:8], eek.MetadataIV[:8])
+	}
 }
 
 func TestMarshallUnmarshall_ok(t *testing.T) {
@@ -134,7 +137,7 @@ func TestMarshallUnmarshall_ok(t *testing.T) {
 	assert.Equal(t, eek1, eek2)
 }
 
-func TestUnmarshal_err(t *testing.T) {
+func TestUnmarshalEEK_err(t *testing.T) {
 	_, err := UnmarshalEEK([]byte{})
 	assert.NotNil(t, err)
 }

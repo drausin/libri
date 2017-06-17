@@ -90,37 +90,45 @@ func TestShipper_Ship_err(t *testing.T) {
 	assert.Nil(t, envelope)
 	assert.Nil(t, entryKey)
 
+	// check getting next librarian error bubbles up
 	s = NewShipper(
 		&fixedClientBalancer{errors.New("some Next error")},
 		&fixedPublisher{},
 		&fixedMultiLoadPublisher{},
 	)
-
-	// check getting next librarian error bubbles up
 	envelope, entryKey, err = s.Ship(entry, authorPub, readerPub, kek, eek)
 	assert.NotNil(t, err)
 	assert.Nil(t, envelope)
 	assert.Nil(t, entryKey)
 
+	// check entry publish error bubbles up
 	s = NewShipper(
 		&fixedClientBalancer{},
 		&fixedPublisher{[]error{errors.New("some Publish error")}},
 		&fixedMultiLoadPublisher{},
 	)
-
-	// check entry publish error bubbles up
 	envelope, entryKey, err = s.Ship(entry, authorPub, readerPub, kek, eek)
 	assert.NotNil(t, err)
 	assert.Nil(t, envelope)
 	assert.Nil(t, entryKey)
 
+	// check kek.Encrypt error bubbles up
+	s = NewShipper(
+		&fixedClientBalancer{},
+		&fixedPublisher{},
+		&fixedMultiLoadPublisher{},
+	)
+	envelope, entryKey, err = s.Ship(entry, authorPub, readerPub, &enc.KEK{}, eek)
+	assert.NotNil(t, err)
+	assert.Nil(t, envelope)
+	assert.Nil(t, entryKey)
+
+	// check envelope publish error bubbles up
 	s = NewShipper(
 		&fixedClientBalancer{},
 		&fixedPublisher{[]error{nil, errors.New("some Publish error")}},
 		&fixedMultiLoadPublisher{},
 	)
-
-	// check envelope publish error bubbles up
 	envelope, entryKey, err = s.Ship(entry, authorPub, readerPub, kek, eek)
 	assert.NotNil(t, err)
 	assert.Nil(t, envelope)
