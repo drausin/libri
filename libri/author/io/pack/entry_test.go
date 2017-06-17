@@ -26,7 +26,8 @@ func TestEntryPacker_Pack_ok(t *testing.T) {
 		stored: make(map[string]*api.Document),
 	}
 	p := NewEntryPacker(params, enc.NewMetadataEncrypterDecrypter(), docSL)
-	keys, authorPub, _ := enc.NewPseudoRandomKeys(rng)
+	authorPub := api.RandBytes(rng, 65)
+	keys := enc.NewPseudoRandomEEK(rng)
 	mediaType := "application/x-pdf"
 
 	// test works with single-page content
@@ -65,7 +66,8 @@ func TestEntryPacker_Pack_err(t *testing.T) {
 	p := NewEntryPacker(params, enc.NewMetadataEncrypterDecrypter(), docSL)
 	mediaType := "application/x-pdf"
 	content := common.NewCompressableBytes(rng, int(params.PageSize/2))
-	keys, authorPub, _ := enc.NewPseudoRandomKeys(rng)
+	authorPub := api.RandBytes(rng, 65)
+	keys := enc.NewPseudoRandomEEK(rng)
 
 	// check error from bad mediaType bubbles up
 	doc, metadata, err := p.Pack(content, "application x-pdf", keys, authorPub)
@@ -99,7 +101,7 @@ func TestEntryUnpacker_Unpack_ok(t *testing.T) {
 	docSL := &fixedDocStorerLoader{
 		stored: make(map[string]*api.Document),
 	}
-	keys, _, _ := enc.NewPseudoRandomKeys(rng)
+	keys := enc.NewPseudoRandomEEK(rng)
 	content := new(bytes.Buffer)
 	doc, _ := api.NewTestDocument(rng)
 	metadata1, err := api.NewEntryMetadata(
@@ -129,7 +131,7 @@ func TestEntryUnpacker_Unpack_err(t *testing.T) {
 	}
 	content := new(bytes.Buffer)
 	doc, _ := api.NewTestDocument(rng)
-	keys, _, _ := enc.NewPseudoRandomKeys(rng)
+	keys := enc.NewPseudoRandomEEK(rng)
 
 	// check bad ciphertext/ciphertext MAC trigger error
 	u1 := NewEntryUnpacker(params, &fixedMetadataDecrypter{}, docSL)
@@ -162,7 +164,8 @@ func TestEntryUnpacker_Unpack_err(t *testing.T) {
 func TestEntryPackUnpack(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	page.MinSize = 64 // just for testing
-	keys, authorPub, _ := enc.NewPseudoRandomKeys(rng)
+	authorPub := api.RandBytes(rng, 65)
+	keys := enc.NewPseudoRandomEEK(rng)
 	metadataEncDec := enc.NewMetadataEncrypterDecrypter()
 
 	pageSizes := []uint32{128, 256, 512, 1024}
@@ -231,7 +234,7 @@ type fixedMetadataDecrypter struct {
 	err      error
 }
 
-func (f *fixedMetadataDecrypter) Decrypt(em *enc.EncryptedMetadata, keys *enc.Keys) (
+func (f *fixedMetadataDecrypter) Decrypt(em *enc.EncryptedMetadata, keys *enc.EEK) (
 	*api.Metadata, error) {
 	return f.metadata, f.err
 }
@@ -241,7 +244,7 @@ type fixedScanner struct {
 }
 
 func (f *fixedScanner) Scan(
-	content io.Writer, pageKeys []id.ID, keys *enc.Keys, metatdata *api.Metadata,
+	content io.Writer, pageKeys []id.ID, keys *enc.EEK, metatdata *api.Metadata,
 ) error {
 	return f.err
 }

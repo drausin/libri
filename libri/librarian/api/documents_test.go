@@ -114,18 +114,26 @@ func TestValidateEnvelope_err(t *testing.T) {
 	empty, zeros := []byte{}, []byte{0, 0, 0}
 
 	cases := []func(e *Envelope){
-		func(e *Envelope) { e.AuthorPublicKey = nil },    // 0) can't be nil
-		func(e *Envelope) { e.AuthorPublicKey = empty },  // 1) can't be 0-length
-		func(e *Envelope) { e.AuthorPublicKey = zeros },  // 2) can't be all zeros
-		func(e *Envelope) { e.AuthorPublicKey = badLen }, // 3) length must be 65
-		func(e *Envelope) { e.ReaderPublicKey = nil },    // 4) can't be nil
-		func(e *Envelope) { e.ReaderPublicKey = empty },  // 5) can't be 0-length
-		func(e *Envelope) { e.ReaderPublicKey = zeros },  // 6) can't be all zeros
-		func(e *Envelope) { e.ReaderPublicKey = badLen }, // 7) length must be 65
-		func(e *Envelope) { e.EntryKey = nil },           // 8) can't be nil
-		func(e *Envelope) { e.EntryKey = empty },         // 9) can't be 0-length
-		func(e *Envelope) { e.EntryKey = zeros },         // 10) can't be all zeros
-		func(e *Envelope) { e.EntryKey = badLen },        // 11) length must be 65
+		func(e *Envelope) { e.AuthorPublicKey = nil },     // 0) can't be nil
+		func(e *Envelope) { e.AuthorPublicKey = empty },   // 1) can't be 0-length
+		func(e *Envelope) { e.AuthorPublicKey = zeros },   // 2) can't be all zeros
+		func(e *Envelope) { e.AuthorPublicKey = badLen },  // 3) length must be 65
+		func(e *Envelope) { e.ReaderPublicKey = nil },     // 4) can't be nil
+		func(e *Envelope) { e.ReaderPublicKey = empty },   // 5) can't be 0-length
+		func(e *Envelope) { e.ReaderPublicKey = zeros },   // 6) can't be all zeros
+		func(e *Envelope) { e.ReaderPublicKey = badLen },  // 7) length must be 65
+		func(e *Envelope) { e.EntryKey = nil },            // 8) can't be nil
+		func(e *Envelope) { e.EntryKey = empty },          // 9) can't be 0-length
+		func(e *Envelope) { e.EntryKey = zeros },          // 10) can't be all zeros
+		func(e *Envelope) { e.EntryKey = badLen },         // 11) length must be 65
+		func(e *Envelope) { e.EekCiphertext = nil },       // 12) can't be nil
+		func(e *Envelope) { e.EekCiphertext = empty },     // 13) can't be 0-length
+		func(e *Envelope) { e.EekCiphertext = zeros },     // 14) can't be all zeros
+		func(e *Envelope) { e.EekCiphertext = badLen },    // 15) length must be 65
+		func(e *Envelope) { e.EekCiphertextMac = nil },    // 16) can't be nil
+		func(e *Envelope) { e.EekCiphertextMac = empty },  // 17) can't be 0-length
+		func(e *Envelope) { e.EekCiphertextMac = zeros },  // 18) can't be all zeros
+		func(e *Envelope) { e.EekCiphertextMac = badLen }, // 19) length must be 65
 	}
 
 	assert.NotNil(t, ValidateEnvelope(nil))

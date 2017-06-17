@@ -40,7 +40,7 @@ func TestGetCompressionCodec(t *testing.T) {
 
 func TestNewCompressor_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	keys, _, _ := enc.NewPseudoRandomKeys(rng)
+	keys := enc.NewPseudoRandomEEK(rng)
 	uncompressed, codec, minUncompressedBufferSize := new(bytes.Buffer), GZIPCodec, uint32(256)
 	comp, err := NewCompressor(uncompressed, codec, keys, minUncompressedBufferSize)
 	assert.Nil(t, err)
@@ -52,7 +52,7 @@ func TestNewCompressor_ok(t *testing.T) {
 
 func TestNewCompressor_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	keys, _, _ := enc.NewPseudoRandomKeys(rng)
+	keys := enc.NewPseudoRandomEEK(rng)
 
 	// unexpected codec
 	assert.Panics(t, func() {
@@ -73,7 +73,7 @@ func TestNewCompressor_err(t *testing.T) {
 
 func TestNewDecompressor_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	keys, _, _ := enc.NewPseudoRandomKeys(rng)
+	keys := enc.NewPseudoRandomEEK(rng)
 	uncompressed, codec, minUncompressedBufferSize := new(bytes.Buffer), GZIPCodec, uint32(256)
 	comp, err := NewDecompressor(uncompressed, codec, keys, minUncompressedBufferSize)
 	assert.Nil(t, err)
@@ -116,7 +116,7 @@ func (w errFlushCloseWriter) Close() error {
 
 func TestCompressor_Read_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	keys, _, _ := enc.NewPseudoRandomKeys(rng)
+	keys := enc.NewPseudoRandomEEK(rng)
 	uncompressed1 := common.NewCompressableBytes(rng, 256)
 	uncompressed1Bytes := uncompressed1.Bytes()
 
@@ -148,7 +148,7 @@ func TestCompressor_Read_ok(t *testing.T) {
 
 func TestCompressor_Read_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	keys, _, _ := enc.NewPseudoRandomKeys(rng)
+	keys := enc.NewPseudoRandomEEK(rng)
 	comp, err := NewCompressor(errReader{}, GZIPCodec, keys, MinBufferSize)
 	assert.Nil(t, err)
 
@@ -206,7 +206,7 @@ func TestCompressor_Read_err(t *testing.T) {
 
 func TestDecompressor_Write_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	keys, _, _ := enc.NewPseudoRandomKeys(rng)
+	keys := enc.NewPseudoRandomEEK(rng)
 	uncompressed1 := common.NewCompressableBytes(rng, 256).Bytes()
 
 	compressed := new(bytes.Buffer)
@@ -235,7 +235,7 @@ func TestDecompressor_Write_ok(t *testing.T) {
 
 func TestDecompressor_Write_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	keys, _, _ := enc.NewPseudoRandomKeys(rng)
+	keys := enc.NewPseudoRandomEEK(rng)
 	decomp, err := NewDecompressor(nil, GZIPCodec, keys, MinBufferSize)
 	assert.Nil(t, err)
 	decomp.(*decompressor).closed = true
@@ -284,7 +284,7 @@ func TestCompressDecompress(t *testing.T) {
 	)
 
 	rng := rand.New(rand.NewSource(0))
-	keys, _, _ := enc.NewPseudoRandomKeys(rng)
+	keys := enc.NewPseudoRandomEEK(rng)
 	for _, c := range cases {
 		uncompressed1 := common.NewCompressableBytes(rng, c.uncompressedSize)
 		uncompressed1Bytes := uncompressed1.Bytes()

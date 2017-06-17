@@ -13,7 +13,12 @@ message Document {
 
 // Envelope defines the public keys an author uses to share an entry encryption key with a
 // particular reader. The shared ECDH secret is used with a key derivation function to generate the
-// entry encryption keys (EEK) for the given Entry. The EEK contains 4 sub-keys:
+// key encryption key (KEK), which contains 2 sub-keys:
+// 1) 32-byte AES-256 key, used for encrypting/decrypting the entry encryption key (EEK)
+// 2) 12-byte EEK block cipher initialization vector
+// 3) 32-byte HMAC-256 key, used for EEK MAC
+//
+// This AES-256 KEK is then used to decrypt the EEK ciphertext, which contains 4 sub-keys:
 // 1) 32-byte AES-256 key, used to enrypt Pages and Entry metadata
 // 2) 32-byte Page initialization vector (IV) seed
 // 3) 32-byte HMAC-256 key
@@ -28,6 +33,13 @@ message Envelope {
 
     // ECDH public key of the entry reader/recipient
     bytes reader_public_key = 3;
+
+    // ciphertext of 108-byte entry encryption key (EEK), encrypted with a KEK from the shared
+    // ECDH shared secret
+    bytes eek_ciphertext = 4;
+
+    // 32-byte MAC of the EEK
+    bytes eek_ciphertext_mac = 5;
 }
 
 // Entry is the main unit of storage in the Libri network.

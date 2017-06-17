@@ -314,6 +314,10 @@ func (sb *subscriptionBeginnerImpl) begin(
 		if err != nil {
 			return err
 		}
+		if rp == nil {
+			// receiving channel has already closed
+			return nil
+		}
 		pvr, err := newPublicationValueReceipt(rp.Key, rp.Value, rp.Metadata.PubKey)
 		if err != nil {
 			return err

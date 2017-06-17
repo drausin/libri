@@ -41,7 +41,8 @@ func TestPrinter_Print_ok(t *testing.T) {
 	params, err := NewParameters(comp.MinBufferSize, page.MinSize, DefaultParallelism)
 	assert.Nil(t, err)
 	nPages := 10
-	keys, authorPub, _ := enc.NewPseudoRandomKeys(rng)
+	authorPub := api.RandBytes(rng, api.ECPubKeyLength)
+	keys := enc.NewPseudoRandomEEK(rng)
 	fixedPageKeys, fixedPages := randPages(t, rng, nPages)
 	readUncompressedN := nPages * int(page.MinSize)
 	uncompressedSum := api.RandBytes(rng, api.HMAC256Length)
@@ -86,7 +87,8 @@ func TestPrinter_Print_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	params, err := NewParameters(comp.MinBufferSize, page.MinSize, DefaultParallelism)
 	assert.Nil(t, err)
-	keys, authorPub, _ := enc.NewPseudoRandomKeys(rng)
+	authorPub := api.RandBytes(rng, api.ECPubKeyLength)
+	keys := enc.NewPseudoRandomEEK(rng)
 	content, mediaType := bytes.NewReader(api.RandBytes(rng, 64)), "application/x-pdf"
 
 	printer1 := NewPrinter(params, &fixedStorer{})
@@ -164,7 +166,8 @@ func TestPrinter_Print_err(t *testing.T) {
 
 func TestPrintScan(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	keys, authorPub, _ := enc.NewPseudoRandomKeys(rng)
+	authorPub := api.RandBytes(rng, api.ECPubKeyLength)
+	keys := enc.NewPseudoRandomEEK(rng)
 	pageSL := page.NewStorerLoader(
 		&memDocumentStorerLoader{
 			stored: make(map[string]*api.Document),
@@ -200,7 +203,8 @@ func TestPrintInitializerImpl_Initialize_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	params, err := NewParameters(comp.MinBufferSize, page.MinSize, DefaultParallelism)
 	assert.Nil(t, err)
-	keys, authorPub, _ := enc.NewPseudoRandomKeys(rng)
+	authorPub := api.RandBytes(rng, api.ECPubKeyLength)
+	keys := enc.NewPseudoRandomEEK(rng)
 	content, mediaType := bytes.NewReader(api.RandBytes(rng, 64)), "application/x-pdf"
 	pages := make(chan *api.Page)
 
@@ -218,7 +222,8 @@ func TestPrintInitializerImpl_Initialize_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	params, err := NewParameters(comp.MinBufferSize, page.MinSize, DefaultParallelism)
 	assert.Nil(t, err)
-	keys, authorPub, _ := enc.NewPseudoRandomKeys(rng)
+	authorPub := api.RandBytes(rng, api.ECPubKeyLength)
+	keys := enc.NewPseudoRandomEEK(rng)
 	content, mediaType := bytes.NewReader(api.RandBytes(rng, 64)), "application/x-pdf"
 	pages := make(chan *api.Page)
 
@@ -248,7 +253,7 @@ func TestPrintInitializerImpl_Initialize_err(t *testing.T) {
 	assert.Nil(t, compressor)
 	assert.Nil(t, paginator)
 
-	keys3, _, _ := enc.NewPseudoRandomKeys(rng)
+	keys3 := enc.NewPseudoRandomEEK(rng)
 	keys3.AESKey = []byte{} // will trigger error when creating encrypter
 	printInit3 := &printInitializerImpl{params}
 
@@ -259,7 +264,7 @@ func TestPrintInitializerImpl_Initialize_err(t *testing.T) {
 	assert.Nil(t, compressor)
 	assert.Nil(t, paginator)
 
-	keys4, _, _ := enc.NewPseudoRandomKeys(rng)
+	keys4 := enc.NewPseudoRandomEEK(rng)
 	keys4.HMACKey = []byte{} // will trigger error when creating paginator
 	printInit4 := &printInitializerImpl{params}
 
@@ -331,7 +336,7 @@ type fixedPrintInitializer struct {
 }
 
 func (f *fixedPrintInitializer) Initialize(
-	content io.Reader, mediaType string, keys *enc.Keys, authorPub []byte, pages chan *api.Page,
+	content io.Reader, mediaType string, keys *enc.EEK, authorPub []byte, pages chan *api.Page,
 ) (comp.Compressor, page.Paginator, error) {
 
 	f.initPaginator.pages = pages

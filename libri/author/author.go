@@ -219,7 +219,7 @@ func (a *Author) Healthcheck() (bool, map[string]healthpb.HealthCheckResponse_Se
 // libri network. It returns the uploaded envelope for self-storage and its key.
 func (a *Author) Upload(content io.Reader, mediaType string) (*api.Document, id.ID, error) {
 	startTime := time.Now()
-	authorPub, readerPub, keys, err := a.envelopeKeys.sample()
+	authorPub, readerPub, kek, eek, err := a.envelopeKeys.sample()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -227,7 +227,7 @@ func (a *Author) Upload(content io.Reader, mediaType string) (*api.Document, id.
 	a.logger.Debug("packing content",
 		zap.String(LoggerAuthorPub, fmt.Sprintf("%065x", authorPub)),
 	)
-	entry, metadata, err := a.entryPacker.Pack(content, mediaType, keys, authorPub)
+	entry, metadata, err := a.entryPacker.Pack(content, mediaType, eek, authorPub)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -236,7 +236,7 @@ func (a *Author) Upload(content io.Reader, mediaType string) (*api.Document, id.
 		zap.String(LoggerAuthorPub, fmt.Sprintf("%065x", authorPub)),
 		zap.String(LoggerReaderPub, fmt.Sprintf("%065x", readerPub)),
 	)
-	envelope, envelopeKey, err := a.shipper.Ship(entry, authorPub, readerPub)
+	envelope, envelopeKey, err := a.shipper.Ship(entry, authorPub, readerPub, kek, eek)
 	if err != nil {
 		return nil, nil, err
 	}

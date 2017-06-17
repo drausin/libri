@@ -20,9 +20,11 @@ func NewTestDocument(rng *rand.Rand) (*Document, cid.ID) {
 // NewTestEnvelope generates a dummy Envelope document for use in testing.
 func NewTestEnvelope(rng *rand.Rand) *Envelope {
 	return &Envelope{
-		AuthorPublicKey: fakePubKey(rng),
-		ReaderPublicKey: fakePubKey(rng),
-		EntryKey:        RandBytes(rng, 32),
+		AuthorPublicKey:  fakePubKey(rng),
+		ReaderPublicKey:  fakePubKey(rng),
+		EntryKey:         RandBytes(rng, DocumentKeyLength),
+		EekCiphertext:    RandBytes(rng, EEKCiphertextLength),
+		EekCiphertextMac: RandBytes(rng, HMAC256Length),
 	}
 }
 
@@ -32,8 +34,8 @@ func NewTestSinglePageEntry(rng *rand.Rand) *Entry {
 	return &Entry{
 		AuthorPublicKey:       page.AuthorPublicKey,
 		CreatedTime:           1,
-		MetadataCiphertextMac: RandBytes(rng, 32),
 		MetadataCiphertext:    RandBytes(rng, 64),
+		MetadataCiphertextMac: RandBytes(rng, HMAC256Length),
 		Contents:              &Entry_Page{page},
 	}
 }

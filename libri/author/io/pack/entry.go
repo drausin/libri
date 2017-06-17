@@ -17,7 +17,7 @@ import (
 type EntryPacker interface {
 	// Pack prints pages from the content, encrypts their metadata, and binds them together
 	// into an entry *api.Document.
-	Pack(content io.Reader, mediaType string, keys *enc.Keys, authorPub []byte) (
+	Pack(content io.Reader, mediaType string, keys *enc.EEK, authorPub []byte) (
 		*api.Document, *api.Metadata, error)
 }
 
@@ -45,7 +45,7 @@ type entryPacker struct {
 	docL        storage.DocumentLoader
 }
 
-func (p *entryPacker) Pack(content io.Reader, mediaType string, keys *enc.Keys, authorPub []byte) (
+func (p *entryPacker) Pack(content io.Reader, mediaType string, keys *enc.EEK, authorPub []byte) (
 	*api.Document, *api.Metadata, error) {
 
 	pageKeys, metadata, err := p.printer.Print(content, mediaType, keys, authorPub)
@@ -67,7 +67,7 @@ func (p *entryPacker) Pack(content io.Reader, mediaType string, keys *enc.Keys, 
 type EntryUnpacker interface {
 	// Unpack extracts the individual pages from a document and stitches them together to write
 	// to the content io.Writer.
-	Unpack(content io.Writer, entry *api.Document, keys *enc.Keys) (*api.Metadata, error)
+	Unpack(content io.Writer, entry *api.Document, keys *enc.EEK) (*api.Metadata, error)
 }
 
 type entryUnpacker struct {
@@ -91,7 +91,7 @@ func NewEntryUnpacker(
 	}
 }
 
-func (u *entryUnpacker) Unpack(content io.Writer, entry *api.Document, keys *enc.Keys) (
+func (u *entryUnpacker) Unpack(content io.Writer, entry *api.Document, keys *enc.EEK) (
 	*api.Metadata, error) {
 	encMetadata, err := enc.NewEncryptedMetadata(
 		entry.Contents.(*api.Document_Entry).Entry.MetadataCiphertext,

@@ -15,12 +15,12 @@ import (
 type Scanner interface {
 	// Scan loads pages with the given keys and metadata from an internal page.Loader and
 	// writes their concatenated output to the content io.Writer.
-	Scan(content io.Writer, pageKeys []id.ID, keys *enc.Keys, metatdata *api.Metadata) error
+	Scan(content io.Writer, pageKeys []id.ID, keys *enc.EEK, metatdata *api.Metadata) error
 }
 
 type scanner struct {
 	params *Parameters
-	keys   *enc.Keys
+	keys   *enc.EEK
 	pageL  page.Loader
 	init   scanInitializer
 }
@@ -38,7 +38,7 @@ func NewScanner(params *Parameters, pageL page.Loader) Scanner {
 }
 
 func (s *scanner) Scan(
-	content io.Writer, pageKeys []id.ID, keys *enc.Keys, md *api.Metadata,
+	content io.Writer, pageKeys []id.ID, keys *enc.EEK, md *api.Metadata,
 ) error {
 
 	pages := make(chan *api.Page, int(s.params.Parallelism))
@@ -84,7 +84,7 @@ func (s *scanner) Scan(
 }
 
 type scanInitializer interface {
-	Initialize(content io.Writer, mediaType string, keys *enc.Keys, pages chan *api.Page) (
+	Initialize(content io.Writer, mediaType string, keys *enc.EEK, pages chan *api.Page) (
 		comp.Decompressor, page.Unpaginator, error)
 }
 
@@ -93,7 +93,7 @@ type scanInitializerImpl struct {
 }
 
 func (si *scanInitializerImpl) Initialize(
-	content io.Writer, mediaType string, keys *enc.Keys, pages chan *api.Page,
+	content io.Writer, mediaType string, keys *enc.EEK, pages chan *api.Page,
 ) (comp.Decompressor, page.Unpaginator, error) {
 
 	codec, err := comp.GetCompressionCodec(mediaType)
