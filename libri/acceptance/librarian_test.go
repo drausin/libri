@@ -69,8 +69,8 @@ func TestLibrarianCluster(t *testing.T) {
 
 	rng := rand.New(rand.NewSource(0))
 	nSeeds, nPeers := 3, 32
-	logLevel := zapcore.DebugLevel // handy for debugging test failures
-	//logLevel := zapcore.InfoLevel
+	//logLevel := zapcore.DebugLevel // handy for debugging test failures
+	logLevel := zapcore.InfoLevel
 	client, seedConfigs, peerConfigs, seeds, peers, author, _ :=
 		setUp(rng, nSeeds, nPeers, logLevel)
 
