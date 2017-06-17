@@ -16,16 +16,17 @@ import (
 )
 
 func TestEnvelopeKeySampler_Sample_ok(t *testing.T) {
-	authorKeys, selfReaderKeys := keychain.New(3), keychain.New(3)
+	authorKeys, selfReaderKeys := keychain.New(1), keychain.New(1)
 	s := &envelopeKeySamplerImpl{
 		authorKeys:     authorKeys,
 		selfReaderKeys: selfReaderKeys,
 	}
-	authPubBytes, srPubBytes, encKeys1, err := s.sample()
+	authPubBytes, srPubBytes, kek1, eek, err := s.sample()
 	assert.Nil(t, err)
 	assert.NotNil(t, authPubBytes)
 	assert.NotNil(t, srPubBytes)
-	assert.NotNil(t, encKeys1)
+	assert.NotNil(t, kek1)
+	assert.NotNil(t, eek)
 	authPub, err := ecid.FromPublicKeyBytes(authPubBytes)
 	assert.Nil(t, err)
 
@@ -33,47 +34,57 @@ func TestEnvelopeKeySampler_Sample_ok(t *testing.T) {
 	srPriv, in := selfReaderKeys.Get(srPubBytes)
 	assert.True(t, in)
 	assert.NotNil(t, srPriv)
-	encKeys2, err := enc.NewKeys(srPriv.Key(), authPub)
+	kek2, err := enc.NewKEK(srPriv.Key(), authPub)
 	assert.Nil(t, err)
 
 	// check keys constructed each way are equal
-	assert.Equal(t, encKeys1, encKeys2)
+	assert.Equal(t, kek1, kek2)
 }
 
 func TestEnvelopeKeySampler_Sample_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 
+	// authorKeys.Sample() error should bubble up
 	s1 := &envelopeKeySamplerImpl{
 		authorKeys:     &fixedKeychain{sampleErr: errors.New("some Sample error")},
 		selfReaderKeys: keychain.New(3),
 	}
-	aPB, srPB, eK, err := s1.sample()
+	aPB, srPB, kek, eek, err := s1.sample()
 	assert.NotNil(t, err)
 	assert.Nil(t, aPB)
 	assert.Nil(t, srPB)
-	assert.Nil(t, eK)
+	assert.Nil(t, kek)
+	assert.Nil(t, eek)
 
+	// selfReaderKeys.Sample() error should bubble up
 	s2 := &envelopeKeySamplerImpl{
 		authorKeys:     keychain.New(3),
 		selfReaderKeys: &fixedKeychain{sampleErr: errors.New("some Sample error")},
 	}
-	aPB, srPB, eK, err = s2.sample()
+	aPB, srPB, kek, eek, err = s2.sample()
 	assert.NotNil(t, err)
 	assert.Nil(t, aPB)
 	assert.Nil(t, srPB)
-	assert.Nil(t, eK)
+	assert.Nil(t, kek)
+	assert.Nil(t, eek)
 
+	// NewKEK() error should bubble up
 	offCurvePriv, err := ecdsa.GenerateKey(elliptic.P256(), rng)
 	assert.Nil(t, err)
 	s3 := &envelopeKeySamplerImpl{
-		authorKeys:     &fixedKeychain{sampleID: ecid.FromPrivateKey(offCurvePriv)},
+		authorKeys:     &fixedKeychain{  // will cause error in NewKEK
+			sampleID: ecid.FromPrivateKey(offCurvePriv),
+		},
 		selfReaderKeys: keychain.New(3),
 	}
-	aPB, srPB, eK, err = s3.sample()
+	aPB, srPB, kek, eek, err = s3.sample()
 	assert.NotNil(t, err)
 	assert.Nil(t, aPB)
 	assert.Nil(t, srPB)
-	assert.Nil(t, eK)
+	assert.Nil(t, kek)
+	assert.Nil(t, eek)
+
+	// too hard/annoying to create error in NewEEK()
 }
 
 func TestGetLibrarianHealthClients(t *testing.T) {

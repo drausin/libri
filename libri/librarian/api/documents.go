@@ -30,14 +30,21 @@ const (
 	// HMACKeyLength is the byte length of the Page HMAC-256 key.
 	HMACKeyLength = 32
 
-	// MetadataIVLength is the byte length of the metadata block cipher initialization vector.
-	MetadataIVLength = 12
+	// BlockCipherIVLength is the byte length of a block cipher initialization vector.
+	BlockCipherIVLength = 12
 
-	// EncryptionKeysLength is the total byte length of all the keys used to encrypt an Entry.
-	EncryptionKeysLength = AESKeyLength +
+	// KEKLength is the total byte length of the key encryption keys.
+	KEKLength = AESKeyLength + BlockCipherIVLength + HMACKeyLength
+
+	// EEKLength is the total byte length of the entry encryption keys.
+	EEKLength = AESKeyLength +
 		PageIVSeedLength +
 		HMACKeyLength +
-		MetadataIVLength
+		BlockCipherIVLength
+
+	// EEKCiphertextLength is the length of the EEK ciphertext, which includes 16 bytes of
+	// encryption info.
+	EEKCiphertextLength = EEKLength + 16
 
 	// HMAC256Length is the byte length of an HMAC-256.
 	HMAC256Length = sha256.Size
@@ -138,13 +145,20 @@ func ValidateEnvelope(e *Envelope) error {
 	if e == nil {
 		return errors.New("Envelope may not be nil")
 	}
+	if err := ValidateBytes(e.EntryKey, DocumentKeyLength, "EntryKey"); err != nil {
+		return err
+	}
 	if err := ValidatePublicKey(e.AuthorPublicKey); err != nil {
 		return err
 	}
 	if err := ValidatePublicKey(e.ReaderPublicKey); err != nil {
 		return err
 	}
-	if err := ValidateBytes(e.EntryKey, DocumentKeyLength, "EntryKey"); err != nil {
+	if err := ValidateBytes(e.EekCiphertext, EEKCiphertextLength, "EntryEncryptionKeys",
+	); err != nil {
+		return err
+	}
+	if err := ValidateHMAC256(e.EekCiphertextMac); err != nil {
 		return err
 	}
 	return nil
@@ -248,7 +262,7 @@ func ValidatePageIVSeed(value []byte) error {
 
 // ValidateMetadataIV checks that a value can be a 12-byte GCM initialization vector.
 func ValidateMetadataIV(value []byte) error {
-	return ValidateBytes(value, MetadataIVLength, "MetadataIV")
+	return ValidateBytes(value, BlockCipherIVLength, "MetadataIV")
 }
 
 // ValidateHMAC256 checks that a value can be an HMAC-256.

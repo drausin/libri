@@ -119,7 +119,7 @@ type compressor struct {
 // codec. Larger values of uncompressedBufferSize will result in fewer calls to the uncompressed
 // io.Reader, at the expense of reading more than is needed into the internal buffer.
 func NewCompressor(
-	uncompressed io.Reader, codec Codec, keys *enc.Keys, uncompressedBufferSize uint32,
+	uncompressed io.Reader, codec Codec, keys *enc.EEK, uncompressedBufferSize uint32,
 ) (Compressor, error) {
 	var err error
 	var inner FlushCloseWriter
@@ -231,7 +231,7 @@ type decompressor struct {
 
 // NewDecompressor creates a new Decompressor instance.
 func NewDecompressor(
-	uncompressed io.Writer, codec Codec, keys *enc.Keys, uncompressedBufferSize uint32,
+	uncompressed io.Writer, codec Codec, keys *enc.EEK, uncompressedBufferSize uint32,
 ) (Decompressor, error) {
 	if uncompressedBufferSize < MinBufferSize {
 		return nil, ErrBufferSizeTooSmall

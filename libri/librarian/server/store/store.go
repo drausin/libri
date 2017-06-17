@@ -55,19 +55,19 @@ func NewDefaultParameters() *Parameters {
 // Result holds the store's (intermediate) result: the number of peers that have successfully
 // stored the value.
 type Result struct {
-	// peers that have successfully stored the value
+	// Responded contains the peers that have successfully stored the value
 	Responded []peer.Peer
 
-	// queue of peers to send store queries to
+	// Unqueried is a queue of peers to send store queries to
 	Unqueried []peer.Peer
 
-	// result of search used in first part of store operation
+	// Search is search result from first part of store operation
 	Search *search.Result
 
-	// number of errors encounters while querying peers
-	NErrors uint
+	// Errors is a list of errors encounters while querying peers
+	Errors []error
 
-	// fatal error that occurred during the search
+	// FatalErr is the fatal error that occurred during the search
 	FatalErr error
 }
 
@@ -78,29 +78,29 @@ func NewInitialResult(sr *search.Result) *Result {
 		Unqueried: sr.Closest.Peers(),
 		Responded: make([]peer.Peer, 0, sr.Closest.Len()),
 		Search:    sr,
-		NErrors:   0,
+		Errors:    make([]error, 0),
 	}
 }
 
 // NewFatalResult creates a new Result object with a fatal error.
 func NewFatalResult(fatalErr error) *Result {
-	return &Result {
+	return &Result{
 		FatalErr: fatalErr,
 	}
 }
 
 // Store contains things involved in storing a particular key/value pair.
 type Store struct {
-	// request used when querying peers
+	// Request used when querying peers
 	Request *api.StoreRequest // TODO (drausin) make this a getRequest function instead
 
-	// result of the store
+	// Result of the store
 	Result *Result
 
-	// first part of store operation is the search
+	// Search first part of store operation
 	Search *search.Search
 
-	// parameters defining the store part of the operation
+	// Params defining the store part of the operation
 	Params *Parameters
 
 	// mutex used to synchronizes reads and writes to this instance
@@ -117,7 +117,7 @@ func NewStore(
 ) *Store {
 	// if store has NMaxErrors, we still want to be able to store NReplicas with remainder of
 	// closest peers found during search
-	updatedSearchParams := *searchParams  // by value to avoid change original search params
+	updatedSearchParams := *searchParams // by value to avoid change original search params
 	updatedSearchParams.NClosestResponses = storeParams.NReplicas + storeParams.NMaxErrors
 	return &Store{
 		Request: client.NewStoreRequest(peerID, key, value),
@@ -138,7 +138,7 @@ func (s *Store) Exists() bool {
 
 // Errored returns whether the store has encountered too many errors when querying the peers.
 func (s *Store) Errored() bool {
-	return s.Result.NErrors >= s.Params.NMaxErrors || s.Result.FatalErr != nil
+	return len(s.Result.Errors) >= int(s.Params.NMaxErrors) || s.Result.FatalErr != nil
 }
 
 // Exhausted returns whether the store has exhausted all peers to store the value in.

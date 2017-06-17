@@ -5,6 +5,7 @@ import (
 	"github.com/drausin/libri/libri/author/io/publish"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/author/io/enc"
 )
 
 // Shipper publishes documents to libri.
@@ -12,7 +13,9 @@ type Shipper interface {
 	// Ship publishes (to libri) the entry document, its page document keys (if more than one),
 	// and the envelope document with the author and reader public keys. It returns the
 	// published envelope document and its key.
-	Ship(entry *api.Document, authorPub []byte, readerPub []byte) (*api.Document, id.ID, error)
+	Ship(
+		entry *api.Document, authorPub []byte, readerPub []byte, kek *enc.KEK, eek *enc.EEK,
+	) (*api.Document, id.ID, error)
 }
 
 type shipper struct {
@@ -33,8 +36,9 @@ func NewShipper(
 	}
 }
 
-func (s *shipper) Ship(entry *api.Document, authorPub []byte, readerPub []byte) (
-	*api.Document, id.ID, error) {
+func (s *shipper) Ship(
+	entry *api.Document, authorPub []byte, readerPub []byte, kek *enc.KEK, eek *enc.EEK,
+) (*api.Document, id.ID, error) {
 
 	// publish separate pages, if necessary
 	pageKeys, err := api.GetEntryPageKeys(entry)
@@ -56,7 +60,11 @@ func (s *shipper) Ship(entry *api.Document, authorPub []byte, readerPub []byte) 
 	if err != nil {
 		return nil, nil, err
 	}
-	envelope := pack.NewEnvelopeDoc(authorPub, readerPub, entryKey)
+	eekCiphertext, eekCiphertextMAC, err := kek.Encrypt(eek)
+	if err != nil {
+		return nil, nil, err
+	}
+	envelope := pack.NewEnvelopeDoc(entryKey, authorPub, readerPub, eekCiphertext, eekCiphertextMAC)
 	envelopeKey, err := s.publisher.Publish(envelope, authorPub, lc)
 	if err != nil {
 		return nil, nil, err

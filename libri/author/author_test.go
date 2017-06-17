@@ -287,7 +287,7 @@ type fixedEntryPacker struct {
 }
 
 func (f *fixedEntryPacker) Pack(
-	content io.Reader, mediaType string, keys *enc.Keys, authorPub []byte,
+	content io.Reader, mediaType string, keys *enc.EEK, authorPub []byte,
 ) (*api.Document, *api.Metadata, error) {
 	return f.entry, f.metadata, f.err
 }
@@ -298,18 +298,19 @@ type fixedShipper struct {
 	err         error
 }
 
-func (f *fixedShipper) Ship(entry *api.Document, authorPub []byte, readerPub []byte) (
-	*api.Document, id.ID, error) {
+func (f *fixedShipper) Ship(
+	entry *api.Document, authorPub []byte, readerPub []byte, kek *enc.KEK, eek *enc.EEK,
+) (*api.Document, id.ID, error) {
 	return f.envelope, f.envelopeKey, f.err
 }
 
 type fixedReceiver struct {
 	entry *api.Document
-	keys  *enc.Keys
+	keys  *enc.EEK
 	err   error
 }
 
-func (f *fixedReceiver) Receive(envelopeKey id.ID) (*api.Document, *enc.Keys, error) {
+func (f *fixedReceiver) Receive(envelopeKey id.ID) (*api.Document, *enc.EEK, error) {
 	return f.entry, f.keys, f.err
 }
 
@@ -318,7 +319,7 @@ type fixedUnpacker struct {
 	err error
 }
 
-func (f *fixedUnpacker) Unpack(content io.Writer, entry *api.Document, keys *enc.Keys) (
+func (f *fixedUnpacker) Unpack(content io.Writer, entry *api.Document, keys *enc.EEK) (
 	*api.Metadata, error) {
 	return f.metadata, f.err
 }

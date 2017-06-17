@@ -11,8 +11,7 @@ jobs:
       # TODO (restore deps cache once using glide)
       - run:
           name: Install dependencies
-          command: |
-            make get-deps
+          command: make get-deps
       # TODO save deps cache once using glide
       - run:
           name: Build

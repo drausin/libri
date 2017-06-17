@@ -35,7 +35,7 @@ func TestNewEncryptedMetadata_err(t *testing.T) {
 
 func TestMetadataEncDec_EncryptDecrypt(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	keys, _, _ := NewPseudoRandomKeys(rng)
+	keys := NewPseudoRandomEEK(rng)
 	mediaType := "application/x-pdf"
 	m1, err := api.NewEntryMetadata(
 		mediaType,
@@ -59,7 +59,7 @@ func TestMetadataEncDec_EncryptDecrypt(t *testing.T) {
 
 func TestMetadataEncDec_Encrypt_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	keys1, _, _ := NewPseudoRandomKeys(rng)
+	keys1 := NewPseudoRandomEEK(rng)
 	med := NewMetadataEncrypterDecrypter()
 
 	// check bad api.Metadata triggers error
@@ -78,7 +78,7 @@ func TestMetadataEncDec_Encrypt_err(t *testing.T) {
 	assert.Nil(t, err)
 
 	// check missing AES key triggers error
-	keys2, _, _ := NewPseudoRandomKeys(rng)
+	keys2 := NewPseudoRandomEEK(rng)
 	keys2.AESKey = nil
 	em2, err := med.Encrypt(m, keys2)
 	assert.NotNil(t, err)
@@ -91,7 +91,7 @@ func TestMetadataEncDec_Decrypt_err(t *testing.T) {
 
 	em1, err := NewEncryptedMetadata(api.RandBytes(rng, 64), api.RandBytes(rng, 32))
 	assert.Nil(t, err)
-	keys1, _, _ := NewPseudoRandomKeys(rng)
+	keys1 := NewPseudoRandomEEK(rng)
 	keys1.HMACKey = nil
 
 	// check bad HMAC key triggers error
@@ -101,14 +101,14 @@ func TestMetadataEncDec_Decrypt_err(t *testing.T) {
 
 	em2, err := NewEncryptedMetadata(api.RandBytes(rng, 64), api.RandBytes(rng, 32))
 	assert.Nil(t, err)
-	keys2, _, _ := NewPseudoRandomKeys(rng) // valid, but not connected to ciphertext
+	keys2 := NewPseudoRandomEEK(rng) // valid, but not connected to ciphertext
 
 	// check different MAC triggers error;
 	m2, err := med.Decrypt(em2, keys2)
 	assert.Equal(t, ErrUnexpectedMAC, err)
 	assert.Nil(t, m2)
 
-	keys3, _, _ := NewPseudoRandomKeys(rng)
+	keys3 := NewPseudoRandomEEK(rng)
 	keys3.AESKey = nil
 	ciphertext3 := api.RandBytes(rng, 64)
 	ciphertextMAC3 := HMAC(ciphertext3, keys3.HMACKey)
@@ -120,7 +120,7 @@ func TestMetadataEncDec_Decrypt_err(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Nil(t, m3)
 
-	keys4, _, _ := NewPseudoRandomKeys(rng) // valid, but not connected to ciphertext
+	keys4 := NewPseudoRandomEEK(rng) // valid, but not connected to ciphertext
 	ciphertext4 := api.RandBytes(rng, 64)
 	ciphertextMAC4 := HMAC(ciphertext4, keys3.HMACKey)
 	em4, err := NewEncryptedMetadata(ciphertext4, ciphertextMAC4)

@@ -344,7 +344,6 @@ func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutRespon
 		}, nil
 	}
 	if s.Errored() {
-		// TODO (drausin) better collect and surface errors from queries
 		return nil, errors.New("received error during search or store operations")
 	}
 	if s.Exhausted() {
@@ -379,7 +378,7 @@ func debugLogStoreResult(message string, s *store.Store, logger *zap.Logger) {
 		zap.Bool("exists", s.Exists()),
 		zap.Int("n_unqueried", len(s.Result.Unqueried)),
 		zap.Int("n_responded", len(s.Result.Responded)),
-		zap.Uint("n_errors", s.Result.NErrors),
+		zap.Errors("errors", s.Result.Errors),
 	)
 }
 

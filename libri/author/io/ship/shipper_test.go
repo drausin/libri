@@ -18,7 +18,8 @@ import (
 
 func TestShipper_Ship_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	_, authorPub, readerPub := enc.NewPseudoRandomKeys(rng)
+	kek, authorPub, readerPub := enc.NewPseudoRandomKEK(rng)
+	eek := enc.NewPseudoRandomEEK(rng)
 	s := NewShipper(
 		&fixedClientBalancer{},
 		&fixedPublisher{},
@@ -33,7 +34,7 @@ func TestShipper_Ship_ok(t *testing.T) {
 	assert.Nil(t, err)
 
 	// test multi-page ship
-	envelope, envelopeKey, err := s.Ship(entry, authorPub, readerPub)
+	envelope, envelopeKey, err := s.Ship(entry, authorPub, readerPub, kek, eek)
 	assert.Nil(t, err)
 	assert.NotNil(t, envelope)
 	assert.NotNil(t, envelopeKey)
@@ -48,7 +49,7 @@ func TestShipper_Ship_ok(t *testing.T) {
 	}
 	origEntryKey, err = api.GetKey(entry)
 	assert.Nil(t, err)
-	envelope, envelopeKey, err = s.Ship(entry, authorPub, readerPub)
+	envelope, envelopeKey, err = s.Ship(entry, authorPub, readerPub, kek, eek)
 	assert.Nil(t, err)
 	assert.NotNil(t, envelope)
 	assert.NotNil(t, envelopeKey)
@@ -58,7 +59,8 @@ func TestShipper_Ship_ok(t *testing.T) {
 
 func TestShipper_Ship_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	_, authorPub, readerPub := enc.NewPseudoRandomKeys(rng)
+	kek, authorPub, readerPub := enc.NewPseudoRandomKEK(rng)
+	eek := enc.NewPseudoRandomEEK(rng)
 	entry := &api.Document{
 		Contents: &api.Document_Entry{
 			Entry: api.NewTestMultiPageEntry(rng),
@@ -77,13 +79,13 @@ func TestShipper_Ship_err(t *testing.T) {
 			Envelope: api.NewTestEnvelope(rng),
 		},
 	}
-	envelope, entryKey, err := s.Ship(envelope, authorPub, readerPub)
+	envelope, entryKey, err := s.Ship(envelope, authorPub, readerPub, kek, eek)
 	assert.NotNil(t, err)
 	assert.Nil(t, envelope)
 	assert.Nil(t, entryKey)
 
 	// check page publish error bubbles up
-	envelope, entryKey, err = s.Ship(entry, authorPub, readerPub)
+	envelope, entryKey, err = s.Ship(entry, authorPub, readerPub, kek, eek)
 	assert.NotNil(t, err)
 	assert.Nil(t, envelope)
 	assert.Nil(t, entryKey)
@@ -95,7 +97,7 @@ func TestShipper_Ship_err(t *testing.T) {
 	)
 
 	// check getting next librarian error bubbles up
-	envelope, entryKey, err = s.Ship(entry, authorPub, readerPub)
+	envelope, entryKey, err = s.Ship(entry, authorPub, readerPub, kek, eek)
 	assert.NotNil(t, err)
 	assert.Nil(t, envelope)
 	assert.Nil(t, entryKey)
@@ -107,7 +109,7 @@ func TestShipper_Ship_err(t *testing.T) {
 	)
 
 	// check entry publish error bubbles up
-	envelope, entryKey, err = s.Ship(entry, authorPub, readerPub)
+	envelope, entryKey, err = s.Ship(entry, authorPub, readerPub, kek, eek)
 	assert.NotNil(t, err)
 	assert.Nil(t, envelope)
 	assert.Nil(t, entryKey)
@@ -119,7 +121,7 @@ func TestShipper_Ship_err(t *testing.T) {
 	)
 
 	// check envelope publish error bubbles up
-	envelope, entryKey, err = s.Ship(entry, authorPub, readerPub)
+	envelope, entryKey, err = s.Ship(entry, authorPub, readerPub, kek, eek)
 	assert.NotNil(t, err)
 	assert.Nil(t, envelope)
 	assert.Nil(t, entryKey)
@@ -135,6 +137,9 @@ func TestShipReceive(t *testing.T) {
 	readerKey, err := readerKeys.Sample()
 	readerPub := ecid.ToPublicKeyBytes(readerKey)
 	assert.Nil(t, err)
+	kek, err := enc.NewKEK(authorKey.Key(), &readerKey.Key().PublicKey)
+	assert.Nil(t, err)
+
 	for _, nDocs := range []uint32{1, 2, 4, 8} {
 		docSL1 := &memDocStorerLoader{
 			docs: make(map[string]*api.Document),
@@ -184,9 +189,10 @@ func TestShipReceive(t *testing.T) {
 			params,
 		)
 		s := NewShipper(cb, pubAcq, mlP)
+		eek := enc.NewPseudoRandomEEK(rng)
 		envelopeKeys := make([]id.ID, nDocs)
 		for i := uint32(0); i < nDocs; i++ {
-			envelope, _, err := s.Ship(docs[i], authorPub, readerPub)
+			envelope, _, err := s.Ship(docs[i], authorPub, readerPub, kek, eek)
 			assert.Nil(t, err)
 			envelopeKeys[i], err = api.GetKey(envelope)
 			assert.Nil(t, err)

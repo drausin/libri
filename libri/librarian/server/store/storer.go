@@ -86,7 +86,7 @@ func (s *storer) storeWork(store *Store, wg *sync.WaitGroup) {
 		if _, err := s.query(next.Connector(), store); err != nil {
 			// if we had an issue querying, skip to next peer
 			store.wrapLock(func() {
-				store.Result.NErrors++
+				store.Result.Errors = append(store.Result.Errors, err)
 				next.Recorder().Record(peer.Response, peer.Error)
 			})
 			continue

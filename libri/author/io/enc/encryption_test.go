@@ -9,7 +9,7 @@ import (
 
 func TestNewEncrypter_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	keys, _, _ := NewPseudoRandomKeys(rng)
+	keys := NewPseudoRandomEEK(rng)
 	enc, err := NewEncrypter(keys)
 	assert.Nil(t, err)
 	assert.NotNil(t, enc.(*encrypter).gcmCipher)
@@ -17,14 +17,14 @@ func TestNewEncrypter_ok(t *testing.T) {
 }
 
 func TestNewEncrypter_err(t *testing.T) {
-	enc, err := NewEncrypter(&Keys{})
+	enc, err := NewEncrypter(&EEK{})
 	assert.NotNil(t, err)
 	assert.Nil(t, enc)
 }
 
 func TestNewDecrypter_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	keys, _, _ := NewPseudoRandomKeys(rng)
+	keys := NewPseudoRandomEEK(rng)
 	enc, err := NewDecrypter(keys)
 	assert.Nil(t, err)
 	assert.NotNil(t, enc.(*decrypter).gcmCipher)
@@ -32,14 +32,14 @@ func TestNewDecrypter_ok(t *testing.T) {
 }
 
 func TestNewDecrypter_err(t *testing.T) {
-	enc, err := NewDecrypter(&Keys{})
+	enc, err := NewDecrypter(&EEK{})
 	assert.NotNil(t, err)
 	assert.Nil(t, enc)
 }
 
 func TestEncryptDecrypt(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	keys, _, _ := NewPseudoRandomKeys(rng)
+	keys := NewPseudoRandomEEK(rng)
 	nPlaintextBytesPerPage, nPages := 32, uint32(3)
 
 	encrypter, err := NewEncrypter(keys)

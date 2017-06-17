@@ -48,7 +48,7 @@ type paginator struct {
 func NewPaginator(
 	pages chan *api.Page,
 	encrypter enc.Encrypter,
-	keys *enc.Keys,
+	keys *enc.EEK,
 	authorPub []byte,
 	pageSize uint32,
 ) (Paginator, error) {
@@ -149,7 +149,7 @@ type unpaginator struct {
 func NewUnpaginator(
 	pages chan *api.Page,
 	decrypter enc.Decrypter,
-	keys *enc.Keys,
+	keys *enc.EEK,
 ) (Unpaginator, error) {
 	if err := api.ValidateHMACKey(keys.HMACKey); err != nil {
 		return nil, err

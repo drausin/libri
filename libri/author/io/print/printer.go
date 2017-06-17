@@ -60,7 +60,7 @@ func NewDefaultParameters() *Parameters {
 // Printer stores pages created from (uncompressed) content.
 type Printer interface {
 	// Print creates pages from the given content and stores them via an internal page.Storer.
-	Print(content io.Reader, mediaType string, keys *enc.Keys, authorPub []byte) (
+	Print(content io.Reader, mediaType string, keys *enc.EEK, authorPub []byte) (
 		[]id.ID, *api.Metadata, error)
 }
 
@@ -84,7 +84,7 @@ func NewPrinter(
 	}
 }
 
-func (p *printer) Print(content io.Reader, mediaType string, keys *enc.Keys, authorPub []byte) (
+func (p *printer) Print(content io.Reader, mediaType string, keys *enc.EEK, authorPub []byte) (
 	[]id.ID, *api.Metadata, error) {
 
 	pages := make(chan *api.Page, int(p.params.Parallelism))
@@ -127,7 +127,7 @@ func (p *printer) Print(content io.Reader, mediaType string, keys *enc.Keys, aut
 }
 
 type printInitializer interface {
-	Initialize(content io.Reader, mediaType string, keys *enc.Keys, authorPub []byte,
+	Initialize(content io.Reader, mediaType string, keys *enc.EEK, authorPub []byte,
 		pages chan *api.Page) (comp.Compressor, page.Paginator, error)
 }
 
@@ -136,7 +136,7 @@ type printInitializerImpl struct {
 }
 
 func (pi *printInitializerImpl) Initialize(
-	content io.Reader, mediaType string, keys *enc.Keys, authorPub []byte, pages chan *api.Page,
+	content io.Reader, mediaType string, keys *enc.EEK, authorPub []byte, pages chan *api.Page,
 ) (comp.Compressor, page.Paginator, error) {
 
 	codec, err := comp.GetCompressionCodec(mediaType)

@@ -37,7 +37,7 @@ func TestStore_Stored(t *testing.T) {
 	assert.False(t, store.Finished())
 
 	// add a few errors, still not stored
-	store.Result.NErrors += 2
+	store.Result.Errors = []error{errors.New("1"), errors.New("2")}
 	assert.False(t, store.Stored())
 	assert.False(t, store.Finished())
 
@@ -76,19 +76,19 @@ func TestStore_Errored(t *testing.T) {
 	assert.False(t, s.Finished())
 
 	// add errors, but not too many
-	s.Result.NErrors += 2
+	s.Result.Errors = append(s.Result.Errors, errors.New("1"), errors.New("2"))
 
 	// still within acceptable range of errors
 	assert.False(t, s.Errored())
 	assert.False(t, s.Finished())
 
 	// push over the edge
-	s.Result.NErrors++
+	s.Result.Errors = append(s.Result.Errors, errors.New("3"))
 	assert.True(t, s.Errored())
 	assert.True(t, s.Finished())
 
 	// or, if we receive a fatal error
-	s.Result.NErrors = 0
+	s.Result.Errors = []error{}
 	s.Result.FatalErr = errors.New("some fatal error")
 	assert.True(t, s.Errored())
 	assert.True(t, s.Finished())

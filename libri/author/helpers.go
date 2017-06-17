@@ -10,7 +10,7 @@ import (
 )
 
 type envelopeKeySampler interface {
-	sample() ([]byte, []byte, *enc.Keys, error)
+	sample() ([]byte, []byte, *enc.KEK, *enc.EEK, error)
 }
 
 type envelopeKeySamplerImpl struct {
@@ -21,20 +21,24 @@ type envelopeKeySamplerImpl struct {
 // sample samples a random pair of keys (author and reader) for the author to use
 // in creating the document *Keys instance. The method returns the author and reader public keys
 // along with the *Keys object.
-func (s *envelopeKeySamplerImpl) sample() ([]byte, []byte, *enc.Keys, error) {
+func (s *envelopeKeySamplerImpl) sample() ([]byte, []byte, *enc.KEK, *enc.EEK, error) {
 	authorID, err := s.authorKeys.Sample()
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	selfReaderID, err := s.selfReaderKeys.Sample()
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
-	keys, err := enc.NewKeys(authorID.Key(), &selfReaderID.Key().PublicKey)
+	kek, err := enc.NewKEK(authorID.Key(), &selfReaderID.Key().PublicKey)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
-	return ecid.ToPublicKeyBytes(authorID), ecid.ToPublicKeyBytes(selfReaderID), keys, nil
+	eek, err := enc.NewEEK()
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+	return ecid.ToPublicKeyBytes(authorID), ecid.ToPublicKeyBytes(selfReaderID), kek, eek, nil
 }
 
 // use var so it's easy to replace for tests w/o a single-method interface

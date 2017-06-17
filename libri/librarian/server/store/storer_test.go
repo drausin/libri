@@ -90,7 +90,7 @@ func TestStorer_Store_ok(t *testing.T) {
 
 		assert.True(t, uint(len(store.Result.Responded)) >= nReplicas)
 		assert.True(t, uint(len(store.Result.Unqueried)) <= storeParams.NMaxErrors)
-		assert.Equal(t, uint(0), store.Result.NErrors)
+		assert.Equal(t, 0, len(store.Result.Errors))
 		assert.Nil(t, store.Result.FatalErr)
 	}
 }
@@ -123,7 +123,7 @@ func TestStorer_Store_queryErr(t *testing.T) {
 
 	assert.Equal(t, 0, len(store.Result.Responded))
 	assert.True(t, 0 < len(store.Result.Unqueried))
-	assert.Equal(t, store.Params.NMaxErrors, store.Result.NErrors)
+	assert.Equal(t, int(store.Params.NMaxErrors), len(store.Result.Errors))
 	assert.Nil(t, store.Result.FatalErr)
 }
 

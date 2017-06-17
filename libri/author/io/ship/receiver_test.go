@@ -14,6 +14,7 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
+	"github.com/drausin/libri/libri/author/io/enc"
 )
 
 func TestReceiver_Receive_ok(t *testing.T) {
@@ -22,6 +23,8 @@ func TestReceiver_Receive_ok(t *testing.T) {
 	authorKey, err := authorKeys.Sample()
 	assert.Nil(t, err)
 	readerKey, err := readerKeys.Sample()
+	assert.Nil(t, err)
+	kek, err := enc.NewKEK(authorKey.Key(), &readerKey.Key().PublicKey)
 	assert.Nil(t, err)
 	cb := &fixedClientBalancer{}
 
@@ -37,35 +40,40 @@ func TestReceiver_Receive_ok(t *testing.T) {
 			},
 		},
 	}
-	for _, entry := range entries {
-		pageKeys, err := api.GetEntryPageKeys(entry)
+	for _, entry1 := range entries {
+		pageKeys, err := api.GetEntryPageKeys(entry1)
 		assert.Nil(t, err)
-		entryKey, err := api.GetKey(entry)
+		entryKey, err := api.GetKey(entry1)
+		assert.Nil(t, err)
+		eek1 := enc.NewPseudoRandomEEK(rng)
+		eekCiphertext, eekCiphertextMAC, err := kek.Encrypt(eek1)
 		assert.Nil(t, err)
 		envelope := pack.NewEnvelopeDoc(
+			entryKey,
 			ecid.ToPublicKeyBytes(authorKey),
 			ecid.ToPublicKeyBytes(readerKey),
-			entryKey,
+			eekCiphertext,
+			eekCiphertextMAC,
 		)
 		envelopeKey, err := api.GetKey(envelope)
 		assert.Nil(t, err)
 		acq := &fixedAcquirer{
 			docs: make(map[string]*api.Document),
 		}
-		acq.docs[entryKey.String()] = entry
+		acq.docs[entryKey.String()] = entry1
 		acq.docs[envelopeKey.String()] = envelope
 		msAcq := &fixedMultiStoreAcquirer{}
 		docS := &fixedStorer{}
 		r := NewReceiver(cb, readerKeys, acq, msAcq, docS)
 
-		receivedEntry, receivedKeys, err := r.Receive(envelopeKey)
+		entry2, eek2, err := r.Receive(envelopeKey)
 		assert.Nil(t, err)
-		assert.Equal(t, entry, receivedEntry)
-		assert.NotNil(t, receivedKeys)
+		assert.Equal(t, entry1, entry2)
+		assert.Equal(t, eek1, eek2)
 
 		// check that pages have been stored, if necessary
 		assert.Equal(t, pageKeys, msAcq.docKeys)
-		switch entry.Contents.(*api.Document_Entry).Entry.Contents.(type) {
+		switch entry1.Contents.(*api.Document_Entry).Entry.Contents.(type) {
 		case *api.Entry_PageKeys:
 			// pages would have been stored on the MultiStoreAcquirer.Acquire(...)
 			// call
@@ -86,16 +94,23 @@ func TestReceiver_Receive_err(t *testing.T) {
 	assert.Nil(t, err)
 	readerKey, err := readerKeys.Sample()
 	assert.Nil(t, err)
+	kek, err := enc.NewKEK(authorKey.Key(), &readerKey.Key().PublicKey)
+	assert.Nil(t, err)
 	acq := &fixedAcquirer{
 		docs: make(map[string]*api.Document),
 	}
 	msAcq := &fixedMultiStoreAcquirer{}
 	docS := &fixedStorer{}
 	entry, entryKey := api.NewTestDocument(rng)
+	eek1 := enc.NewPseudoRandomEEK(rng)
+	eekCiphertext, eekCiphertextMAC, err := kek.Encrypt(eek1)
+	assert.Nil(t, err)
 	envelope := pack.NewEnvelopeDoc(
+		entryKey,
 		ecid.ToPublicKeyBytes(authorKey),
 		ecid.ToPublicKeyBytes(readerKey),
-		entryKey,
+		eekCiphertext,
+		eekCiphertextMAC,
 	)
 	envelopeKey, err := api.GetKey(envelope)
 	assert.Nil(t, err)
@@ -117,7 +132,7 @@ func TestReceiver_Receive_err(t *testing.T) {
 	assert.Nil(t, receivedDoc)
 	assert.Nil(t, receivedKeys)
 
-	// check SeparateEnvelopeDoc error bubbles up
+	// check wrong doc type error bubbles up
 	acq3 := &fixedAcquirer{docs: make(map[string]*api.Document)}
 	acq3.docs[envelopeKey.String()] = entry // wrong doc type
 	r3 := NewReceiver(cb, readerKeys, acq3, msAcq, docS)
@@ -126,9 +141,9 @@ func TestReceiver_Receive_err(t *testing.T) {
 	assert.Nil(t, receivedDoc)
 	assert.Nil(t, receivedKeys)
 
-	// check createEncryptionKeys error bubbles up
+	// check createEEK error bubbles up
 	//
-	// readerKeys4 will cause createEncryptionKeys to fail b/c can't find readerKey
+	// readerKeys4 will cause createEEK to fail b/c can't find readerKey
 	// in the different keychain
 	readerKeys4 := keychain.New(1)
 	r4 := NewReceiver(cb, readerKeys4, acq, msAcq, docS)
@@ -159,7 +174,7 @@ func TestReceiver_Receive_err(t *testing.T) {
 	assert.Nil(t, receivedKeys)
 }
 
-func TestReceiver_createEncryptionKeys_err(t *testing.T) {
+func TestReceiver_createEEK_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	cb := &fixedClientBalancer{}
 	acq := &fixedAcquirer{}
@@ -169,25 +184,57 @@ func TestReceiver_createEncryptionKeys_err(t *testing.T) {
 	// check readerKeys.Get() error bubbles up
 	readerKeys1 := &fixedKeychain{in: false}
 	r1 := NewReceiver(cb, readerKeys1, acq, msAcq, docS).(*receiver)
-	keys, err := r1.createEncryptionKeys(nil, nil)
+	env1 := &api.Envelope{}
+	eek, authorPub, err := r1.createEEK(env1)
 	assert.Equal(t, keychain.ErrUnexpectedMissingKey, err)
-	assert.Nil(t, keys)
+	assert.Nil(t, eek)
+	assert.Nil(t, authorPub)
 
 	// check ecid.FromPublicKeyButes error bubbles up
 	readerKeys2 := &fixedKeychain{in: true} // allows us to not err on readerKeys.Get()
 	r2 := NewReceiver(cb, readerKeys2, acq, msAcq, docS).(*receiver)
-	keys, err = r2.createEncryptionKeys(api.RandBytes(rng, 16), nil) // bad authorPubBytes
+	env2 := &api.Envelope{
+		AuthorPublicKey: api.RandBytes(rng, 16), // bad authorPubBytes
+	}
+	eek, authorPub, err = r2.createEEK(env2)
 	assert.Equal(t, ecid.ErrKeyPointOffCurve, err)
-	assert.Nil(t, keys)
+	assert.Nil(t, eek)
+	assert.Nil(t, authorPub)
 
-	// check enc.NewKeys() error bubbles up
+	// check enc.NewKEK() error bubbles up
 	wrongCurveKey, err := ecdsa.GenerateKey(elliptic.P256(), rng)
 	assert.Nil(t, err)
-	readerKeys3 := &fixedKeychain{getKey: ecid.FromPrivateKey(wrongCurveKey)}
+	readerKeys3 := &fixedKeychain{
+		getKey: ecid.FromPrivateKey(wrongCurveKey),
+		in: true,
+	}
 	wrongCurveKeyPubBytes := ecid.ToPublicKeyBytes(readerKeys3.getKey)
-	keys, err = r2.createEncryptionKeys(wrongCurveKeyPubBytes, nil)
+	env3 := &api.Envelope{
+		AuthorPublicKey: wrongCurveKeyPubBytes,
+	}
+	r3 := NewReceiver(cb, readerKeys3, acq, msAcq, docS).(*receiver)
+	eek, authorPub, err = r3.createEEK(env3)
 	assert.Equal(t, ecid.ErrKeyPointOffCurve, err)
-	assert.Nil(t, keys)
+	assert.Nil(t, eek)
+	assert.Nil(t, authorPub)
+
+	// check Decrypt error bubbles up
+	authorKeys4, readerKeys4 := keychain.New(1), keychain.New(1)
+	authorKey, err := authorKeys4.Sample()
+	assert.Nil(t, err)
+	readerKey, err := readerKeys4.Sample()
+	assert.Nil(t, err)
+	env4 := &api.Envelope{
+		AuthorPublicKey: ecid.ToPublicKeyBytes(authorKey),
+		ReaderPublicKey: ecid.ToPublicKeyBytes(readerKey),
+		EekCiphertext: api.RandBytes(rng, api.EEKLength),
+		EekCiphertextMac: api.RandBytes(rng, api.HMAC256Length),  // does't match ciphertext
+	}
+	r4 := NewReceiver(cb, readerKeys4, acq, msAcq, docS).(*receiver)
+	eek, authorPub, err = r4.createEEK(env4)
+	assert.Equal(t, enc.ErrUnexpectedCiphertextMAC, err)
+	assert.Nil(t, eek)
+	assert.NotNil(t, authorPub)
 }
 
 type fixedAcquirer struct {

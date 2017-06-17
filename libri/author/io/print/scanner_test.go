@@ -20,8 +20,8 @@ func TestScanner_Scan_ok(t *testing.T) {
 	params, err := NewParameters(comp.MinBufferSize, page.MinSize, DefaultParallelism)
 	assert.Nil(t, err)
 	nPages := 10
-	keys, _, _ := enc.NewPseudoRandomKeys(rng)
 	pageKeys, _ := randPages(t, rng, nPages)
+	keys := enc.NewPseudoRandomEEK(rng)
 	writeUncompressedN := uint64(nPages * int(page.MinSize))
 	uncompressedSum := api.RandBytes(rng, api.HMAC256Length)
 	writeCiphertextN := writeUncompressedN
@@ -73,7 +73,7 @@ func TestScanner_Scan_err(t *testing.T) {
 	params, err := NewParameters(comp.MinBufferSize, page.MinSize, DefaultParallelism)
 	assert.Nil(t, err)
 	nPages := 10
-	keys, _, _ := enc.NewPseudoRandomKeys(rng)
+	keys := enc.NewPseudoRandomEEK(rng)
 	pageKeys, _ := randPages(t, rng, nPages)
 	content, mediaType := new(bytes.Buffer), "application/x-pdf"
 	entryMetadata, err := api.NewEntryMetadata(
@@ -155,7 +155,7 @@ func TestScanInitializerImpl_Initialize_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	params, err := NewParameters(comp.MinBufferSize, page.MinSize, DefaultParallelism)
 	assert.Nil(t, err)
-	keys, _, _ := enc.NewPseudoRandomKeys(rng)
+	keys := enc.NewPseudoRandomEEK(rng)
 	content, mediaType := new(bytes.Buffer), "application/x-pdf"
 	pages := make(chan *api.Page)
 
@@ -170,7 +170,7 @@ func TestScanInitializerImpl_Initialize_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	params, err := NewParameters(comp.MinBufferSize, page.MinSize, DefaultParallelism)
 	assert.Nil(t, err)
-	keys, _, _ := enc.NewPseudoRandomKeys(rng)
+	keys := enc.NewPseudoRandomEEK(rng)
 	content, mediaType := new(bytes.Buffer), "application/x-pdf"
 	pages := make(chan *api.Page)
 
@@ -198,7 +198,7 @@ func TestScanInitializerImpl_Initialize_err(t *testing.T) {
 	assert.Nil(t, decompressor)
 	assert.Nil(t, unpaginator)
 
-	keys3, _, _ := enc.NewPseudoRandomKeys(rng)
+	keys3 := enc.NewPseudoRandomEEK(rng)
 	keys3.AESKey = []byte{} // will trigger error when creating decrypter
 	scanInit3 := &scanInitializerImpl{
 		params: params,
@@ -210,7 +210,7 @@ func TestScanInitializerImpl_Initialize_err(t *testing.T) {
 	assert.Nil(t, decompressor)
 	assert.Nil(t, unpaginator)
 
-	keys4, _, _ := enc.NewPseudoRandomKeys(rng)
+	keys4 := enc.NewPseudoRandomEEK(rng)
 	keys4.HMACKey = []byte{} // will trigger error when creating unpaginator
 	scanInit4 := &scanInitializerImpl{
 		params: params,
@@ -290,7 +290,7 @@ type fixedScanInitializer struct {
 }
 
 func (f *fixedScanInitializer) Initialize(
-	content io.Writer, mediaType string, keys *enc.Keys, pages chan *api.Page,
+	content io.Writer, mediaType string, keys *enc.EEK, pages chan *api.Page,
 ) (comp.Decompressor, page.Unpaginator, error) {
 
 	f.initUnpaginator.pages = pages
