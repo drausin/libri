@@ -23,7 +23,7 @@ jobs:
           command: |
             make build          # ensure everything builds ok
             case ${CIRCLE_NODE_INDEX} in
-              0)
+              1)
                 make build-static   # build linux binary for Docker image
                 make docker-image   # ensure Docker image builds ok, even though only used on deployment
                 ;;
