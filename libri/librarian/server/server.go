@@ -63,7 +63,7 @@ type Librarian struct {
 	serverSL storage.NamespaceSL
 
 	// SL for p2p stored documents
-	documentSL storage.DocumentStorerLoader
+	documentSL storage.DocumentSL
 
 	// ensures keys are valid
 	kc storage.Checker

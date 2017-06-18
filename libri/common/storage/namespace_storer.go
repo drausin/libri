@@ -122,10 +122,15 @@ type DocumentDeleter interface {
 	Delete(key cid.ID) error
 }
 
-// DocumentSLD stores, loads, & deletes api.Document values.
-type DocumentSLD interface {
+// DocumentSL stores & loads api.Document values.
+type DocumentSL interface {
 	DocumentStorer
 	DocumentLoader
+}
+
+// DocumentSLD stores, loads, & deletes api.Document values.
+type DocumentSLD interface {
+	DocumentSL
 	DocumentDeleter
 }
 

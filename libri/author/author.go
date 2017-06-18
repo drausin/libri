@@ -70,7 +70,7 @@ type Author struct {
 	clientSL storage.NamespaceSL
 
 	// SL for locally stored documents
-	documentSL storage.DocumentStorerLoader
+	documentSL storage.DocumentSLD
 
 	// load balancer for librarian clients
 	librarians api.ClientBalancer
@@ -299,10 +299,6 @@ func (a *Author) Download(content io.Writer, envelopeKey id.ID) error {
 		zap.Float32("speed_Mbps", speedMbps),
 	)
 	return nil
-}
-
-func (a *Author) Share(readerKey id.ID) error {
-
 }
 
 func getEntryInfo(entry *api.Document) (id.ID, int, error) {
