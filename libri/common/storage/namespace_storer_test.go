@@ -144,9 +144,11 @@ func TestDocumentNamespaceStorerLoader_Store_err(t *testing.T) {
 func TestDocumentStorerLoader_Load_empty(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	key := cid.NewPseudoRandom(rng)
-	dsl1 := NewDocumentSLD(&fixedSLD{
-		loadValue: nil, // simulates empty/missing value
-	})
+	dsl1 := &documentSLD{
+		sld: &fixedNamespaceSLD{
+			loadValue: nil,  // simulates missing/empty value
+		},
+	}
 
 	// check that load returns nil
 	value, err := dsl1.Load(key)
@@ -157,9 +159,11 @@ func TestDocumentStorerLoader_Load_empty(t *testing.T) {
 func TestDocumentStorerLoader_Load_loadErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	key := cid.NewPseudoRandom(rng)
-	dsl1 := NewDocumentSLD(&fixedSLD{
-		loadErr: errors.New("some load error"),
-	})
+	dsl1 := &documentSLD{
+		sld: &fixedNamespaceSLD{
+			loadErr: errors.New("some load error"),
+		},
+	}
 
 	// check that load error propagates up
 	_, err := dsl1.Load(key)
@@ -226,5 +230,25 @@ func (fsld *fixedSLD) Load(namespace []byte, key []byte) ([]byte, error) {
 
 func (fsld *fixedSLD) Delete(namespace []byte, key []byte) error {
 	return fsld.deleteErr
+}
+
+type fixedNamespaceSLD struct {
+	loadValue []byte
+	storeErr  error
+	loadErr   error
+	deleteErr error
+}
+
+func (f *fixedNamespaceSLD) Store(key []byte, value []byte) error {
+	return f.storeErr
+}
+
+func (f *fixedNamespaceSLD) Load(key []byte) ([]byte, error) {
+	return f.loadValue, f.loadErr
+
+}
+
+func (f *fixedNamespaceSLD) Delete(key []byte) error {
+	return f.deleteErr
 }
 

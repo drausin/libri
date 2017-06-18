@@ -169,7 +169,7 @@ func TestPrintScan(t *testing.T) {
 	authorPub := api.RandBytes(rng, api.ECPubKeyLength)
 	keys := enc.NewPseudoRandomEEK(rng)
 	pageSL := page.NewStorerLoader(
-		&memDocumentStorerLoader{
+		&fixedDocumentSLD{
 			stored: make(map[string]*api.Document),
 		},
 	)
@@ -362,17 +362,24 @@ func (f *fixedMAC) Write(p []byte) (int, error) {
 	return int(f.messageSize), nil
 }
 
-type memDocumentStorerLoader struct {
-	stored map[string]*api.Document
+type fixedDocumentSLD struct {
+	stored    map[string]*api.Document
+	storeErr  error
+	loadErr   error
+	deleteErr error
 }
 
-func (m *memDocumentStorerLoader) Store(key cid.ID, value *api.Document) error {
-	m.stored[key.String()] = value
+func (f *fixedDocumentSLD) Store(key cid.ID, value *api.Document) error {
+	f.stored[key.String()] = value
+	return f.storeErr
+}
+
+func (f *fixedDocumentSLD) Load(key cid.ID) (*api.Document, error) {
+	return f.stored[key.String()], nil
+}
+
+func (f *fixedDocumentSLD) Delete(key cid.ID) error {
 	return nil
-}
-
-func (m *memDocumentStorerLoader) Load(key cid.ID) (*api.Document, error) {
-	return m.stored[key.String()], nil
 }
 
 func randPages(t *testing.T, rng *rand.Rand, n int) ([]cid.ID, []*api.Page) {

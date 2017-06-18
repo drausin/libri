@@ -61,6 +61,8 @@ func NewKVDBStorerLoaderDeleter(
 	}
 }
 
+// NewKVDBStorerLoader returns a new StorerLoader backed by a db.KVDB instance and with the given
+// key and value checkers.
 func NewKVDBStorerLoader(db db.KVDB, keyChecker Checker, valueChecker Checker) StorerLoader {
 	return NewKVDBStorerLoaderDeleter(db, keyChecker, valueChecker)
 }

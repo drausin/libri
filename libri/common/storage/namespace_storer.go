@@ -60,6 +60,7 @@ type NamespaceSL interface {
 	NamespaceLoader
 }
 
+// NamespaceSLD stores, loads, and deletes values in a configured namespace.
 type NamespaceSLD interface {
 	NamespaceSL
 	NamespaceDeleter
@@ -118,7 +119,9 @@ type DocumentLoader interface {
 	Load(key cid.ID) (*api.Document, error)
 }
 
+// DocumentDeleter deletes api.Document values.
 type DocumentDeleter interface {
+	// Delete the api.Document value with the given key.
 	Delete(key cid.ID) error
 }
 
