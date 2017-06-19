@@ -40,6 +40,8 @@ spec:
   capacity:
     storage: 1Gi
   accessModes: ["ReadWriteOnce"]
+  gcePersistentDisk:
+      fsType: "ext4"
   hostPath:
     path: "/data/data-librarians-0"
 ---
@@ -84,6 +86,8 @@ spec:
   capacity:
     storage: 1Gi
   accessModes: ["ReadWriteOnce"]
+  gcePersistentDisk:
+      fsType: "ext4"
   hostPath:
     path: "/data/data-librarians-1"
 ---
@@ -128,6 +132,8 @@ spec:
   capacity:
     storage: 1Gi
   accessModes: ["ReadWriteOnce"]
+  gcePersistentDisk:
+      fsType: "ext4"
   hostPath:
     path: "/data/data-librarians-2"
 ---
