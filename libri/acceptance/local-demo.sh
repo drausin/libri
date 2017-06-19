@@ -42,8 +42,8 @@ for c in $(seq 0 $((${N_LIBRARIANS} - 1))); do
         --localPort ${port} \
         --localHost ${host} \
         --bootstraps "${host}:20100"
-    librarian_addrs="${host}:${port} ${librarian_addrs}"
-    librarian_containers="${name},${librarian_containers}"
+    librarian_addrs="${host}:${port},${librarian_addrs}"
+    librarian_containers="${name} ${librarian_containers}"
 done
 librarian_addrs=${librarian_addrs::-1}  # remove trailing space
 sleep 5  # TODO (drausin) add retry to healthcheck
