@@ -159,26 +159,29 @@ func (p *publisher) Publish(doc *api.Document, authorPub []byte, lc api.Putter) 
 // SingleLoadPublisher publishes documents from internal storage.
 type SingleLoadPublisher interface {
 	// Publish loads a document with the given key and publishes them using the given
-	// librarian client.
-	Publish(docKey cid.ID, authorPub []byte, lc api.Putter) error
+	// librarian client, optionally deleting the document after it is published.
+	Publish(docKey cid.ID, authorPub []byte, lc api.Putter, delete bool) error
 }
 
 type singleLoadPublisher struct {
 	inner Publisher
-	docL  storage.DocumentLoader
+	docLD storage.DocumentLD
 }
 
 // NewSingleLoadPublisher creates a new SingleLoadPublisher from an inner Publisher and a
-// storage.DocumentLoader (from which it loads the documents to publish).
-func NewSingleLoadPublisher(inner Publisher, docL storage.DocumentLoader) SingleLoadPublisher {
+// storage.DocumentLD (from which it loads the documents to publish).
+func NewSingleLoadPublisher(inner Publisher, docLD storage.DocumentLD) SingleLoadPublisher {
 	return &singleLoadPublisher{
 		inner: inner,
-		docL:  docL,
+		docLD: docLD,
 	}
 }
 
-func (p *singleLoadPublisher) Publish(docKey cid.ID, authorPub []byte, lc api.Putter) error {
-	pageDoc, err := p.docL.Load(docKey)
+func (p *singleLoadPublisher) Publish(
+	docKey cid.ID, authorPub []byte, lc api.Putter, delete bool,
+) error {
+
+	pageDoc, err := p.docLD.Load(docKey)
 	if err != nil {
 		return err
 	}
@@ -188,14 +191,18 @@ func (p *singleLoadPublisher) Publish(docKey cid.ID, authorPub []byte, lc api.Pu
 	if _, err := p.inner.Publish(pageDoc, authorPub, lc); err != nil {
 		return err
 	}
+	if delete {
+		return p.docLD.Delete(docKey)
+	}
 	return nil
 }
 
 // MultiLoadPublisher loads and publishes a collection of documents from internal storage.
 type MultiLoadPublisher interface {
-	// Publish in parallel loads and publishes the documents with the given keys. It balances
-	// between librarian clients for its Put requests.
-	Publish(docKeys []cid.ID, authorPub []byte, cb api.ClientBalancer) error
+	// Publish in parallel loads and publishes the documents with the given keys, optionally
+	// deleting them from local storage after successful delete. It balances between librarian
+	// clients for its Put requests.
+	Publish(docKeys []cid.ID, authorPub []byte, cb api.ClientBalancer, delete bool) error
 }
 
 type multiLoadPublisher struct {
@@ -212,7 +219,7 @@ func NewMultiLoadPublisher(inner SingleLoadPublisher, params *Parameters) MultiL
 }
 
 func (p *multiLoadPublisher) Publish(
-	docKeys []cid.ID, authorPub []byte, cb api.ClientBalancer,
+	docKeys []cid.ID, authorPub []byte, cb api.ClientBalancer, delete bool,
 ) error {
 
 	docKeysChan := make(chan cid.ID, p.params.PutParallelism)
@@ -228,7 +235,7 @@ func (p *multiLoadPublisher) Publish(
 					putErrs <- err
 					return
 				}
-				if err := p.inner.Publish(docKey, authorPub, lc); err != nil {
+				if err := p.inner.Publish(docKey, authorPub, lc, delete); err != nil {
 					putErrs <- err
 					break
 				}

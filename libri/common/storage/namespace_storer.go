@@ -131,6 +131,12 @@ type DocumentSL interface {
 	DocumentLoader
 }
 
+// DocumentLD stores & loads api.Document values.
+type DocumentLD interface {
+	DocumentLoader
+	DocumentDeleter
+}
+
 // DocumentSLD stores, loads, & deletes api.Document values.
 type DocumentSLD interface {
 	DocumentSL

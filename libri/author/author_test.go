@@ -220,13 +220,13 @@ func TestAuthor_UploadDownload(t *testing.T) {
 	}
 
 	// but need to re-init shipper & reciever via publishers/acquirers
-	slPublisher := publish.NewSingleLoadPublisher(pubAcq, a.documentSL)
-	ssAcquirer := publish.NewSingleStoreAcquirer(pubAcq, a.documentSL)
+	slPublisher := publish.NewSingleLoadPublisher(pubAcq, a.documentSLD)
+	ssAcquirer := publish.NewSingleStoreAcquirer(pubAcq, a.documentSLD)
 	mlPublisher := publish.NewMultiLoadPublisher(slPublisher, a.config.Publish)
 	msAcquirer := publish.NewMultiStoreAcquirer(ssAcquirer, a.config.Publish)
 	a.shipper = ship.NewShipper(a.librarians, pubAcq, mlPublisher)
 	a.receiver = ship.NewReceiver(a.librarians, a.selfReaderKeys, pubAcq, msAcquirer,
-		a.documentSL)
+		a.documentSLD)
 
 	page.MinSize = 64 // just for testing
 	pageSizes := []uint32{128, 256, 512}

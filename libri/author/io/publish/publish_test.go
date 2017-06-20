@@ -120,47 +120,62 @@ func TestPublisher_Publish_err(t *testing.T) {
 func TestSingleLoadPublisher_Publish_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	pub := &fixedPublisher{}
-	docL := &memDocStorerLoader{
+	docLD := &fixedDocSLD{
 		docs: make(map[string]*api.Document),
 	}
 	lc := &fixedPutter{}
-	slPub := NewSingleLoadPublisher(pub, docL)
-	doc, docKey := api.NewTestDocument(rng)
+	slPub := NewSingleLoadPublisher(pub, docLD)
+	doc1, docKey := api.NewTestDocument(rng)
 
-	// add document to memDocLoader so that it's present for docL.Load()
-	docL.docs[docKey.String()] = doc
+	// add document to memDocLoader so that it's present for docLD.Load()
+	docLD.docs[docKey.String()] = doc1
 
-	err := slPub.Publish(docKey, api.GetAuthorPub(doc), lc)
+	// check publish without delete leaves doc
+	err := slPub.Publish(docKey, api.GetAuthorPub(doc1), lc, false)
 	assert.Nil(t, err)
+	doc2, err := docLD.Load(docKey)
+	assert.Nil(t, err)
+	assert.Equal(t, doc1, doc2)
+
+	// check publish with delete removes doc
+	err = slPub.Publish(docKey, api.GetAuthorPub(doc1), lc, true)
+	assert.Nil(t, err)
+	doc3, err := docLD.Load(docKey)
+	assert.Nil(t, err)
+	assert.Nil(t, doc3)
 }
 
 func TestSingleLoadPublisher_Publish_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	pub := &fixedPublisher{}
-	docL := &memDocStorerLoader{
+	docL := &fixedDocSLD{
 		docs: make(map[string]*api.Document),
 	}
 	lc := &fixedPutter{}
 	doc, docKey := api.NewTestDocument(rng)
 
 	// check docL.Load error bubbles up
-	slPub := NewSingleLoadPublisher(pub, &errDocLoader{})
-	err := slPub.Publish(docKey, api.GetAuthorPub(doc), lc)
+	slPub := NewSingleLoadPublisher(pub, &fixedDocSLD{loadError: errors.New("some Load error")})
+	err := slPub.Publish(docKey, api.GetAuthorPub(doc), lc, false)
 	assert.NotNil(t, err)
 
-	// check that missing doc triggers error
+	// check missing doc triggers error
 	slPub = NewSingleLoadPublisher(pub, docL)
-	err = slPub.Publish(docKey, api.GetAuthorPub(doc), lc)
+	err = slPub.Publish(docKey, api.GetAuthorPub(doc), lc, false)
 	assert.Equal(t, ErrUnexpectedMissingDocument, err)
 
+	// check missing doc triggers error
 	pub3 := &fixedPublisher{
 		publishErr: errors.New("some Publish error"),
 	}
 	slPub = NewSingleLoadPublisher(pub3, docL)
 	docL.docs[docKey.String()] = doc
+	err = slPub.Publish(docKey, api.GetAuthorPub(doc), lc, false)
+	assert.NotNil(t, err)
 
-	// check that missing doc triggers error
-	err = slPub.Publish(docKey, api.GetAuthorPub(doc), lc)
+	// check delete error bubbles up
+	slPub = NewSingleLoadPublisher(pub, &fixedDocSLD{deleteError: errors.New("some Delete error")})
+	err = slPub.Publish(docKey, api.GetAuthorPub(doc), lc, false)
 	assert.NotNil(t, err)
 }
 
@@ -174,21 +189,24 @@ func TestMultiLoadPublisher_Publish_ok(t *testing.T) {
 		}
 		authorKey := ecid.ToPublicKeyBytes(ecid.NewPseudoRandom(rng))
 		for _, putParallelism := range []uint32{1, 2, 3} {
-			slPub := &fixedSingleLoadPublisher{
-				publishedKeys: make(map[string]struct{}),
-			}
-			params, err := NewParameters(DefaultPutTimeout, DefaultGetTimeout,
-				putParallelism, DefaultGetParallelism)
-			assert.Nil(t, err)
-			mlPub := NewMultiLoadPublisher(slPub, params)
+			for _, deleteDoc := range []bool{true, false} {
+				slPub := &fixedSingleLoadPublisher{
+					publishedKeys: make(map[string]bool),
+				}
+				params, err := NewParameters(DefaultPutTimeout, DefaultGetTimeout,
+					putParallelism, DefaultGetParallelism)
+				assert.Nil(t, err)
+				mlPub := NewMultiLoadPublisher(slPub, params)
 
-			err = mlPub.Publish(docKeys, authorKey, cb)
-			assert.Nil(t, err)
+				err = mlPub.Publish(docKeys, authorKey, cb, deleteDoc)
+				assert.Nil(t, err)
 
-			// check all keys have been "published"
-			for _, docKey := range docKeys {
-				_, in := slPub.publishedKeys[docKey.String()]
-				assert.True(t, in)
+				// check all keys have been "published"
+				for _, docKey := range docKeys {
+					deleted, in := slPub.publishedKeys[docKey.String()]
+					assert.True(t, in)
+					assert.Equal(t, deleteDoc, deleted)
+				}
 			}
 		}
 	}
@@ -212,7 +230,7 @@ func TestMultiLoadPublisher_Publish_err(t *testing.T) {
 			assert.Nil(t, err)
 			mlPub := NewMultiLoadPublisher(slPub, params)
 
-			err = mlPub.Publish(docKeys, authorKey, cb)
+			err = mlPub.Publish(docKeys, authorKey, cb, false)
 			assert.NotNil(t, err)
 		}
 	}
@@ -235,14 +253,14 @@ func TestMultiAcquirePublish(t *testing.T) {
 		pubAcq := &memPublisherAcquirer{
 			docs: make(map[string]*api.Document),
 		}
-		docSL1 := &memDocStorerLoader{
+		docSL1 := &fixedDocSLD{
 			docs: make(map[string]*api.Document),
 		}
 		mlP := NewMultiLoadPublisher(
 			NewSingleLoadPublisher(pubAcq, docSL1),
 			params,
 		)
-		docSL2 := &memDocStorerLoader{
+		docSL2 := &fixedDocSLD{
 			docs: make(map[string]*api.Document),
 		}
 		msA := NewMultiStoreAcquirer(
@@ -260,7 +278,7 @@ func TestMultiAcquirePublish(t *testing.T) {
 		}
 
 		// publish & then acquire docs
-		err = mlP.Publish(docKeys, nil, cb)
+		err = mlP.Publish(docKeys, nil, cb, false)
 		assert.Nil(t, err)
 		err = msA.Acquire(docKeys, nil, cb)
 		assert.Nil(t, err)
@@ -344,29 +362,31 @@ func (f *fixedSigner) Sign(m proto.Message) (string, error) {
 	return f.signature, f.err
 }
 
-type memDocStorerLoader struct {
-	docs map[string]*api.Document
-	mu   sync.Mutex
+type fixedDocSLD struct {
+	docs        map[string]*api.Document
+	mu          sync.Mutex
+	loadError   error
+	storeError  error
+	deleteError error
 }
 
-func (m *memDocStorerLoader) Load(key id.ID) (*api.Document, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	value, _ := m.docs[key.String()]
-	return value, nil
+func (f *fixedDocSLD) Load(key id.ID) (*api.Document, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	value, _ := f.docs[key.String()]
+	return value, f.loadError
 }
 
-func (m *memDocStorerLoader) Store(key id.ID, value *api.Document) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.docs[key.String()] = value
-	return nil
+func (f *fixedDocSLD) Store(key id.ID, value *api.Document) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.docs[key.String()] = value
+	return f.storeError
 }
 
-type errDocLoader struct{}
-
-func (m *errDocLoader) Load(key id.ID) (*api.Document, error) {
-	return nil, errors.New("some Load error")
+func (f *fixedDocSLD) Delete(key id.ID) error {
+	delete(f.docs, key.String())
+	return f.deleteError
 }
 
 type fixedPublisher struct {
@@ -407,15 +427,17 @@ func (p *memPublisherAcquirer) Acquire(docKey id.ID, authorPub []byte, lc api.Ge
 
 type fixedSingleLoadPublisher struct {
 	mu            sync.Mutex
-	publishedKeys map[string]struct{}
+	publishedKeys map[string]bool  // key -> deleted value
 	err           error
 }
 
-func (f *fixedSingleLoadPublisher) Publish(docKey id.ID, authorPub []byte, lc api.Putter) error {
+func (f *fixedSingleLoadPublisher) Publish(
+	docKey id.ID, authorPub []byte, lc api.Putter, delete bool,
+) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.err == nil {
-		f.publishedKeys[docKey.String()] = struct{}{}
+		f.publishedKeys[docKey.String()] = delete
 	}
 	return f.err
 }

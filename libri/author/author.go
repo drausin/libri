@@ -69,8 +69,8 @@ type Author struct {
 	// SL for client data
 	clientSL storage.NamespaceSL
 
-	// SL for locally stored documents
-	documentSL storage.DocumentSLD
+	// SLD for locally stored documents
+	documentSLD storage.DocumentSLD
 
 	// load balancer for librarian clients
 	librarians api.ClientBalancer
@@ -158,7 +158,7 @@ func NewAuthor(
 		envelopeKeys:     envelopeKeys,
 		db:               rdb,
 		clientSL:         clientSL,
-		documentSL:       documentSL,
+		documentSLD:      documentSL,
 		librarians:       librarians,
 		librarianHealths: librarianHealths,
 		entryPacker:      entryPacker,

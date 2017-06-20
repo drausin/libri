@@ -22,6 +22,7 @@ type shipper struct {
 	librarians  api.ClientBalancer
 	publisher   publish.Publisher
 	mlPublisher publish.MultiLoadPublisher
+	deletePages bool
 }
 
 // NewShipper creates a new Shipper from a librarian api.ClientBalancer and two publisher variants.
@@ -33,6 +34,7 @@ func NewShipper(
 		librarians:  librarians,
 		publisher:   publisher,
 		mlPublisher: mlPublisher,
+		deletePages: true,
 	}
 }
 
@@ -46,7 +48,8 @@ func (s *shipper) Ship(
 		return nil, nil, err
 	}
 	if pageKeys != nil {
-		if err = s.mlPublisher.Publish(pageKeys, authorPub, s.librarians); err != nil {
+		err = s.mlPublisher.Publish(pageKeys, authorPub, s.librarians, s.deletePages)
+		if err != nil {
 			return nil, nil, err
 		}
 	}
