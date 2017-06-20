@@ -128,7 +128,7 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 func TestLibrarian_Introduce_checkRequestErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	l := &Librarian{
-		logger:      clogging.NewDevInfoLogger(),
+		logger: clogging.NewDevInfoLogger(),
 	}
 	rq := &api.IntroduceRequest{
 		Metadata: client.NewRequestMetadata(ecid.NewPseudoRandom(rng)),
@@ -148,7 +148,7 @@ func TestLibrarian_Introduce_peerIDErr(t *testing.T) {
 		fromer: peer.NewFromer(),
 		rt:     rt,
 		rqv:    &alwaysRequestVerifier{},
-		logger:      clogging.NewDevInfoLogger(),
+		logger: clogging.NewDevInfoLogger(),
 	}
 
 	clientID, clientPeerIdx := ecid.NewPseudoRandom(rng), 1
@@ -189,6 +189,7 @@ func TestLibrarian_Find(t *testing.T) {
 				kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 				rt:         rt,
 				rqv:        &alwaysRequestVerifier{},
+				logger:     clogging.NewDevInfoLogger(),
 			}
 
 			numClosest := uint32(routing.DefaultMaxActivePeers)
@@ -243,6 +244,7 @@ func TestLibrarian_Find_present(t *testing.T) {
 		rt:         rt,
 		kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		rqv:        &alwaysRequestVerifier{},
+		logger:     clogging.NewDevInfoLogger(),
 	}
 
 	// create key-value and store
@@ -284,6 +286,7 @@ func TestLibrarian_Find_missing(t *testing.T) {
 		documentSL: storage.NewDocumentKVDBStorerLoader(kvdb),
 		kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		rqv:        &alwaysRequestVerifier{},
+		logger:     clogging.NewDevInfoLogger(),
 	}
 
 	// make request
@@ -303,7 +306,9 @@ func TestLibrarian_Find_missing(t *testing.T) {
 
 func TestLibrarian_Find_checkRequestError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	l := &Librarian{}
+	l := &Librarian{
+		logger: clogging.NewDevInfoLogger(),
+	}
 	rq := client.NewFindRequest(ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng), uint(8))
 	rq.Metadata.PubKey = []byte("corrupted pub key")
 
@@ -361,7 +366,9 @@ func newTestRequestMetadata(rng *rand.Rand, peerID ecid.ID) *api.RequestMetadata
 
 func TestLibrarian_Store_checkRequestError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	l := &Librarian{}
+	l := &Librarian{
+		logger: clogging.NewDevInfoLogger(),
+	}
 	value, key := api.NewTestDocument(rng)
 	rq := client.NewStoreRequest(ecid.NewPseudoRandom(rng), key, value)
 	rq.Metadata.PubKey = []byte("corrupted pub key")
@@ -391,6 +398,7 @@ func TestLibrarian_Store_storeError(t *testing.T) {
 		kvc:        storage.NewHashKeyValueChecker(),
 		rqv:        &alwaysRequestVerifier{},
 		documentSL: &errDocStorerLoader{},
+		logger:     clogging.NewDevInfoLogger(),
 	}
 	value, key := api.NewTestDocument(rng)
 	rq := client.NewStoreRequest(ecid.NewPseudoRandom(rng), key, value)
@@ -510,7 +518,9 @@ func TestLibrarian_Get_err(t *testing.T) {
 
 func TestLibrarian_Get_checkRequestError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	l := &Librarian{}
+	l := &Librarian{
+		logger: clogging.NewDevInfoLogger(),
+	}
 	rq := client.NewGetRequest(ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng))
 	rq.Metadata.PubKey = []byte("corrupted pub key")
 
@@ -631,7 +641,9 @@ func TestLibrarian_Put_err(t *testing.T) {
 
 func TestLibrarian_Put_checkRequestError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	l := &Librarian{}
+	l := &Librarian{
+		logger: clogging.NewDevInfoLogger(),
+	}
 	value, key := api.NewTestDocument(rng)
 	rq := client.NewPutRequest(ecid.NewPseudoRandom(rng), key, value)
 	rq.Metadata.PubKey = []byte("corrupted pub key")
