@@ -31,19 +31,20 @@ spec:
 kind: PersistentVolume
 apiVersion: v1
 metadata:
-  name: data-0
+  name: data-librarians-0
   labels:
     app: libri
   annotations:
-    volume.beta.kubernetes.io/storage-class: default
+    volume.beta.kubernetes.io/storage-class: standard
 spec:
   capacity:
-    storage: 1Gi
+    storage: 2Gi
   accessModes: ["ReadWriteOnce"]
   gcePersistentDisk:
       fsType: "ext4"
-  hostPath:
-    path: "/data/data-librarians-0"
+      pdName: "data-librarians-0"
+#  hostPath:
+#    path: "/data/data-librarians-0"
 ---
 # PersistentVolumeClaim for librarian 0's PersistentVolume
 kind: PersistentVolumeClaim
@@ -53,7 +54,7 @@ metadata:
   labels:
     app: libri
   annotations:
-    volume.beta.kubernetes.io/storage-class: default
+    volume.beta.kubernetes.io/storage-class: standard
 spec:
   accessModes: ["ReadWriteOnce"]
   resources:
@@ -77,19 +78,20 @@ spec:
 kind: PersistentVolume
 apiVersion: v1
 metadata:
-  name: data-1
+  name: data-librarians-1
   labels:
     app: libri
   annotations:
-    volume.beta.kubernetes.io/storage-class: default
+    volume.beta.kubernetes.io/storage-class: standard
 spec:
   capacity:
-    storage: 1Gi
+    storage: 2Gi
   accessModes: ["ReadWriteOnce"]
   gcePersistentDisk:
       fsType: "ext4"
-  hostPath:
-    path: "/data/data-librarians-1"
+      pdName: "data-librarians-1"
+#  hostPath:
+#    path: "/data/data-librarians-1"
 ---
 # PersistentVolumeClaim for librarian 1's PersistentVolume
 kind: PersistentVolumeClaim
@@ -99,7 +101,7 @@ metadata:
   labels:
     app: libri
   annotations:
-    volume.beta.kubernetes.io/storage-class: default
+    volume.beta.kubernetes.io/storage-class: standard
 spec:
   accessModes: ["ReadWriteOnce"]
   resources:
@@ -123,19 +125,20 @@ spec:
 kind: PersistentVolume
 apiVersion: v1
 metadata:
-  name: data-2
+  name: data-librarians-2
   labels:
     app: libri
   annotations:
-    volume.beta.kubernetes.io/storage-class: default
+    volume.beta.kubernetes.io/storage-class: standard
 spec:
   capacity:
-    storage: 1Gi
+    storage: 2Gi
   accessModes: ["ReadWriteOnce"]
   gcePersistentDisk:
       fsType: "ext4"
-  hostPath:
-    path: "/data/data-librarians-2"
+      pdName: "data-librarians-2"
+#  hostPath:
+#    path: "/data/data-librarians-2"
 ---
 # PersistentVolumeClaim for librarian 2's PersistentVolume
 kind: PersistentVolumeClaim
@@ -145,7 +148,7 @@ metadata:
   labels:
     app: libri
   annotations:
-    volume.beta.kubernetes.io/storage-class: default
+    volume.beta.kubernetes.io/storage-class: standard
 spec:
   accessModes: ["ReadWriteOnce"]
   resources:
@@ -174,6 +177,7 @@ spec:
           "--nSubscriptions", "2",
           "--dataDir", "/data",
           "--bootstraps", "librarians-0.libri.default.svc.cluster.local:20100",
+          "-l", "debug"
         ]
         env:
         - name: GODEBUG         # ensure we use the pure Go (rather than CGO) DNS

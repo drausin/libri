@@ -32,19 +32,20 @@ spec:
 kind: PersistentVolume
 apiVersion: v1
 metadata:
-  name: data-{{ $index }}
+  name: data-librarians-{{ $index }}
   labels:
     app: libri
   annotations:
-    volume.beta.kubernetes.io/storage-class: default
+    volume.beta.kubernetes.io/storage-class: standard
 spec:
   capacity:
-    storage: 1Gi
+    storage: 2Gi
   accessModes: ["ReadWriteOnce"]
   gcePersistentDisk:
       fsType: "ext4"
-  hostPath:
-    path: "/data/data-librarians-{{ $index }}"
+      pdName: "data-librarians-{{ $index }}"
+#  hostPath:
+#    path: "/data/data-librarians-{{ $index }}"
 ---
 # PersistentVolumeClaim for librarian {{ $index }}'s PersistentVolume
 kind: PersistentVolumeClaim
@@ -54,7 +55,7 @@ metadata:
   labels:
     app: libri
   annotations:
-    volume.beta.kubernetes.io/storage-class: default
+    volume.beta.kubernetes.io/storage-class: standard
 spec:
   accessModes: ["ReadWriteOnce"]
   resources:
@@ -84,6 +85,7 @@ spec:
           "--nSubscriptions", "2",
           "--dataDir", "/data",
           "--bootstraps", "librarians-0.libri.default.svc.cluster.local:{{ $localPort }}",
+          "-l", "debug"
         ]
         env:
         - name: GODEBUG         # ensure we use the pure Go (rather than CGO) DNS
