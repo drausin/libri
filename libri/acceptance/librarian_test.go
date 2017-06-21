@@ -396,6 +396,10 @@ func tearDown(
 	// gracefully shut down peers and seeds
 	for _, p1 := range peers {
 		go func(p2 *server.Librarian) {
+			// explicitly end subscriptions first and then sleep so that later librarians
+			// don't crash b/c of flurry of ended subscriptions from earlier librarians
+			p2.EndSubscriptions()
+			time.Sleep(3 * time.Second)
 			p2.Close()
 		}(p1)
 	}
