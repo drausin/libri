@@ -85,7 +85,7 @@ func (*authorConfigGetterImpl) get(librariansFlag string) (*author.Config, *zap.
 	config := author.NewDefaultConfig().
 		WithDataDir(viper.GetString(dataDirFlag)).
 		WithLogLevel(getLogLevel())
-	timeout := time.Duration(viper.GetInt(timeoutFlag) * 1e6)
+	timeout := time.Duration(viper.GetInt(timeoutFlag) * 1e9)
 	config.Publish.PutTimeout = timeout
 	config.Publish.GetTimeout = timeout
 
