@@ -7,6 +7,8 @@ GIT_STATUS_PKGS=$(shell git status --porcelain | grep -e '\.go$$' | sed -r 's|^.
 CHANGED_PKGS=$(shell echo $(ALL_PKGS) $(GIT_STATUS_PKGS) | tr " " "\n" | sort | uniq -d)
 SHELL=/bin/bash -eou pipefail
 
+.PHONY: build
+
 acceptance:
 	@echo "--> Running acceptance tests"
 	@go test -tags acceptance -v github.com/drausin/libri/libri/acceptance 2>&1 | tee acceptance.log

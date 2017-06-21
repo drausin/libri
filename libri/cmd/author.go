@@ -13,20 +13,22 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 	"github.com/drausin/libri/libri/common/id"
 	"io"
+	"time"
 )
 
 const (
-	parallelismFlag = "parallelism"
-	keychainDirFlag = "keychainsDir"
-	passphraseVar = "passphrase"
+	parallelismFlag      = "parallelism"
+	keychainDirFlag      = "keychainsDir"
+	passphraseVar        = "passphrase"
 	authorLibrariansFlag = "authorLibrarians"
+	timeoutFlag          = "timeout"
 )
 
 // authorCmd represents the author command
 var authorCmd = &cobra.Command{
 	Use:   "author",
 	Short: "run an author client of the libri network",
-	Long: `TODO (drausin) add longer description and examples here`,
+	Long:  `TODO (drausin) add longer description and examples here`,
 }
 
 func init() {
@@ -35,6 +37,8 @@ func init() {
 	authorCmd.PersistentFlags().StringP(keychainDirFlag, "k", "", "local keychains directory")
 	authorCmd.PersistentFlags().StringSliceP(authorLibrariansFlag, "a", nil,
 		"comma-separated addresses (IPv4:Port) of librarian(s)")
+	authorCmd.PersistentFlags().Int(timeoutFlag, 5,
+		"timeout (seconds) for requests to librarians")
 
 	// bind viper flags
 	viper.SetEnvPrefix(envVarPrefix) // look for env vars with "LIBRI_" prefix
@@ -49,13 +53,13 @@ type authorGetter interface {
 }
 
 type authorGetterImpl struct {
-	acg authorConfigGetter
+	acg            authorConfigGetter
 	librariansFlag string
 }
 
 func newAuthorGetter() authorGetter {
 	return &authorGetterImpl{
-		acg: &authorConfigGetterImpl{},
+		acg:            &authorConfigGetterImpl{},
 		librariansFlag: authorLibrariansFlag,
 	}
 }
@@ -75,12 +79,15 @@ type authorConfigGetter interface {
 	get(librariansFlag string) (*author.Config, *zap.Logger, error)
 }
 
-type authorConfigGetterImpl struct {}
+type authorConfigGetterImpl struct{}
 
 func (*authorConfigGetterImpl) get(librariansFlag string) (*author.Config, *zap.Logger, error) {
 	config := author.NewDefaultConfig().
 		WithDataDir(viper.GetString(dataDirFlag)).
 		WithLogLevel(getLogLevel())
+	timeout := time.Duration(viper.GetInt(timeoutFlag) * 1e9)
+	config.Publish.PutTimeout = timeout
+	config.Publish.GetTimeout = timeout
 
 	logger := clogging.NewDevLogger(config.LogLevel)
 	librarianNetAddrs, err := server.ParseAddrs(viper.GetStringSlice(librariansFlag))
@@ -94,6 +101,7 @@ func (*authorConfigGetterImpl) get(librariansFlag string) (*author.Config, *zap.
 		zap.String(librariansFlag, fmt.Sprintf("%v", config.LibrarianAddrs)),
 		zap.String(dataDirFlag, config.DataDir),
 		zap.Stringer(logLevelFlag, config.LogLevel),
+		zap.Int(timeoutFlag, int(timeout.Seconds())),
 	)
 	return config, logger, nil
 }
@@ -102,7 +110,7 @@ type passphraseGetter interface {
 	get() (string, error)
 }
 
-type terminalPassphraseGetter struct {}
+type terminalPassphraseGetter struct{}
 
 func (*terminalPassphraseGetter) get() (string, error) {
 	passphraseBytes, err := terminal.ReadPassword(0)
@@ -115,7 +123,7 @@ type authorUploader interface {
 	upload(author *lauthor.Author, content io.Reader, mediaType string) (id.ID, error)
 }
 
-type authorUploaderImpl struct {}
+type authorUploaderImpl struct{}
 
 func (*authorUploaderImpl) upload(author *lauthor.Author, content io.Reader, mediaType string) (
 	id.ID, error) {
@@ -128,7 +136,7 @@ type authorDownloader interface {
 	download(author *lauthor.Author, content io.Writer, envelopeKey id.ID) error
 }
 
-type authorDownloaderImpl struct {}
+type authorDownloaderImpl struct{}
 
 func (*authorDownloaderImpl) download(
 	author *lauthor.Author, content io.Writer, envelopeKey id.ID,
