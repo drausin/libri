@@ -192,7 +192,7 @@ func (l *Librarian) Introduce(ctx context.Context, rq *api.IntroduceRequest) (
 
 // Find returns either the value at a given target or the peers closest to it.
 func (l *Librarian) Find(ctx context.Context, rq *api.FindRequest) (*api.FindResponse, error) {
-	keyStr := fmt.Sprintf("%064f", rq.Key)
+	keyStr := fmt.Sprintf("%064x", rq.Key)
 	l.logger.Debug("received find request", zap.String("key", keyStr))
 
 	requesterID, err := l.checkRequestAndKey(ctx, rq, rq.Metadata, rq.Key)
@@ -232,7 +232,7 @@ func (l *Librarian) Find(ctx context.Context, rq *api.FindRequest) (*api.FindRes
 // Store stores the value.
 func (l *Librarian) Store(ctx context.Context, rq *api.StoreRequest) (
 	*api.StoreResponse, error) {
-	keyStr := fmt.Sprintf("%064f", rq.Key)
+	keyStr := fmt.Sprintf("%064x", rq.Key)
 	l.logger.Debug("received store request", zap.String("key", keyStr))
 
 	requesterID, err := l.checkRequestAndKeyValue(ctx, rq, rq.Metadata, rq.Key, rq.Value)
@@ -261,7 +261,7 @@ func (l *Librarian) Store(ctx context.Context, rq *api.StoreRequest) (
 // Get returns the value for a given key, if it exists. This endpoint handles the internals of
 // searching for the key.
 func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetResponse, error) {
-	keyStr := fmt.Sprintf("%064f", rq.Key)
+	keyStr := fmt.Sprintf("%064x", rq.Key)
 	l.logger.Debug("received get request", zap.String("key", keyStr))
 
 	requesterID, err := l.checkRequestAndKey(ctx, rq, rq.Metadata, rq.Key)
@@ -312,7 +312,7 @@ func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetRespon
 // Put stores a given key and value. This endpoint handles the internals of finding the right
 // peers to store the value in and then sending them store requests.
 func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutResponse, error) {
-	keyStr := fmt.Sprintf("%064f", rq.Key)
+	keyStr := fmt.Sprintf("%064x", rq.Key)
 	l.logger.Debug("received put request", zap.String("key", keyStr))
 
 	requesterID, err := l.checkRequestAndKeyValue(ctx, rq, rq.Metadata, rq.Key, rq.Value)
