@@ -18,7 +18,7 @@ jobs:
           command: |
             make build          # ensure everything builds ok
             case ${CIRCLE_NODE_INDEX} in
-              1)
+              0)
                 make build-static   # build linux binary for Docker image
                 make docker-image   # ensure Docker image builds ok, even though only used on deployment
                 ;;
@@ -30,24 +30,24 @@ jobs:
           command: |
             case ${CIRCLE_NODE_INDEX} in
               0)
+                make demo
+                ;;
+              1)
                 make test-cover
                 make acceptance
                 bash <(curl -s https://codecov.io/bash) -f test-coverage-merged.cov
-                ;;
-              1)
-                make demo
                 ;;
             esac
       - store_artifacts:
           path: acceptance.log
       - run:
           name: Lint
-          command: if [[ ${CIRCLE_NODE_INDEX} -eq 1 ]]; then make lint; fi
+          command: if [[ ${CIRCLE_NODE_INDEX} -eq 0 ]]; then make lint; fi
 
       - deploy:
           name: Publish docker image
           command: |
-            if [[ ${CIRCLE_NODE_INDEX} -eq 1 && "${CIRCLE_BRANCH}" == "develop" ]]; then
+            if [[ "${CIRCLE_BRANCH}" == "develop" ]]; then
               docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}
               docker push daedalus2718/libri:latest
             fi
