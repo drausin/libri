@@ -47,7 +47,7 @@ jobs:
       - deploy:
           name: Publish docker image
           command: |
-            if [[ ${CIRCLE_NODE_INDEX} -eq 0 && "${CIRCLE_BRANCH}" == "develop" ]]; then
+            if [[ ${CIRCLE_NODE_INDEX} -eq 1 && "${CIRCLE_BRANCH}" == "develop" ]]; then
               docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}
               docker push daedalus2718/libri:latest
             fi

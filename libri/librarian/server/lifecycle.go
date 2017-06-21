@@ -184,11 +184,15 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 	return nil
 }
 
+// EndSubscriptions ends subscriptions to other peers.
+func (l *Librarian) EndSubscriptions() {
+	l.subscribeTo.End()
+}
+
 // Close handles cleanup involved in closing down the server.
 func (l *Librarian) Close() error {
 
-	// end subscriptions to other peers
-	l.subscribeTo.End()
+	l.EndSubscriptions()
 
 	// send stop signal to listener
 	select {
