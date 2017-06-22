@@ -119,6 +119,29 @@ func TestPeer_Merge_ok(t *testing.T) {
 	err = p1.Merge(p2)
 	assert.Nil(t, err)
 	assert.Equal(t, p1Name, p1.(*peer).name)
+
+	// p2's empty connector should not replace p1's
+	p1 = NewTestPeer(rng, 0)
+	p1Conn := p1.(*peer).conn
+	p2 = New(p1.ID(), p1.(*peer).name, nil)
+	err = p1.Merge(p2)
+	assert.Nil(t, err)
+	assert.Equal(t, p1Conn, p1.(*peer).conn)
+
+	// p2's connector should replace p1's
+	p1ID = cid.NewPseudoRandom(rng)
+	p1 = New(p1ID, "p1", api.NewConnector(&net.TCPAddr{
+		IP:   net.ParseIP("192.168.1.1"),
+		Port: 20100,
+	}))
+	p2Conn := api.NewConnector(&net.TCPAddr{
+		IP:   net.ParseIP("192.168.1.1"),
+		Port: 11001,
+	})
+	p2 = New(p1ID, "p1", p2Conn)
+	err = p1.Merge(p2)
+	assert.Nil(t, err)
+	assert.Equal(t, p2Conn, p1.Connector())
 }
 
 func TestPeer_Merge_err(t *testing.T) {
@@ -129,20 +152,6 @@ func TestPeer_Merge_err(t *testing.T) {
 	p1, p2 = NewTestPeer(rng, 0), NewTestPeer(rng, 1)
 	err := p1.Merge(p2)
 	assert.NotNil(t, err)
-
-	// can't merge p2 into p1 b/c p2's connector has different address
-	p1ID := cid.NewPseudoRandom(rng)
-	p1 = New(p1ID, "p1", api.NewConnector(&net.TCPAddr{
-		IP:   net.ParseIP("192.168.1.1"),
-		Port: 20100,
-	}))
-	p2 = New(p1ID, "", api.NewConnector(&net.TCPAddr{
-		IP:   net.ParseIP("192.168.1.1"),
-		Port: 11001,
-	}))
-	err = p1.Merge(p2)
-	assert.NotNil(t, err)
-
 }
 
 func TestPeer_ToAPI(t *testing.T) {
