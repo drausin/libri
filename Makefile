@@ -42,17 +42,16 @@ get-deps:
 	@go get -u github.com/golang/dep/cmd/dep
 	@dep ensure
 	@go install ./vendor/github.com/alecthomas/gometalinter ./vendor/github.com/wadey/gocovmerge
+	@gometalinter --install
 
 lint:
 	@echo "--> Running gometalinter"
-	@gometalinter $(LIBRI_PKG_SUBDIRS) \
-		--config=.gometalinter.json --deadline=10m --vendored-linters --vendor
+	@gometalinter $(LIBRI_PKG_SUBDIRS) --config=.gometalinter.json --deadline=10m
 
 lint-diff:
 	@echo "--> Running gometalinter on packages with uncommitted changes"
 	@echo $(CHANGED_PKG_SUBDIRS) | tr " " "\n"
-	@echo $(CHANGED_PKG_SUBDIRS) | xargs gometalinter \
-		--config=.gometalinter.json --deadline=10m --vendored-linters --vendor
+	@echo $(CHANGED_PKG_SUBDIRS) | xargs gometalinter --config=.gometalinter.json --deadline=10m
 
 lint-optional:
 	@echo "--> Running gometalinter with optional linters"
