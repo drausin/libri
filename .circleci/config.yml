@@ -8,11 +8,16 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker
-      # TODO (restore deps cache once using glide)
+      - restore_cache:
+          keys:
+            - v1-vendor-{{ checksum "Gopkg.lock" }}
       - run:
           name: Install dependencies
           command: make get-deps
-      # TODO save deps cache once using glide
+      - save_cache:
+          key: v1-vendor-{{ checksum "Gopkg.lock" }}
+          paths:
+            - vendor
       - run:
           name: Build
           command: |

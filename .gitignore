@@ -1,3 +1,6 @@
+vendor
+
+# created during CI
 .cover
 acceptance.log
 

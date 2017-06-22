@@ -2,9 +2,10 @@ GOTOOLS= github.com/alecthomas/gometalinter \
 	 github.com/wadey/gocovmerge
 VETARGS?=-asmdecl -atomic -bool -buildtags -copylocks -methods \
          -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
-ALL_PKGS=$(shell go list ./... | sed -r 's|github.com/drausin/libri/||g' | sort)
-GIT_STATUS_PKGS=$(shell git status --porcelain | grep -e '\.go$$' | sed -r 's|^...(.+)/[^/]+\.go$$|\1|' | sort | uniq)
-CHANGED_PKGS=$(shell echo $(ALL_PKGS) $(GIT_STATUS_PKGS) | tr " " "\n" | sort | uniq -d)
+LIBRI_PKGS=$(shell go list ./... | grep -v /vendor/)
+LIBRI_PKG_SUBDIRS=$(shell go list ./... | grep -v /vendor/ | sed -r 's|github.com/drausin/libri/||g' | sort)
+GIT_STATUS_SUBDIRS=$(shell git status --porcelain | grep -e '\.go$$' | sed -r 's|^...(.+)/[^/]+\.go$$|\1|' | sort | uniq)
+CHANGED_PKG_SUBDIRS=$(shell echo $(LIBRI_PKG_SUBDIRS) $(GIT_STATUS_SUBDIRS) | tr " " "\n" | sort | uniq -d)
 SHELL=/bin/bash -eou pipefail
 
 .PHONY: build
@@ -15,7 +16,7 @@ acceptance:
 
 build:
 	@echo "--> Running go build"
-	@go build ./...
+	@go build $(LIBRI_PKGS)
 
 build-static:
 	@echo "--> Running go build for static binary"
@@ -36,26 +37,27 @@ fix:
 	@echo "--> Running goimports"
 	@find . -name *.go | xargs goimports -l -w
 	@echo "--> Running go fmt"
-	@go fmt ./...
+	@go fmt $(LIBRI_PKGS)
 
 get-deps:
 	@echo "--> Getting dependencies"
-	@go get -u -d -v ./... || true
+	@go get -u github.com/golang/dep/cmd/dep
+	@dep ensure
 	@go get -u -v $(GOTOOLS)
 	@gometalinter --install
 
 lint:
 	@echo "--> Running gometalinter"
-	@gometalinter ./... --config=.gometalinter.json --deadline=10m
+	@gometalinter $(LIBRI_PKG_SUBDIRS) --config=.gometalinter.json --deadline=10m  --vendored-linters
 
 lint-diff:
 	@echo "--> Running gometalinter on packages with uncommitted changes"
-	@echo $(CHANGED_PKGS) | tr " " "\n"
-	@echo $(CHANGED_PKGS) | xargs gometalinter --config=.gometalinter.json --deadline=10m
+	@echo $(CHANGED_PKG_SUBDIRS) | tr " " "\n"
+	@echo $(CHANGED_PKG_SUBDIRS) | xargs gometalinter --config=.gometalinter.json --deadline=10m --vendored-linters
 
 lint-optional:
 	@echo "--> Running gometalinter with optional linters"
-	@gometalinter ./... --config=.gometalinter.optional.json --deadline=240s
+	@gometalinter $(LIBRI_PKG_SUBDIRS) --config=.gometalinter.optional.json --deadline=240s
 
 proto:
 	@echo "--> Running protoc"
@@ -70,6 +72,6 @@ test-cover:
 
 test:
 	@echo "--> Running go test"
-	@go test -race ./... --cover
+	@go test -race $(LIBRI_PKGS) --cover
 
 

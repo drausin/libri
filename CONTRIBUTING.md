@@ -6,7 +6,7 @@ development machine via
 ```bash
 make get-deps
 ```
-You will also need Docker installed.
+We use [dep](https://github.com/golang/dep) for vendoring. You will also need Docker installed.
 
 #### Exploring
 

@@ -6,7 +6,7 @@ set -eou pipefail
 cd /go/src/github.com/drausin/libri
 mkdir -p .cover
 
-PKGS=$(go list ./... | grep -v vendor)
+PKGS=$(go list ./... | grep -v /vendor/)
 echo ${PKGS} | sed 's| |\n|g' | xargs -I {} bash -c '
     COVER_FILE=.cover/$(echo {} | sed -r "s|github.com/drausin/libri/||g" | sed "s|/|-|g").cov &&
     go test -race -coverprofile=${COVER_FILE} {}
