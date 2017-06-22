@@ -21,46 +21,8 @@
 #  version = "2.4.0"
 
 
-[[constraint]]
-  name = "github.com/cenkalti/backoff"
-  version = "1.0.0"
-
-[[constraint]]
-  name = "github.com/dgrijalva/jwt-go"
-  version = "3.0.0"
-
-[[constraint]]
-  branch = "master"
-  name = "github.com/dustin/go-humanize"
-
-[[constraint]]
-  branch = "master"
-  name = "github.com/hashicorp/golang-lru"
-
-[[constraint]]
-  name = "github.com/pkg/errors"
-  version = "0.8.0"
-
-[[constraint]]
-  branch = "master"
-  name = "github.com/spf13/cobra"
-
-[[constraint]]
-  branch = "master"
-  name = "github.com/spf13/viper"
-
+# support only up to RocksDB v5.4.6
 [[constraint]]
   branch = "master"
   name = "github.com/tecbot/gorocksdb"
-
-[[constraint]]
-  name = "github.com/willf/bloom"
-  version = "2.0.3"
-
-[[constraint]]
-  name = "go.uber.org/zap"
-  version = "1.4.1"
-
-[[constraint]]
-  name = "google.golang.org/grpc"
-  version = "1.4.1"
+  revision = "fee7e6bf7c53454dfe6f9aa005ad17a1a495549d"
