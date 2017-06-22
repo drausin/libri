@@ -48,12 +48,12 @@ get-deps:
 
 lint:
 	@echo "--> Running gometalinter"
-	@gometalinter $(LIBRI_PKG_SUBDIRS) --config=.gometalinter.json --deadline=10m
+	@gometalinter $(LIBRI_PKG_SUBDIRS) --config=.gometalinter.json --deadline=10m  --vendored-linters
 
 lint-diff:
 	@echo "--> Running gometalinter on packages with uncommitted changes"
 	@echo $(CHANGED_PKG_SUBDIRS) | tr " " "\n"
-	@echo $(CHANGED_PKG_SUBDIRS) | xargs gometalinter --config=.gometalinter.json --deadline=10m
+	@echo $(CHANGED_PKG_SUBDIRS) | xargs gometalinter --config=.gometalinter.json --deadline=10m --vendored-linters
 
 lint-optional:
 	@echo "--> Running gometalinter with optional linters"
