@@ -40,7 +40,7 @@ fix:
 
 get-deps:
 	@echo "--> Getting dependencies"
-	@go get -u -d -v ./... || true
+	@dep ensure
 	@go get -u -v $(GOTOOLS)
 	@gometalinter --install
 
