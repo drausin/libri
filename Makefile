@@ -42,6 +42,7 @@ get-deps:
 	@go get -u github.com/golang/dep/cmd/dep
 	@dep ensure
 	@go install ./vendor/github.com/alecthomas/gometalinter ./vendor/github.com/wadey/gocovmerge
+	@gometalinter --install
 
 lint:
 	@echo "--> Running gometalinter"
