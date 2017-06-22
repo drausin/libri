@@ -184,7 +184,7 @@
 [[projects]]
   name = "github.com/tecbot/gorocksdb"
   packages = ["."]
-  revision = "fee7e6bf7c53454dfe6f9aa005ad17a1a495549d"
+  revision = "943ff5745db7e1765b5723f2deec783f4803918e"
 
 [[projects]]
   name = "github.com/willf/bitset"
@@ -261,6 +261,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "a19a6679326ce40663ac3c6ff1c02c83f210fc1559694fb26e91d4d09e912176"
+  inputs-digest = "196086fbaf38ce5278f33b3acb6a423ade8f9bc666b20c70b70706c93a096d25"
   solver-name = "gps-cdcl"
   solver-version = 1
