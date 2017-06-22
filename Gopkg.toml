@@ -20,6 +20,11 @@
 #  name = "github.com/x/y"
 #  version = "2.4.0"
 
+required = [
+  # used in Makefile
+  "github.com/alecthomas/gometalinter",
+  "github.com/wadey/gocovmerge"
+]
 
 # support only up to RocksDB v5.4.6
 [[constraint]]

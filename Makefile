@@ -1,5 +1,3 @@
-GOTOOLS= github.com/alecthomas/gometalinter \
-	 github.com/wadey/gocovmerge
 VETARGS?=-asmdecl -atomic -bool -buildtags -copylocks -methods \
          -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
 LIBRI_PKGS=$(shell go list ./... | grep -v /vendor/)
@@ -43,7 +41,7 @@ get-deps:
 	@echo "--> Getting dependencies"
 	@go get -u github.com/golang/dep/cmd/dep
 	@dep ensure
-	@go get -u -v $(GOTOOLS)
+	@go install ./vendor/github.com/alecthomas/gometalinter ./vendor/github.com/wadey/gocovmerge
 	@gometalinter --install
 
 lint:
