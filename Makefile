@@ -5,7 +5,7 @@ VETARGS?=-asmdecl -atomic -bool -buildtags -copylocks -methods \
 LIBRI_PKGS=$(shell go list ./... | grep -v /vendor/)
 LIBRI_PKG_SUBDIRS=$(shell go list ./... | grep -v /vendor/ | sed -r 's|github.com/drausin/libri/||g' | sort)
 GIT_STATUS_SUBDIRS=$(shell git status --porcelain | grep -e '\.go$$' | sed -r 's|^...(.+)/[^/]+\.go$$|\1|' | sort | uniq)
-CHANGED_PKGS=$(shell echo $(LIBRI_PKG_SUBDIRS) $(GIT_STATUS_SUBDIRS) | tr " " "\n" | sort | uniq -d)
+CHANGED_PKG_SUBDIRS=$(shell echo $(LIBRI_PKG_SUBDIRS) $(GIT_STATUS_SUBDIRS) | tr " " "\n" | sort | uniq -d)
 SHELL=/bin/bash -eou pipefail
 
 .PHONY: build
@@ -16,7 +16,7 @@ acceptance:
 
 build:
 	@echo "--> Running go build"
-	go build $(LIBRI_PKGS)
+	@go build $(LIBRI_PKGS)
 
 build-static:
 	@echo "--> Running go build for static binary"
@@ -48,16 +48,16 @@ get-deps:
 
 lint:
 	@echo "--> Running gometalinter"
-	@gometalinter $(LIBRI_PKGS) --config=.gometalinter.json --deadline=10m
+	@gometalinter $(LIBRI_PKG_SUBDIRS) --config=.gometalinter.json --deadline=10m
 
 lint-diff:
 	@echo "--> Running gometalinter on packages with uncommitted changes"
-	@echo $(CHANGED_PKGS) | tr " " "\n"
-	@echo $(CHANGED_PKGS) | xargs gometalinter --config=.gometalinter.json --deadline=10m
+	@echo $(CHANGED_PKG_SUBDIRS) | tr " " "\n"
+	@echo $(CHANGED_PKG_SUBDIRS) | xargs gometalinter --config=.gometalinter.json --deadline=10m
 
 lint-optional:
 	@echo "--> Running gometalinter with optional linters"
-	@gometalinter $(LIBRI_PKGS) --config=.gometalinter.optional.json --deadline=240s
+	@gometalinter $(LIBRI_PKG_SUBDIRS) --config=.gometalinter.optional.json --deadline=240s
 
 proto:
 	@echo "--> Running protoc"
