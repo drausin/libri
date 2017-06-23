@@ -1,34 +1,52 @@
-# GCE region to use.
-variable "gce_region" {
-  default = "us-east1"
-}
-
 variable "gce_project" {
   default = "libri-170711"
 }
 
-variable "gce_network" {
-  default = "default"
+variable "gce_node_region" {
+  default = "us-east1"
 }
 
-# GCE zone to use.
-variable "gce_zone" {
+variable "gce_node_zone" {
+  description = "cluster node zone"
   default = "us-east1-b"
 }
 
-# GCE image name.
-variable "gce_image" {
-  default = "ubuntu-os-cloud/ubuntu-1604-xenial-v20170125"
+variable "gce_node_network" {
+  description = "cluster node network"
+  default = "default"
 }
 
-# GCE machine type.
-variable "gce_machine_type" {
+variable "gce_node_image_type" {
+  description = "cluster node disk image"
+  default = "ubuntu-1604-xenial-v20170125"
+}
+
+variable "gce_node_machine_type" {
+  description = "cluster node machine type "
   default = "n1-standard-1"
 }
 
-# disk size of each machine
-variable "gce_disk_size_gb" {
-  default = 100
+variable "node_disk_size_gb" {
+  description = "size (GB) of disk used by each cluster node"
+  default = 25
+}
+
+variable "librarian_disk_size_gb" {
+  description = "size (GB) of persistant disk used by each librarian"
+  default = 10
+}
+
+variable "num_nodes" {
+  description = "number of cluster nodes"
+  default = 3
+}
+
+variable "min_libri_port" {
+  default = 30100
+}
+
+variable "max_libri_port" {
+  default = 30102
 }
 
 # Name of the ssh key pair to use for GCE instances.
@@ -41,9 +59,5 @@ variable "gce_disk_size_gb" {
 # to leave this as "google_compute_engine" for convenience.
 variable "key_name" {
   default = "google_compute_engine"
-}
-
-# Number of instances to start.
-variable "num_instances" {
 }
 
