@@ -1,6 +1,4 @@
-variable "gce_project" {
-  default = "libri-170711"
-}
+variable "gcp_project" {}
 
 variable "gce_node_region" {
   default = "us-east1"
@@ -9,6 +7,10 @@ variable "gce_node_region" {
 variable "gce_node_zone" {
   description = "cluster node zone"
   default = "us-east1-b"
+}
+
+variable "cluster_name" {
+  default = "libri"
 }
 
 variable "gce_node_network" {

@@ -1,5 +1,5 @@
 provider "google" {
-  project     = "${var.gce_project}"
+  project     = "${var.gcp_project}"
   region = "${var.gce_node_region}"
 }
 
@@ -19,6 +19,10 @@ resource "google_container_cluster" "libri" {
     machine_type = "${var.gce_node_machine_type}"
     disk_size_gb = "${var.node_disk_size_gb}"
   }
+
+  provisioner "local-exec" {
+    command = "gcloud container clusters get-credentials ${var.cluster_name} --zone ${var.gce_node_zone}}"
+  }
 }
 
 resource "google_compute_firewall" "default" {
@@ -34,6 +38,3 @@ resource "google_compute_firewall" "default" {
   source_ranges = ["0.0.0.0/0"]
 }
 
-output "instances" {
-  value = "${join(",", google_container_cluster.libri.)}"
-}
