@@ -3,6 +3,14 @@ variable "gce_region" {
   default = "us-east1"
 }
 
+variable "gce_project" {
+  default = "libri-170711"
+}
+
+variable "gce_network" {
+  default = "default"
+}
+
 # GCE zone to use.
 variable "gce_zone" {
   default = "us-east1-b"
@@ -16,6 +24,11 @@ variable "gce_image" {
 # GCE machine type.
 variable "gce_machine_type" {
   default = "n1-standard-1"
+}
+
+# disk size of each machine
+variable "gce_disk_size_gb" {
+  default = 100
 }
 
 # Name of the ssh key pair to use for GCE instances.
