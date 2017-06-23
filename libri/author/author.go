@@ -248,7 +248,7 @@ func (a *Author) Upload(content io.Reader, mediaType string) (*api.Document, id.
 	entryKeyBytes := envelope.Contents.(*api.Document_Envelope).Envelope.EntryKey
 	uncompressedSize, _ := metadata.GetUncompressedSize()
 	ciphertextSize, _ := metadata.GetCiphertextSize()
-	speedMbps := float32(uncompressedSize) / float32(elapsedTime.Seconds()) / float32(2 << 20)
+	speedMbps := float32(uncompressedSize) * 8 / float32(2 << 20) / float32(elapsedTime.Seconds())
 	a.logger.Info("successfully uploaded document",
 		zap.String(LoggerEnvelopeKey, envelopeKey.String()),
 		zap.String(LoggerEntryKey, id.FromBytes(entryKeyBytes).String()),
@@ -264,6 +264,7 @@ func (a *Author) Upload(content io.Reader, mediaType string) (*api.Document, id.
 // Download downloads, join, decrypts, and decompressed the content, writing it to a unified output
 // content writer.
 func (a *Author) Download(content io.Writer, envelopeKey id.ID) error {
+	startTime := time.Now()
 	a.logger.Debug("receiving entry", zap.String(LoggerEnvelopeKey, envelopeKey.String()))
 	entry, keys, err := a.receiver.Receive(envelopeKey)
 	if err != nil {
@@ -286,13 +287,16 @@ func (a *Author) Download(content io.Writer, envelopeKey id.ID) error {
 	// TODO (drausin)
 	// - delete pages from local storage
 
+	elapsedTime := time.Since(startTime)
 	uncompressedSize, _ := metadata.GetUncompressedSize()
 	ciphertextSize, _ := metadata.GetCiphertextSize()
+	speedMbps := float32(uncompressedSize) * 8 / float32(2 << 20) / float32(elapsedTime.Seconds())
 	a.logger.Info("successfully downloaded document",
 		zap.String(LoggerEnvelopeKey, envelopeKey.String()),
 		zap.String(LoggerEntryKey, entryKey.String()),
 		zap.String("downloaded_size", humanize.Bytes(ciphertextSize)),
 		zap.String("original_size", humanize.Bytes(uncompressedSize)),
+		zap.Float32("speed_Mbps", speedMbps),
 	)
 	return nil
 }

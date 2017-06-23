@@ -1,20 +1,29 @@
 # Kubernetes libri cluster
 
-A Kubernetes config for a libri cluster is given in [libri.yml](libri.yml). The components are
+A Kubernetes config template for a libri cluster is given in [libri.template.yml](libri.template.yml). 
+The components are
 - libri-headless: headless `ClusterIP` service for internal DNS resolution among librarians
 - librarians-[0,...,N-1]: `NodePort` services for each of the librarians, making them accessible 
 to outside authors
 - librarians: `StatefulSet` of N librarians
+- data-librarians-[0,...,N-1]: a `PersistentVolume` and `PersistentVolumeClaim` for each librarian 
 
 
 #### Generating the config
 
-Because the [libri.yml](libri.yml) has a separate service for each librarian, it is auto-generated
+Because we use a separate service for each librarian, it is auto-generated
 from [libri.template.yml](libri.template.yml), which is where edits should be made. Use 
 [gen.go](gen.go) to generate from the template after editing
  
-    $ cd libri/deploy/cloud/kubernetes
-    $ go run gen.go -n 3  # generate a 3-librarian cluster
+To generate a `libri.yml` config for a local cluster running in minikube (good for testing most 
+things) 
+
+    $ go run gen.go -n 3 --local # generate a 3-librarian local cluster 
+    wrote config to libri.yml
+    
+To generate a `libri.yml` config for a remote cluster running in Google Compute Engine
+
+    $ go run gen.go -n 3 --gce # generate a 3-librarian remote GCE cluster 
     wrote config to libri.yml
 
 See the help (`-h`) in `gen.go` for all options. 
@@ -25,10 +34,16 @@ See the help (`-h`) in `gen.go` for all options.
 Start the cluster with 
     
     $ kubectl create -f libri.yml
-    service "libri-headless" created
+    service "libri" created
     service "librarians-0" created
+    persistentvolume "data-librarians-0" created
+    persistentvolumeclaim "data-librarians-0" created
     service "librarians-1" created
+    persistentvolume "data-librarians-1" created
+    persistentvolumeclaim "data-librarians-1" created
     service "librarians-2" created
+    persistentvolume "data-librarians-2" created
+    persistentvolumeclaim "data-librarians-2" created
     statefulset "librarians" created
 
 and examine the pods with

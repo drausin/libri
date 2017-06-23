@@ -1,20 +1,20 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
-	"go.uber.org/zap"
-	"os"
-	"github.com/drausin/libri/libri/author"
 	"bytes"
-	"github.com/drausin/libri/libri/author/io/common"
-	"math/rand"
 	"fmt"
+	"github.com/drausin/libri/libri/author"
+	"github.com/drausin/libri/libri/author/io/common"
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
+	"math/rand"
+	"os"
 )
 
 const (
-	maxContentSize = 12 * 1024 * 1024	// bytes
-	minContentSize = 32			// bytes
+	maxContentSize = 12 * 1024 * 1024 // bytes
+	minContentSize = 32               // bytes
 )
 
 const (
@@ -25,7 +25,7 @@ const (
 var ioCmd = &cobra.Command{
 	Use:   "io",
 	Short: "check ability to upload and download entries",
-	Long: `TODO(drausin)`,
+	Long:  `TODO(drausin)`,
 	Run: func(cmd *cobra.Command, args []string) {
 		author, logger, err := newTestAuthorGetter().get()
 		if err != nil {

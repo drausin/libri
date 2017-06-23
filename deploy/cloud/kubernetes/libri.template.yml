@@ -1,6 +1,7 @@
 {{/* the next line is obviously just for the generated file, not this template */}}
 # This file is generated from libri.template.yml. Please edit that instead!
 {{ $localPort := .LocalPort }}
+{{ $gceCluster := .GCECluster }}
 ---
 # headless service for internal DNS networking
 kind: Service
@@ -32,15 +33,20 @@ spec:
 kind: PersistentVolume
 apiVersion: v1
 metadata:
-  name: data-{{ $index }}
+  name: data-librarians-{{ $index }}
   labels:
     app: libri
   annotations:
-    volume.beta.kubernetes.io/storage-class: default
+    volume.beta.kubernetes.io/storage-class: standard
 spec:
   capacity:
-    storage: 1Gi
+    storage: 2Gi
   accessModes: ["ReadWriteOnce"]
+  {{ if $gceCluster -}}
+  gcePersistentDisk:
+      fsType: "ext4"
+      pdName: "data-librarians-{{ $index }}"
+  {{ end -}}
   hostPath:
     path: "/data/data-librarians-{{ $index }}"
 ---
@@ -52,7 +58,7 @@ metadata:
   labels:
     app: libri
   annotations:
-    volume.beta.kubernetes.io/storage-class: default
+    volume.beta.kubernetes.io/storage-class: standard
 spec:
   accessModes: ["ReadWriteOnce"]
   resources:
