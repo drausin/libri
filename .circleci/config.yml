@@ -25,7 +25,6 @@ jobs:
               make build          # ensure everything builds ok
               make build-static   # build linux binary for Docker image
               make docker-image   # ensure Docker image builds ok, even though only used on deployment
-              ;;
             fi
       - store_artifacts:
           path: deploy/bin
