@@ -38,12 +38,12 @@ type StorerLoader interface {
 }
 
 type storerLoader struct {
-	inner storage.DocumentStorerLoader
+	inner storage.DocumentSLD
 }
 
-// NewStorerLoader creates a new StorerLoader instance from an inner storage.DocumentStorerLoader
+// NewStorerLoader creates a new StorerLoader instance from an inner storage.DocumentSLD
 // instance.
-func NewStorerLoader(inner storage.DocumentStorerLoader) StorerLoader {
+func NewStorerLoader(inner storage.DocumentSLD) StorerLoader {
 	return &storerLoader{
 		inner: inner,
 	}

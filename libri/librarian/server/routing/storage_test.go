@@ -32,7 +32,7 @@ func TestRoutingTable_SaveLoad(t *testing.T) {
 	defer cleanup()
 	defer kvdb.Close()
 	assert.Nil(t, err)
-	ssl := storage.NewServerKVDBStorerLoader(kvdb)
+	ssl := storage.NewServerSL(kvdb)
 
 	err = rt1.Save(ssl)
 	assert.Nil(t, err)

@@ -25,7 +25,7 @@ type EntryPacker interface {
 func NewEntryPacker(
 	params *print.Parameters,
 	metadataEnc enc.MetadataEncrypter,
-	docSL storage.DocumentStorerLoader,
+	docSL storage.DocumentSLD,
 ) EntryPacker {
 	pageS := page.NewStorerLoader(docSL)
 	return &entryPacker{
@@ -81,7 +81,7 @@ type entryUnpacker struct {
 func NewEntryUnpacker(
 	params *print.Parameters,
 	metadataDec enc.MetadataDecrypter,
-	docSL storage.DocumentStorerLoader,
+	docSL storage.DocumentSLD,
 ) EntryUnpacker {
 	pageL := page.NewStorerLoader(docSL)
 	return &entryUnpacker{

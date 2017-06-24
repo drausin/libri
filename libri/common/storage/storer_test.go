@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestKvdbStorerLoader_StoreLoad(t *testing.T) {
+func TestKvdbSLD_StoreLoadDelete(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	cases := []struct {
 		ns    []byte
@@ -27,14 +27,17 @@ func TestKvdbStorerLoader_StoreLoad(t *testing.T) {
 	defer cleanup()
 	defer kvdb.Close()
 	assert.Nil(t, err)
-	sl := NewKVDBStorerLoader(kvdb, NewMaxLengthChecker(256), NewMaxLengthChecker(1024))
+	sld := NewKVDBStorerLoaderDeleter(kvdb, NewMaxLengthChecker(256), NewMaxLengthChecker(1024))
 
 	for _, c := range cases {
-		err := sl.Store(c.ns, c.key, c.value)
+		err := sld.Store(c.ns, c.key, c.value)
 		assert.Nil(t, err)
 
-		loaded, err := sl.Load(c.ns, c.key)
+		loaded, err := sld.Load(c.ns, c.key)
 		assert.Nil(t, err)
 		assert.Equal(t, c.value, loaded)
+
+		err = sld.Delete(c.ns, c.key)
+		assert.Nil(t, err)
 	}
 }

@@ -28,8 +28,8 @@ func TestServerClientStorerLoader_StoreLoad_ok(t *testing.T) {
 	defer cleanup()
 	defer kvdb.Close()
 	assert.Nil(t, err)
-	ssl := NewServerKVDBStorerLoader(kvdb)
-	csl := NewClientKVDBStorerLoader(kvdb)
+	ssl := NewServerSL(kvdb)
+	csl := NewClientSL(kvdb)
 
 	for _, c := range cases {
 		err := ssl.Store(c.key, c.value)
@@ -63,8 +63,8 @@ func TestServerClientStorerLoader_Store_err(t *testing.T) {
 	defer cleanup()
 	defer kvdb.Close()
 	assert.Nil(t, err)
-	ssl := NewServerKVDBStorerLoader(kvdb)
-	csl := NewClientKVDBStorerLoader(kvdb)
+	ssl := NewServerSL(kvdb)
+	csl := NewClientSL(kvdb)
 
 	for _, c := range cases {
 		err := ssl.Store(c.key, c.value)
@@ -88,8 +88,8 @@ func TestServerClientStorerLoader_Load_err(t *testing.T) {
 	defer cleanup()
 	defer kvdb.Close()
 	assert.Nil(t, err)
-	ssl := NewServerKVDBStorerLoader(kvdb)
-	csl := NewServerKVDBStorerLoader(kvdb)
+	ssl := NewServerSL(kvdb)
+	csl := NewServerSL(kvdb)
 
 	for _, c := range cases {
 		_, err = ssl.Load(c.key)
@@ -104,7 +104,7 @@ func TestDocumentNamespaceStorerLoader_StoreLoad_ok(t *testing.T) {
 	defer cleanup()
 	defer kvdb.Close()
 	assert.Nil(t, err)
-	dsl := NewDocumentKVDBStorerLoader(kvdb)
+	dsl := NewDocumentSLD(kvdb)
 
 	rng := rand.New(rand.NewSource(0))
 	value1, key := api.NewTestDocument(rng)
@@ -124,7 +124,7 @@ func TestDocumentNamespaceStorerLoader_Store_err(t *testing.T) {
 	defer cleanup()
 	defer kvdb.Close()
 	assert.Nil(t, err)
-	dsl := NewDocumentKVDBStorerLoader(kvdb)
+	dsl := NewDocumentSLD(kvdb)
 
 	// check invalid document returns error
 	value1, _ := api.NewTestDocument(rng)
@@ -141,26 +141,14 @@ func TestDocumentNamespaceStorerLoader_Store_err(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-type fixedStorerLoader struct {
-	storeErr  error
-	loadValue []byte
-	loadErr   error
-}
-
-func (fsl *fixedStorerLoader) Store(namespace []byte, key []byte, value []byte) error {
-	return fsl.storeErr
-}
-
-func (fsl *fixedStorerLoader) Load(namespace []byte, key []byte) ([]byte, error) {
-	return fsl.loadValue, fsl.loadErr
-}
-
 func TestDocumentStorerLoader_Load_empty(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	key := cid.NewPseudoRandom(rng)
-	dsl1 := NewDocumentStorerLoader(&fixedStorerLoader{
-		loadValue: nil, // simulates empty/missing value
-	})
+	dsl1 := &documentSLD{
+		sld: &fixedNamespaceSLD{
+			loadValue: nil,  // simulates missing/empty value
+		},
+	}
 
 	// check that load returns nil
 	value, err := dsl1.Load(key)
@@ -171,9 +159,11 @@ func TestDocumentStorerLoader_Load_empty(t *testing.T) {
 func TestDocumentStorerLoader_Load_loadErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	key := cid.NewPseudoRandom(rng)
-	dsl1 := NewDocumentStorerLoader(&fixedStorerLoader{
-		loadErr: errors.New("some load error"),
-	})
+	dsl1 := &documentSLD{
+		sld: &fixedNamespaceSLD{
+			loadErr: errors.New("some load error"),
+		},
+	}
 
 	// check that load error propagates up
 	_, err := dsl1.Load(key)
@@ -188,7 +178,7 @@ func TestDocumentStorerLoader_Load_checkErr(t *testing.T) {
 	defer cleanup()
 	defer kvdb.Close()
 	assert.Nil(t, err)
-	dsl := NewDocumentKVDBStorerLoader(kvdb)
+	dsl := NewDocumentSLD(kvdb)
 
 	// hackily put a value with a non-hash key; should never happen in the wild
 	valueBytes, err := proto.Marshal(value)
@@ -210,7 +200,7 @@ func TestDocumentStorerLoader_Load_validateDocumentErr(t *testing.T) {
 	defer cleanup()
 	defer kvdb.Close()
 	assert.Nil(t, err)
-	dsl := NewDocumentKVDBStorerLoader(kvdb)
+	dsl := NewDocumentSLD(kvdb)
 
 	// hackily put a value with a non-hash key; should never happen in the wild
 	valueBytes, err := proto.Marshal(value)
@@ -222,3 +212,43 @@ func TestDocumentStorerLoader_Load_validateDocumentErr(t *testing.T) {
 	_, err = dsl.Load(key)
 	assert.NotNil(t, err)
 }
+
+type fixedSLD struct {
+	loadValue []byte
+	storeErr  error
+	loadErr   error
+	deleteErr error
+}
+
+func (fsld *fixedSLD) Store(namespace []byte, key []byte, value []byte) error {
+	return fsld.storeErr
+}
+
+func (fsld *fixedSLD) Load(namespace []byte, key []byte) ([]byte, error) {
+	return fsld.loadValue, fsld.loadErr
+}
+
+func (fsld *fixedSLD) Delete(namespace []byte, key []byte) error {
+	return fsld.deleteErr
+}
+
+type fixedNamespaceSLD struct {
+	loadValue []byte
+	storeErr  error
+	loadErr   error
+	deleteErr error
+}
+
+func (f *fixedNamespaceSLD) Store(key []byte, value []byte) error {
+	return f.storeErr
+}
+
+func (f *fixedNamespaceSLD) Load(key []byte) ([]byte, error) {
+	return f.loadValue, f.loadErr
+
+}
+
+func (f *fixedNamespaceSLD) Delete(key []byte) error {
+	return f.deleteErr
+}
+

@@ -20,10 +20,11 @@ func TestShipper_Ship_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	kek, authorPub, readerPub := enc.NewPseudoRandomKEK(rng)
 	eek := enc.NewPseudoRandomEEK(rng)
+	mlPub := &fixedMultiLoadPublisher{}
 	s := NewShipper(
 		&fixedClientBalancer{},
 		&fixedPublisher{},
-		&fixedMultiLoadPublisher{},
+		mlPub,
 	)
 	entry := &api.Document{
 		Contents: &api.Document_Entry{
@@ -40,6 +41,7 @@ func TestShipper_Ship_ok(t *testing.T) {
 	assert.NotNil(t, envelopeKey)
 	assert.Equal(t, origEntryKey.Bytes(),
 		envelope.Contents.(*api.Document_Envelope).Envelope.EntryKey)
+	assert.True(t, mlPub.deleted)
 
 	// test single-page ship
 	entry = &api.Document{
@@ -70,7 +72,7 @@ func TestShipper_Ship_err(t *testing.T) {
 	s := NewShipper(
 		&fixedClientBalancer{},
 		&fixedPublisher{},
-		&fixedMultiLoadPublisher{errors.New("some Publish error")},
+		&fixedMultiLoadPublisher{err: errors.New("some Publish error")},
 	)
 
 	// check GetEntryPageKeys error bubbles up
@@ -149,7 +151,7 @@ func TestShipReceive(t *testing.T) {
 	assert.Nil(t, err)
 
 	for _, nDocs := range []uint32{1, 2, 4, 8} {
-		docSL1 := &memDocStorerLoader{
+		docSL1 := &fixedDocSLD{
 			docs: make(map[string]*api.Document),
 		}
 
@@ -196,7 +198,8 @@ func TestShipReceive(t *testing.T) {
 			publish.NewSingleLoadPublisher(pubAcq, docSL1),
 			params,
 		)
-		s := NewShipper(cb, pubAcq, mlP)
+		s := NewShipper(cb, pubAcq, mlP).(*shipper)
+		s.deletePages = false  // so we can check them at the end
 		eek := enc.NewPseudoRandomEEK(rng)
 		envelopeKeys := make([]id.ID, nDocs)
 		for i := uint32(0); i < nDocs; i++ {
@@ -207,7 +210,7 @@ func TestShipReceive(t *testing.T) {
 		}
 
 		// receive all docs
-		docSL2 := &memDocStorerLoader{
+		docSL2 := &fixedDocSLD{
 			docs: make(map[string]*api.Document),
 		}
 		msA := publish.NewMultiStoreAcquirer(
@@ -236,12 +239,14 @@ func TestShipReceive(t *testing.T) {
 }
 
 type fixedMultiLoadPublisher struct {
-	err error
+	err     error
+	deleted bool
 }
 
 func (f *fixedMultiLoadPublisher) Publish(
-	docKeys []id.ID, authorPub []byte, cb api.ClientBalancer,
+	docKeys []id.ID, authorPub []byte, cb api.ClientBalancer, delete bool,
 ) error {
+	f.deleted = delete
 	return f.err
 }
 
@@ -275,23 +280,31 @@ func (f *fixedClientBalancer) CloseAll() error {
 	return nil
 }
 
-type memDocStorerLoader struct {
-	docs map[string]*api.Document
-	mu   sync.Mutex
+type fixedDocSLD struct {
+	docs        map[string]*api.Document
+	mu          sync.Mutex
+	loadError   error
+	storeError  error
+	deleteError error
 }
 
-func (m *memDocStorerLoader) Load(key id.ID) (*api.Document, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	value, _ := m.docs[key.String()]
-	return value, nil
+func (f *fixedDocSLD) Load(key id.ID) (*api.Document, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	value, _ := f.docs[key.String()]
+	return value, f.loadError
 }
 
-func (m *memDocStorerLoader) Store(key id.ID, value *api.Document) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.docs[key.String()] = value
-	return nil
+func (f *fixedDocSLD) Store(key id.ID, value *api.Document) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.docs[key.String()] = value
+	return f.storeError
+}
+
+func (f *fixedDocSLD) Delete(key id.ID) error {
+	delete(f.docs, key.String())
+	return f.deleteError
 }
 
 type memPublisherAcquirer struct {

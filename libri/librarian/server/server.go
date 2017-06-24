@@ -60,10 +60,10 @@ type Librarian struct {
 	db db.KVDB
 
 	// SL for server data
-	serverSL storage.NamespaceStorerLoader
+	serverSL storage.NamespaceSL
 
 	// SL for p2p stored documents
-	documentSL storage.DocumentStorerLoader
+	documentSL storage.DocumentSL
 
 	// ensures keys are valid
 	kc storage.Checker
@@ -99,8 +99,8 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		logger.Error("unable to init RocksDB", zap.Error(err))
 		return nil, err
 	}
-	serverSL := storage.NewServerKVDBStorerLoader(rdb)
-	documentSL := storage.NewDocumentKVDBStorerLoader(rdb)
+	serverSL := storage.NewServerSL(rdb)
+	documentSL := storage.NewDocumentSLD(rdb)
 
 	// get peer ID and immediately save it so subsequent restarts have it
 	peerID, err := loadOrCreatePeerID(logger, serverSL)

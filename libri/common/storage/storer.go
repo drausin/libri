@@ -21,23 +21,39 @@ type Loader interface {
 	Load(namespace []byte, key []byte) ([]byte, error)
 }
 
+// Deleter deletes a value from durable storage.
+type Deleter interface {
+	// Delete a value with the given key and namespace.
+	Delete(namespace []byte, key []byte) error
+}
+
 // StorerLoader can both store and load values.
 type StorerLoader interface {
 	Storer
 	Loader
 }
 
-type kvdbStorerLoader struct {
+// StorerLoaderDeleter can store, load, and delete values.
+type StorerLoaderDeleter interface {
+	StorerLoader
+	Deleter
+}
+
+type kvdbSLD struct {
 	db db.KVDB
 	nc Checker
 	kc Checker
 	vc Checker
 }
 
-// NewKVDBStorerLoader returns a new StorerLoader backed by a db.KVDB instance and with the given
-// key and value checkers.
-func NewKVDBStorerLoader(db db.KVDB, keyChecker Checker, valueChecker Checker) StorerLoader {
-	return &kvdbStorerLoader{
+// NewKVDBStorerLoaderDeleter returns a new StorerLoaderDeleter backed by a db.KVDB instance and
+// with the given key and value checkers.
+func NewKVDBStorerLoaderDeleter(
+	db db.KVDB,
+	keyChecker Checker,
+	valueChecker Checker,
+) StorerLoaderDeleter {
+	return &kvdbSLD{
 		db: db,
 		nc: NewMaxLengthChecker(MaxNamespaceLength),
 		kc: keyChecker,
@@ -45,27 +61,43 @@ func NewKVDBStorerLoader(db db.KVDB, keyChecker Checker, valueChecker Checker) S
 	}
 }
 
-func (sl *kvdbStorerLoader) Store(namespace []byte, key []byte, value []byte) error {
-	if err := sl.nc.Check(namespace); err != nil {
-		return err
-	}
-	if err := sl.kc.Check(key); err != nil {
-		return err
-	}
-	if err := sl.vc.Check(value); err != nil {
-		return err
-	}
-	return sl.db.Put(namespaceKey(namespace, key), value)
+// NewKVDBStorerLoader returns a new StorerLoader backed by a db.KVDB instance and with the given
+// key and value checkers.
+func NewKVDBStorerLoader(db db.KVDB, keyChecker Checker, valueChecker Checker) StorerLoader {
+	return NewKVDBStorerLoaderDeleter(db, keyChecker, valueChecker)
 }
 
-func (sl *kvdbStorerLoader) Load(namespace []byte, key []byte) ([]byte, error) {
-	if err := sl.nc.Check(namespace); err != nil {
+func (sld *kvdbSLD) Store(namespace []byte, key []byte, value []byte) error {
+	if err := sld.nc.Check(namespace); err != nil {
+		return err
+	}
+	if err := sld.kc.Check(key); err != nil {
+		return err
+	}
+	if err := sld.vc.Check(value); err != nil {
+		return err
+	}
+	return sld.db.Put(namespaceKey(namespace, key), value)
+}
+
+func (sld *kvdbSLD) Load(namespace []byte, key []byte) ([]byte, error) {
+	if err := sld.nc.Check(namespace); err != nil {
 		return nil, err
 	}
-	if err := sl.kc.Check(key); err != nil {
+	if err := sld.kc.Check(key); err != nil {
 		return nil, err
 	}
-	return sl.db.Get(namespaceKey(namespace, key))
+	return sld.db.Get(namespaceKey(namespace, key))
+}
+
+func (sld *kvdbSLD) Delete(namespace []byte, key []byte) error {
+	if err := sld.nc.Check(namespace); err != nil {
+		return err
+	}
+	if err := sld.kc.Check(key); err != nil {
+		return err
+	}
+	return sld.db.Delete(namespaceKey(namespace, key))
 }
 
 func namespaceKey(namespace []byte, key []byte) []byte {

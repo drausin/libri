@@ -29,7 +29,7 @@ var (
 	peerIDKey = []byte("PeerID")
 )
 
-func loadOrCreatePeerID(logger *zap.Logger, nsl storage.NamespaceStorerLoader) (ecid.ID, error) {
+func loadOrCreatePeerID(logger *zap.Logger, nsl storage.NamespaceSL) (ecid.ID, error) {
 	bytes, err := nsl.Load(peerIDKey)
 	if err != nil {
 		logger.Error("error loading peer ID", zap.Error(err))

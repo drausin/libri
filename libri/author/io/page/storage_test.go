@@ -6,14 +6,14 @@ import (
 
 	"errors"
 
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestStorerLoader_Store_ok(t *testing.T) {
 	sl := NewStorerLoader(
-		&memDocumentStorerLoader{
+		&fixedDocSLD{
 			stored: make(map[string]*api.Document),
 		},
 	)
@@ -32,7 +32,7 @@ func TestStorerLoader_Store_ok(t *testing.T) {
 }
 
 func TestStorerLoader_Store_err(t *testing.T) {
-	sl := NewStorerLoader(&errDocumentStorerLoader{})
+	sl := NewStorerLoader(&fixedDocSLD{storeErr: errors.New("some Store error")})
 	rng := rand.New(rand.NewSource(0))
 	pages := make(chan *api.Page, 1)
 	pages <- api.NewTestPage(rng)
@@ -48,7 +48,7 @@ func TestStorerLoader_Load_ok(t *testing.T) {
 	stored := make(map[string]*api.Document)
 	rng := rand.New(rand.NewSource(0))
 	nPages := 4
-	pageIDs := make([]cid.ID, nPages)
+	pageIDs := make([]id.ID, nPages)
 	for c := 0; c < nPages; c++ {
 		page := api.NewTestPage(rng)
 		pageID, err := api.GetKey(page)
@@ -60,7 +60,7 @@ func TestStorerLoader_Load_ok(t *testing.T) {
 	}
 
 	sl := NewStorerLoader(
-		&memDocumentStorerLoader{
+		&fixedDocSLD{
 			stored: stored,
 		},
 	)
@@ -89,20 +89,20 @@ func TestStorerLoader_Load_ok(t *testing.T) {
 }
 
 func TestStorerLoader_Load_err(t *testing.T) {
-	sl1 := NewStorerLoader(&errDocumentStorerLoader{})
+	sl1 := NewStorerLoader(&fixedDocSLD{loadErr: errors.New("some Load error")})
 	rng := rand.New(rand.NewSource(0))
-	pageIDs1 := []cid.ID{cid.NewPseudoRandom(rng)}
+	pageIDs1 := []id.ID{id.NewPseudoRandom(rng)}
 
 	// check inner load error bubbles up
 	err := sl1.Load(pageIDs1, nil, make(chan struct{}))
 	assert.NotNil(t, err)
 
 	sl2 := NewStorerLoader(
-		&memDocumentStorerLoader{
+		&fixedDocSLD{
 			stored: make(map[string]*api.Document),
 		},
 	)
-	pageIDs2 := []cid.ID{cid.NewPseudoRandom(rng)}
+	pageIDs2 := []id.ID{id.NewPseudoRandom(rng)}
 
 	// check error on missing doc
 	err = sl2.Load(pageIDs2, nil, make(chan struct{}))
@@ -111,10 +111,10 @@ func TestStorerLoader_Load_err(t *testing.T) {
 	stored := make(map[string]*api.Document)
 	notPage, pageID := api.NewTestDocument(rng)
 	stored[pageID.String()] = notPage
-	pageIDs3 := []cid.ID{pageID}
+	pageIDs3 := []id.ID{pageID}
 
 	sl3 := NewStorerLoader(
-		&memDocumentStorerLoader{
+		&fixedDocSLD{
 			stored: stored,
 		},
 	)
@@ -126,7 +126,7 @@ func TestStorerLoader_Load_err(t *testing.T) {
 
 func TestStorerLoader_StoreLoad(t *testing.T) {
 	sl := NewStorerLoader(
-		&memDocumentStorerLoader{
+		&fixedDocSLD{
 			stored: make(map[string]*api.Document),
 		},
 	)
@@ -158,25 +158,26 @@ func TestStorerLoader_StoreLoad(t *testing.T) {
 	assert.Equal(t, originalPages, loadedPages)
 }
 
-type memDocumentStorerLoader struct {
-	stored map[string]*api.Document
+type fixedDocSLD struct {
+	storeErr error
+	stored   map[string]*api.Document
+	loadErr  error
+	deleteErr error
 }
 
-func (m *memDocumentStorerLoader) Store(key cid.ID, value *api.Document) error {
-	m.stored[key.String()] = value
+func (f *fixedDocSLD) Store(key id.ID, value *api.Document) error {
+	if f.storeErr != nil {
+		return f.storeErr
+	}
+	f.stored[key.String()] = value
 	return nil
 }
 
-func (m *memDocumentStorerLoader) Load(key cid.ID) (*api.Document, error) {
-	return m.stored[key.String()], nil
+func (f *fixedDocSLD) Load(key id.ID) (*api.Document, error) {
+	value, _ := f.stored[key.String()]
+	return value, f.loadErr
 }
 
-type errDocumentStorerLoader struct{}
-
-func (m *errDocumentStorerLoader) Store(key cid.ID, value *api.Document) error {
-	return errors.New("some store error")
-}
-
-func (m *errDocumentStorerLoader) Load(key cid.ID) (*api.Document, error) {
-	return nil, errors.New("some store error")
+func (f *fixedDocSLD) Delete(key id.ID) error {
+	return f.deleteErr
 }
