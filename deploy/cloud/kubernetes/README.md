@@ -16,14 +16,16 @@ from [libri.template.yml](libri.template.yml), which is where edits should be ma
 [gen.go](gen.go) to generate from the template after editing
  
 To generate a `libri.yml` config for a local cluster running in minikube (good for testing most 
-things) 
-
-    $ go run gen.go -n 3 --local # generate a 3-librarian local cluster 
+things)
+ 
+    # generate a 3-librarian local cluster 
+    $ go run gen.go -n 3 --local 
     wrote config to libri.yml
     
 To generate a `libri.yml` config for a remote cluster running in Google Compute Engine
 
-    $ go run gen.go -n 3 --gce # generate a 3-librarian remote GCE cluster 
+    # generate a 3-librarian remote GCE cluster 
+    $ go run gen.go -n 3 --gce 
     wrote config to libri.yml
 
 See the help (`-h`) in `gen.go` for all options. 

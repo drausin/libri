@@ -1,7 +1,8 @@
 {{/* the next line is obviously just for the generated file, not this template */}}
 # This file is generated from libri.template.yml. Please edit that instead!
-{{ $localPort := .LocalPort }}
-{{ $gceCluster := .GCECluster }}
+{{ $localPort := .LocalPort -}}
+{{ $gceCluster := .GCECluster -}}
+{{ $localCluster := .LocalCluster -}}
 ---
 # headless service for internal DNS networking
 kind: Service
@@ -47,8 +48,10 @@ spec:
       fsType: "ext4"
       pdName: "data-librarians-{{ $index }}"
   {{ end -}}
+  {{ if $localCluster -}}
   hostPath:
     path: "/data/data-librarians-{{ $index }}"
+  {{ end }}
 ---
 # PersistentVolumeClaim for librarian {{ $index }}'s PersistentVolume
 kind: PersistentVolumeClaim
@@ -88,6 +91,7 @@ spec:
           "--nSubscriptions", "2",
           "--dataDir", "/data",
           "--bootstraps", "librarians-0.libri.default.svc.cluster.local:{{ $localPort }}",
+          "-l", "debug"
         ]
         env:
         - name: GODEBUG         # ensure we use the pure Go (rather than CGO) DNS
