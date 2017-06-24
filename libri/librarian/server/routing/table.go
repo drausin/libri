@@ -7,15 +7,13 @@ import (
 	"math/rand"
 	"sort"
 	"sync"
+	"fmt"
 
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 )
-
-// AddStatus indicates different outcomes when adding a peer to the routing table.
-type PushStatus int
 
 const (
 	Existed PushStatus = iota
@@ -26,6 +24,21 @@ const (
 var (
 	DefaultMaxActivePeers = uint(20)
 )
+
+// PushStatus indicates different outcomes when adding a peer to the routing table.
+type PushStatus int
+
+func (p PushStatus) String() string {
+	switch p {
+	case Existed:
+		return "Existed"
+	case Added:
+		return "Added"
+	case Dropped:
+		return "Dropped"
+	}
+	panic(fmt.Errorf("unknown PushStatus value %d", p))
+}
 
 // Table defines how routes to a particular target map to specific peers, held in a tree of
 // buckets.
@@ -44,9 +57,9 @@ type Table interface {
 	// pushing them back into the table.
 	Peak(target cid.ID, k uint) []peer.Peer
 
-	// Get returns the peer with the given ID. It returns nil if the peer doesn't exist in the
-	// table.
-	Get(peerID cid.ID) peer.Peer
+	// Get returns the peer with the given ID or nil (if it doesn't exist) with a boolean
+	// indicator for whether the peer existed.
+	Get(peerID cid.ID) (peer.Peer, bool)
 
 	// Sample returns k peers in the table sampled (approximately) uniformly from the ID space.
 	// Peers are sampled from buckets with probability proportional to the amount of ID
@@ -243,13 +256,13 @@ func (rt *table) Peak(target cid.ID, k uint) []peer.Peer {
 }
 
 // Get returns the peer (if it exists) in the table with the given ID.
-func (rt *table) Get(peerID cid.ID) peer.Peer {
+func (rt *table) Get(peerID cid.ID) (peer.Peer, bool) {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 	if p, exists := rt.peers[peerID.String()]; exists {
-		return p
+		return p, true
 	}
-	return nil
+	return nil, false
 }
 
 func (rt *table) Sample(k uint, rng *rand.Rand) []peer.Peer {

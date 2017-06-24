@@ -80,12 +80,12 @@ func (l *Librarian) checkRequestAndKeyValue(ctx context.Context, rq proto.Messag
 
 // record records query outcome for a particular peer if that peer is in the routing table.
 func (l *Librarian) record(fromPeerID cid.ID, t peer.QueryType, o peer.Outcome) {
-	if existing := l.rt.Get(fromPeerID); existing != nil {
+	if peer, exists := l.rt.Get(fromPeerID); exists {
 		// only record query outcomes for peers already in our routing table
-		existing.Recorder().Record(t, o)
+		peer.Recorder().Record(t, o)
 
 		// re-heap; if this proves expensive, we could choose to only selectively re-heap
 		// when it changes the outcome of peer.Before()
-		l.rt.Push(existing)
+		l.rt.Push(peer)
 	}
 }

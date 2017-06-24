@@ -115,7 +115,8 @@ func TestLibrarian_bootstrapPeers_ok(t *testing.T) {
 
 	// make sure all the responded peers are in the routing table
 	for _, p := range fixedResult.Responded {
-		q := l.rt.Get(p.ID())
+		q, exists := l.rt.Get(p.ID())
+		assert.True(t, exists)
 		assert.NotNil(t, q)
 		assert.Equal(t, p, q)
 	}

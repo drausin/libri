@@ -107,7 +107,9 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 		"client",
 		peer.NewTestConnector(clientPeerIdx),
 	)
-	assert.Nil(t, lib.rt.Get(clientImpl.ID()))
+	clientImpl2, exists := lib.rt.Get(clientImpl.ID())
+	assert.False(t, exists)
+	assert.Nil(t, clientImpl2)
 
 	numPeers := uint32(8)
 	rq := &api.IntroduceRequest{
@@ -152,17 +154,19 @@ func TestLibrarian_Introduce_peerIDErr(t *testing.T) {
 	}
 
 	clientID, clientPeerIdx := ecid.NewPseudoRandom(rng), 1
-	client := peer.New(
+	client1 := peer.New(
 		clientID.ID(),
 		"client",
 		peer.NewTestConnector(clientPeerIdx),
 	)
-	assert.Nil(t, lib.rt.Get(client.ID()))
+	client2, exists := lib.rt.Get(client1.ID())
+	assert.Nil(t, client2)
+	assert.False(t, exists)
 
 	// request improperly signed with different public key
 	rq := &api.IntroduceRequest{
 		Metadata: newTestRequestMetadata(rng, ecid.NewPseudoRandom(rng)),
-		Self:     client.ToAPI(),
+		Self:     client1.ToAPI(),
 	}
 	rp, err := lib.Introduce(nil, rq)
 
