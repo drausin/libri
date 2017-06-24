@@ -18,6 +18,7 @@ import (
 	"google.golang.org/grpc/reflection"
 	"os/signal"
 	"syscall"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -96,10 +97,23 @@ func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
 
 	// add bootstrapped peers to routing table
 	for _, p := range intro.Result.Responded {
-		l.rt.Push(p)
+		q, exists := l.rt.Get(p.ID())
+		status := l.rt.Push(p)
+		fields := []zapcore.Field{
+			zap.Stringer("peer_id", p.ID()),
+			zap.Stringer("push_status", status),
+			zap.Stringer("address", p.Connector().Address()),
+		}
+		if exists {
+			fields = append(fields, zap.Stringer("prev_address", q.Connector().Address()))
+		}
+		l.logger.Debug("bootstrapped peer added", fields...)
 	}
 	l.logger.Info("bootstrapped peers",
-		zap.Int(LoggerNBootstrappedPeers, len(intro.Result.Responded)))
+		zap.Int(LoggerNBootstrappedPeers, len(intro.Result.Responded)),
+		zap.Int("routing_table_n_peers", l.rt.NumPeers()),
+		zap.Int("routing_table_n_buckets", l.rt.NumBuckets()),
+	)
 	return nil
 }
 

@@ -183,6 +183,7 @@ func (t *to) Begin() error {
 				t.logger.Debug("beginning new subscription",
 					zap.Int("index", int(i)),
 					zap.Float64("false_positive_rate", fp),
+					zap.Stringer("peer_id", peerID),
 				)
 				select {
 				case <-t.end:

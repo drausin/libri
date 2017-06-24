@@ -115,24 +115,30 @@ func TestTable_Push_existing(t *testing.T) {
 		assert.Equal(t, Added, rt.Push(p1))
 
 		// check that recorder states are the same
-		qOutcomes2 := rt.Get(p1.ID()).Recorder().ToStored()
+		p2, exists := rt.Get(p1.ID())
+		assert.True(t, exists)
+		qOutcomes2 := p2.Recorder().ToStored()
 		assert.Equal(t, qOutcomes1, qOutcomes2)
 
 		// add it again, confirming that the recorder has the same state (i.e., no merge)
 		assert.Equal(t, Existed, rt.Push(p1))
-		qOutcomes3 := rt.Get(p1.ID()).Recorder().ToStored()
+		p3, exists := rt.Get(p1.ID())
+		assert.True(t, exists)
+		qOutcomes3 := p3.Recorder().ToStored()
 		assert.Equal(t, qOutcomes1, qOutcomes3)
 
 		// create stub peer with new request success
-		p2 := peer.NewStub(p1.ID(), peer.MissingName)
-		p2.Recorder().Record(peer.Request, peer.Success)
+		p4 := peer.NewStub(p1.ID(), peer.MissingName)
+		p4.Recorder().Record(peer.Request, peer.Success)
 
 		// add the stub, which should merge with the existing peer
-		assert.Equal(t, Existed, rt.Push(p2))
-		qOutcomes4 := rt.Get(p1.ID()).Recorder().ToStored()
-		assert.NotEqual(t, qOutcomes1, qOutcomes4)
+		assert.Equal(t, Existed, rt.Push(p4))
+		p5, exists := rt.Get(p1.ID())
+		assert.True(t, exists)
+		qOutcomes5 := p5.Recorder().ToStored()
+		assert.NotEqual(t, qOutcomes1, qOutcomes5)
 		assert.Equal(t, uint64(0), qOutcomes1.Requests.NQueries)
-		assert.Equal(t, uint64(1), qOutcomes4.Requests.NQueries)
+		assert.Equal(t, uint64(1), qOutcomes5.Requests.NQueries)
 	}
 }
 
