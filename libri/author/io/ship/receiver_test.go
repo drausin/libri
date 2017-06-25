@@ -50,8 +50,8 @@ func TestReceiver_Receive_ok(t *testing.T) {
 		assert.Nil(t, err)
 		envelope := pack.NewEnvelopeDoc(
 			entryKey,
-			ecid.ToPublicKeyBytes(authorKey),
-			ecid.ToPublicKeyBytes(readerKey),
+			authorKey.PublicKeyBytes(),
+			readerKey.PublicKeyBytes(),
 			eekCiphertext,
 			eekCiphertextMAC,
 		)
@@ -107,8 +107,8 @@ func TestReceiver_Receive_err(t *testing.T) {
 	assert.Nil(t, err)
 	envelope := pack.NewEnvelopeDoc(
 		entryKey,
-		ecid.ToPublicKeyBytes(authorKey),
-		ecid.ToPublicKeyBytes(readerKey),
+		authorKey.PublicKeyBytes(),
+		readerKey.PublicKeyBytes(),
 		eekCiphertext,
 		eekCiphertextMAC,
 	)
@@ -185,10 +185,9 @@ func TestReceiver_GetEEK_err(t *testing.T) {
 	readerKeys1 := &fixedKeychain{in: false}
 	r1 := NewReceiver(cb, readerKeys1, acq, msAcq, docS).(*receiver)
 	env1 := &api.Envelope{}
-	eek, authorPub, err := r1.GetEEK(env1)
+	eek, err := r1.GetEEK(env1)
 	assert.Equal(t, keychain.ErrUnexpectedMissingKey, err)
 	assert.Nil(t, eek)
-	assert.Nil(t, authorPub)
 
 	// check ecid.FromPublicKeyButes error bubbles up
 	readerKeys2 := &fixedKeychain{in: true} // allows us to not err on readerKeys.Get()
@@ -196,10 +195,9 @@ func TestReceiver_GetEEK_err(t *testing.T) {
 	env2 := &api.Envelope{
 		AuthorPublicKey: api.RandBytes(rng, 16), // bad authorPubBytes
 	}
-	eek, authorPub, err = r2.GetEEK(env2)
+	eek, err = r2.GetEEK(env2)
 	assert.Equal(t, ecid.ErrKeyPointOffCurve, err)
 	assert.Nil(t, eek)
-	assert.Nil(t, authorPub)
 
 	// check enc.NewKEK() error bubbles up
 	wrongCurveKey, err := ecdsa.GenerateKey(elliptic.P256(), rng)
@@ -208,15 +206,14 @@ func TestReceiver_GetEEK_err(t *testing.T) {
 		getKey: ecid.FromPrivateKey(wrongCurveKey),
 		in: true,
 	}
-	wrongCurveKeyPubBytes := ecid.ToPublicKeyBytes(readerKeys3.getKey)
+	wrongCurveKeyPubBytes := readerKeys3.getKey.PublicKeyBytes()
 	env3 := &api.Envelope{
 		AuthorPublicKey: wrongCurveKeyPubBytes,
 	}
 	r3 := NewReceiver(cb, readerKeys3, acq, msAcq, docS).(*receiver)
-	eek, authorPub, err = r3.GetEEK(env3)
+	eek, err = r3.GetEEK(env3)
 	assert.Equal(t, ecid.ErrKeyPointOffCurve, err)
 	assert.Nil(t, eek)
-	assert.Nil(t, authorPub)
 
 	// check Decrypt error bubbles up
 	authorKeys4, readerKeys4 := keychain.New(1), keychain.New(1)
@@ -225,16 +222,15 @@ func TestReceiver_GetEEK_err(t *testing.T) {
 	readerKey, err := readerKeys4.Sample()
 	assert.Nil(t, err)
 	env4 := &api.Envelope{
-		AuthorPublicKey: ecid.ToPublicKeyBytes(authorKey),
-		ReaderPublicKey: ecid.ToPublicKeyBytes(readerKey),
+		AuthorPublicKey: authorKey.PublicKeyBytes(),
+		ReaderPublicKey: readerKey.PublicKeyBytes(),
 		EekCiphertext: api.RandBytes(rng, api.EEKLength),
 		EekCiphertextMac: api.RandBytes(rng, api.HMAC256Length),  // does't match ciphertext
 	}
 	r4 := NewReceiver(cb, readerKeys4, acq, msAcq, docS).(*receiver)
-	eek, authorPub, err = r4.GetEEK(env4)
+	eek, err = r4.GetEEK(env4)
 	assert.Equal(t, enc.ErrUnexpectedCiphertextMAC, err)
 	assert.Nil(t, eek)
-	assert.NotNil(t, authorPub)
 }
 
 type fixedAcquirer struct {

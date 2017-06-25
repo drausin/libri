@@ -73,7 +73,7 @@ func NewPseudoRandomKEK(rng *mrand.Rand) (*KEK, []byte, []byte) {
 	if err != nil {
 		panic(err)
 	}
-	return keys, ecid.ToPublicKeyBytes(authorPriv), ecid.ToPublicKeyBytes(readerPriv)
+	return keys, authorPriv.PublicKeyBytes(), readerPriv.PublicKeyBytes()
 }
 
 // Encrypt encrypts the EEK, returning the EEK ciphertext and ciphertext MAC.

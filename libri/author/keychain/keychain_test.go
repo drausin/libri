@@ -27,10 +27,11 @@ func TestSampler_Sample_err(t *testing.T) {
 func TestGetter_Get(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	kc := New(3)
-	k1, _ := kc.Sample()
+	k1, err := kc.Sample()
+	assert.Nil(t, err)
 	assert.NotNil(t, k1)
 
-	k1, in := kc.Get(ecid.ToPublicKeyBytes(k1))
+	k1, in := kc.Get(k1.PublicKeyBytes())
 	assert.True(t, in)
 	assert.NotNil(t, k1)
 
@@ -41,14 +42,14 @@ func TestGetter_Get(t *testing.T) {
 
 func TestUnionGetter_Get(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	kcs := []GetterSampler{New(3), New(3), New(3)}
+	kcs := []Getter{New(3), New(3), New(3)}
 	setKC := NewUnion(kcs...)
 
 	// check we can get a key from each indiv keychain
 	for _, kc := range kcs {
-		k1, err := kc.Sample()
-		assert.NotNil(t, err)
-		k1, in := setKC.Get(k1.Bytes())
+		k1, err := kc.(GetterSampler).Sample()
+		assert.Nil(t, err)
+		k1, in := setKC.Get(k1.PublicKeyBytes())
 		assert.True(t, in)
 		assert.Equal(t, k1, k1)
 	}

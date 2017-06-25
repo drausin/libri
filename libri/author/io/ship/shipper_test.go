@@ -4,13 +4,11 @@ import (
 	"math/rand"
 	"sync"
 	"testing"
-
 	"errors"
 
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/publish"
 	"github.com/drausin/libri/libri/author/keychain"
-	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
@@ -143,9 +141,9 @@ func TestShipReceive(t *testing.T) {
 	authorKeys, readerKeys := keychain.New(3), keychain.New(3)
 	authorKey, err := authorKeys.Sample()
 	assert.Nil(t, err)
-	authorPub := ecid.ToPublicKeyBytes(authorKey)
+	authorPub := authorKey.PublicKeyBytes()
 	readerKey, err := readerKeys.Sample()
-	readerPub := ecid.ToPublicKeyBytes(readerKey)
+	readerPub := readerKey.PublicKeyBytes()
 	assert.Nil(t, err)
 	kek, err := enc.NewKEK(authorKey.Key(), &readerKey.Key().PublicKey)
 	assert.Nil(t, err)

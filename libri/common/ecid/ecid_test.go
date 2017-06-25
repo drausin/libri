@@ -124,10 +124,10 @@ func TestFromPublicKeyBytes_err(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestToPublicKeyBytes(t *testing.T) {
+func TestPublicKeyBytes(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	i := NewPseudoRandom(rng)
-	pub, err := FromPublicKeyBytes(ToPublicKeyBytes(i))
+	pub, err := FromPublicKeyBytes(i.PublicKeyBytes())
 	assert.Nil(t, err)
 	assert.Equal(t, i.Key().X, pub.X)
 	assert.Equal(t, i.Key().Y, pub.Y)

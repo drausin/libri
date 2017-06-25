@@ -70,8 +70,6 @@ func TestLoadKeychains(t *testing.T) {
 	// check our keychains load properly and have the expected length
 	authorKeys, selfReaderKeys, err := LoadKeychains(testKeychainDir, auth)
 	assert.Nil(t, err)
-	assert.Equal(t, nInitialKeys, authorKeys.Len())
-	assert.Equal(t, nInitialKeys, selfReaderKeys.Len())
 
 	// delete self reader keychain to trigger error
 	err = os.Remove(path.Join(testKeychainDir, SelfReaderKeychainFilename))

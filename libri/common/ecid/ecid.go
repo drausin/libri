@@ -73,7 +73,7 @@ func (x *ecid) Bytes() []byte {
 }
 
 func (x *ecid) PublicKeyBytes() []byte {
-	ToPublicKeyBytes(&x.Key().PublicKey)
+	return ToPublicKeyBytes(&x.Key().PublicKey)
 }
 
 func (x *ecid) Int() *big.Int {

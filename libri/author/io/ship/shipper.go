@@ -65,7 +65,7 @@ func (s *shipper) ShipEntry(
 	if err != nil {
 		return nil, nil, err
 	}
-	return s.ShipEnvelope(kek, enc, entryKey, authorPub, readerPub)
+	return s.ShipEnvelope(kek, eek, entryKey, authorPub, readerPub)
 }
 
 func (s *shipper) ShipEnvelope(

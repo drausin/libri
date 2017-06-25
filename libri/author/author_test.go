@@ -48,7 +48,7 @@ func TestNewAuthor(t *testing.T) {
 	a2, err := NewAuthor(
 		a1.config,
 		a1.authorKeys,
-		a1.selfReaderKeys,
+		a1.selfReaderKeys.(keychain.GetterSampler),
 		clogging.NewDevInfoLogger(),
 	)
 
@@ -64,12 +64,12 @@ func TestAuthor_Healthcheck_ok(t *testing.T) {
 	getLibrarianHealthClients = func(librarianAddrs []*net.TCPAddr) (
 		map[string]healthpb.HealthClient, error) {
 		return map[string]healthpb.HealthClient{
-			"peerAddr1" : &fixedHealthClient{
+			"peerAddr1": &fixedHealthClient{
 				response: &healthpb.HealthCheckResponse{
 					Status: healthpb.HealthCheckResponse_SERVING,
 				},
 			},
-			"peerAddr2" : &fixedHealthClient{
+			"peerAddr2": &fixedHealthClient{
 				response: &healthpb.HealthCheckResponse{
 					Status: healthpb.HealthCheckResponse_NOT_SERVING,
 				},
@@ -93,7 +93,7 @@ func TestAuthor_Healthcheck_err(t *testing.T) {
 	getLibrarianHealthClients = func(librarianAddrs []*net.TCPAddr) (
 		map[string]healthpb.HealthClient, error) {
 		return map[string]healthpb.HealthClient{
-			"peerAddr1" : &fixedHealthClient{
+			"peerAddr1": &fixedHealthClient{
 				err: errors.New("some Check error"),
 			},
 		}, nil
@@ -193,7 +193,7 @@ func TestAuthor_Download_err(t *testing.T) {
 	// check Receive error bubbles up
 	a1 := &Author{
 		logger:        clogging.NewDevInfoLogger(),
-		receiver:      &fixedReceiver{err: errors.New("some Receive error")},
+		receiver:      &fixedReceiver{receiveEntryErr: errors.New("some Receive error")},
 		entryUnpacker: &fixedUnpacker{},
 	}
 	err := a1.Download(nil, docKey)
@@ -281,9 +281,9 @@ func (f *fixedMLPublisher) Publish(docKeys []id.ID, cb api.ClientBalancer) error
 }
 
 type fixedEntryPacker struct {
-	entry *api.Document
+	entry    *api.Document
 	metadata *api.Metadata
-	err   error
+	err      error
 }
 
 func (f *fixedEntryPacker) Pack(
@@ -298,25 +298,43 @@ type fixedShipper struct {
 	err         error
 }
 
-func (f *fixedShipper) Ship(
+func (f *fixedShipper) ShipEntry(
 	entry *api.Document, authorPub []byte, readerPub []byte, kek *enc.KEK, eek *enc.EEK,
 ) (*api.Document, id.ID, error) {
 	return f.envelope, f.envelopeKey, f.err
 }
 
-type fixedReceiver struct {
-	entry *api.Document
-	keys  *enc.EEK
-	err   error
+func (f *fixedShipper) ShipEnvelope(
+	kek *enc.KEK, eek *enc.EEK, entryKey id.ID, authorPub, readerPub []byte,
+) (*api.Document, id.ID, error) {
+	return f.envelope, f.envelopeKey, f.err
 }
 
-func (f *fixedReceiver) Receive(envelopeKey id.ID) (*api.Document, *enc.EEK, error) {
-	return f.entry, f.keys, f.err
+type fixedReceiver struct {
+	entry              *api.Document
+	keys               *enc.EEK
+	receiveEntryErr    error
+	envelope           *api.Envelope
+	receiveEnvelopeErr error
+	eek *enc.EEK
+	getErrkErr error
+}
+
+func (f *fixedReceiver) ReceiveEntry(envelopeKey id.ID) (*api.Document, *enc.EEK, error) {
+	return f.entry, f.keys, f.receiveEntryErr
+}
+
+func (f *fixedReceiver) ReceiveEnvelope(envelopeKey id.ID) (*api.Envelope, error) {
+	return f.envelope, f.receiveEnvelopeErr
+}
+
+func (f *fixedReceiver) GetEEK(envelope *api.Envelope) (*enc.EEK, error) {
+	return f.eek, f.getErrkErr
 }
 
 type fixedUnpacker struct {
 	metadata *api.Metadata
-	err error
+	err      error
 }
 
 func (f *fixedUnpacker) Unpack(content io.Writer, entry *api.Document, keys *enc.EEK) (
@@ -363,7 +381,7 @@ func (f *fixedClientBalancer) CloseAll() error {
 
 type fixedHealthClient struct {
 	response *healthpb.HealthCheckResponse
-	err error
+	err      error
 }
 
 func (f *fixedHealthClient) Check(

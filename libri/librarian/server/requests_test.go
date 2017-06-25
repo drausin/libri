@@ -50,12 +50,12 @@ func TestRequestVerifier_Verify_err(t *testing.T) {
 	}))
 
 	assert.NotNil(t, rv.Verify(ctx, nil, &api.RequestMetadata{
-		PubKey:    ecid.ToPublicKeyBytes(ecid.NewPseudoRandom(rng)),
+		PubKey:    ecid.NewPseudoRandom(rng).PublicKeyBytes(),
 		RequestId: nil, // can't be nil
 	}))
 
 	assert.NotNil(t, rv.Verify(ctx, nil, &api.RequestMetadata{
-		PubKey:    ecid.ToPublicKeyBytes(ecid.NewPseudoRandom(rng)),
+		PubKey:    ecid.NewPseudoRandom(rng).PublicKeyBytes(),
 		RequestId: []byte{1, 2, 3}, // not 32 bytes
 	}))
 }

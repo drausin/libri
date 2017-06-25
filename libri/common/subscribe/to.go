@@ -238,7 +238,7 @@ func (t *to) Send(pub *api.Publication) error {
 		zap.String("publication_key", key.String()),
 	)
 	t.logger.Debug("publication value", getLoggerValues(pub)...)
-	pvr, err := newPublicationValueReceipt(key.Bytes(), pub, ecid.ToPublicKeyBytes(t.clientID))
+	pvr, err := newPublicationValueReceipt(key.Bytes(), pub, t.clientID.PublicKeyBytes())
 	if err != nil {
 		return err
 	}

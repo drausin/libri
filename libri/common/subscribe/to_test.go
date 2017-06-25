@@ -211,7 +211,7 @@ func TestSubscriptionBeginnerImpl_Begin_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	clientID := ecid.NewPseudoRandom(rng)
 	fromID := ecid.NewPseudoRandom(rng)
-	fromPubKey := ecid.ToPublicKeyBytes(fromID)
+	fromPubKey := fromID.PublicKeyBytes()
 	sb := subscriptionBeginnerImpl{
 		clientID: clientID,
 		signer:   &fixedSigner{signature: "some.signature.jtw"},
@@ -285,7 +285,7 @@ func TestSubscriptionBeginnerImpl_Begin_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	clientID := ecid.NewPseudoRandom(rng)
 	fromID := ecid.NewPseudoRandom(rng)
-	fromPubKey := ecid.ToPublicKeyBytes(fromID)
+	fromPubKey := fromID.PublicKeyBytes()
 	errs := make(chan error)
 	end := make(chan struct{})
 	received := make(chan *pubValueReceipt, 1)

@@ -81,7 +81,7 @@ func FromECIDs(ecids []ecid.ID) GetterSampler {
 	pubs := make([]string, len(ecids))
 	privs := make(map[string]ecid.ID)
 	for i, priv := range ecids {
-		pubs[i] = pubKeyString(ecid.ToPublicKeyBytes(priv))
+		pubs[i] = pubKeyString(priv.PublicKeyBytes())
 		privs[pubs[i]] = priv
 	}
 	sort.Strings(pubs)
@@ -124,7 +124,7 @@ func (kcs *keychains) Get(publicKey []byte) (ecid.ID, bool) {
 }
 
 // Save saves and encrypts a keychain to a file.
-func Save(filepath, auth string, kc Getter, scryptN, scryptP int) error {
+func Save(filepath, auth string, kc GetterSampler, scryptN, scryptP int) error {
 	stored, err := encryptToStored(kc, auth, scryptN, scryptP)
 	if err != nil {
 		return err
@@ -138,7 +138,7 @@ func Save(filepath, auth string, kc Getter, scryptN, scryptP int) error {
 }
 
 // Load loads and decrypts a keychain from a file.
-func Load(filepath, auth string) (Getter, error) {
+func Load(filepath, auth string) (GetterSampler, error) {
 	buf, err := ioutil.ReadFile(filepath)
 	if err != nil {
 		return nil, err

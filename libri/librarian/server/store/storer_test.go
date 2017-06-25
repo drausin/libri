@@ -36,7 +36,7 @@ func (c *TestStoreQuerier) Query(ctx context.Context, pConn api.Connector, rq *a
 	return &api.StoreResponse{
 		Metadata: &api.ResponseMetadata{
 			RequestId: rq.Metadata.RequestId,
-			PubKey:    ecid.ToPublicKeyBytes(c.peerID),
+			PubKey:    c.peerID.PublicKeyBytes(),
 		},
 	}, nil
 }
@@ -189,7 +189,7 @@ func (f *diffRequestIDQuerier) Query(ctx context.Context, pConn api.Connector,
 	return &api.StoreResponse{
 		Metadata: &api.ResponseMetadata{
 			RequestId: cid.NewPseudoRandom(f.rng).Bytes(),
-			PubKey:    ecid.ToPublicKeyBytes(f.peerID),
+			PubKey:    f.peerID.PublicKeyBytes(),
 		},
 	}, nil
 }

@@ -49,7 +49,7 @@ func init() {
 }
 
 type authorGetter interface {
-	get(authorKeys, selfReaderKeys keychain.Getter) (*author.Author, *zap.Logger, error)
+	get(authorKeys, selfReaderKeys keychain.GetterSampler) (*author.Author, *zap.Logger, error)
 }
 
 type authorGetterImpl struct {
@@ -64,7 +64,7 @@ func newAuthorGetter() authorGetter {
 	}
 }
 
-func (g *authorGetterImpl) get(authorKeys, selfReaderKeys keychain.Getter) (
+func (g *authorGetterImpl) get(authorKeys, selfReaderKeys keychain.GetterSampler) (
 	*author.Author, *zap.Logger, error) {
 
 	config, logger, err := g.acg.get(g.librariansFlag)

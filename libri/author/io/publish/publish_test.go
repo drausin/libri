@@ -77,7 +77,7 @@ func TestPublisher_Publish_err(t *testing.T) {
 	pub := NewPublisher(clientID, signer, params)
 
 	// check that error from bad document bubbles up
-	diffAuthorPub := ecid.ToPublicKeyBytes(ecid.NewPseudoRandom(rng))
+	diffAuthorPub := ecid.NewPseudoRandom(rng).PublicKeyBytes()
 	docKey, err := pub.Publish(nil, diffAuthorPub, lc)
 	assert.NotNil(t, err)
 	assert.Nil(t, docKey)
@@ -187,7 +187,7 @@ func TestMultiLoadPublisher_Publish_ok(t *testing.T) {
 		for i := 0; i < nDocs; i++ {
 			docKeys[i] = id.NewPseudoRandom(rng)
 		}
-		authorKey := ecid.ToPublicKeyBytes(ecid.NewPseudoRandom(rng))
+		authorKey := ecid.NewPseudoRandom(rng).PublicKeyBytes()
 		for _, putParallelism := range []uint32{1, 2, 3} {
 			for _, deleteDoc := range []bool{true, false} {
 				slPub := &fixedSingleLoadPublisher{
@@ -220,7 +220,7 @@ func TestMultiLoadPublisher_Publish_err(t *testing.T) {
 		for i := 0; i < nDocs; i++ {
 			docKeys[i] = id.NewPseudoRandom(rng)
 		}
-		authorKey := ecid.ToPublicKeyBytes(ecid.NewPseudoRandom(rng))
+		authorKey := ecid.NewPseudoRandom(rng).PublicKeyBytes()
 		for _, putParallelism := range []uint32{1, 2, 3} {
 			slPub := &fixedSingleLoadPublisher{
 				err: errors.New("some Publish error"),

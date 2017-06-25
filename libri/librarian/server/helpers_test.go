@@ -20,7 +20,7 @@ import (
 func TestNewIDFromPublicKeyBytes_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	i1 := ecid.NewPseudoRandom(rng)
-	i2, err := newIDFromPublicKeyBytes(ecid.ToPublicKeyBytes(i1))
+	i2, err := newIDFromPublicKeyBytes(i1.PublicKeyBytes())
 
 	assert.Nil(t, err)
 	assert.Equal(t, i1.ID(), i2)
