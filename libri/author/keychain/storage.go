@@ -11,7 +11,7 @@ import (
 
 // encryptToStored encrypts the contents of Keychain using the authentication passphrase and scrypt
 // difficulty parameters.
-func encryptToStored(kc Keychain, auth string, scryptN, scryptP int) (*StoredKeychain, error) {
+func encryptToStored(kc Getter, auth string, scryptN, scryptP int) (*StoredKeychain, error) {
 	storedPrivateKeys := make([][]byte, 0)
 	var mu sync.Mutex
 	var wg sync.WaitGroup
@@ -49,7 +49,7 @@ func encryptToStored(kc Keychain, auth string, scryptN, scryptP int) (*StoredKey
 }
 
 // decryptFromStored decrypts the contents of a StoredKeychain using the authentication passphrase.
-func decryptFromStored(stored *StoredKeychain, auth string) (Keychain, error) {
+func decryptFromStored(stored *StoredKeychain, auth string) (Getter, error) {
 	ecids := make([]ecid.ID, 0)
 	var mu sync.Mutex
 	var wg sync.WaitGroup

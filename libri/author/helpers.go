@@ -14,8 +14,8 @@ type envelopeKeySampler interface {
 }
 
 type envelopeKeySamplerImpl struct {
-	authorKeys     keychain.Keychain
-	selfReaderKeys keychain.Keychain
+	authorKeys     keychain.GetterSampler
+	selfReaderKeys keychain.GetterSampler
 }
 
 // sample samples a random pair of keys (author and reader) for the author to use

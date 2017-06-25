@@ -12,15 +12,19 @@ import (
 
 // Receiver downloads the envelope, entry, and pages from the libri network.
 type Receiver interface {
-	// Receive gets (from libri) the envelope, entry, and pages implied by the envelope key. It
+	// ReceiveEntry gets (from libri) the envelope, entry, and pages implied by the envelope key. It
 	// stores these documents in a storage.DocumentStorer and returns the entry and encryption
 	// keys.
-	Receive(envelopeKey id.ID) (*api.Document, *enc.EEK, error)
+	ReceiveEntry(envelopeKey id.ID) (*api.Document, *enc.EEK, error)
+
+	ReceiveEnvelope(envelopeKey id.ID) (*api.Envelope, error)
+
+	GetEEK(envelope *api.Envelope) (*enc.EEK, error)
 }
 
 type receiver struct {
 	librarians api.ClientBalancer
-	readerKeys keychain.Keychain
+	readerKeys keychain.Getter
 	acquirer   publish.Acquirer
 	msAcquirer publish.MultiStoreAcquirer
 	docS       storage.DocumentStorer
@@ -30,7 +34,7 @@ type receiver struct {
 // acquirers, and storage.DocumentStorer.
 func NewReceiver(
 	librarians api.ClientBalancer,
-	readerKeys keychain.Keychain,
+	readerKeys keychain.Getter,
 	acquirer publish.Acquirer,
 	msAcquirer publish.MultiStoreAcquirer,
 	docS storage.DocumentStorer,
@@ -44,54 +48,62 @@ func NewReceiver(
 	}
 }
 
-func (r *receiver) Receive(envelopeKey id.ID) (*api.Document, *enc.EEK, error) {
+func (r *receiver) ReceiveEntry(envelopeKey id.ID) (*api.Document, *enc.EEK, error) {
+	envelope, err := r.ReceiveEnvelope(envelopeKey)
+	if err != nil {
+		return nil, nil, err
+	}
 	lc, err := r.librarians.Next()
 	if err != nil {
 		return nil, nil, err
 	}
-
-	// get the envelope and encryption keys
-	envelopeDoc, err := r.acquirer.Acquire(envelopeKey, nil, lc)
+	eek, err := r.GetEEK(envelope)
 	if err != nil {
 		return nil, nil, err
 	}
-	envelope, ok := envelopeDoc.Contents.(*api.Document_Envelope)
-	if !ok {
-		return nil, nil, api.ErrUnexpectedDocumentType
-	}
-	eek, authorPubBytes, err := r.createEEK(envelope.Envelope)
-	if err != nil {
-		return nil, nil, err
-	}
-
 	// get the entry and pages
-	entryKey := id.FromBytes(envelope.Envelope.EntryKey)
-	entryDoc, err := r.acquirer.Acquire(entryKey, authorPubBytes, lc)
+	entryKey := id.FromBytes(envelope.EntryKey)
+	entryDoc, err := r.acquirer.Acquire(entryKey, envelope.AuthorPublicKey, lc)
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := r.getPages(entryDoc, authorPubBytes); err != nil {
+	if err := r.getPages(entryDoc, envelope.AuthorPublicKey); err != nil {
 		return nil, nil, err
 	}
-
 	return entryDoc, eek, nil
 }
 
-func (r *receiver) createEEK(envelope *api.Envelope) (*enc.EEK, []byte, error) {
+func (r *receiver) ReceiveEnvelope(envelopeKey id.ID) (*api.Envelope, error) {
+	lc, err := r.librarians.Next()
+	if err != nil {
+		return nil, err
+	}
+	envelopeDoc, err := r.acquirer.Acquire(envelopeKey, nil, lc)
+	if err != nil {
+		return nil, err
+	}
+	envelope, ok := envelopeDoc.Contents.(*api.Document_Envelope)
+	if !ok {
+		return nil, api.ErrUnexpectedDocumentType
+	}
+	return envelope.Envelope, nil
+}
+
+func (r *receiver) GetEEK(envelope *api.Envelope) (*enc.EEK, error) {
 	readerPriv, in := r.readerKeys.Get(envelope.ReaderPublicKey)
 	if !in {
-		return nil, nil, keychain.ErrUnexpectedMissingKey
+		return nil, keychain.ErrUnexpectedMissingKey
 	}
 	authorPub, err := ecid.FromPublicKeyBytes(envelope.AuthorPublicKey)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	kek, err := enc.NewKEK(readerPriv.Key(), authorPub)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	eek, err := kek.Decrypt(envelope.EekCiphertext, envelope.EekCiphertextMac)
-	return eek, envelope.AuthorPublicKey, err
+	return eek, err
 }
 
 func (r *receiver) getPages(entry *api.Document, authorPubBytes []byte) error {

@@ -268,7 +268,7 @@ type fixedAuthorGetter struct {
 	err    error
 }
 
-func (f *fixedAuthorGetter) get(authorKeys, selfReaderKeys keychain.Keychain) (
+func (f *fixedAuthorGetter) get(authorKeys, selfReaderKeys keychain.Getter) (
 	*lauthor.Author, *zap.Logger, error) {
 	return f.author, f.logger, f.err
 }
@@ -283,12 +283,12 @@ func (f *fixedMediaTypeGetter) get(upFilepath string) (string, error) {
 }
 
 type fixedKeychainsGetter struct {
-	authorKeys     keychain.Keychain
-	selfReaderKeys keychain.Keychain
+	authorKeys     keychain.Getter
+	selfReaderKeys keychain.Getter
 	err            error
 }
 
-func (f *fixedKeychainsGetter) get() (keychain.Keychain, keychain.Keychain, error) {
+func (f *fixedKeychainsGetter) get() (keychain.Getter, keychain.Getter, error) {
 	return f.authorKeys, f.selfReaderKeys, f.err
 }
 

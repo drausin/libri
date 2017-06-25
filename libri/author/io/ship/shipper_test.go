@@ -35,7 +35,7 @@ func TestShipper_Ship_ok(t *testing.T) {
 	assert.Nil(t, err)
 
 	// test multi-page ship
-	envelope, envelopeKey, err := s.Ship(entry, authorPub, readerPub, kek, eek)
+	envelope, envelopeKey, err := s.ShipEntry(entry, authorPub, readerPub, kek, eek)
 	assert.Nil(t, err)
 	assert.NotNil(t, envelope)
 	assert.NotNil(t, envelopeKey)
@@ -51,7 +51,7 @@ func TestShipper_Ship_ok(t *testing.T) {
 	}
 	origEntryKey, err = api.GetKey(entry)
 	assert.Nil(t, err)
-	envelope, envelopeKey, err = s.Ship(entry, authorPub, readerPub, kek, eek)
+	envelope, envelopeKey, err = s.ShipEntry(entry, authorPub, readerPub, kek, eek)
 	assert.Nil(t, err)
 	assert.NotNil(t, envelope)
 	assert.NotNil(t, envelopeKey)
@@ -81,13 +81,13 @@ func TestShipper_Ship_err(t *testing.T) {
 			Envelope: api.NewTestEnvelope(rng),
 		},
 	}
-	envelope, entryKey, err := s.Ship(envelope, authorPub, readerPub, kek, eek)
+	envelope, entryKey, err := s.ShipEntry(envelope, authorPub, readerPub, kek, eek)
 	assert.NotNil(t, err)
 	assert.Nil(t, envelope)
 	assert.Nil(t, entryKey)
 
 	// check page publish error bubbles up
-	envelope, entryKey, err = s.Ship(entry, authorPub, readerPub, kek, eek)
+	envelope, entryKey, err = s.ShipEntry(entry, authorPub, readerPub, kek, eek)
 	assert.NotNil(t, err)
 	assert.Nil(t, envelope)
 	assert.Nil(t, entryKey)
@@ -98,7 +98,7 @@ func TestShipper_Ship_err(t *testing.T) {
 		&fixedPublisher{},
 		&fixedMultiLoadPublisher{},
 	)
-	envelope, entryKey, err = s.Ship(entry, authorPub, readerPub, kek, eek)
+	envelope, entryKey, err = s.ShipEntry(entry, authorPub, readerPub, kek, eek)
 	assert.NotNil(t, err)
 	assert.Nil(t, envelope)
 	assert.Nil(t, entryKey)
@@ -109,7 +109,7 @@ func TestShipper_Ship_err(t *testing.T) {
 		&fixedPublisher{[]error{errors.New("some Publish error")}},
 		&fixedMultiLoadPublisher{},
 	)
-	envelope, entryKey, err = s.Ship(entry, authorPub, readerPub, kek, eek)
+	envelope, entryKey, err = s.ShipEntry(entry, authorPub, readerPub, kek, eek)
 	assert.NotNil(t, err)
 	assert.Nil(t, envelope)
 	assert.Nil(t, entryKey)
@@ -120,7 +120,7 @@ func TestShipper_Ship_err(t *testing.T) {
 		&fixedPublisher{},
 		&fixedMultiLoadPublisher{},
 	)
-	envelope, entryKey, err = s.Ship(entry, authorPub, readerPub, &enc.KEK{}, eek)
+	envelope, entryKey, err = s.ShipEntry(entry, authorPub, readerPub, &enc.KEK{}, eek)
 	assert.NotNil(t, err)
 	assert.Nil(t, envelope)
 	assert.Nil(t, entryKey)
@@ -131,7 +131,7 @@ func TestShipper_Ship_err(t *testing.T) {
 		&fixedPublisher{[]error{nil, errors.New("some Publish error")}},
 		&fixedMultiLoadPublisher{},
 	)
-	envelope, entryKey, err = s.Ship(entry, authorPub, readerPub, kek, eek)
+	envelope, entryKey, err = s.ShipEntry(entry, authorPub, readerPub, kek, eek)
 	assert.NotNil(t, err)
 	assert.Nil(t, envelope)
 	assert.Nil(t, entryKey)
@@ -203,7 +203,7 @@ func TestShipReceive(t *testing.T) {
 		eek := enc.NewPseudoRandomEEK(rng)
 		envelopeKeys := make([]id.ID, nDocs)
 		for i := uint32(0); i < nDocs; i++ {
-			envelope, _, err := s.Ship(docs[i], authorPub, readerPub, kek, eek)
+			envelope, _, err := s.ShipEntry(docs[i], authorPub, readerPub, kek, eek)
 			assert.Nil(t, err)
 			envelopeKeys[i], err = api.GetKey(envelope)
 			assert.Nil(t, err)
@@ -219,7 +219,7 @@ func TestShipReceive(t *testing.T) {
 		)
 		r := NewReceiver(cb, readerKeys, pubAcq, msA, docSL2)
 		for i := uint32(0); i < nDocs; i++ {
-			entry, _, err := r.Receive(envelopeKeys[i])
+			entry, _, err := r.ReceiveEntry(envelopeKeys[i])
 			assert.Equal(t, docs[i], entry)
 			assert.Nil(t, err)
 			entryKey, err := api.GetKey(entry)

@@ -7,23 +7,25 @@ import (
 
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/stretchr/testify/assert"
+	"math/rand"
 )
 
-func TestKeychain_Sample_ok(t *testing.T) {
+func TestSampler_Sample_ok(t *testing.T) {
 	kc := New(3)
 	k1, err := kc.Sample()
 	assert.Nil(t, err)
 	assert.NotNil(t, k1)
 }
 
-func TestKeychain_Sample_err(t *testing.T) {
+func TestSampler_Sample_err(t *testing.T) {
 	kc := New(0)
 	k1, err := kc.Sample()
 	assert.NotNil(t, err)
 	assert.Nil(t, k1)
 }
 
-func TestKeychain_Get(t *testing.T) {
+func TestGetter_Get(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
 	kc := New(3)
 	k1, _ := kc.Sample()
 	assert.NotNil(t, k1)
@@ -31,11 +33,29 @@ func TestKeychain_Get(t *testing.T) {
 	k1, in := kc.Get(ecid.ToPublicKeyBytes(k1))
 	assert.True(t, in)
 	assert.NotNil(t, k1)
+
+	k2, in := kc.Get(ecid.NewPseudoRandom(rng).Bytes())
+	assert.False(t, in)
+	assert.Nil(t, k2)
 }
 
-func TestKeychain_Len(t *testing.T) {
-	kc := New(3)
-	assert.Equal(t, 3, kc.Len())
+func TestUnionGetter_Get(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	kcs := []GetterSampler{New(3), New(3), New(3)}
+	setKC := NewUnion(kcs...)
+
+	// check we can get a key from each indiv keychain
+	for _, kc := range kcs {
+		k1, err := kc.Sample()
+		assert.NotNil(t, err)
+		k1, in := setKC.Get(k1.Bytes())
+		assert.True(t, in)
+		assert.Equal(t, k1, k1)
+	}
+
+	k, in := setKC.Get(ecid.NewPseudoRandom(rng).Bytes())
+	assert.False(t, in)
+	assert.Nil(t, k)
 }
 
 func TestSave_err(t *testing.T) {
