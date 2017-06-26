@@ -47,7 +47,7 @@ func NewTestMultiPageEntry(rng *rand.Rand) *Entry {
 		cid.NewPseudoRandom(rng).Bytes(),
 	}
 	return &Entry{
-		AuthorPublicKey:       ecid.ToPublicKeyBytes(ecid.NewPseudoRandom(rng)),
+		AuthorPublicKey:       ecid.NewPseudoRandom(rng).PublicKeyBytes(),
 		CreatedTime:           1,
 		MetadataCiphertextMac: RandBytes(rng, 32),
 		MetadataCiphertext:    RandBytes(rng, 64),

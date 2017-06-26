@@ -16,7 +16,7 @@ var ErrUnexpectedRequestID = errors.New("response contains unexpected RequestID"
 func NewRequestMetadata(peerID ecid.ID) *api.RequestMetadata {
 	return &api.RequestMetadata{
 		RequestId: cid.NewRandom().Bytes(),
-		PubKey:    ecid.ToPublicKeyBytes(peerID),
+		PubKey:    peerID.PublicKeyBytes(),
 	}
 }
 

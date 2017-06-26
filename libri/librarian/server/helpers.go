@@ -23,7 +23,7 @@ func newIDFromPublicKeyBytes(pubKeyBytes []byte) (cid.ID, error) {
 func (l *Librarian) NewResponseMetadata(m *api.RequestMetadata) *api.ResponseMetadata {
 	return &api.ResponseMetadata{
 		RequestId: m.RequestId,
-		PubKey:    ecid.ToPublicKeyBytes(l.selfID),
+		PubKey:    l.selfID.PublicKeyBytes(),
 	}
 }
 

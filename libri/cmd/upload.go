@@ -152,14 +152,14 @@ func (*mediaTypeGetterImpl) get(upFilepath string) (string, error) {
 }
 
 type keychainsGetter interface {
-	get() (keychain.Keychain, keychain.Keychain, error)
+	get() (keychain.GetterSampler, keychain.GetterSampler, error)
 }
 
 type keychainsGetterImpl struct {
 	pg passphraseGetter
 }
 
-func (g *keychainsGetterImpl) get() (keychain.Keychain, keychain.Keychain, error) {
+func (g *keychainsGetterImpl) get() (keychain.GetterSampler, keychain.GetterSampler, error) {
 	keychainDir := viper.GetString(keychainDirFlag)
 	if keychainDir == "" {
 		return nil, nil, errMissingKeychainDir

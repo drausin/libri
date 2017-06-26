@@ -41,7 +41,6 @@ func TestToFromStored_err(t *testing.T) {
 
 	stored1, err := encryptToStored(kc1, "test passphrase", veryLightScryptN, veryLightScryptP)
 	assert.Nil(t, err)
-	assert.Equal(t, kc1.Len(), len(stored1.PrivateKeys))
 
 	kc2, err := decryptFromStored(stored1, "wrong passphrase")
 	assert.NotNil(t, err)

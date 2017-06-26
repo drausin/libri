@@ -364,7 +364,7 @@ func TestLibrarian_Store_ok(t *testing.T) {
 func newTestRequestMetadata(rng *rand.Rand, peerID ecid.ID) *api.RequestMetadata {
 	return &api.RequestMetadata{
 		RequestId: cid.NewPseudoRandom(rng).Bytes(),
-		PubKey:    ecid.ToPublicKeyBytes(peerID),
+		PubKey:    peerID.PublicKeyBytes(),
 	}
 }
 

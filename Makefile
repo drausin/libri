@@ -72,6 +72,6 @@ test-cover:
 
 test:
 	@echo "--> Running go test"
-	@go test -race $(LIBRI_PKGS) --cover
+	@go test -race $(LIBRI_PKGS)
 
 

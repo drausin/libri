@@ -10,12 +10,15 @@ import (
 
 // Shipper publishes documents to libri.
 type Shipper interface {
-	// Ship publishes (to libri) the entry document, its page document keys (if more than one),
+	// ShipEntry publishes (to libri) the entry document, its page document keys (if more than one),
 	// and the envelope document with the author and reader public keys. It returns the
 	// published envelope document and its key.
-	Ship(
+	ShipEntry(
 		entry *api.Document, authorPub []byte, readerPub []byte, kek *enc.KEK, eek *enc.EEK,
 	) (*api.Document, id.ID, error)
+
+	ShipEnvelope(kek *enc.KEK, eek *enc.EEK, entryKey id.ID, authorPub, readerPub []byte) (
+		*api.Document, id.ID, error)
 }
 
 type shipper struct {
@@ -38,7 +41,7 @@ func NewShipper(
 	}
 }
 
-func (s *shipper) Ship(
+func (s *shipper) ShipEntry(
 	entry *api.Document, authorPub []byte, readerPub []byte, kek *enc.KEK, eek *enc.EEK,
 ) (*api.Document, id.ID, error) {
 
@@ -54,12 +57,22 @@ func (s *shipper) Ship(
 		}
 	}
 
-	// use same librarian to publish entry and envelope
 	lc, err := s.librarians.Next()
 	if err != nil {
 		return nil, nil, err
 	}
 	entryKey, err := s.publisher.Publish(entry, authorPub, lc)
+	if err != nil {
+		return nil, nil, err
+	}
+	return s.ShipEnvelope(kek, eek, entryKey, authorPub, readerPub)
+}
+
+func (s *shipper) ShipEnvelope(
+	kek *enc.KEK, eek *enc.EEK, entryKey id.ID, authorPub, readerPub []byte,
+) (*api.Document, id.ID, error) {
+
+	lc, err := s.librarians.Next()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -72,6 +85,5 @@ func (s *shipper) Ship(
 	if err != nil {
 		return nil, nil, err
 	}
-
 	return envelope, envelopeKey, nil
 }

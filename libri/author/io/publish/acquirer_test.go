@@ -76,7 +76,7 @@ func TestAcquirer_Acquire_err(t *testing.T) {
 		responseValue: expectedDoc,
 	}
 	acq4 := NewAcquirer(clientID, signer, params)
-	diffAuthorPub := ecid.ToPublicKeyBytes(ecid.NewPseudoRandom(rng))
+	diffAuthorPub := ecid.NewPseudoRandom(rng).PublicKeyBytes()
 	actualDoc, err = acq4.Acquire(docKey, diffAuthorPub, lc4)
 	assert.NotNil(t, err)
 	assert.Nil(t, actualDoc)
@@ -128,7 +128,7 @@ func TestMultiStoreAcquirer_Acquire_ok(t *testing.T) {
 		for i := 0; i < nDocs; i++ {
 			docKeys[i] = id.NewPseudoRandom(rng)
 		}
-		authorKey := ecid.ToPublicKeyBytes(ecid.NewPseudoRandom(rng))
+		authorKey := ecid.NewPseudoRandom(rng).PublicKeyBytes()
 		for _, getParallelism := range []uint32{1, 2, 3} {
 			slAcq := &fixedSingleStoreAcquirer{
 				acquiredKeys: make(map[string]struct{}),
@@ -158,7 +158,7 @@ func TestMultiStoreAcquirer_Acquire_err(t *testing.T) {
 		for i := 0; i < nDocs; i++ {
 			docKeys[i] = id.NewPseudoRandom(rng)
 		}
-		authorKey := ecid.ToPublicKeyBytes(ecid.NewPseudoRandom(rng))
+		authorKey := ecid.NewPseudoRandom(rng).PublicKeyBytes()
 		for _, getParallelism := range []uint32{1, 2, 3} {
 			slAcq := &fixedSingleStoreAcquirer{
 				err: errors.New("some Acquire error"),

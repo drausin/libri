@@ -24,6 +24,9 @@ import (
 	"google.golang.org/grpc"
 	"golang.org/x/net/context"
 	"github.com/drausin/libri/libri/author/keychain"
+	"github.com/drausin/libri/libri/common/ecid"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 )
 
 const (
@@ -48,7 +51,7 @@ func TestNewAuthor(t *testing.T) {
 	a2, err := NewAuthor(
 		a1.config,
 		a1.authorKeys,
-		a1.selfReaderKeys,
+		a1.selfReaderKeys.(keychain.GetterSampler),
 		clogging.NewDevInfoLogger(),
 	)
 
@@ -64,12 +67,12 @@ func TestAuthor_Healthcheck_ok(t *testing.T) {
 	getLibrarianHealthClients = func(librarianAddrs []*net.TCPAddr) (
 		map[string]healthpb.HealthClient, error) {
 		return map[string]healthpb.HealthClient{
-			"peerAddr1" : &fixedHealthClient{
+			"peerAddr1": &fixedHealthClient{
 				response: &healthpb.HealthCheckResponse{
 					Status: healthpb.HealthCheckResponse_SERVING,
 				},
 			},
-			"peerAddr2" : &fixedHealthClient{
+			"peerAddr2": &fixedHealthClient{
 				response: &healthpb.HealthCheckResponse{
 					Status: healthpb.HealthCheckResponse_NOT_SERVING,
 				},
@@ -93,7 +96,7 @@ func TestAuthor_Healthcheck_err(t *testing.T) {
 	getLibrarianHealthClients = func(librarianAddrs []*net.TCPAddr) (
 		map[string]healthpb.HealthClient, error) {
 		return map[string]healthpb.HealthClient{
-			"peerAddr1" : &fixedHealthClient{
+			"peerAddr1": &fixedHealthClient{
 				err: errors.New("some Check error"),
 			},
 		}, nil
@@ -122,21 +125,21 @@ func TestAuthor_Upload_ok(t *testing.T) {
 	a.entryPacker = &fixedEntryPacker{
 		metadata: metadata,
 	}
-	expectedEntryKey := id.NewPseudoRandom(rng)
+	expectedEnvKey := id.NewPseudoRandom(rng)
 	a.shipper = &fixedShipper{
 		envelope: &api.Document{
 			Contents: &api.Document_Envelope{
 				Envelope: api.NewTestEnvelope(rng),
 			},
 		},
-		envelopeKey: expectedEntryKey,
+		envelopeKey: expectedEnvKey,
 	}
 
 	// since everything is mocked, inputs don't really matter
 	actualEnvelope, actualEnvelopeKey, err := a.Upload(nil, "")
 	assert.Nil(t, err)
 	assert.NotNil(t, actualEnvelope)
-	assert.Equal(t, expectedEntryKey, actualEnvelopeKey)
+	assert.Equal(t, expectedEnvKey, actualEnvelopeKey)
 
 	err = a.CloseAndRemove()
 	assert.Nil(t, err)
@@ -193,7 +196,7 @@ func TestAuthor_Download_err(t *testing.T) {
 	// check Receive error bubbles up
 	a1 := &Author{
 		logger:        clogging.NewDevInfoLogger(),
-		receiver:      &fixedReceiver{err: errors.New("some Receive error")},
+		receiver:      &fixedReceiver{receiveEntryErr: errors.New("some Receive error")},
 		entryUnpacker: &fixedUnpacker{},
 	}
 	err := a1.Download(nil, docKey)
@@ -257,6 +260,104 @@ func TestAuthor_UploadDownload(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestAuthor_Share_ok(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	a := newTestAuthor()
+	defer func() {
+		err := a.CloseAndRemove()
+		assert.Nil(t, err)
+	}()
+	a.receiver = &fixedReceiver{
+		envelope: api.NewTestEnvelope(rng),
+		eek: enc.NewPseudoRandomEEK(rng),
+	}
+	expectedSharedEnvKey := id.NewPseudoRandom(rng)
+	a.shipper = &fixedShipper{
+		envelope: &api.Document{
+			Contents: &api.Document_Envelope{
+				Envelope: api.NewTestEnvelope(rng),
+			},
+		},
+		envelopeKey: expectedSharedEnvKey,
+	}
+
+	// since everything is mocked, inputs don't really matter
+	origEnvKey := id.NewPseudoRandom(rng)
+	readerPub := &ecid.NewPseudoRandom(rng).Key().PublicKey
+	actualSharedEnv, actualSharedEnvKey, err := a.Share(origEnvKey, readerPub)
+	assert.Nil(t, err)
+	assert.NotNil(t, actualSharedEnv)
+	assert.Equal(t, expectedSharedEnvKey, actualSharedEnvKey)
+}
+
+func TestAuthor_Share_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	origEnvKey := id.NewPseudoRandom(rng)
+	readerPub := &ecid.NewPseudoRandom(rng).Key().PublicKey
+
+	// check ReceiveEnvelope error bubbles up
+	a1 := &Author{
+		receiver: &fixedReceiver{
+			receiveEnvelopeErr: errors.New("some ReceiveEnvelope error"),
+		},
+	}
+	env, envID, err := a1.Share(origEnvKey, readerPub)
+	assert.NotNil(t, err)
+	assert.Nil(t, env)
+	assert.Nil(t, envID)
+
+	// check GetEEK error bubbles up
+	a2 := &Author{
+		receiver: &fixedReceiver{
+			getErrkErr: errors.New("some GetEEK error"),
+		},
+	}
+	env, envID, err = a2.Share(origEnvKey, readerPub)
+	assert.NotNil(t, err)
+	assert.Nil(t, env)
+	assert.Nil(t, envID)
+
+	// check Share error bubbles up
+	a3 := &Author{
+		receiver: &fixedReceiver{},
+		authorKeys: &fixedKeychain{
+			sampleErr: errors.New("some Sample error"),
+		},
+	}
+	env, envID, err = a3.Share(origEnvKey, readerPub)
+	assert.NotNil(t, err)
+	assert.Nil(t, env)
+	assert.Nil(t, envID)
+
+	// check NewKEK error bubbles up
+	badCurvePK, err := ecdsa.GenerateKey(elliptic.P256(), rng)
+	assert.Nil(t, err)
+	a4 := &Author{
+		receiver: &fixedReceiver{},
+		authorKeys: &fixedKeychain{
+			sampleID: ecid.FromPrivateKey(badCurvePK),
+		},
+	}
+	env, envID, err = a4.Share(origEnvKey, readerPub)
+	assert.NotNil(t, err)
+	assert.Nil(t, env)
+	assert.Nil(t, envID)
+
+	a5 := &Author{
+		receiver: &fixedReceiver{
+			envelope: api.NewTestEnvelope(rng),
+		},
+		authorKeys: keychain.New(1),
+		shipper: &fixedShipper{
+			err: errors.New("some ShipEnvelope error"),
+		},
+	}
+	env, envID, err = a5.Share(origEnvKey, readerPub)
+	assert.NotNil(t, err)
+	assert.Nil(t, env)
+	assert.Nil(t, envID)
+}
+
 type fixedPublisher struct {
 	doc        *api.Document
 	lc         api.Putter
@@ -281,9 +382,9 @@ func (f *fixedMLPublisher) Publish(docKeys []id.ID, cb api.ClientBalancer) error
 }
 
 type fixedEntryPacker struct {
-	entry *api.Document
+	entry    *api.Document
 	metadata *api.Metadata
-	err   error
+	err      error
 }
 
 func (f *fixedEntryPacker) Pack(
@@ -298,25 +399,43 @@ type fixedShipper struct {
 	err         error
 }
 
-func (f *fixedShipper) Ship(
+func (f *fixedShipper) ShipEntry(
 	entry *api.Document, authorPub []byte, readerPub []byte, kek *enc.KEK, eek *enc.EEK,
 ) (*api.Document, id.ID, error) {
 	return f.envelope, f.envelopeKey, f.err
 }
 
-type fixedReceiver struct {
-	entry *api.Document
-	keys  *enc.EEK
-	err   error
+func (f *fixedShipper) ShipEnvelope(
+	kek *enc.KEK, eek *enc.EEK, entryKey id.ID, authorPub, readerPub []byte,
+) (*api.Document, id.ID, error) {
+	return f.envelope, f.envelopeKey, f.err
 }
 
-func (f *fixedReceiver) Receive(envelopeKey id.ID) (*api.Document, *enc.EEK, error) {
-	return f.entry, f.keys, f.err
+type fixedReceiver struct {
+	entry              *api.Document
+	keys               *enc.EEK
+	receiveEntryErr    error
+	envelope           *api.Envelope
+	receiveEnvelopeErr error
+	eek                *enc.EEK
+	getErrkErr         error
+}
+
+func (f *fixedReceiver) ReceiveEntry(envelopeKey id.ID) (*api.Document, *enc.EEK, error) {
+	return f.entry, f.keys, f.receiveEntryErr
+}
+
+func (f *fixedReceiver) ReceiveEnvelope(envelopeKey id.ID) (*api.Envelope, error) {
+	return f.envelope, f.receiveEnvelopeErr
+}
+
+func (f *fixedReceiver) GetEEK(envelope *api.Envelope) (*enc.EEK, error) {
+	return f.eek, f.getErrkErr
 }
 
 type fixedUnpacker struct {
 	metadata *api.Metadata
-	err error
+	err      error
 }
 
 func (f *fixedUnpacker) Unpack(content io.Writer, entry *api.Document, keys *enc.EEK) (
@@ -363,7 +482,7 @@ func (f *fixedClientBalancer) CloseAll() error {
 
 type fixedHealthClient struct {
 	response *healthpb.HealthCheckResponse
-	err error
+	err      error
 }
 
 func (f *fixedHealthClient) Check(

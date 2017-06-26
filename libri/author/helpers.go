@@ -3,7 +3,6 @@ package author
 import (
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/keychain"
-	"github.com/drausin/libri/libri/common/ecid"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc"
 	"net"
@@ -14,8 +13,8 @@ type envelopeKeySampler interface {
 }
 
 type envelopeKeySamplerImpl struct {
-	authorKeys     keychain.Keychain
-	selfReaderKeys keychain.Keychain
+	authorKeys     keychain.GetterSampler
+	selfReaderKeys keychain.GetterSampler
 }
 
 // sample samples a random pair of keys (author and reader) for the author to use
@@ -38,7 +37,7 @@ func (s *envelopeKeySamplerImpl) sample() ([]byte, []byte, *enc.KEK, *enc.EEK, e
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	return ecid.ToPublicKeyBytes(authorID), ecid.ToPublicKeyBytes(selfReaderID), kek, eek, nil
+	return authorID.PublicKeyBytes(), selfReaderID.PublicKeyBytes(), kek, eek, nil
 }
 
 // use var so it's easy to replace for tests w/o a single-method interface

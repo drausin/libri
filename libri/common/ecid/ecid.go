@@ -7,9 +7,7 @@ import (
 	"io"
 	"math/big"
 	mrand "math/rand"
-
 	"errors"
-
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 )
@@ -35,6 +33,8 @@ type ID interface {
 
 	// underlying ID object
 	ID() cid.ID
+
+	PublicKeyBytes() []byte
 }
 
 type ecid struct {
@@ -70,6 +70,10 @@ func (x *ecid) String() string {
 
 func (x *ecid) Bytes() []byte {
 	return x.id.Bytes()
+}
+
+func (x *ecid) PublicKeyBytes() []byte {
+	return ToPublicKeyBytes(&x.Key().PublicKey)
 }
 
 func (x *ecid) Int() *big.Int {
@@ -114,6 +118,6 @@ func FromPublicKeyBytes(buf []byte) (*ecdsa.PublicKey, error) {
 }
 
 // ToPublicKeyBytes marshals the public key of the ID to a byte representation.
-func ToPublicKeyBytes(x ID) []byte {
-	return elliptic.Marshal(Curve, x.Key().X, x.Key().Y)
+func ToPublicKeyBytes(pub *ecdsa.PublicKey) []byte {
+	return elliptic.Marshal(Curve, pub.X, pub.Y)
 }

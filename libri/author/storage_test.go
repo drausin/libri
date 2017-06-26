@@ -67,18 +67,16 @@ func TestLoadKeychains(t *testing.T) {
 		veryLightScryptN, veryLightScryptP)
 	assert.Nil(t, err)
 
-	// check our keychains load properly and have the expected length
-	authorKeys, selfReaderKeys, err := LoadKeychains(testKeychainDir, auth)
+	// check our keychains load properly
+	_, _, err = LoadKeychains(testKeychainDir, auth)
 	assert.Nil(t, err)
-	assert.Equal(t, nInitialKeys, authorKeys.Len())
-	assert.Equal(t, nInitialKeys, selfReaderKeys.Len())
 
 	// delete self reader keychain to trigger error
 	err = os.Remove(path.Join(testKeychainDir, SelfReaderKeychainFilename))
 	assert.Nil(t, err)
 
 	// check missing self reader keychain file triggers error
-	authorKeys, selfReaderKeys, err = LoadKeychains(testKeychainDir, auth)
+	authorKeys, selfReaderKeys, err := LoadKeychains(testKeychainDir, auth)
 	assert.NotNil(t, err)
 	assert.Nil(t, authorKeys)
 	assert.Nil(t, selfReaderKeys)

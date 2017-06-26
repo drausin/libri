@@ -37,20 +37,27 @@ var (
 	ErrUnexpectedMissingKey = errors.New("missing key")
 )
 
-// Keychain is a collection of ECDSA keys.
-type Keychain interface {
-	// Sample randomly selects a key.
-	Sample() (ecid.ID, error)
-
+// Getter is a collection of ECDSA keys that can be looked up by their public key.
+type Getter interface {
 	// Get returns the key with the given public key, if it exists. Otherwise, it returns nil.
 	// The second return value indicates whether the key is present in the keychain or not.
 	Get(publicKey []byte) (ecid.ID, bool)
-
-	// Len returns the number of keys in the keychain.
-	Len() int
 }
 
-// Keychain represents a collection of ECDSA private keys.
+// Sampler is a collection of ECDSA keys that can be sampled.
+type Sampler interface {
+	// Sample randomly selects a key from the collection.
+	Sample() (ecid.ID, error)
+
+}
+
+// GetterSampler and a colleciton of ECCSA keys that can be both looked up and sampled.
+type GetterSampler interface {
+	Getter
+	Sampler
+}
+
+// Getter represents a collection of ECDSA private keys.
 type keychain struct {
 	// private keys indexed by the hex of the 65-byte public key representation
 	privs map[string]ecid.ID
@@ -62,8 +69,8 @@ type keychain struct {
 	rng *rand.Rand
 }
 
-// New creates a new (plaintext) Keychain with n individual keys.
-func New(n int) Keychain {
+// New creates a new (plaintext) Getter with n individual keys.
+func New(n int) GetterSampler {
 	ecids := make([]ecid.ID, n)
 	for i := 0; i < n; i++ {
 		ecids[i] = ecid.NewRandom()
@@ -71,12 +78,12 @@ func New(n int) Keychain {
 	return FromECIDs(ecids)
 }
 
-// FromECIDs creates a Keychain instance from a map of ECDSA private keys.
-func FromECIDs(ecids []ecid.ID) Keychain {
+// FromECIDs creates a Getter instance from a map of ECDSA private keys.
+func FromECIDs(ecids []ecid.ID) GetterSampler {
 	pubs := make([]string, len(ecids))
 	privs := make(map[string]ecid.ID)
 	for i, priv := range ecids {
-		pubs[i] = pubKeyString(ecid.ToPublicKeyBytes(priv))
+		pubs[i] = pubKeyString(priv.PublicKeyBytes())
 		privs[pubs[i]] = priv
 	}
 	sort.Strings(pubs)
@@ -101,12 +108,26 @@ func (kc *keychain) Get(publicKey []byte) (ecid.ID, bool) {
 	return value, in
 }
 
-func (kc *keychain) Len() int {
-	return len(kc.pubs)
+type keychains struct {
+	kcs []Getter
+}
+
+// NewUnion returns a Getter representing the union of multiple Getters.
+func NewUnion(kcs ...Getter) Getter {
+	return &keychains{kcs}
+}
+
+func (kcs *keychains) Get(publicKey []byte) (ecid.ID, bool) {
+	for _, kc := range kcs.kcs {
+		if val, in := kc.Get(publicKey); in {
+			return val, in
+		}
+	}
+	return nil, false
 }
 
 // Save saves and encrypts a keychain to a file.
-func Save(filepath, auth string, kc Keychain, scryptN, scryptP int) error {
+func Save(filepath, auth string, kc GetterSampler, scryptN, scryptP int) error {
 	stored, err := encryptToStored(kc, auth, scryptN, scryptP)
 	if err != nil {
 		return err
@@ -120,7 +141,7 @@ func Save(filepath, auth string, kc Keychain, scryptN, scryptP int) error {
 }
 
 // Load loads and decrypts a keychain from a file.
-func Load(filepath, auth string) (Keychain, error) {
+func Load(filepath, auth string) (GetterSampler, error) {
 	buf, err := ioutil.ReadFile(filepath)
 	if err != nil {
 		return nil, err

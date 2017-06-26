@@ -19,7 +19,7 @@ func TestGetKey(t *testing.T) {
 
 func TestGetAuthorPub(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	expected := ecid.ToPublicKeyBytes(ecid.NewPseudoRandom(rng))
+	expected := ecid.NewPseudoRandom(rng).PublicKeyBytes()
 
 	entry := NewTestSinglePageEntry(rng)
 	entry.AuthorPublicKey = expected
