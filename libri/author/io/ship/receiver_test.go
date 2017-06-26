@@ -17,7 +17,7 @@ import (
 	"github.com/drausin/libri/libri/author/io/enc"
 )
 
-func TestReceiver_Receive_ok(t *testing.T) {
+func TestReceiver_ReceiveEntry_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	authorKeys, readerKeys := keychain.New(3), keychain.New(3)
 	authorKey, err := authorKeys.Sample()
@@ -86,7 +86,7 @@ func TestReceiver_Receive_ok(t *testing.T) {
 	}
 }
 
-func TestReceiver_Receive_err(t *testing.T) {
+func TestReceiver_ReceiveEntry_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	cb := &fixedClientBalancer{}
 	authorKeys, readerKeys := keychain.New(3), keychain.New(3)

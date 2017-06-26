@@ -24,6 +24,9 @@ import (
 	"google.golang.org/grpc"
 	"golang.org/x/net/context"
 	"github.com/drausin/libri/libri/author/keychain"
+	"github.com/drausin/libri/libri/common/ecid"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 )
 
 const (
@@ -122,21 +125,21 @@ func TestAuthor_Upload_ok(t *testing.T) {
 	a.entryPacker = &fixedEntryPacker{
 		metadata: metadata,
 	}
-	expectedEntryKey := id.NewPseudoRandom(rng)
+	expectedEnvKey := id.NewPseudoRandom(rng)
 	a.shipper = &fixedShipper{
 		envelope: &api.Document{
 			Contents: &api.Document_Envelope{
 				Envelope: api.NewTestEnvelope(rng),
 			},
 		},
-		envelopeKey: expectedEntryKey,
+		envelopeKey: expectedEnvKey,
 	}
 
 	// since everything is mocked, inputs don't really matter
 	actualEnvelope, actualEnvelopeKey, err := a.Upload(nil, "")
 	assert.Nil(t, err)
 	assert.NotNil(t, actualEnvelope)
-	assert.Equal(t, expectedEntryKey, actualEnvelopeKey)
+	assert.Equal(t, expectedEnvKey, actualEnvelopeKey)
 
 	err = a.CloseAndRemove()
 	assert.Nil(t, err)
@@ -257,6 +260,104 @@ func TestAuthor_UploadDownload(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestAuthor_Share_ok(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	a := newTestAuthor()
+	defer func() {
+		err := a.CloseAndRemove()
+		assert.Nil(t, err)
+	}()
+	a.receiver = &fixedReceiver{
+		envelope: api.NewTestEnvelope(rng),
+		eek: enc.NewPseudoRandomEEK(rng),
+	}
+	expectedSharedEnvKey := id.NewPseudoRandom(rng)
+	a.shipper = &fixedShipper{
+		envelope: &api.Document{
+			Contents: &api.Document_Envelope{
+				Envelope: api.NewTestEnvelope(rng),
+			},
+		},
+		envelopeKey: expectedSharedEnvKey,
+	}
+
+	// since everything is mocked, inputs don't really matter
+	origEnvKey := id.NewPseudoRandom(rng)
+	readerPub := &ecid.NewPseudoRandom(rng).Key().PublicKey
+	actualSharedEnv, actualSharedEnvKey, err := a.Share(origEnvKey, readerPub)
+	assert.Nil(t, err)
+	assert.NotNil(t, actualSharedEnv)
+	assert.Equal(t, expectedSharedEnvKey, actualSharedEnvKey)
+}
+
+func TestAuthor_Share_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	origEnvKey := id.NewPseudoRandom(rng)
+	readerPub := &ecid.NewPseudoRandom(rng).Key().PublicKey
+
+	// check ReceiveEnvelope error bubbles up
+	a1 := &Author{
+		receiver: &fixedReceiver{
+			receiveEnvelopeErr: errors.New("some ReceiveEnvelope error"),
+		},
+	}
+	env, envID, err := a1.Share(origEnvKey, readerPub)
+	assert.NotNil(t, err)
+	assert.Nil(t, env)
+	assert.Nil(t, envID)
+
+	// check GetEEK error bubbles up
+	a2 := &Author{
+		receiver: &fixedReceiver{
+			getErrkErr: errors.New("some GetEEK error"),
+		},
+	}
+	env, envID, err = a2.Share(origEnvKey, readerPub)
+	assert.NotNil(t, err)
+	assert.Nil(t, env)
+	assert.Nil(t, envID)
+
+	// check Share error bubbles up
+	a3 := &Author{
+		receiver: &fixedReceiver{},
+		authorKeys: &fixedKeychain{
+			sampleErr: errors.New("some Sample error"),
+		},
+	}
+	env, envID, err = a3.Share(origEnvKey, readerPub)
+	assert.NotNil(t, err)
+	assert.Nil(t, env)
+	assert.Nil(t, envID)
+
+	// check NewKEK error bubbles up
+	badCurvePK, err := ecdsa.GenerateKey(elliptic.P256(), rng)
+	assert.Nil(t, err)
+	a4 := &Author{
+		receiver: &fixedReceiver{},
+		authorKeys: &fixedKeychain{
+			sampleID: ecid.FromPrivateKey(badCurvePK),
+		},
+	}
+	env, envID, err = a4.Share(origEnvKey, readerPub)
+	assert.NotNil(t, err)
+	assert.Nil(t, env)
+	assert.Nil(t, envID)
+
+	a5 := &Author{
+		receiver: &fixedReceiver{
+			envelope: api.NewTestEnvelope(rng),
+		},
+		authorKeys: keychain.New(1),
+		shipper: &fixedShipper{
+			err: errors.New("some ShipEnvelope error"),
+		},
+	}
+	env, envID, err = a5.Share(origEnvKey, readerPub)
+	assert.NotNil(t, err)
+	assert.Nil(t, env)
+	assert.Nil(t, envID)
+}
+
 type fixedPublisher struct {
 	doc        *api.Document
 	lc         api.Putter
@@ -316,8 +417,8 @@ type fixedReceiver struct {
 	receiveEntryErr    error
 	envelope           *api.Envelope
 	receiveEnvelopeErr error
-	eek *enc.EEK
-	getErrkErr error
+	eek                *enc.EEK
+	getErrkErr         error
 }
 
 func (f *fixedReceiver) ReceiveEntry(envelopeKey id.ID) (*api.Document, *enc.EEK, error) {
