@@ -249,8 +249,8 @@ func (a *Author) Upload(content io.Reader, mediaType string) (*api.Document, id.
 	ciphertextSize, _ := metadata.GetCiphertextSize()
 	speedMbps := float32(uncompressedSize) * 8 / float32(2<<20) / float32(elapsedTime.Seconds())
 	a.logger.Info("successfully uploaded document",
-		zap.String(LoggerEnvelopeKey, envKey.String()),
-		zap.String(LoggerEntryKey, id.FromBytes(entryKeyBytes).String()),
+		zap.Stringer(LoggerEnvelopeKey, envKey),
+		zap.Stringer(LoggerEntryKey, id.FromBytes(entryKeyBytes)),
 		zap.Uint64("original_size", uncompressedSize),
 		zap.String("original_size_human", humanize.Bytes(uncompressedSize)),
 		zap.Uint64("uploaded_size", ciphertextSize),
@@ -288,8 +288,8 @@ func (a *Author) Download(content io.Writer, envKey id.ID) error {
 	ciphertextSize, _ := metadata.GetCiphertextSize()
 	speedMbps := float32(uncompressedSize) * 8 / float32(2<<20) / float32(elapsedTime.Seconds())
 	a.logger.Info("successfully downloaded document",
-		zap.String(LoggerEnvelopeKey, envKey.String()),
-		zap.String(LoggerEntryKey, entryKey.String()),
+		zap.Stringer(LoggerEnvelopeKey, envKey),
+		zap.Stringer(LoggerEntryKey, entryKey),
 		zap.String("downloaded_size", humanize.Bytes(ciphertextSize)),
 		zap.String("original_size", humanize.Bytes(uncompressedSize)),
 		zap.Float32("speed_Mbps", speedMbps),
@@ -325,6 +325,14 @@ func (a *Author) Share(envKey id.ID, readerPub *ecdsa.PublicKey) (
 		return nil, nil, err
 	}
 
+	a.logger.Info("successfully shared document",
+		zap.Stringer(LoggerEntryKey, entryKey),
+		zap.Stringer(LoggerEnvelopeKey, envKey),
+	)
+	a.logger.Debug("shared with",
+		zap.String(LoggerAuthorPub, fmt.Sprintf("%065x", authKeyBs)),
+		zap.String(LoggerReaderPub, fmt.Sprintf("%065x", readKeyBs)),
+	)
 	return sharedEnv, sharedEnvKey, nil
 }
 
