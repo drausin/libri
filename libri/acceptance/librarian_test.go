@@ -77,7 +77,7 @@ func TestLibrarianCluster(t *testing.T) {
 		setUp(rng, nSeeds, nPeers, nAuthors, logLevel)
 
 	// healthcheck
-	healthy, _ := author.Healthcheck()
+	healthy, _ := authors[0].Healthcheck()
 	assert.True(t, healthy)
 
 	// ensure each peer can respond to an introduce request
@@ -93,13 +93,13 @@ func TestLibrarianCluster(t *testing.T) {
 
 	// upload a bunch of random documents
 	nDocs := 16
-	contents, envelopeKeys := testUpload(t, rng, author, nDocs)
+	contents, envelopeKeys := testUpload(t, rng, authors[0], nDocs)
 	//checkPublications(t, nDocs, peers, logger)  // TODO (drausin) figure out why can be flakey
 
 	// down the same ones
-	testDownload(t, author, contents, envelopeKeys)
+	testDownload(t, authors[0], contents, envelopeKeys)
 
-	tearDown(seedConfigs, seeds, peers, author)
+	tearDown(seedConfigs, seeds, peers, authors)
 
 	awaitNewConnLogOutput()
 }
@@ -265,6 +265,12 @@ func checkPublications(t *testing.T, nDocs int, peers []*server.Librarian, logge
 	}
 }
 
+func testShare(t *testing.T, from, to *lauthor.Author, envelopeKeys []id.ID) {
+	for _, origEnvKey := range envelopeKeys {
+		_, sharedEnvKey := from.Share(origEnvKey, to.AuthorKeys.Sample())
+	}
+}
+
 // testClient has enough info to make requests to other peers
 type testClient struct {
 	selfID  ecid.ID
@@ -400,10 +406,12 @@ func tearDown(
 	seedConfigs []*server.Config,
 	seeds []*server.Librarian,
 	peers []*server.Librarian,
-	author *lauthor.Author,
+	authors []*lauthor.Author,
 ) {
 	// disconnect from librarians and remove data dir
-	author.CloseAndRemove()
+	for _, author := range authors {
+		author.CloseAndRemove()
+	}
 
 	// gracefully shut down peers and seeds
 	for _, p1 := range peers {
