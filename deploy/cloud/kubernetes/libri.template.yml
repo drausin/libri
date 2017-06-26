@@ -91,7 +91,6 @@ spec:
           "--nSubscriptions", "2",
           "--dataDir", "/data",
           "--bootstraps", "librarians-0.libri.default.svc.cluster.local:{{ $localPort }}",
-          "-l", "debug"
         ]
         env:
         - name: GODEBUG         # ensure we use the pure Go (rather than CGO) DNS

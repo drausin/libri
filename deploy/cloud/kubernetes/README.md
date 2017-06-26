@@ -56,12 +56,32 @@ and examine the pods with
     librarians-1   1/1       Running   0          1m        172.17.0.7   minikube   app=libri,hostname=librarians-1
     librarians-2   1/1       Running   0          1m        172.17.0.8   minikube   app=libri,hostname=librarians-2
 
-Get the external address for one of the services
+If using a local cluster, get the external address for one of the services
 
     $ minikube service librarians-0 --url
     http://192.168.99.100:30100
 
+If using a GCE cluster, get an external address from one of the nodes
 
+    $ gcloud compute instances list
+    NAME                                  ZONE        MACHINE_TYPE   PREEMPTIBLE  INTERNAL_IP  EXTERNAL_IP     STATUS
+    gke-libri-default-pool-c708ef91-1qsd  us-east1-b  n1-standard-1               10.142.0.3   35.185.116.166  RUNNING
+    gke-libri-default-pool-c708ef91-584x  us-east1-b  n1-standard-1               10.142.0.4   104.196.147.89  RUNNING
+    gke-libri-default-pool-c708ef91-r8g8  us-east1-b  n1-standard-1               10.142.0.2   35.185.88.75    RUNNING
+
+    $ kubectl get pods -o wide --show-labels
+    NAME           READY     STATUS    RESTARTS   AGE       IP          NODE                                   LABELS
+    librarians-0   1/1       Running   0          8m        10.24.2.3   gke-libri-default-pool-c708ef91-584x   app=libri,hostname=librarians-0
+    librarians-1   1/1       Running   0          8m        10.24.1.4   gke-libri-default-pool-c708ef91-1qsd   app=libri,hostname=librarians-1
+    librarians-2   1/1       Running   0          7m        10.24.2.4   gke-libri-default-pool-c708ef91-584x   app=libri,hostname=librarians-2
+    
+For now, you need to visually "join" the pods to the instances to get the IP:Port combinations for 
+the librarians; for the above, they are
+- librarians-0: 104.196.147.89:30100
+- librarians-1: 35.185.116.166:30101
+- librarians-2: 104.196.147.89:30102
+    
+    
 #### Testing the cluster
 
 For convenience (and speed), you can run testing commands from an ephemeral container. Test the 
