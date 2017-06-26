@@ -96,8 +96,12 @@ func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
 	}
 
 	// add bootstrapped peers to routing table
+	var prevAddress string
 	for _, p := range intro.Result.Responded {
 		q, exists := l.rt.Get(p.ID())
+		if exists {
+			prevAddress = q.Connector().Address().String()
+		}
 		status := l.rt.Push(p)
 		fields := []zapcore.Field{
 			zap.Stringer("peer_id", p.ID()),
@@ -105,7 +109,7 @@ func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
 			zap.Stringer("address", p.Connector().Address()),
 		}
 		if exists {
-			fields = append(fields, zap.Stringer("prev_address", q.Connector().Address()))
+			fields = append(fields, zap.String("prev_address", prevAddress))
 		}
 		l.logger.Debug("bootstrapped peer added", fields...)
 	}

@@ -76,11 +76,17 @@ func TestTable_Push(t *testing.T) {
 	for s := 0; s < 16; s++ {
 		rng := rand.New(rand.NewSource(int64(s)))
 		rt, _, _ := NewTestWithPeers(rng, 0) // empty
+		self := peer.New(rt.SelfID(), "self", nil)
 		peers := peer.NewTestPeers(rng, 128)
 		repeatedPeers := make([]peer.Peer, 0)
+
+		// check we can't add self to RT
+		status := rt.Push(self)
+		assert.Equal(t, Dropped, status)
+
 		c := 0
 		for _, p := range peers {
-			status := rt.Push(p)
+			status = rt.Push(p)
 			assert.True(t, status == Added || status == Dropped)
 			if status == Added {
 				c++
