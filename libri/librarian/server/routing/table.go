@@ -156,6 +156,11 @@ func (rt *table) NumBuckets() int {
 // Push adds the peer into the appropriate bucket and returns the status of the push. This method
 // is concurrency-safe.
 func (rt *table) Push(new peer.Peer) PushStatus {
+	if rt.selfID.Cmp(new.ID()) == 0 {
+		// don't add self
+		return Dropped
+	}
+
 	rt.mu.Lock()
 	// get the bucket to insert into
 	bucketIdx := rt.bucketIndex(new.ID())

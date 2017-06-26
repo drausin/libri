@@ -16,11 +16,11 @@ import (
 const (
 	// DefaultPutTimeout is the default timeout duration for a Publisher's Put() call to a
 	// librarian.
-	DefaultPutTimeout = 5 * time.Second
+	DefaultPutTimeout = 10 * time.Second
 
 	// DefaultGetTimeout is the default timeout duration for an Acquirer's Get() call to a
 	// librarian.
-	DefaultGetTimeout = 5 * time.Second
+	DefaultGetTimeout = 10 * time.Second
 
 	// DefaultPutParallelism is the default parallelism a MultiLoadPublisher uses when
 	// making multiple Put calls to librarians.

@@ -21,7 +21,7 @@ resource "google_container_cluster" "libri" {
   }
 
   provisioner "local-exec" {
-    command = "gcloud container clusters get-credentials ${var.cluster_name} --zone ${var.gce_node_zone}}"
+    command = "gcloud container clusters get-credentials ${var.cluster_name} --zone ${var.gce_node_zone}"
   }
 }
 
