@@ -37,19 +37,21 @@ var (
 	ErrUnexpectedMissingKey = errors.New("missing key")
 )
 
-// Getter is a collection of ECDSA keys.
+// Getter is a collection of ECDSA keys that can be looked up by their public key.
 type Getter interface {
 	// Get returns the key with the given public key, if it exists. Otherwise, it returns nil.
 	// The second return value indicates whether the key is present in the keychain or not.
 	Get(publicKey []byte) (ecid.ID, bool)
 }
 
+// Sampler is a collection of ECDSA keys that can be sampled.
 type Sampler interface {
-	// Sample randomly selects a key.
+	// Sample randomly selects a key from the collection.
 	Sample() (ecid.ID, error)
 
 }
 
+// GetterSampler and a colleciton of ECCSA keys that can be both looked up and sampled.
 type GetterSampler interface {
 	Getter
 	Sampler
@@ -110,6 +112,7 @@ type keychains struct {
 	kcs []Getter
 }
 
+// NewUnion returns a Getter representing the union of multiple Getters.
 func NewUnion(kcs ...Getter) Getter {
 	return &keychains{kcs}
 }
