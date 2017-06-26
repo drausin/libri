@@ -68,11 +68,13 @@ func TestLibrarianCluster(t *testing.T) {
 	defer restore()
 
 	rng := rand.New(rand.NewSource(0))
-	nSeeds, nPeers := 3, 32
+	nSeeds := 3
+	nPeers := 32
+	nAuthors := 3
 	//logLevel := zapcore.DebugLevel // handy for debugging test failures
 	logLevel := zapcore.InfoLevel
-	client, seedConfigs, peerConfigs, seeds, peers, author, _ :=
-		setUp(rng, nSeeds, nPeers, logLevel)
+	client, seedConfigs, peerConfigs, seeds, peers, authors, _ :=
+		setUp(rng, nSeeds, nPeers, nAuthors, logLevel)
 
 	// healthcheck
 	healthy, _ := author.Healthcheck()
@@ -271,19 +273,23 @@ type testClient struct {
 	logger  *zap.Logger
 }
 
-func setUp(rng *rand.Rand, nSeeds, nPeers int, logLevel zapcore.Level) (
+func setUp(rng *rand.Rand, nSeeds, nPeers, nAuthors int, logLevel zapcore.Level) (
 	client *testClient,
 	seedConfigs []*server.Config,
 	peerConfigs []*server.Config,
 	seeds []*server.Librarian,
 	peers []*server.Librarian,
-	author *lauthor.Author,
+	authors []*lauthor.Author,
 	logger *zap.Logger,
 ) {
 	maxBucketPeers := uint(8)
-	seedConfigs, peerConfigs, authorConfig := newConfigs(nSeeds, nPeers, maxBucketPeers,
-		logLevel)
-	authorConfig.WithLogLevel(logLevel)
+	dataDir, err := ioutil.TempDir("", "test-data-dir")
+	if err != nil {
+		panic(err)
+	}
+	seedConfigs, peerConfigs, bootstrapAddrs := newLibrarianConfigs(dataDir, nSeeds, nPeers,
+		maxBucketPeers, logLevel)
+	authorConfigs := newAuthorConfigs(dataDir, nAuthors, bootstrapAddrs, logLevel)
 	seeds, peers = make([]*server.Librarian, nSeeds), make([]*server.Librarian, nPeers)
 	logger = clogging.NewDevLogger(logLevel)
 	seedsUp := make(chan *server.Librarian, 1)
@@ -329,26 +335,32 @@ func setUp(rng *rand.Rand, nSeeds, nPeers int, logLevel zapcore.Level) (
 		logger:  logger,
 	}
 
-	// create keychains for author
-	err := lauthor.CreateKeychains(logger, authorConfig.KeychainDir, authorKeychainAuth,
-		veryLightScryptN, veryLightScryptP)
-	if err != nil {
-		panic(err)
+	// create authors
+	authors = make([]*lauthor.Author, len(authorConfigs))
+	for i, authorConfig := range authorConfigs {
+
+		// create keychains
+		err := lauthor.CreateKeychains(logger, authorConfig.KeychainDir, authorKeychainAuth,
+			veryLightScryptN, veryLightScryptP)
+		if err != nil {
+			panic(err)
+		}
+
+		// load keychains
+		authorKeys, selfReaderKeys, err := lauthor.LoadKeychains(authorConfig.KeychainDir,
+			authorKeychainAuth)
+		if err != nil {
+			panic(err)
+		}
+
+		// create author
+		authors[i], err = lauthor.NewAuthor(authorConfig, authorKeys, selfReaderKeys, logger)
+		if err != nil {
+			panic(err)
+		}
 	}
 
-	authorKeys, selfReaderKeys, err := lauthor.LoadKeychains(authorConfig.KeychainDir,
-		authorKeychainAuth)
-	if err != nil {
-		panic(err)
-	}
-
-	// create author
-	author, err = lauthor.NewAuthor(authorConfig, authorKeys, selfReaderKeys, logger)
-	if err != nil {
-		panic(err)
-	}
-
-	return client, seedConfigs, peerConfigs, seeds, peers, author, logger
+	return client, seedConfigs, peerConfigs, seeds, peers, authors, logger
 }
 
 func startLibrariansShard(
@@ -411,13 +423,9 @@ func tearDown(
 	os.RemoveAll(seedConfigs[0].DataDir)
 }
 
-func newConfigs(nSeeds, nPeers int, maxBucketPeers uint, logLevel zapcore.Level) (
-	[]*server.Config, []*server.Config, *lauthor.Config) {
+func newLibrarianConfigs(dataDir string, nSeeds, nPeers int, maxBucketPeers uint,
+	logLevel zapcore.Level) ([]*server.Config, []*server.Config, []*net.TCPAddr) {
 	seedStartPort, peerStartPort := 12000, 13000
-	dataDir, err := ioutil.TempDir("", "test-data-dir")
-	if err != nil {
-		panic(err)
-	}
 
 	seedConfigs := make([]*server.Config, nSeeds)
 	bootstrapAddrs := make([]*net.TCPAddr, nSeeds)
@@ -435,16 +443,22 @@ func newConfigs(nSeeds, nPeers int, maxBucketPeers uint, logLevel zapcore.Level)
 			WithBootstrapAddrs(bootstrapAddrs)
 	}
 
-	authorConfig := lauthor.NewDefaultConfig().
-		WithLibrarianAddrs(bootstrapAddrs).
-		WithDataDir(dataDir).
-		WithDefaultDBDir().
-		WithDefaultKeychainDir().
-		WithLogLevel(logLevel)
-	authorConfig.Publish.PutTimeout = 10 * time.Second
-	page.MinSize = 128 // just for testing
+	return seedConfigs, peerConfigs, bootstrapAddrs
+}
 
-	return seedConfigs, peerConfigs, authorConfig
+func newAuthorConfigs(dataDir string, nAuthors int, bootstrapAddrs []*net.TCPAddr,
+	logLevel zapcore.Level) []*lauthor.Config {
+	authorConfigs := make([]*lauthor.Config, nAuthors)
+	for c := 0; c < nAuthors; c++ {
+		authorDataDir := filepath.Join(dataDir, fmt.Sprintf("author-%d", c))
+		authorConfigs[c] = lauthor.NewDefaultConfig().
+			WithLibrarianAddrs(bootstrapAddrs).
+			WithDataDir(authorDataDir).
+			WithDefaultDBDir().
+			WithDefaultKeychainDir().
+			WithLogLevel(logLevel)
+	}
+	return authorConfigs
 }
 
 func newConfig(
