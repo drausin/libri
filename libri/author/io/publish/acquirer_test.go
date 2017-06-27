@@ -71,15 +71,6 @@ func TestAcquirer_Acquire_err(t *testing.T) {
 	actualDoc, err = acq3.Acquire(docKey, authorPub, lc3)
 	assert.NotNil(t, err)
 	assert.Nil(t, actualDoc)
-
-	lc4 := &fixedGetter{
-		responseValue: expectedDoc,
-	}
-	acq4 := NewAcquirer(clientID, signer, params)
-	diffAuthorPub := ecid.NewPseudoRandom(rng).PublicKeyBytes()
-	actualDoc, err = acq4.Acquire(docKey, diffAuthorPub, lc4)
-	assert.NotNil(t, err)
-	assert.Nil(t, actualDoc)
 }
 
 func TestSingleStoreAcquirer_Acquire_ok(t *testing.T) {
