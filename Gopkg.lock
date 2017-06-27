@@ -80,6 +80,24 @@
   revision = "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
 
 [[projects]]
+  name = "github.com/klauspost/compress"
+  packages = ["flate","gzip"]
+  revision = "6c8db69c4b49dd4df1fff66996cf556176d0b9bf"
+  version = "v1.2.1"
+
+[[projects]]
+  name = "github.com/klauspost/cpuid"
+  packages = ["."]
+  revision = "09cded8978dc9e80714c4d85b0322337b0a1e5e0"
+  version = "v1.0"
+
+[[projects]]
+  name = "github.com/klauspost/crc32"
+  packages = ["."]
+  revision = "cb6bfca970f6908083f26f39a79009d608efd5cd"
+  version = "v1.1"
+
+[[projects]]
   name = "github.com/magiconair/properties"
   packages = [".","assert"]
   revision = "f917359f079a3759162704eaa8caeec3d01d9f91"
@@ -261,6 +279,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "196086fbaf38ce5278f33b3acb6a423ade8f9bc666b20c70b70706c93a096d25"
+  inputs-digest = "f3904c76be233baa41784979e6a0113fe0ea13e3390eb0bd64d5874fa499f1ad"
   solver-name = "gps-cdcl"
   solver-version = 1
