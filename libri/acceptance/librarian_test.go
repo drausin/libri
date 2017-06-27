@@ -16,7 +16,6 @@ import (
 
 	lauthor "github.com/drausin/libri/libri/author"
 	"github.com/drausin/libri/libri/author/io/common"
-	"github.com/drausin/libri/libri/author/io/page"
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
@@ -33,6 +32,7 @@ import (
 	"go.uber.org/zap/zapcore"
 	"path/filepath"
 	"github.com/drausin/libri/libri/common/subscribe"
+	"github.com/drausin/libri/libri/author/keychain"
 )
 
 // things to add later
@@ -48,6 +48,31 @@ const (
 	veryLightScryptN = 2
 	veryLightScryptP = 1
 )
+
+type state struct {
+	rng                 *rand.Rand
+	client              *testClient
+	seedConfigs         []*server.Config
+	peerConfigs         []*server.Config
+	seeds               []*server.Librarian
+	peers               []*server.Librarian
+	authors             []*lauthor.Author
+	authorKeys          []keychain.Sampler
+	logger              *zap.Logger
+	putDocs             []*api.Document
+	uploadedDocContents [][]byte
+	uploadedDocEnvKeys  []id.ID
+}
+
+type params struct {
+	nSeeds         int
+	nPeers         int
+	nAuthors       int
+	logLevel       zapcore.Level
+	nIntroductions int
+	nPuts          int
+	nUploads       int
+}
 
 func TestLibrarianCluster(t *testing.T) {
 
@@ -67,60 +92,58 @@ func TestLibrarianCluster(t *testing.T) {
 	)
 	defer restore()
 
-	rng := rand.New(rand.NewSource(0))
-	nSeeds := 3
-	nPeers := 32
-	nAuthors := 3
-	//logLevel := zapcore.DebugLevel // handy for debugging test failures
-	logLevel := zapcore.InfoLevel
-	client, seedConfigs, peerConfigs, seeds, peers, authors, _ :=
-		setUp(rng, nSeeds, nPeers, nAuthors, logLevel)
+	params := &params{
+		nSeeds:         3,
+		nPeers:         32,
+		nAuthors:       3,
+		logLevel:       zapcore.InfoLevel,
+		nIntroductions: 16,
+		nPuts:          16,
+		nUploads:       16,
+	}
+	state := setUp(params)
 
 	// healthcheck
-	healthy, _ := authors[0].Healthcheck()
+	healthy, _ := state.authors[0].Healthcheck()
 	assert.True(t, healthy)
 
 	// ensure each peer can respond to an introduce request
-	nIntroductions := 16
-	testIntroduce(t, rng, client, peerConfigs, peers, nIntroductions)
+	testIntroduce(t, params, state)
 
 	// put a bunch of random data from random peers
-	nPuts := 16
-	values := testPut(t, rng, client, peerConfigs, peers, nPuts)
+	testPut(t, params, state)
 
 	// get that same data from random peers
-	testGet(t, rng, client, peerConfigs, peers, values)
+	testGet(t, params, state)
 
 	// upload a bunch of random documents
-	nDocs := 16
-	contents, envelopeKeys := testUpload(t, rng, authors[0], nDocs)
-	//checkPublications(t, nDocs, peers, logger)  // TODO (drausin) figure out why can be flakey
+	testUpload(t, params, state)
+	//checkPublications(t, params, state)  // TODO (drausin) figure out why can be flakey
 
 	// down the same ones
-	testDownload(t, authors[0], contents, envelopeKeys)
+	testDownload(t, params, state)
 
-	tearDown(seedConfigs, seeds, peers, authors)
+	tearDown(state)
 
 	awaitNewConnLogOutput()
 }
 
-func testIntroduce(t *testing.T, rng *rand.Rand, client *testClient, peerConfigs []*server.Config,
-	peers []*server.Librarian, nIntroductions int) {
-	nPeers := len(peers)
+func testIntroduce(t *testing.T, params *params, state *state) {
+	nPeers := len(state.peers)
 	q := lclient.NewIntroduceQuerier()
 
 	// introduce oneself to a number of peers and ensure that each returns the requisite
 	// number of new peers
-	for c := 0; c < nIntroductions; c++ {
+	for c := 0; c < params.nIntroductions; c++ {
 
 		// issue Introduce query to random peer
-		i := rng.Int31n(int32(nPeers))
-		conn := api.NewConnector(peerConfigs[i].PublicAddr)
-		rq := lclient.NewIntroduceRequest(client.selfID, client.selfAPI, 8)
-		ctx, cancel, err := lclient.NewSignedTimeoutContext(client.signer, rq,
+		i := state.rng.Int31n(int32(nPeers))
+		conn := api.NewConnector(state.peerConfigs[i].PublicAddr)
+		rq := lclient.NewIntroduceRequest(state.client.selfID, state.client.selfAPI, 8)
+		ctx, cancel, err := lclient.NewSignedTimeoutContext(state.client.signer, rq,
 			search.DefaultQueryTimeout)
 		assert.Nil(t, err)
-		client.logger.Debug("issuing Introduce request",
+		state.client.logger.Debug("issuing Introduce request",
 			zap.String("to_peer", conn.Address().String()),
 		)
 		rp, err := q.Query(ctx, conn, rq)
@@ -129,34 +152,32 @@ func testIntroduce(t *testing.T, rng *rand.Rand, client *testClient, peerConfigs
 		// check everything went fine
 		assert.Nil(t, err)
 		assert.Equal(t, int(rq.NumPeers), len(rp.Peers))
-		client.logger.Debug("received Introduce response",
+		state.client.logger.Debug("received Introduce response",
 			zap.String("from_peer", conn.Address().String()),
 			zap.Int("num_peers", len(rp.Peers)),
 		)
 	}
 }
 
-func testPut(t *testing.T, rng *rand.Rand, client *testClient, peerConfigs []*server.Config,
-	peers []*server.Librarian, nPuts int) []*api.Document {
-	nPeers := len(peers)
+func testPut(t *testing.T, params *params, state *state) {
 	q := lclient.NewPutQuerier()
-	values := make([]*api.Document, nPuts)
+	putDocs := make([]*api.Document, params.nPuts)
 
-	// create a bunch of random values to put
-	for c := 0; c < nPuts; c++ {
+	// create a bunch of random putDocs to put
+	for c := 0; c < params.nPuts; c++ {
 
 		// create random bytes of length [2, 256)
-		value, key := api.NewTestDocument(rng)
-		values[c] = value
-		rq := lclient.NewPutRequest(client.selfID, key, value)
+		value, key := api.NewTestDocument(state.rng)
+		putDocs[c] = value
+		rq := lclient.NewPutRequest(state.client.selfID, key, value)
 
 		// issue Put query to random peer
-		i := rng.Int31n(int32(nPeers))
-		conn := api.NewConnector(peerConfigs[i].PublicAddr)
-		ctx, cancel, err := lclient.NewSignedTimeoutContext(client.signer, rq,
+		i := state.rng.Int31n(int32(params.nPeers))
+		conn := api.NewConnector(state.peerConfigs[i].PublicAddr)
+		ctx, cancel, err := lclient.NewSignedTimeoutContext(state.client.signer, rq,
 			store.DefaultQueryTimeout)
 		assert.Nil(t, err)
-		client.logger.Debug("issuing Put request",
+		state.client.logger.Debug("issuing Put request",
 			zap.String("to_peer", conn.Address().String()),
 			zap.String("key", key.String()),
 		)
@@ -166,44 +187,42 @@ func testPut(t *testing.T, rng *rand.Rand, client *testClient, peerConfigs []*se
 		// check everything went fine
 		assert.Nil(t, err)
 		assert.Equal(t, api.PutOperation_STORED, rp.Operation)
-		assert.True(t, uint32(peerConfigs[i].Search.NClosestResponses) <= rp.NReplicas)
-		client.logger.Debug("received Put response",
+		assert.True(t, uint32(state.peerConfigs[i].Search.NClosestResponses) <= rp.NReplicas)
+		state.client.logger.Debug("received Put response",
 			zap.String("from_peer", conn.Address().String()),
 			zap.String("operation", rp.Operation.String()),
 			zap.Int("n_replicas", int(rp.NReplicas)),
 		)
 	}
 
-	return values
+	state.putDocs = putDocs
 }
 
-func testGet(t *testing.T, rng *rand.Rand, client *testClient, peerConfigs []*server.Config,
-	peers []*server.Librarian, values []*api.Document) {
-	nPeers := len(peers)
+func testGet(t *testing.T, params *params, state *state) {
 	q := lclient.NewGetQuerier()
 
 	// create a bunch of random values to put
-	for c := 0; c < len(values); c++ {
+	for c := 0; c < len(state.putDocs); c++ {
 
 		// create Get request for value
-		value := values[c]
+		value := state.putDocs[c]
 		key, err := api.GetKey(value)
 		assert.Nil(t, err)
-		rq := lclient.NewGetRequest(client.selfID, key)
+		rq := lclient.NewGetRequest(state.client.selfID, key)
 
 		// issue Get query to random peer
-		i := rng.Int31n(int32(nPeers))
-		conn := api.NewConnector(peerConfigs[i].PublicAddr)
-		ctx, cancel, err := lclient.NewSignedTimeoutContext(client.signer, rq,
+		i := state.rng.Int31n(int32(params.nPeers))
+		conn := api.NewConnector(state.peerConfigs[i].PublicAddr)
+		ctx, cancel, err := lclient.NewSignedTimeoutContext(state.client.signer, rq,
 			store.DefaultQueryTimeout)
 		assert.Nil(t, err)
-		client.logger.Debug("issuing Get request",
+		state.client.logger.Debug("issuing Get request",
 			zap.String("to_peer", conn.Address().String()),
 			zap.String("key", key.String()),
 		)
 		rp, err := q.Query(ctx, conn, rq)
 		cancel()
-		client.logger.Debug("received Get response",
+		state.client.logger.Debug("received Get response",
 			zap.String("from_peer", conn.Address().String()),
 		)
 
@@ -216,60 +235,62 @@ func testGet(t *testing.T, rng *rand.Rand, client *testClient, peerConfigs []*se
 	}
 }
 
-func testUpload(t *testing.T, rng *rand.Rand, author *lauthor.Author, nDocs int) (
-	contents [][]byte, envelopeKeys []id.ID) {
+func testUpload(t *testing.T, params *params, state *state) {
 
-	contents = make([][]byte, nDocs)
-	envelopeKeys = make([]id.ID, nDocs)
+	contents := make([][]byte, params.nUploads)
+	envKeys := make([]id.ID, params.nUploads)
 	maxContentSize := 12 * 1024 * 1024
 	minContentSize := 32
 	var err error
-	for i := 0; i < nDocs; i++ {
+	for i := 0; i < params.nUploads; i++ {
 		nContentBytes := minContentSize +
-			int(rng.Int31n(int32(maxContentSize-minContentSize)))
-		contents[i] = common.NewCompressableBytes(rng, nContentBytes).Bytes()
+			int(state.rng.Int31n(int32(maxContentSize-minContentSize)))
+		contents[i] = common.NewCompressableBytes(state.rng, nContentBytes).Bytes()
 		mediaType := "application/x-pdf"
-		if rng.Int()%2 == 0 {
+		if state.rng.Int()%2 == 0 {
 			mediaType = "application/x-gzip"
 		}
 
 		// upload the contents
-		_, envelopeKeys[i], err = author.Upload(bytes.NewReader(contents[i]), mediaType)
+		_, envKeys[i], err = state.authors[0].Upload(bytes.NewReader(contents[i]), mediaType)
 		assert.Nil(t, err)
 	}
-	return contents, envelopeKeys
+	state.uploadedDocContents = contents
+	state.uploadedDocEnvKeys = envKeys
 }
 
-func testDownload(t *testing.T, author *lauthor.Author, contents [][]byte, envelopeKeys []id.ID) {
-	for i, envelopeKey := range envelopeKeys {
+func testDownload(t *testing.T, _ *params, state *state) {
+	for i, envKey := range state.uploadedDocEnvKeys {
 		downloaded := new(bytes.Buffer)
-		err := author.Download(downloaded, envelopeKey)
+		err := state.authors[0].Download(downloaded, envKey)
 		assert.Nil(t, err)
-		assert.Equal(t, len(contents[i]), downloaded.Len())
-		assert.Equal(t, contents[i], downloaded.Bytes())
+		assert.Equal(t, len(state.uploadedDocContents[i]), downloaded.Len())
+		assert.Equal(t, state.uploadedDocContents[i], downloaded.Bytes())
 	}
 }
 
-func checkPublications(t *testing.T, nDocs int, peers []*server.Librarian, logger *zap.Logger) {
+func checkPublications(t *testing.T, params *params, state *state) {
 
 	receiveWaitTime := 10 * time.Second
-	logger.Info("waiting for librarians to receive publications",
+	state.logger.Info("waiting for librarians to receive publications",
 		zap.Float64("n_seconds", receiveWaitTime.Seconds()),
 	)
 	time.Sleep(receiveWaitTime)
 
 	// check all peers have publications for all docs
-	for i, p := range peers {
+	for i, p := range state.peers {
 		info := fmt.Sprintf("peer %d", i)
-		assert.Equal(t, nDocs, p.RecentPubs.Len(), info)
+		assert.Equal(t, params.nUploads, p.RecentPubs.Len(), info)
 	}
 }
 
+/*
 func testShare(t *testing.T, from, to *lauthor.Author, envelopeKeys []id.ID) {
 	for _, origEnvKey := range envelopeKeys {
 		_, sharedEnvKey := from.Share(origEnvKey, to.AuthorKeys.Sample())
 	}
 }
+*/
 
 // testClient has enough info to make requests to other peers
 type testClient struct {
@@ -279,29 +300,27 @@ type testClient struct {
 	logger  *zap.Logger
 }
 
-func setUp(rng *rand.Rand, nSeeds, nPeers, nAuthors int, logLevel zapcore.Level) (
-	client *testClient,
-	seedConfigs []*server.Config,
-	peerConfigs []*server.Config,
-	seeds []*server.Librarian,
-	peers []*server.Librarian,
-	authors []*lauthor.Author,
-	logger *zap.Logger,
-) {
+func setUp(params *params) *state {
 	maxBucketPeers := uint(8)
 	dataDir, err := ioutil.TempDir("", "test-data-dir")
 	if err != nil {
 		panic(err)
 	}
-	seedConfigs, peerConfigs, bootstrapAddrs := newLibrarianConfigs(dataDir, nSeeds, nPeers,
-		maxBucketPeers, logLevel)
-	authorConfigs := newAuthorConfigs(dataDir, nAuthors, bootstrapAddrs, logLevel)
-	seeds, peers = make([]*server.Librarian, nSeeds), make([]*server.Librarian, nPeers)
-	logger = clogging.NewDevLogger(logLevel)
+	seedConfigs, peerConfigs, bootstrapAddrs := newLibrarianConfigs(
+		dataDir,
+		params.nSeeds,
+		params.nPeers,
+		maxBucketPeers,
+		params.logLevel,
+	)
+	authorConfigs := newAuthorConfigs(dataDir, params.nAuthors, bootstrapAddrs, params.logLevel)
+	seeds := make([]*server.Librarian, params.nSeeds)
+	peers := make([]*server.Librarian, params.nPeers)
+	logger := clogging.NewDevLogger(params.logLevel)
 	seedsUp := make(chan *server.Librarian, 1)
 
 	// create & start seeds
-	for c := 0; c < nSeeds; c++ {
+	for c := 0; c < params.nSeeds; c++ {
 		logger.Info("starting seed",
 			zap.String("seed_name", seedConfigs[c].PublicName),
 			zap.String("seed_address", seedConfigs[c].PublicAddr.String()),
@@ -312,10 +331,10 @@ func setUp(rng *rand.Rand, nSeeds, nPeers, nAuthors int, logLevel zapcore.Level)
 
 	// create & start other peers
 	nShards := 4 // should be factor of nPeers
-	if nPeers%nShards != 0 {
+	if params.nPeers%nShards != 0 {
 		nShards = 1
 	}
-	nPeersPerShard := nPeers / nShards
+	nPeersPerShard := params.nPeers / nShards
 	var wg sync.WaitGroup
 	for s := 0; s < nShards; s++ {
 		wg.Add(1)
@@ -330,11 +349,12 @@ func setUp(rng *rand.Rand, nSeeds, nPeers, nAuthors int, logLevel zapcore.Level)
 	time.Sleep(subscriptionWaitTime)
 
 	// create client that will issue requests to network
+	rng := rand.New(rand.NewSource(0))
 	selfID := ecid.NewPseudoRandom(rng)
-	publicAddr := peer.NewTestPublicAddr(nSeeds + nPeers + 1)
+	publicAddr := peer.NewTestPublicAddr(params.nSeeds + params.nPeers + 1)
 	selfPeer := peer.New(selfID.ID(), "test client", api.NewConnector(publicAddr))
 	signer := lclient.NewSigner(selfID.Key())
-	client = &testClient{
+	client := &testClient{
 		selfID:  selfID,
 		selfAPI: selfPeer.ToAPI(),
 		signer:  signer,
@@ -342,7 +362,8 @@ func setUp(rng *rand.Rand, nSeeds, nPeers, nAuthors int, logLevel zapcore.Level)
 	}
 
 	// create authors
-	authors = make([]*lauthor.Author, len(authorConfigs))
+	authors := make([]*lauthor.Author, len(authorConfigs))
+	authorKeys := make([]keychain.Sampler, len(authorConfigs))
 	for i, authorConfig := range authorConfigs {
 
 		// create keychains
@@ -353,20 +374,31 @@ func setUp(rng *rand.Rand, nSeeds, nPeers, nAuthors int, logLevel zapcore.Level)
 		}
 
 		// load keychains
-		authorKeys, selfReaderKeys, err := lauthor.LoadKeychains(authorConfig.KeychainDir,
+		authorKCs, selfReaderKCs, err := lauthor.LoadKeychains(authorConfig.KeychainDir,
 			authorKeychainAuth)
 		if err != nil {
 			panic(err)
 		}
+		authorKeys[i] = authorKCs
 
 		// create author
-		authors[i], err = lauthor.NewAuthor(authorConfig, authorKeys, selfReaderKeys, logger)
+		authors[i], err = lauthor.NewAuthor(authorConfig, authorKCs, selfReaderKCs, logger)
 		if err != nil {
 			panic(err)
 		}
 	}
 
-	return client, seedConfigs, peerConfigs, seeds, peers, authors, logger
+	return &state{
+		rng:         rng,
+		client:      client,
+		seedConfigs: seedConfigs,
+		peerConfigs: peerConfigs,
+		seeds:       seeds,
+		peers:       peers,
+		authors:     authors,
+		authorKeys:  authorKeys,
+		logger:      logger,
+	}
 }
 
 func startLibrariansShard(
@@ -402,19 +434,14 @@ func startLibrariansShard(
 	}
 }
 
-func tearDown(
-	seedConfigs []*server.Config,
-	seeds []*server.Librarian,
-	peers []*server.Librarian,
-	authors []*lauthor.Author,
-) {
+func tearDown(state *state) {
 	// disconnect from librarians and remove data dir
-	for _, author := range authors {
+	for _, author := range state.authors {
 		author.CloseAndRemove()
 	}
 
 	// gracefully shut down peers and seeds
-	for _, p1 := range peers {
+	for _, p1 := range state.peers {
 		go func(p2 *server.Librarian) {
 			// explicitly end subscriptions first and then sleep so that later librarians
 			// don't crash b/c of flurry of ended subscriptions from earlier librarians
@@ -423,12 +450,12 @@ func tearDown(
 			p2.Close()
 		}(p1)
 	}
-	for _, s := range seeds {
+	for _, s := range state.seeds {
 		s.Close()
 	}
 
 	// remove data dir shared by all
-	os.RemoveAll(seedConfigs[0].DataDir)
+	os.RemoveAll(state.seedConfigs[0].DataDir)
 }
 
 func newLibrarianConfigs(dataDir string, nSeeds, nPeers int, maxBucketPeers uint,
