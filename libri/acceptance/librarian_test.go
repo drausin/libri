@@ -123,6 +123,9 @@ func TestLibrarianCluster(t *testing.T) {
 	// down the same ones
 	testDownload(t, params, state)
 
+	// share the uploaded docs with other author and download
+	testShare(t, params, state)
+
 	tearDown(state)
 
 	awaitNewConnLogOutput()
@@ -284,13 +287,23 @@ func checkPublications(t *testing.T, params *params, state *state) {
 	}
 }
 
-/*
-func testShare(t *testing.T, from, to *lauthor.Author, envelopeKeys []id.ID) {
-	for _, origEnvKey := range envelopeKeys {
-		_, sharedEnvKey := from.Share(origEnvKey, to.AuthorKeys.Sample())
+func testShare(t *testing.T, _ *params, state *state) {
+	from, to := state.authors[0], state.authors[1]
+	toKeys := state.authorKeys[1]
+	for i, origEnvKey := range state.uploadedDocEnvKeys {
+		toKey, err := toKeys.Sample()
+		assert.Nil(t, err)
+
+		_, envKey, err := from.Share(origEnvKey, &toKey.Key().PublicKey)
+		assert.Nil(t, err)
+
+		downloaded := new(bytes.Buffer)
+		err = to.Download(downloaded, envKey)
+		assert.Nil(t, err)
+		assert.Equal(t, len(state.uploadedDocContents[i]), downloaded.Len())
+		assert.Equal(t, state.uploadedDocContents[i], downloaded.Bytes())
 	}
 }
-*/
 
 // testClient has enough info to make requests to other peers
 type testClient struct {

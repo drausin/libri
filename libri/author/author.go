@@ -299,8 +299,7 @@ func (a *Author) Download(content io.Writer, envKey id.ID) error {
 
 // Share creates and uploads a new envelope with the given reader public key. The new envelope
 // has the same entry and entry encryption key as that of envelopeKey.
-func (a *Author) Share(envKey id.ID, readerPub *ecdsa.PublicKey) (
-	*api.Document, id.ID, error) {
+func (a *Author) Share(envKey id.ID, readerPub *ecdsa.PublicKey) (*api.Document, id.ID, error) {
 
 	env, err := a.receiver.ReceiveEnvelope(envKey)
 	if err != nil {
