@@ -10,7 +10,7 @@ service Librarian {
     // Ping confirms simple request/response connectivity.
     rpc Ping (PingRequest) returns (PingResponse) {}
 
-    // Identify identifies the node by name and ID.
+    // Introduce identifies the node by name and ID.
     rpc Introduce (IntroduceRequest) returns (IntroduceResponse) {}
 
     // Find returns the value for a key or the closest peers to it.
