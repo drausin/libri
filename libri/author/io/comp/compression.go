@@ -30,7 +30,7 @@ const (
 
 	// DefaultBufferSize is the default size of the uncompressed buffer used by
 	// the compressor and decompressor.
-	DefaultBufferSize = uint32(1024)
+	DefaultBufferSize = uint32(32 * 1024)
 )
 
 // ErrBufferSizeTooSmall indicates when the max page size is too small (often because it is zero).

@@ -92,6 +92,7 @@ func (p *paginator) ReadFrom(compressor io.Reader) (int64, error) {
 		if err != nil {
 			return n, err
 		}
+
 		if _, err = p.ciphertextMAC.Write(pageCiphertext); err != nil {
 			return n, err
 		}
