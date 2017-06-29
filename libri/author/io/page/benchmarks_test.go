@@ -17,10 +17,10 @@ const (
 )
 
 var (
-	smallUncompressedSizes = []int{32, 64, 128, 256}
-	mediumUncompressedSizes = []int{2048, 4096, 8192}
-	largeUncompressedSizes = []int{256 * KB, 512 * KB, MB}
-	extraLargeUncompressedSizes = []int{4 * MB, 8 * MB, 16 * MB}
+	smallUncompressedSizes      = []int{128}
+	mediumUncompressedSizes     = []int{KB}
+	largeUncompressedSizes      = []int{MB}
+	extraLargeUncompressedSizes = []int{16 * MB}
 )
 
 var benchmarkCases = []struct {
@@ -98,7 +98,7 @@ func benchmarkUnpaginate(b *testing.B, uncompressedSizes []int, codec comp.Codec
 	pages := make([][]*api.Page, len(uncompressedSizes))
 	totBytes := int64(0)
 	for i, uncompressedSize := range uncompressedSizes {
-		pagesChan := make(chan *api.Page, 10)  // max uncompressed size < assumes 10 * pageSize
+		pagesChan := make(chan *api.Page, 10) // max uncompressed size < assumes 10 * pageSize
 		pages[i] = make([]*api.Page, 0)
 		paginator, err := NewPaginator(pagesChan, encrypter, keys, authorPub, pageSize)
 		maybePanic(err)
@@ -126,7 +126,7 @@ func benchmarkUnpaginate(b *testing.B, uncompressedSizes []int, codec comp.Codec
 				comp.DefaultBufferSize)
 			maybePanic(err)
 
-			inPages := make(chan *api.Page, 10)  // max uncompressed size < assumes 10 * pageSize
+			inPages := make(chan *api.Page, 10) // max uncompressed size < assumes 10 * pageSize
 			unpaginator, err := NewUnpaginator(inPages, decrypter, keys)
 			maybePanic(err)
 

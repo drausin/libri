@@ -11,9 +11,9 @@ const (
 )
 
 var (
-	smallPlaintextSizes  = []int{32, 64, 128, 256}
-	mediumPlaintextSizes = []int{2048, 4096, 8192}
-	largePlaintextSizes  = []int{256 * KB, 512 * KB, MB}
+	smallPlaintextSizes  = []int{128}
+	mediumPlaintextSizes = []int{KB}
+	largePlaintextSizes  = []int{MB}
 )
 
 var benchmarkCases = []struct {

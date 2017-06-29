@@ -15,10 +15,10 @@ const (
 )
 
 var (
-	smallUncompressedSizes = []int{32, 64, 128, 256}
-	mediumUncompressedSizes = []int{2048, 4096, 8192}
-	largeUncompressedSizes = []int{256 * KB, 512 * KB, MB}
-	extraLargeUncompressedSizes = []int{4 * MB, 8 * MB, 16 * MB}
+	smallUncompressedSizes      = []int{128}
+	mediumUncompressedSizes     = []int{KB}
+	largeUncompressedSizes      = []int{MB}
+	extraLargeUncompressedSizes = []int{16 * MB}
 )
 
 var benchmarkCases = []struct {
@@ -35,7 +35,6 @@ var benchmarkCases = []struct {
 	{"xlarge+none", NoneCodec, extraLargeUncompressedSizes},
 	{"xlarge+gzip", GZIPCodec, extraLargeUncompressedSizes},
 }
-
 
 func BenchmarkCompress(b *testing.B) {
 	for _, c := range benchmarkCases {
@@ -124,4 +123,3 @@ func benchmarkDecompress(b *testing.B, uncompressedSizes []int, codec Codec) {
 		}
 	}
 }
-

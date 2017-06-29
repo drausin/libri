@@ -6,13 +6,20 @@ LIBRI_PKGS=$(shell go list ./... | grep -v /vendor/)
 LIBRI_PKG_SUBDIRS=$(shell go list ./... | grep -v /vendor/ | sed -r 's|github.com/drausin/libri/||g' | sort)
 GIT_STATUS_SUBDIRS=$(shell git status --porcelain | grep -e '\.go$$' | sed -r 's|^...(.+)/[^/]+\.go$$|\1|' | sort | uniq)
 CHANGED_PKG_SUBDIRS=$(shell echo $(LIBRI_PKG_SUBDIRS) $(GIT_STATUS_SUBDIRS) | tr " " "\n" | sort | uniq -d)
+BENCH_PKGS=github.com/drausin/libri/libri/author/io/enc \
+	github.com/drausin/libri/libri/author/io/comp \
+	github.com/drausin/libri/libri/author/io/page
 SHELL=/bin/bash -eou pipefail
 
-.PHONY: build
+.PHONY: bench build
 
 acceptance:
 	@echo "--> Running acceptance tests"
 	@go test -tags acceptance -v github.com/drausin/libri/libri/acceptance 2>&1 | tee acceptance.log
+
+bench:
+	@echo "--> Running benchmarks"
+	@go test -bench=. -benchmem -cpu 4 -benchtime 5s $(BENCH_PKGS) | grep Benchmark
 
 build:
 	@echo "--> Running go build"
