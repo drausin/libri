@@ -19,7 +19,7 @@ acceptance:
 
 bench:
 	@echo "--> Running benchmarks"
-	@go test -bench=. -benchmem -cpu 4 -benchtime 5s $(BENCH_PKGS) | grep Benchmark
+	@go test -bench=. -benchmem -cpu 4 -benchtime 5s -run Benchmark* $(BENCH_PKGS) | grep Benchmark
 
 build:
 	@echo "--> Running go build"
