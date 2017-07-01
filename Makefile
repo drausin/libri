@@ -59,9 +59,9 @@ lint-diff:
 	@echo $(CHANGED_PKG_SUBDIRS) | tr " " "\n"
 	@echo $(CHANGED_PKG_SUBDIRS) | xargs gometalinter --config=.gometalinter.json --deadline=10m --vendored-linters
 
-lint-optional:
-	@echo "--> Running gometalinter with optional linters"
-	@gometalinter $(LIBRI_PKG_SUBDIRS) --config=.gometalinter.optional.json --deadline=240s
+lint-slow:
+	@echo "--> Running gometalinter with slow linters"
+	@gometalinter $(LIBRI_PKG_SUBDIRS) --config=.gometalinter.slow.json --deadline=30m
 
 proto:
 	@echo "--> Running protoc"
