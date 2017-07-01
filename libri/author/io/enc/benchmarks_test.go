@@ -38,6 +38,7 @@ func BenchmarkDecrypt(b *testing.B) {
 }
 
 func benchmarkEncrypt(b *testing.B, plaintextSizes []int) {
+	b.StopTimer()
 	rng := rand.New(rand.NewSource(0))
 	keys := NewPseudoRandomEEK(rng)
 	encrypter, err := NewEncrypter(keys)
@@ -53,6 +54,7 @@ func benchmarkEncrypt(b *testing.B, plaintextSizes []int) {
 	}
 
 	b.SetBytes(totBytes)
+	b.StartTimer()
 	for n := 0; n < b.N; n++ {
 		for _, plaintext := range plaintexts {
 			_, err = encrypter.Encrypt(plaintext, 0)
@@ -62,6 +64,7 @@ func benchmarkEncrypt(b *testing.B, plaintextSizes []int) {
 }
 
 func benchmarkDecrypt(b *testing.B, plaintextSizes []int) {
+	b.StopTimer()
 	rng := rand.New(rand.NewSource(0))
 	keys := NewPseudoRandomEEK(rng)
 
@@ -84,6 +87,7 @@ func benchmarkDecrypt(b *testing.B, plaintextSizes []int) {
 	}
 
 	b.SetBytes(totBytes)
+	b.StartTimer()
 	for n := 0; n < b.N; n++ {
 		for _, ciphertext := range ciphertexts {
 			_, err = decrypter.Decrypt(ciphertext, 0)

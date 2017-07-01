@@ -49,6 +49,7 @@ func BenchmarkDecompress(b *testing.B) {
 }
 
 func benchmarkCompress(b *testing.B, uncompressedSizes []int, codec Codec) {
+	b.StopTimer()
 	rng := rand.New(rand.NewSource(0))
 	keys := enc.NewPseudoRandomEEK(rng)
 	uncompressedBufferSize := int(DefaultBufferSize)
@@ -62,6 +63,7 @@ func benchmarkCompress(b *testing.B, uncompressedSizes []int, codec Codec) {
 	}
 
 	b.SetBytes(totBytes)
+	b.StartTimer()
 	for n := 0; n < b.N; n++ {
 		for _, uncompressed := range uncompressedBytes {
 			compressor, err := NewCompressor(bytes.NewBuffer(uncompressed), codec, keys,
@@ -82,6 +84,7 @@ func benchmarkCompress(b *testing.B, uncompressedSizes []int, codec Codec) {
 }
 
 func benchmarkDecompress(b *testing.B, uncompressedSizes []int, codec Codec) {
+	b.StopTimer()
 	rng := rand.New(rand.NewSource(0))
 	keys := enc.NewPseudoRandomEEK(rng)
 	uncompressedBufferSize := int(DefaultBufferSize)
@@ -108,6 +111,7 @@ func benchmarkDecompress(b *testing.B, uncompressedSizes []int, codec Codec) {
 	}
 
 	b.SetBytes(totBytes)
+	b.StartTimer()
 	for n := 0; n < b.N; n++ {
 		for _, compressed := range compressedBytes {
 			uncompressed := new(bytes.Buffer)

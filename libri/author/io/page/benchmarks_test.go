@@ -51,6 +51,7 @@ func BenchmarkUnpaginate(b *testing.B) {
 }
 
 func benchmarkPaginate(b *testing.B, uncompressedSizes []int, codec comp.Codec) {
+	b.StopTimer()
 	rng := rand.New(rand.NewSource(0))
 	keys := enc.NewPseudoRandomEEK(rng)
 	authorPub := api.RandBytes(rng, api.ECPubKeyLength)
@@ -66,6 +67,7 @@ func benchmarkPaginate(b *testing.B, uncompressedSizes []int, codec comp.Codec) 
 	}
 
 	b.SetBytes(totBytes)
+	b.StartTimer()
 	for n := 0; n < b.N; n++ {
 		for i := range uncompressedSizes {
 			pagesChan := make(chan *api.Page, 10)
@@ -85,6 +87,7 @@ func benchmarkPaginate(b *testing.B, uncompressedSizes []int, codec comp.Codec) 
 }
 
 func benchmarkUnpaginate(b *testing.B, uncompressedSizes []int, codec comp.Codec) {
+	b.StopTimer()
 	rng := rand.New(rand.NewSource(0))
 	keys := enc.NewPseudoRandomEEK(rng)
 	authorPub := api.RandBytes(rng, api.ECPubKeyLength)
@@ -119,6 +122,7 @@ func benchmarkUnpaginate(b *testing.B, uncompressedSizes []int, codec comp.Codec
 	}
 
 	b.SetBytes(totBytes)
+	b.StartTimer()
 	for n := 0; n < b.N; n++ {
 		for i, uncompressedSize := range uncompressedSizes {
 			decompressed := new(bytes.Buffer)
