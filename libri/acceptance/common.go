@@ -34,7 +34,7 @@ const (
 	veryLightScryptN = 2
 	veryLightScryptP = 1
 
-	benchmarksFilepath = "librarian.bench"
+	benchmarksFilepath = "../../librarian.bench"
 
 	introduceName = "Introduce"
 	putName = "Put"
@@ -261,7 +261,7 @@ func writeBenchmarkResults(t *testing.T, benchmarks []*benchmarkObs) {
 	for _, benchmark := range benchmarks {
 		name := benchmarkName(benchmark.name, benchmark.procs)
 		for _, result := range benchmark.results {
-			fmt.Fprintf(f, "%-*s\t%s\t%s\n", maxNameLen, name, result.String(), result.MemString())
+			fmt.Fprintf(f, "%-*s\t%s\n", maxNameLen, name, result.String())
 		}
 	}
 }
@@ -367,7 +367,7 @@ func newTestDocument(rng *rand.Rand, entrySize int) (*api.Document, id.ID) {
 // benchmarkName returns full name of benchmark including procs suffix.
 func benchmarkName(name string, n int) string {
 	if n != 1 {
-		return fmt.Sprintf("%s-%d", name, n)
+		return fmt.Sprintf("Benchmark%s-%d", name, n)
 	}
 	return name
 }

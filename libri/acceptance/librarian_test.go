@@ -38,7 +38,7 @@ func TestLibrarianCluster(t *testing.T) {
 		nAuthors:       3,
 		logLevel:       zapcore.InfoLevel,
 		nIntroductions: 16,
-		nPuts:          16,
+		nPuts:          64,
 		nUploads:       16,
 	}
 	state := setUp(params)
@@ -145,7 +145,7 @@ func testPut(t *testing.T, params *params, state *state) {
 		benchResults[c] = testing.BenchmarkResult{
 			N: 1,
 			T: time.Now().Sub(start),
-			MemBytes: uint64(putPageSize),
+			Bytes: int64(putPageSize),
 		}
 
 		// check everything went fine
@@ -199,7 +199,7 @@ func testGet(t *testing.T, params *params, state *state) {
 		benchResults[c] = testing.BenchmarkResult{
 			N: 1,
 			T: time.Now().Sub(start),
-			MemBytes: uint64(putPageSize),
+			Bytes: int64(putPageSize),
 		}
 
 		// check everything went fine
