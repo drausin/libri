@@ -6,9 +6,6 @@ LIBRI_PKGS=$(shell go list ./... | grep -v /vendor/)
 LIBRI_PKG_SUBDIRS=$(shell go list ./... | grep -v /vendor/ | sed -r 's|github.com/drausin/libri/||g' | sort)
 GIT_STATUS_SUBDIRS=$(shell git status --porcelain | grep -e '\.go$$' | sed -r 's|^...(.+)/[^/]+\.go$$|\1|' | sort | uniq)
 CHANGED_PKG_SUBDIRS=$(shell echo $(LIBRI_PKG_SUBDIRS) $(GIT_STATUS_SUBDIRS) | tr " " "\n" | sort | uniq -d)
-AUTHOR_BENCH_PKGS=github.com/drausin/libri/libri/author/io/enc \
-	github.com/drausin/libri/libri/author/io/comp \
-	github.com/drausin/libri/libri/author/io/page
 SHELL=/bin/bash -eou pipefail
 
 .PHONY: bench build
@@ -27,7 +24,7 @@ build:
 
 build-static:
 	@echo "--> Running go build for static binary"
-	@./scripts/build-static deploy/bin/libri
+	@./scripts/build-static.sh deploy/bin/libri
 
 demo:
 	@echo "--> Running demo"
