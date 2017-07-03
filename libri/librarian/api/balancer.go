@@ -34,6 +34,7 @@ type ClientSetBalancer interface {
 type uniformRandBalancer struct {
 	rng   *rand.Rand
 	mu    sync.Mutex
+	addrs [] *net.TCPAddr
 	conns []Connector
 }
 
@@ -44,12 +45,10 @@ func NewUniformRandomClientBalancer(libAddrs []*net.TCPAddr) (ClientBalancer, er
 	if libAddrs == nil || len(libAddrs) == 0 {
 		return nil, ErrEmptyLibrarianAddresses
 	}
-	for i, la := range libAddrs {
-		conns[i] = NewConnector(la)
-	}
 	return &uniformRandBalancer{
 		rng:   rand.New(rand.NewSource(int64(len(conns)))),
 		conns: conns,
+		addrs: libAddrs,
 	}, nil
 }
 
@@ -58,14 +57,20 @@ func (b *uniformRandBalancer) Next() (LibrarianClient, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	i := b.rng.Int31n(int32(len(b.conns)))
+	if b.conns[i] == nil {
+		// only init when needed
+		b.conns[i] = NewConnector(b.addrs[i])
+	}
 	return b.conns[i].Connect()
 }
 
 func (b *uniformRandBalancer) CloseAll() error {
 	for _, conn := range b.conns {
-		err := conn.Disconnect()
-		if err != nil {
-			return err
+		if conn != nil {
+			err := conn.Disconnect()
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil

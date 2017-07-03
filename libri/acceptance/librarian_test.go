@@ -17,6 +17,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"runtime"
+	"net"
 )
 
 const putPageSize = 1024 * 1024
@@ -37,8 +38,8 @@ func TestLibrarianCluster(t *testing.T) {
 		nPeers:         32,
 		nAuthors:       3,
 		logLevel:       zapcore.InfoLevel,
-		nIntroductions: 16,
-		nPuts:          64,
+		nIntroductions: 32,
+		nPuts:          128,
 		nUploads:       16,
 	}
 	state := setUp(params)
@@ -118,9 +119,15 @@ func testIntroduce(t *testing.T, params *params, state *state) {
 }
 
 func testPut(t *testing.T, params *params, state *state) {
-	q := lclient.NewPutQuerier()
 	putDocs := make([]*api.Document, params.nPuts)
 	benchResults := make([]testing.BenchmarkResult, params.nPuts)
+	librarianAddrs := make([]*net.TCPAddr, len(state.peerConfigs))
+	for i, peerConfig := range state.peerConfigs {
+		librarianAddrs[i] = peerConfig.PublicAddr
+	}
+	librarians, err := api.NewUniformRandomClientBalancer(librarianAddrs)
+	assert.Nil(t, err)
+	rlc := lclient.NewRetryPutter(librarians, store.DefaultQueryTimeout)
 
 	// create a bunch of random putDocs to put
 	for c := 0; c < params.nPuts; c++ {
@@ -131,16 +138,11 @@ func testPut(t *testing.T, params *params, state *state) {
 		rq := lclient.NewPutRequest(state.client.selfID, key, value)
 
 		// issue Put query to random peer
-		i := state.rng.Int31n(int32(params.nPeers))
-		conn := api.NewConnector(state.peerConfigs[i].PublicAddr)
 		ctx, cancel, err := lclient.NewSignedTimeoutContext(state.client.signer, rq,
 			store.DefaultQueryTimeout)
 		assert.Nil(t, err)
-		state.client.logger.Debug("issuing Put request",
-			zap.String("to_peer", conn.Address().String()),
-			zap.String("key", key.String()),
-		)
-		rp, err := q.Query(ctx, conn, rq)
+		state.client.logger.Debug("issuing Put request", zap.String("key", key.String()))
+		rp, err := rlc.Put(ctx, rq)
 		cancel()
 		benchResults[c] = testing.BenchmarkResult{
 			N: 1,
@@ -151,9 +153,7 @@ func testPut(t *testing.T, params *params, state *state) {
 		// check everything went fine
 		assert.Nil(t, err)
 		assert.Equal(t, api.PutOperation_STORED, rp.Operation)
-		assert.True(t, uint32(state.peerConfigs[i].Search.NClosestResponses) <= rp.NReplicas)
 		state.client.logger.Debug("received Put response",
-			zap.String("from_peer", conn.Address().String()),
 			zap.String("operation", rp.Operation.String()),
 			zap.Int("n_replicas", int(rp.NReplicas)),
 		)
@@ -168,8 +168,14 @@ func testPut(t *testing.T, params *params, state *state) {
 }
 
 func testGet(t *testing.T, params *params, state *state) {
-	q := lclient.NewGetQuerier()
 	benchResults := make([]testing.BenchmarkResult, params.nPuts)
+	librarianAddrs := make([]*net.TCPAddr, len(state.peerConfigs))
+	for i, peerConfig := range state.peerConfigs {
+		librarianAddrs[i] = peerConfig.PublicAddr
+	}
+	librarians, err := api.NewUniformRandomClientBalancer(librarianAddrs)
+	assert.Nil(t, err)
+	rlc := lclient.NewRetryGetter(librarians, search.DefaultQueryTimeout)
 
 	// create a bunch of random values to put
 	for c := 0; c < len(state.putDocs); c++ {
@@ -181,21 +187,11 @@ func testGet(t *testing.T, params *params, state *state) {
 		assert.Nil(t, err)
 		rq := lclient.NewGetRequest(state.client.selfID, key)
 
-		// issue Get query to random peer
-		i := state.rng.Int31n(int32(params.nPeers))
-		conn := api.NewConnector(state.peerConfigs[i].PublicAddr)
-		ctx, cancel, err := lclient.NewSignedTimeoutContext(state.client.signer, rq,
-			store.DefaultQueryTimeout)
+		ctx, err := lclient.NewSignedContext(state.client.signer, rq)
 		assert.Nil(t, err)
-		state.client.logger.Debug("issuing Get request",
-			zap.String("to_peer", conn.Address().String()),
-			zap.String("key", key.String()),
-		)
-		rp, err := q.Query(ctx, conn, rq)
-		cancel()
-		state.client.logger.Debug("received Get response",
-			zap.String("from_peer", conn.Address().String()),
-		)
+		state.client.logger.Debug("issuing Get request", zap.String("key", key.String()))
+		rp, err := rlc.Get(ctx, rq)
+		state.client.logger.Debug("received Get response", zap.String("key", key.String()))
 		benchResults[c] = testing.BenchmarkResult{
 			N: 1,
 			T: time.Now().Sub(start),

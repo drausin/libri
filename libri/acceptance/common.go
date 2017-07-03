@@ -37,8 +37,8 @@ const (
 	benchmarksFilepath = "../../librarian.bench"
 
 	introduceName = "Introduce"
-	putName = "Put"
-	getName = "Get"
+	putName       = "Put"
+	getName       = "Get"
 )
 
 var grpcLogNoise = []string{
@@ -99,14 +99,14 @@ func setUp(params *params) *state {
 	if err != nil {
 		panic(err)
 	}
-	seedConfigs, peerConfigs, bootstrapAddrs := newLibrarianConfigs(
+	seedConfigs, peerConfigs, peerAddrs := newLibrarianConfigs(
 		dataDir,
 		params.nSeeds,
 		params.nPeers,
 		maxBucketPeers,
 		params.logLevel,
 	)
-	authorConfigs := newAuthorConfigs(dataDir, params.nAuthors, bootstrapAddrs, params.logLevel)
+	authorConfigs := newAuthorConfigs(dataDir, params.nAuthors, peerAddrs, params.logLevel)
 	seeds := make([]*server.Librarian, params.nSeeds)
 	peers := make([]*server.Librarian, params.nPeers)
 	logger := clogging.NewDevLogger(params.logLevel)
@@ -260,10 +260,32 @@ func writeBenchmarkResults(t *testing.T, benchmarks []*benchmarkObs) {
 
 	for _, benchmark := range benchmarks {
 		name := benchmarkName(benchmark.name, benchmark.procs)
-		for _, result := range benchmark.results {
+		for _, result := range averageSubsamples(benchmark.results, 4) {
 			fmt.Fprintf(f, "%-*s\t%s\n", maxNameLen, name, result.String())
 		}
 	}
+}
+
+
+func averageSubsamples(original []testing.BenchmarkResult, subsampleSize int) (
+	[]testing.BenchmarkResult) {
+	k := 0
+	averagedLen := int(float32(len(original)/subsampleSize) + 0.99) // poor man's ceil()
+	averaged := make([]testing.BenchmarkResult, averagedLen)
+
+	for i, j := range rand.Perm(len(original)) {
+		if i%subsampleSize == 0 {
+			// create new average sample
+			k = i / subsampleSize
+			averaged[k] = testing.BenchmarkResult{}
+		}
+
+		// add random original sample to the average sample
+		averaged[k].N += original[j].N
+		averaged[k].T += original[j].T
+		averaged[k].Bytes += original[j].Bytes
+	}
+	return averaged
 }
 
 func newLibrarianConfigs(dataDir string, nSeeds, nPeers int, maxBucketPeers uint,
@@ -281,21 +303,23 @@ func newLibrarianConfigs(dataDir string, nSeeds, nPeers int, maxBucketPeers uint
 	}
 
 	peerConfigs := make([]*server.Config, nPeers)
+	peerAddrs := make([]*net.TCPAddr, nPeers)
 	for c := 0; c < nPeers; c++ {
 		peerConfigs[c] = newConfig(dataDir, peerStartPort+c, maxBucketPeers, logLevel).
 			WithBootstrapAddrs(bootstrapAddrs)
+		peerAddrs[c] = peerConfigs[c].PublicAddr
 	}
 
-	return seedConfigs, peerConfigs, bootstrapAddrs
+	return seedConfigs, peerConfigs, peerAddrs
 }
 
-func newAuthorConfigs(dataDir string, nAuthors int, bootstrapAddrs []*net.TCPAddr,
+func newAuthorConfigs(dataDir string, nAuthors int, librarianAddrs []*net.TCPAddr,
 	logLevel zapcore.Level) []*lauthor.Config {
 	authorConfigs := make([]*lauthor.Config, nAuthors)
 	for c := 0; c < nAuthors; c++ {
 		authorDataDir := filepath.Join(dataDir, fmt.Sprintf("author-%d", c))
 		authorConfigs[c] = lauthor.NewDefaultConfig().
-			WithLibrarianAddrs(bootstrapAddrs).
+			WithLibrarianAddrs(librarianAddrs).
 			WithDataDir(authorDataDir).
 			WithDefaultDBDir().
 			WithDefaultKeychainDir().

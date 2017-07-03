@@ -193,7 +193,10 @@ func (l *Librarian) Introduce(ctx context.Context, rq *api.IntroduceRequest) (
 // Find returns either the value at a given target or the peers closest to it.
 func (l *Librarian) Find(ctx context.Context, rq *api.FindRequest) (*api.FindResponse, error) {
 	keyStr := fmt.Sprintf("%064x", rq.Key)
-	l.logger.Debug("received find request", zap.String("key", keyStr))
+	l.logger.Debug("received find request",
+		zap.String("key", keyStr),
+		zap.Uint32("n_peers", rq.NumPeers),
+	)
 
 	requesterID, err := l.checkRequestAndKey(ctx, rq, rq.Metadata, rq.Key)
 	if err != nil {
@@ -208,8 +211,8 @@ func (l *Librarian) Find(ctx context.Context, rq *api.FindRequest) (*api.FindRes
 	}
 
 	// we have the value, so return it
-	l.logger.Debug("found value", zap.String("key", keyStr))
 	if value != nil {
+		l.logger.Debug("found value", zap.String("key", keyStr))
 		return &api.FindResponse{
 			Metadata: l.NewResponseMetadata(rq.Metadata),
 			Value:    value,
@@ -272,7 +275,7 @@ func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetRespon
 
 	key := cid.FromBytes(rq.Key)
 	s := search.NewSearch(l.selfID, key, l.config.Search)
-	seeds := l.rt.Peak(key, s.Params.Concurrency)
+	seeds := l.rt.Peak(key, s.Params.NClosestResponses)
 	err = l.searcher.Search(s, seeds)
 	if err != nil {
 		return nil, err
@@ -329,7 +332,7 @@ func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutRespon
 		l.config.Search,
 		l.config.Store,
 	)
-	seeds := l.rt.Peak(key, s.Search.Params.Concurrency)
+	seeds := l.rt.Peak(key, s.Search.Params.NClosestResponses)
 	err = l.storer.Store(s, seeds)
 	if err != nil {
 		return nil, err

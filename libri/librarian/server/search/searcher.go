@@ -9,10 +9,13 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
+	"time"
 )
 
-// ErrTooManyFindErrors indicates when a search has encountered too many Find request errors.
+const searcherFindRetryTimeout = 100 * time.Millisecond
+
 var (
+	// ErrTooManyFindErrors indicates when a search has encountered too many Find request errors.
 	ErrTooManyFindErrors = errors.New("too many Find errors")
 )
 
@@ -131,8 +134,8 @@ func (s *searcher) query(pConn api.Connector, search *Search) (*api.FindResponse
 	if err != nil {
 		return nil, err
 	}
-
-	rp, err := s.querier.Query(ctx, pConn, search.Request)
+	querier := client.NewRetryFindQuerier(s.querier, searcherFindRetryTimeout)
+	rp, err := querier.Query(ctx, pConn, search.Request)
 	cancel()
 	if err != nil {
 		return nil, err

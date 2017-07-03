@@ -9,6 +9,7 @@ import (
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
+	lclient "github.com/drausin/libri/libri/librarian/client"
 )
 
 // Acquirer Gets documents from the libri network.
@@ -109,6 +110,7 @@ func (a *multiStoreAcquirer) Acquire(
 	docKeys []id.ID, authorPub []byte, cb api.ClientBalancer,
 ) error {
 
+	rlc := lclient.NewRetryGetter(cb, a.params.GetTimeout)
 	docKeysChan := make(chan id.ID, a.params.PutParallelism)
 	go loadChan(docKeys, docKeysChan)
 	wg := new(sync.WaitGroup)
@@ -117,12 +119,7 @@ func (a *multiStoreAcquirer) Acquire(
 		wg.Add(1)
 		go func() {
 			for docKey := range docKeysChan {
-				lc, err := cb.Next()
-				if err != nil {
-					getErrs <- err
-					return
-				}
-				if err := a.inner.Acquire(docKey, authorPub, lc); err != nil {
+				if err := a.inner.Acquire(docKey, authorPub, rlc); err != nil {
 					getErrs <- err
 					break
 				}
