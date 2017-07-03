@@ -16,7 +16,7 @@ acceptance:
 
 bench:
 	@echo "--> Running benchmarks"
-	@go test -bench=. -benchmem -cpu 4 -benchtime 5s -run Benchmark* $(AUTHOR_BENCH_PKGS) 2>&1 | grep Benchmark | tee author.bench
+	@./scripts/run-author-benchmarks.sh
 
 build:
 	@echo "--> Running go build"
