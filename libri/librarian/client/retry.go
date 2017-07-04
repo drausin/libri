@@ -1,11 +1,12 @@
 package client
 
 import (
-	"github.com/drausin/libri/libri/librarian/api"
 	"time"
-	"google.golang.org/grpc"
+
 	cbackoff "github.com/cenkalti/backoff"
+	"github.com/drausin/libri/libri/librarian/api"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc"
 )
 
 const (

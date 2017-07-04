@@ -1,10 +1,10 @@
 package ship
 
 import (
+	"errors"
 	"math/rand"
 	"sync"
 	"testing"
-	"errors"
 
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/publish"
@@ -197,7 +197,7 @@ func TestShipReceive(t *testing.T) {
 			params,
 		)
 		s := NewShipper(cb, pubAcq, mlP).(*shipper)
-		s.deletePages = false  // so we can check them at the end
+		s.deletePages = false // so we can check them at the end
 		eek := enc.NewPseudoRandomEEK(rng)
 		envelopeKeys := make([]id.ID, nDocs)
 		for i := uint32(0); i < nDocs; i++ {
@@ -289,7 +289,7 @@ type fixedDocSLD struct {
 func (f *fixedDocSLD) Load(key id.ID) (*api.Document, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	value, _ := f.docs[key.String()]
+	value := f.docs[key.String()]
 	return value, f.loadError
 }
 

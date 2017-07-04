@@ -1,16 +1,22 @@
 package acceptance
 
 import (
+	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"net"
 	"os"
+	"path/filepath"
 	"sync"
-	"fmt"
+	"testing"
 	"time"
+
 	lauthor "github.com/drausin/libri/libri/author"
+	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
+	"github.com/drausin/libri/libri/common/subscribe"
 	"github.com/drausin/libri/libri/librarian/api"
 	lclient "github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server"
@@ -18,14 +24,9 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/search"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"path/filepath"
-	"github.com/drausin/libri/libri/common/subscribe"
-	"github.com/drausin/libri/libri/author/keychain"
-	"github.com/drausin/libri/libri/common/id"
-	"testing"
-	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -35,7 +36,6 @@ const (
 	veryLightScryptP = 1
 
 	benchmarksFilepath = "../../librarian.bench"
-
 )
 
 type state struct {
@@ -261,9 +261,9 @@ func writeBenchmarkResults(t *testing.T, benchmarks []*benchmarkObs) {
 	}
 }
 
-
-func averageSubsamples(original []testing.BenchmarkResult, subsampleSize int) (
-	[]testing.BenchmarkResult) {
+func averageSubsamples(
+	original []testing.BenchmarkResult, subsampleSize int,
+) []testing.BenchmarkResult {
 	k := 0
 	averagedLen := int(float32(len(original)/subsampleSize) + 0.99) // poor man's ceil()
 	averaged := make([]testing.BenchmarkResult, averagedLen)

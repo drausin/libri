@@ -3,10 +3,13 @@
 package acceptance
 
 import (
-	"testing"
 	"bytes"
 	"fmt"
+	"net"
+	"runtime"
+	"testing"
 	"time"
+
 	"github.com/drausin/libri/libri/author/io/common"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -16,8 +19,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"runtime"
-	"net"
 )
 
 const (

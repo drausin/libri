@@ -61,12 +61,12 @@ func TestStorer_Store_ok(t *testing.T) {
 	for concurrency := uint(1); concurrency <= 3; concurrency++ {
 
 		searchParams := &ssearch.Parameters{
-			NMaxErrors:        DefaultNMaxErrors,
-			Concurrency:       concurrency,
-			Timeout:           DefaultQueryTimeout,
+			NMaxErrors:  DefaultNMaxErrors,
+			Concurrency: concurrency,
+			Timeout:     DefaultQueryTimeout,
 		}
 		storeParams := &Parameters{
-			NReplicas: nReplicas,
+			NReplicas:   nReplicas,
 			NMaxErrors:  DefaultNMaxErrors,
 			Concurrency: concurrency,
 		}
@@ -93,15 +93,6 @@ func TestStorer_Store_ok(t *testing.T) {
 		assert.Equal(t, 0, len(store.Result.Errors))
 		assert.Nil(t, store.Result.FatalErr)
 	}
-}
-
-type fixedSearcher struct {
-	fixed *ssearch.Result
-}
-
-func (s *fixedSearcher) Search(search *ssearch.Search, seeds []peer.Peer) error {
-	search.Result = s.fixed
-	return nil
 }
 
 func TestStorer_Store_queryErr(t *testing.T) {
@@ -138,12 +129,12 @@ func newTestStore() (Storer, *Store, []int, []peer.Peer, cid.ID) {
 
 	concurrency := uint(1)
 	searchParams := &ssearch.Parameters{
-		NMaxErrors:        ssearch.DefaultNMaxErrors,
-		Concurrency:       concurrency,
-		Timeout:           DefaultQueryTimeout,
+		NMaxErrors:  ssearch.DefaultNMaxErrors,
+		Concurrency: concurrency,
+		Timeout:     DefaultQueryTimeout,
 	}
 	storeParams := &Parameters{
-		NReplicas: DefaultNReplicas,
+		NReplicas:   DefaultNReplicas,
 		NMaxErrors:  DefaultNMaxErrors,
 		Concurrency: concurrency,
 	}

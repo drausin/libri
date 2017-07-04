@@ -1,8 +1,11 @@
 package author
 
 import (
-	"io"
+	"crypto/ecdsa"
 	"fmt"
+	"io"
+	"time"
+
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/pack"
 	"github.com/drausin/libri/libri/author/io/page"
@@ -15,12 +18,10 @@ import (
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
-	"go.uber.org/zap"
-	"time"
-	"golang.org/x/net/context"
 	"github.com/dustin/go-humanize"
-	"crypto/ecdsa"
+	"go.uber.org/zap"
+	"golang.org/x/net/context"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 const (
@@ -161,7 +162,7 @@ func NewAuthor(
 		authorKeys:       authorKeys,
 		selfReaderKeys:   selfReaderKeys,
 		allKeys:          allKeys,
-		envKeys:     envKeys,
+		envKeys:          envKeys,
 		db:               rdb,
 		clientSL:         clientSL,
 		documentSLD:      documentSL,

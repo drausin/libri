@@ -33,7 +33,7 @@ const (
 )
 
 var (
-	// ErrUnexpectedMissingDocument indicates when a document is unexpectely missing from the
+	// ErrUnexpectedMissingDocument indicates when a document is unexpectedly missing from the
 	// document storer loader.
 	ErrUnexpectedMissingDocument = errors.New("unexpected missing document")
 

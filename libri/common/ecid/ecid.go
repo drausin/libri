@@ -4,10 +4,11 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	crand "crypto/rand"
+	"errors"
 	"io"
 	"math/big"
 	mrand "math/rand"
-	"errors"
+
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 )

@@ -3,16 +3,17 @@ package cmd
 import (
 	"fmt"
 	"os"
+
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"github.com/spf13/viper"
 )
 
 const (
-	dataDirFlag    = "dataDir"
-	logLevelFlag   = "logLevel"
-	envVarPrefix   = "LIBRI"
+	dataDirFlag  = "dataDir"
+	logLevelFlag = "logLevel"
+	envVarPrefix = "LIBRI"
 )
 
 // RootCmd represents the base command when called without any subcommands

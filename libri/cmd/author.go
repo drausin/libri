@@ -1,19 +1,20 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	lauthor "github.com/drausin/libri/libri/author"
-	clogging "github.com/drausin/libri/libri/common/logging"
-	"github.com/drausin/libri/libri/author"
-	"github.com/drausin/libri/libri/librarian/server"
-	"go.uber.org/zap"
 	"fmt"
-	"github.com/drausin/libri/libri/author/keychain"
-	"golang.org/x/crypto/ssh/terminal"
-	"github.com/drausin/libri/libri/common/id"
 	"io"
 	"time"
+
+	"github.com/drausin/libri/libri/author"
+	lauthor "github.com/drausin/libri/libri/author"
+	"github.com/drausin/libri/libri/author/keychain"
+	"github.com/drausin/libri/libri/common/id"
+	clogging "github.com/drausin/libri/libri/common/logging"
+	"github.com/drausin/libri/libri/librarian/server"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"go.uber.org/zap"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 const (

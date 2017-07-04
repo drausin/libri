@@ -1,11 +1,12 @@
 package server
 
 import (
-	"crypto/md5"
+	"crypto/sha256"
 	"fmt"
 	"net"
 	"os"
 	"path/filepath"
+
 	"github.com/drausin/libri/libri/common/subscribe"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/routing"
@@ -350,16 +351,8 @@ func ParseAddrs(addrs []string) ([]*net.TCPAddr, error) {
 	return netAddrs, nil
 }
 
-// parseIP parses a string IP address and handles localhost on its own.
-func parseIP(ip string) net.IP {
-	if ip == "localhost" {
-		return net.ParseIP("127.0.0.1")
-	}
-	return net.ParseIP(ip)
-}
-
 // NameFromAddr gives the local name (on the host) of the node using the NodeIndex
 func NameFromAddr(localAddr fmt.Stringer) string {
-	addrHash := md5.Sum([]byte(localAddr.String()))
+	addrHash := sha256.Sum256([]byte(localAddr.String()))
 	return fmt.Sprintf("peer-%x", addrHash[:4])
 }

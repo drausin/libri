@@ -1,12 +1,13 @@
 package routing
 
 import (
-	"testing"
-	"github.com/drausin/libri/libri/librarian/server/peer"
 	"math/rand"
+	"testing"
+
 	"github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
+	"github.com/drausin/libri/libri/librarian/server/peer"
+	"github.com/drausin/libri/libri/librarian/server/search"
 )
 
 var benchmarkCases = []struct {
@@ -71,7 +72,7 @@ func benchmarkPushPop(b *testing.B, numPeers int) {
 
 		// pop half the peers every time
 		for rt.NumPeers() > 0 {
-			numToPop := uint(rt.NumPeers() / 2 + 1)
+			numToPop := uint(rt.NumPeers()/2 + 1)
 			target := id.NewPseudoRandom(rng)
 			rt.Pop(target, numToPop)
 		}
@@ -98,4 +99,3 @@ func benchmarkSample(b *testing.B, numPeers int) {
 		}
 	}
 }
-

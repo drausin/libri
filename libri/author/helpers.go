@@ -1,11 +1,12 @@
 package author
 
 import (
+	"net"
+
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/keychain"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc"
-	"net"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 type envelopeKeySampler interface {

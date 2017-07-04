@@ -3,20 +3,21 @@ package cmd
 import (
 	"bytes"
 	"compress/gzip"
-	"github.com/drausin/libri/libri/author"
-	lauthor "github.com/drausin/libri/libri/author"
-	"github.com/drausin/libri/libri/author/keychain"
-	"github.com/drausin/libri/libri/common/logging"
-	"github.com/pkg/errors"
-	"github.com/spf13/viper"
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
 	"testing"
+
+	"github.com/drausin/libri/libri/author"
+	lauthor "github.com/drausin/libri/libri/author"
+	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/logging"
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
 
 const (
@@ -68,7 +69,7 @@ func TestFileUploader_upload_err(t *testing.T) {
 	err = u2.upload()
 	assert.NotNil(t, err)
 
-	// non-existant file should throw error
+	// non-existent file should throw error
 	u3 := &fileUploaderImpl{
 		mtg: &fixedMediaTypeGetter{}, // ok that mediaType is nil since passing to mock
 	}
@@ -80,6 +81,7 @@ func TestFileUploader_upload_err(t *testing.T) {
 	toUploadFile, err := ioutil.TempFile("", "to-upload")
 	assert.Nil(t, err)
 	err = toUploadFile.Close()
+	assert.Nil(t, err)
 	viper.Set(upFilepathFlag, toUploadFile.Name())
 	u4 := &fileUploaderImpl{
 		mtg: &fixedMediaTypeGetter{}, // ok that mediaType is nil since passing to mock
@@ -91,7 +93,7 @@ func TestFileUploader_upload_err(t *testing.T) {
 	// error getting author should bubble up
 	viper.Set(upFilepathFlag, toUploadFile.Name())
 	u5 := &fileUploaderImpl{
-		ag: &fixedAuthorGetter{err: errors.New("some get error")},
+		ag:  &fixedAuthorGetter{err: errors.New("some get error")},
 		mtg: &fixedMediaTypeGetter{}, // ok that mediaType is nil since passing to mock
 		kc:  &fixedKeychainsGetter{}, // ok that KCs are null for same reason
 	}
@@ -254,7 +256,7 @@ func TestKeychainsGetter_get_err(t *testing.T) {
 
 type fixedAuthorUploader struct {
 	envelopeKey id.ID
-	err error
+	err         error
 }
 
 func (f *fixedAuthorUploader) upload(author *lauthor.Author, content io.Reader, mediaType string) (
@@ -299,4 +301,10 @@ type fixedPassphraseGetter struct {
 
 func (f *fixedPassphraseGetter) get() (string, error) {
 	return f.passphrase, f.err
+}
+
+func maybePanic(err error) {
+	if err != nil {
+		panic(err)
+	}
 }

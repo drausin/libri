@@ -154,8 +154,7 @@ func ValidateEnvelope(e *Envelope) error {
 	if err := ValidatePublicKey(e.ReaderPublicKey); err != nil {
 		return err
 	}
-	if err := ValidateBytes(e.EekCiphertext, EEKCiphertextLength, "EntryEncryptionKeys",
-	); err != nil {
+	if err := ValidateBytes(e.EekCiphertext, EEKCiphertextLength, "EntryEncryptionKeys"); err != nil {
 		return err
 	}
 	if err := ValidateHMAC256(e.EekCiphertextMac); err != nil {

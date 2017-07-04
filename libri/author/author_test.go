@@ -2,31 +2,31 @@ package author
 
 import (
 	"bytes"
-	"fmt"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"errors"
 	"io"
 	"io/ioutil"
 	"math/rand"
+	"net"
 	"sync"
 	"testing"
-	"errors"
+
 	"github.com/drausin/libri/libri/author/io/common"
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/page"
 	"github.com/drausin/libri/libri/author/io/publish"
 	"github.com/drausin/libri/libri/author/io/ship"
+	"github.com/drausin/libri/libri/author/keychain"
+	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/librarian/api"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap/zapcore"
-	"net"
-	"google.golang.org/grpc"
 	"golang.org/x/net/context"
-	"github.com/drausin/libri/libri/author/keychain"
-	"github.com/drausin/libri/libri/common/ecid"
-	"crypto/ecdsa"
-	"crypto/elliptic"
+	"google.golang.org/grpc"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 const (
@@ -222,7 +222,7 @@ func TestAuthor_UploadDownload(t *testing.T) {
 		docs: make(map[string]*api.Document),
 	}
 
-	// but need to re-init shipper & reciever via publishers/acquirers
+	// but need to re-init shipper & receiver via publishers/acquirers
 	slPublisher := publish.NewSingleLoadPublisher(pubAcq, a.documentSLD)
 	ssAcquirer := publish.NewSingleStoreAcquirer(pubAcq, a.documentSLD)
 	mlPublisher := publish.NewMultiLoadPublisher(slPublisher, a.config.Publish)
@@ -269,7 +269,7 @@ func TestAuthor_Share_ok(t *testing.T) {
 	}()
 	a.receiver = &fixedReceiver{
 		envelope: api.NewTestEnvelope(rng),
-		eek: enc.NewPseudoRandomEEK(rng),
+		eek:      enc.NewPseudoRandomEEK(rng),
 	}
 	expectedSharedEnvKey := id.NewPseudoRandom(rng)
 	a.shipper = &fixedShipper{
@@ -356,29 +356,6 @@ func TestAuthor_Share_err(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Nil(t, env)
 	assert.Nil(t, envID)
-}
-
-type fixedPublisher struct {
-	doc        *api.Document
-	lc         api.Putter
-	publishID  id.ID
-	publishErr error
-}
-
-func (f *fixedPublisher) Publish(doc *api.Document, lc api.Putter) (id.ID, error) {
-	f.doc, f.lc = doc, lc
-	return f.publishID, f.publishErr
-}
-
-type fixedMLPublisher struct {
-	docKeys    []id.ID
-	cb         api.ClientBalancer
-	publishErr error
-}
-
-func (f *fixedMLPublisher) Publish(docKeys []id.ID, cb api.ClientBalancer) error {
-	f.docKeys, f.cb = docKeys, cb
-	return f.publishErr
 }
 
 type fixedEntryPacker struct {
@@ -489,19 +466,6 @@ func (f *fixedHealthClient) Check(
 	ctx context.Context, in *healthpb.HealthCheckRequest, opts ...grpc.CallOption,
 ) (*healthpb.HealthCheckResponse, error) {
 	return f.response, f.err
-}
-
-type packTestCase struct {
-	pageSize          uint32
-	uncompressedSize  int
-	mediaType         string
-	packParallelism   uint32
-	unpackParallelism uint32
-}
-
-func (p packTestCase) String() string {
-	return fmt.Sprintf("pageSize: %d, uncompressedSize: %d, mediaType: %s", p.pageSize,
-		p.uncompressedSize, p.mediaType)
 }
 
 type upDownTestCase struct {

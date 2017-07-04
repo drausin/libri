@@ -375,11 +375,11 @@ func (f *fixedDocumentSLD) Store(key cid.ID, value *api.Document) error {
 }
 
 func (f *fixedDocumentSLD) Load(key cid.ID) (*api.Document, error) {
-	return f.stored[key.String()], nil
+	return f.stored[key.String()], f.loadErr
 }
 
 func (f *fixedDocumentSLD) Delete(key cid.ID) error {
-	return nil
+	return f.deleteErr
 }
 
 func randPages(t *testing.T, rng *rand.Rand, n int) ([]cid.ID, []*api.Page) {

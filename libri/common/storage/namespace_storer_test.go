@@ -146,7 +146,7 @@ func TestDocumentStorerLoader_Load_empty(t *testing.T) {
 	key := cid.NewPseudoRandom(rng)
 	dsl1 := &documentSLD{
 		sld: &fixedNamespaceSLD{
-			loadValue: nil,  // simulates missing/empty value
+			loadValue: nil, // simulates missing/empty value
 		},
 	}
 
@@ -213,25 +213,6 @@ func TestDocumentStorerLoader_Load_validateDocumentErr(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-type fixedSLD struct {
-	loadValue []byte
-	storeErr  error
-	loadErr   error
-	deleteErr error
-}
-
-func (fsld *fixedSLD) Store(namespace []byte, key []byte, value []byte) error {
-	return fsld.storeErr
-}
-
-func (fsld *fixedSLD) Load(namespace []byte, key []byte) ([]byte, error) {
-	return fsld.loadValue, fsld.loadErr
-}
-
-func (fsld *fixedSLD) Delete(namespace []byte, key []byte) error {
-	return fsld.deleteErr
-}
-
 type fixedNamespaceSLD struct {
 	loadValue []byte
 	storeErr  error
@@ -251,4 +232,3 @@ func (f *fixedNamespaceSLD) Load(key []byte) ([]byte, error) {
 func (f *fixedNamespaceSLD) Delete(key []byte) error {
 	return f.deleteErr
 }
-

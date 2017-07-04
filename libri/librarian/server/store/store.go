@@ -5,11 +5,11 @@ import (
 	"time"
 
 	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
-	"github.com/drausin/libri/libri/common/id"
 )
 
 const (

@@ -1,9 +1,10 @@
 package store
 
 import (
+	"errors"
 	"math/rand"
 	"testing"
-	"errors"
+
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -26,11 +27,11 @@ func TestStore_Stored(t *testing.T) {
 
 	// create store with search
 	store := NewStore(peerID, key, value, &ssearch.Parameters{}, &Parameters{
-		NReplicas: 3,
+		NReplicas:  3,
 		NMaxErrors: 3,
 	})
 	store.Result = NewInitialResult(store.Search.Result)
-	store.Result.Unqueried = []peer.Peer{nil}  // just needs to be non-zero length
+	store.Result.Unqueried = []peer.Peer{nil} // just needs to be non-zero length
 
 	// not stored yet b/c have no peers that have responded to store query
 	assert.False(t, store.Stored())
@@ -63,13 +64,13 @@ func TestStore_Errored(t *testing.T) {
 	})
 	s := &Store{
 		Params: &Parameters{
-			NReplicas: 3,
+			NReplicas:  3,
 			NMaxErrors: 3,
 		},
 		Result: NewInitialResult(searchResult),
 		Search: search,
 	}
-	s.Result.Unqueried = []peer.Peer{nil}  // just needs to be non-zero length
+	s.Result.Unqueried = []peer.Peer{nil} // just needs to be non-zero length
 
 	// haven't received any errors yet
 	assert.False(t, s.Errored())

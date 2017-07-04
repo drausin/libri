@@ -1,12 +1,13 @@
 package comp
 
 import (
-	"github.com/drausin/libri/libri/author/io/enc"
 	"bytes"
-	"testing"
-	"math/rand"
-	"github.com/drausin/libri/libri/author/io/common"
 	"io"
+	"math/rand"
+	"testing"
+
+	"github.com/drausin/libri/libri/author/io/common"
+	"github.com/drausin/libri/libri/author/io/enc"
 )
 
 const (

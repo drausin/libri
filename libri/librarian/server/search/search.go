@@ -77,7 +77,7 @@ func NewInitialResult(key cid.ID, params *Parameters) *Result {
 	return &Result{
 		Value:     nil,
 		Closest:   newFarthestPeers(key, params.NClosestResponses),
-		Unqueried: newClosestPeers(key, params.NClosestResponses * params.Concurrency),
+		Unqueried: newClosestPeers(key, params.NClosestResponses*params.Concurrency),
 		Responded: make(map[string]peer.Peer),
 		Errored:   make(map[string]error),
 	}

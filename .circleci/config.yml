@@ -56,6 +56,9 @@ jobs:
             fi
       - run:
           name: Run benchmarks
-          command: if [[ "${CIRCLE_BRANCH}" == "develop" ]]; then make bench; fi
+          command: |
+            if [[ "${CIRCLE_BRANCH}" == "develop" && ${CIRCLE_NODE_INDEX} -eq 0 ]]; then
+              make bench
+            fi
       - store_artifacts:
           path: bench

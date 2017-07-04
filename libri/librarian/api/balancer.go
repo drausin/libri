@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"net"
 	"sync"
+
 	"github.com/drausin/libri/libri/common/id"
 )
 
@@ -34,7 +35,7 @@ type ClientSetBalancer interface {
 type uniformRandBalancer struct {
 	rng   *rand.Rand
 	mu    sync.Mutex
-	addrs [] *net.TCPAddr
+	addrs []*net.TCPAddr
 	conns []Connector
 }
 
@@ -42,7 +43,7 @@ type uniformRandBalancer struct {
 // uniformly at random.
 func NewUniformRandomClientBalancer(libAddrs []*net.TCPAddr) (ClientBalancer, error) {
 	conns := make([]Connector, len(libAddrs))
-	if libAddrs == nil || len(libAddrs) == 0 {
+	if len(libAddrs) == 0 {
 		return nil, ErrEmptyLibrarianAddresses
 	}
 	return &uniformRandBalancer{

@@ -272,7 +272,7 @@ func TestMultiAcquirePublish(t *testing.T) {
 		for i := uint32(0); i < c.numDocs; i++ {
 			docs[i], docKeys[i] = api.NewTestDocument(rng)
 
-			// load first SL with documents for publiser
+			// load first SL with documents for publisher
 			err = docSL1.Store(docKeys[i], docs[i])
 			assert.Nil(t, err)
 		}
@@ -326,33 +326,6 @@ func (p *diffRequestIDPutter) Put(
 	}, nil
 }
 
-type memPutterGetter struct {
-	storage map[string]*api.Document
-}
-
-func (p *memPutterGetter) Put(
-	ctx context.Context, in *api.PutRequest, opts ...grpc.CallOption,
-) (*api.PutResponse, error) {
-
-	p.storage[id.FromBytes(in.Key).String()] = in.Value
-	return &api.PutResponse{
-		Metadata: &api.ResponseMetadata{
-			RequestId: in.Metadata.RequestId,
-		},
-	}, nil
-}
-
-func (p *memPutterGetter) Get(ctx context.Context, in *api.GetRequest, opts ...grpc.CallOption) (
-	*api.GetResponse, error) {
-
-	return &api.GetResponse{
-		Metadata: &api.ResponseMetadata{
-			RequestId: in.Metadata.RequestId,
-		},
-		Value: p.storage[id.FromBytes(in.Key).String()],
-	}, nil
-}
-
 type fixedSigner struct {
 	signature string
 	err       error
@@ -373,7 +346,7 @@ type fixedDocSLD struct {
 func (f *fixedDocSLD) Load(key id.ID) (*api.Document, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	value, _ := f.docs[key.String()]
+	value := f.docs[key.String()]
 	return value, f.loadError
 }
 
@@ -427,7 +400,7 @@ func (p *memPublisherAcquirer) Acquire(docKey id.ID, authorPub []byte, lc api.Ge
 
 type fixedSingleLoadPublisher struct {
 	mu            sync.Mutex
-	publishedKeys map[string]bool  // key -> deleted value
+	publishedKeys map[string]bool // key -> deleted value
 	err           error
 }
 

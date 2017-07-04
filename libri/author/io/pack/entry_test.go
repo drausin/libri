@@ -31,7 +31,7 @@ func TestEntryPacker_Pack_ok(t *testing.T) {
 	mediaType := "application/x-pdf"
 
 	// test works with single-page content
-	uncompressedSize1 := int(params.PageSize/2)
+	uncompressedSize1 := int(params.PageSize / 2)
 	content1 := common.NewCompressableBytes(rng, uncompressedSize1)
 	doc, metadata, err := p.Pack(content1, mediaType, keys, authorPub)
 	assert.Nil(t, err)
@@ -41,9 +41,8 @@ func TestEntryPacker_Pack_ok(t *testing.T) {
 	assert.True(t, in)
 	assert.Equal(t, uint64(uncompressedSize1), origSize)
 
-
 	// test works with multi-page content
-	uncompressedSize2 := int(params.PageSize*5)
+	uncompressedSize2 := int(params.PageSize * 5)
 	content2 := common.NewCompressableBytes(rng, uncompressedSize2)
 	doc, metadata, err = p.Pack(content2, mediaType, keys, authorPub)
 	assert.Nil(t, err)
@@ -214,9 +213,9 @@ func TestEntryPackUnpack(t *testing.T) {
 }
 
 type fixedDocSLD struct {
-	storeErr error
-	stored   map[string]*api.Document
-	loadErr  error
+	storeErr  error
+	stored    map[string]*api.Document
+	loadErr   error
 	deleteErr error
 }
 
@@ -226,7 +225,7 @@ func (f *fixedDocSLD) Store(key id.ID, value *api.Document) error {
 }
 
 func (f *fixedDocSLD) Load(key id.ID) (*api.Document, error) {
-	value, _ := f.stored[key.String()]
+	value := f.stored[key.String()]
 	return value, f.loadErr
 }
 

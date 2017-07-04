@@ -48,10 +48,9 @@ type Getter interface {
 type Sampler interface {
 	// Sample randomly selects a key from the collection.
 	Sample() (ecid.ID, error)
-
 }
 
-// GetterSampler and a colleciton of ECCSA keys that can be both looked up and sampled.
+// GetterSampler and a collection of ECCSA keys that can be both looked up and sampled.
 type GetterSampler interface {
 	Getter
 	Sampler

@@ -1,20 +1,20 @@
 package cmd
 
 import (
-	"testing"
-	"github.com/spf13/viper"
-	"go.uber.org/zap"
-	"strings"
-	"github.com/stretchr/testify/assert"
-	"github.com/drausin/libri/libri/author"
-	"github.com/drausin/libri/libri/common/logging"
-	"github.com/drausin/libri/libri/author/keychain"
-	"github.com/pkg/errors"
-	"log"
 	"io/ioutil"
+	"log"
 	"os"
-)
+	"strings"
+	"testing"
 
+	"github.com/drausin/libri/libri/author"
+	"github.com/drausin/libri/libri/author/keychain"
+	"github.com/drausin/libri/libri/common/logging"
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
+)
 
 func TestAuthorGetter_get_ok(t *testing.T) {
 	keychainDir, err := ioutil.TempDir("", "test-author")
@@ -56,7 +56,7 @@ func TestAuthorGetter_get_err(t *testing.T) {
 }
 
 func TestAuthorConfigGetter_get_ok(t *testing.T) {
-	dataDir, logLevel:= "some/data/dir", zap.DebugLevel
+	dataDir, logLevel := "some/data/dir", zap.DebugLevel
 	libAddrs := []string{"127.0.0.1:1234", "127.0.0.1:5678"}
 	libAddrsArg := strings.Join(libAddrs, " ")
 	log.Print(libAddrsArg)
@@ -84,13 +84,13 @@ func TestAuthorConfigGetter_get_err(t *testing.T) {
 
 	assert.NotNil(t, err)
 	assert.Nil(t, config)
-	assert.NotNil(t, logger)  // still should have been created
+	assert.NotNil(t, logger) // still should have been created
 }
 
 type fixedAuthorConfigGetter struct {
 	config *author.Config
 	logger *zap.Logger
-	err error
+	err    error
 }
 
 func (f *fixedAuthorConfigGetter) get(librariansFlag string) (*author.Config, *zap.Logger, error) {

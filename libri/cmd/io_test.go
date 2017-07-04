@@ -1,22 +1,23 @@
 package cmd
 
 import (
-	"testing"
-	"github.com/spf13/viper"
-	"github.com/drausin/libri/libri/common/id"
-	lauthor "github.com/drausin/libri/libri/author"
-	"math/rand"
-	"io"
-	"github.com/drausin/libri/libri/common/logging"
-	"github.com/stretchr/testify/assert"
 	"bytes"
+	"io"
+	"math/rand"
+	"testing"
+
+	lauthor "github.com/drausin/libri/libri/author"
+	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/logging"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestIOTester_test_ok(t *testing.T) {
 	viper.Set(nEntriesFlag, 1)
 	aud := &fixedAuthorUploaderDownloader{
-		rng: rand.New(rand.NewSource(0)),
+		rng:      rand.New(rand.NewSource(0)),
 		uploaded: make(map[string]io.WriterTo),
 	}
 	iot := &ioTesterImpl{
@@ -40,7 +41,7 @@ func TestIOTester_test_err(t *testing.T) {
 
 	iot2 := &ioTesterImpl{
 		au: &fixedAuthorUploaderDownloader{
-			rng: rand.New(rand.NewSource(0)),
+			rng:      rand.New(rand.NewSource(0)),
 			uploaded: make(map[string]io.WriterTo),
 		},
 		ad: &fixedAuthorUploaderDownloader{downloadErr: errors.New("some download err")},
@@ -50,11 +51,11 @@ func TestIOTester_test_err(t *testing.T) {
 
 	iot3 := &ioTesterImpl{
 		au: &fixedAuthorUploaderDownloader{
-			rng: rand.New(rand.NewSource(0)),
+			rng:      rand.New(rand.NewSource(0)),
 			uploaded: make(map[string]io.WriterTo),
 		},
 		ad: &fixedAuthorUploaderDownloader{
-			rng: rand.New(rand.NewSource(0)),
+			rng:      rand.New(rand.NewSource(0)),
 			uploaded: make(map[string]io.WriterTo),
 		},
 	}
@@ -63,12 +64,11 @@ func TestIOTester_test_err(t *testing.T) {
 }
 
 type fixedAuthorUploaderDownloader struct {
-	rng *rand.Rand
-	uploaded map[string]io.WriterTo
-	uploadErr error
+	rng         *rand.Rand
+	uploaded    map[string]io.WriterTo
+	uploadErr   error
 	downloadErr error
 }
-
 
 func (f *fixedAuthorUploaderDownloader) upload(
 	author *lauthor.Author, content io.Reader, mediaType string,
@@ -89,11 +89,10 @@ func (f *fixedAuthorUploaderDownloader) download(
 	if f.downloadErr != nil {
 		return f.downloadErr
 	}
-	doc, _ := f.uploaded[envelopeKey.String()]
+	doc := f.uploaded[envelopeKey.String()]
 	if doc == nil {
 		return nil
 	}
 	_, err := doc.WriteTo(content)
 	return err
 }
-

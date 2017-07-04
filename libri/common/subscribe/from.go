@@ -139,8 +139,5 @@ type bernoulliEnder struct {
 // End ends a subscription with probability p, which is equivalent to sampling a Bernoulli random
 // variable p(x = 1 | p). i isn't actually used in this implementation.
 func (e *bernoulliEnder) end() bool {
-	if e.rng.Float64() < e.p {
-		return true
-	}
-	return false
+	return e.rng.Float64() < e.p
 }

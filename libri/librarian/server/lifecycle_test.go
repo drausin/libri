@@ -1,13 +1,14 @@
 package server
 
 import (
+	"errors"
 	"io/ioutil"
 	"math/rand"
 	"net"
 	"testing"
-	"errors"
 	"time"
 
+	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -19,7 +20,6 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
-	"github.com/drausin/libri/libri/common/ecid"
 )
 
 func TestStart_ok(t *testing.T) {

@@ -6,12 +6,13 @@ import (
 
 	"errors"
 
+	"fmt"
+
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/golang/protobuf/proto"
 	"go.uber.org/zap"
-	"fmt"
 )
 
 var (
@@ -124,10 +125,7 @@ func CreateKeychains(logger *zap.Logger, keychainDir, auth string, scryptN, scry
 		return err
 	}
 	selfReaderKeysFP := path.Join(keychainDir, SelfReaderKeychainFilename)
-	if err := CreateKeychain(logger, selfReaderKeysFP, auth, scryptN, scryptP); err != nil {
-		return err
-	}
-	return nil
+	return CreateKeychain(logger, selfReaderKeysFP, auth, scryptN, scryptP)
 }
 
 // CreateKeychain creates a keychain in the given filepath with the given auth and Scrypt params.

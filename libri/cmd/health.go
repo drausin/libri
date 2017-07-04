@@ -1,8 +1,9 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
 	"os"
+
+	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
 
@@ -10,7 +11,7 @@ import (
 var healthCmd = &cobra.Command{
 	Use:   "health",
 	Short: "check health of librarian peers",
-	Long: `TODO (drausin) more detailed description`,
+	Long:  `TODO (drausin) more detailed description`,
 	Run: func(cmd *cobra.Command, args []string) {
 		author, logger, err := newTestAuthorGetter().get()
 		if err != nil {

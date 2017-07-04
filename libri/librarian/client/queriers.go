@@ -1,11 +1,12 @@
 package client
 
 import (
+	"time"
+
+	cbackoff "github.com/cenkalti/backoff"
 	"github.com/drausin/libri/libri/librarian/api"
 	"golang.org/x/net/context"
-	cbackoff "github.com/cenkalti/backoff"
 	"google.golang.org/grpc"
-	"time"
 )
 
 // TODO (drausin) move all queriers to api.(Finder|Storer|Getter|Putter)...?
@@ -59,19 +60,19 @@ func (q *findQuerier) Query(ctx context.Context, pConn api.Connector, rq *api.Fi
 
 type retryFindQuerier struct {
 	timeout time.Duration
-	inner FindQuerier
+	inner   FindQuerier
 }
 
 // NewRetryFindQuerier creates a new FindQuerier instance that retries a query with exponential
 // backoff until a given timeout.
 func NewRetryFindQuerier(inner FindQuerier, timeout time.Duration) FindQuerier {
 	return &retryFindQuerier{
-		inner: inner,
+		inner:   inner,
 		timeout: timeout,
 	}
 }
 
-func (r * retryFindQuerier) Query(ctx context.Context, pConn api.Connector, rq *api.FindRequest,
+func (r *retryFindQuerier) Query(ctx context.Context, pConn api.Connector, rq *api.FindRequest,
 	opts ...grpc.CallOption) (*api.FindResponse, error) {
 	var rp *api.FindResponse
 	operation := func() error {

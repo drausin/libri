@@ -1,17 +1,18 @@
 package cmd
 
 import (
-	"testing"
-	"github.com/spf13/viper"
-	"github.com/stretchr/testify/assert"
 	"bufio"
 	"bytes"
-	"github.com/pkg/errors"
 	"io/ioutil"
 	"os"
-	"github.com/drausin/libri/libri/author"
 	"path"
+	"testing"
+
+	"github.com/drausin/libri/libri/author"
 	"github.com/drausin/libri/libri/common/logging"
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewKeychainCreator(t *testing.T) {
@@ -26,7 +27,7 @@ func TestKeychainCreator_create_ok(t *testing.T) {
 	viper.Set(keychainDirFlag, keychainDir)
 
 	kc := keychainCreatorImpl{
-		ps: &fixedPassphraseSetter{passphrase: passphrase},
+		ps:      &fixedPassphraseSetter{passphrase: passphrase},
 		scryptN: veryLightScryptN,
 		scryptP: veryLightScryptP,
 	}
@@ -79,8 +80,8 @@ func TestKeychainCreator_create_err(t *testing.T) {
 	assert.NotNil(t, err)
 
 	kc5 := keychainCreatorImpl{
-		ps: &fixedPassphraseSetter{passphrase: setPassphrase},
-		scryptN: -1,  // will cause error
+		ps:      &fixedPassphraseSetter{passphrase: setPassphrase},
+		scryptN: -1, // will cause error
 		scryptP: -1,
 	}
 	err = kc5.create()
@@ -89,13 +90,12 @@ func TestKeychainCreator_create_err(t *testing.T) {
 
 type fixedPassphraseSetter struct {
 	passphrase string
-	err error
+	err        error
 }
 
 func (s *fixedPassphraseSetter) set() (string, error) {
 	return s.passphrase, s.err
 }
-
 
 func TestPassphraseSetter_set_ok(t *testing.T) {
 	setPassphrase := "some passphrase"
@@ -110,8 +110,8 @@ func TestPassphraseSetter_set_ok(t *testing.T) {
 	// check can get passphrase from input
 	viper.Set(passphraseVar, "")
 	ps2 := &passphraseSetterImpl{
-		pg1: &fixedPassphraseGetter{passphrase: setPassphrase},
-		pg2: &fixedPassphraseGetter{passphrase: setPassphrase},
+		pg1:    &fixedPassphraseGetter{passphrase: setPassphrase},
+		pg2:    &fixedPassphraseGetter{passphrase: setPassphrase},
 		reader: bufio.NewReader(bytes.NewBuffer([]byte(recordedInput + "\n"))),
 	}
 
@@ -148,21 +148,20 @@ func TestPassphraseSetter_set_err(t *testing.T) {
 	assert.Zero(t, pass3)
 
 	ps4 := &passphraseSetterImpl{
-		pg1: &fixedPassphraseGetter{passphrase: setPassphrase},
-		pg2: &fixedPassphraseGetter{passphrase: setPassphrase},
-		reader: bufio.NewReader(bytes.NewBuffer([]byte{})),  // will yield io.EOF error
+		pg1:    &fixedPassphraseGetter{passphrase: setPassphrase},
+		pg2:    &fixedPassphraseGetter{passphrase: setPassphrase},
+		reader: bufio.NewReader(bytes.NewBuffer([]byte{})), // will yield io.EOF error
 	}
 	pass4, err := ps4.set()
 	assert.NotNil(t, err)
 	assert.Zero(t, pass4)
 
 	ps5 := &passphraseSetterImpl{
-		pg1: &fixedPassphraseGetter{passphrase: setPassphrase},
-		pg2: &fixedPassphraseGetter{passphrase: setPassphrase},
+		pg1:    &fixedPassphraseGetter{passphrase: setPassphrase},
+		pg2:    &fixedPassphraseGetter{passphrase: setPassphrase},
 		reader: bufio.NewReader(bytes.NewBuffer([]byte("NOT RECORDED\n"))),
 	}
 	pass5, err := ps5.set()
 	assert.Equal(t, errConfirmationNotRecorded, err)
 	assert.Zero(t, pass5)
 }
-
