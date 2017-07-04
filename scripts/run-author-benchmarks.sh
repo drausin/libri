@@ -6,13 +6,15 @@ AUTHOR_BENCH_PKGS='github.com/drausin/libri/libri/author/io/enc
     github.com/drausin/libri/libri/author/io/comp
     github.com/drausin/libri/libri/author/io/page'
 N_TRIALS=32
-RAW_RESULT_FILE='author.raw.bench'
-RESULT_FILE='author.bench'
+BENCH_DIR='bench'
+RAW_RESULT_FILE="${BENCH_DIR}/author.raw.bench"
+RESULT_FILE="${BENCH_DIR}/author.bench"
 TEST_BINARY="pkg.test"
 
 FAST_BENCH_DURATION='0.1s'
 SLOW_BENCH_DURATION='3s'
 
+mkdir ${BENCH_DIR}
 rm -f ${RAW_RESULT_FILE}
 
 for pkg in ${AUTHOR_BENCH_PKGS}; do
