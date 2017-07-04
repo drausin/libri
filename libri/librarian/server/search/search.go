@@ -18,8 +18,9 @@ const (
 	// DefaultNMaxErrors is the default maximum number of errors tolerated during a search.
 	DefaultNMaxErrors = uint(3)
 
-	// DefaultConcurrency is the default number of parallel search workers.
-	DefaultConcurrency = uint(3)
+	// DefaultConcurrency is the default number of parallel search workers. Currently 1 for
+	// simplicity and because bumping to 3 doesn't seem to improve get performance at all.
+	DefaultConcurrency = uint(1)
 
 	// DefaultQueryTimeout is the timeout for each query to a peer.
 	DefaultQueryTimeout = 5 * time.Second

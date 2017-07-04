@@ -263,7 +263,7 @@ func TestPaginateUnpaginate(t *testing.T) {
 	assert.Nil(t, err)
 
 	MinSize = 64 // just for testing
-	uncompressedSizes := []int{128, 192, 256, 384, 512, 768, 1024, 2048, 4096, 8192}
+	uncompressedSizes := []int{32, 64, 128, 192, 256, 384, 512, 768, 1024, 2048, 4096, 8192}
 	pageSizes := []uint32{128, 256, 512, 1024}
 	codecs := []comp.Codec{comp.GZIPCodec, comp.NoneCodec}
 

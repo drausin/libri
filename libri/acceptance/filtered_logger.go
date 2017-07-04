@@ -136,6 +136,9 @@ func declareLogNoise(t *testing.T, phrases ...string) (restore func()) {
 	fw := &filterWriter{dst: os.Stderr, filter: phrases}
 	testLogOutput.setWriter(fw)
 	return func() {
+		// the filtered stuff below is almost always just noise, but leaving this here just in case
+		// someone in future wants it
+		/*
 		if t.Failed() {
 			fw.mu.Lock()
 			defer fw.mu.Unlock()
@@ -143,6 +146,7 @@ func declareLogNoise(t *testing.T, phrases ...string) (restore func()) {
 				t.Logf("Complete log output:\n%s", fw.buf.Bytes())
 			}
 		}
+		*/
 		testLogOutput.setWriter(os.Stderr)
 	}
 }

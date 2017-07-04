@@ -2,14 +2,13 @@ package comp
 
 import (
 	"bytes"
-	"compress/gzip"
 	"fmt"
+	"github.com/klauspost/compress/gzip"
 	"io"
 	"mime"
-
 	"errors"
-
 	"github.com/drausin/libri/libri/author/io/enc"
+	"sync"
 )
 
 // Codec is a comp.codec.
@@ -31,7 +30,7 @@ const (
 
 	// DefaultBufferSize is the default size of the uncompressed buffer used by
 	// the compressor and decompressor.
-	DefaultBufferSize = uint32(1024)
+	DefaultBufferSize = uint32(32 * 1024)
 )
 
 // ErrBufferSizeTooSmall indicates when the max page size is too small (often because it is zero).
@@ -115,30 +114,33 @@ type compressor struct {
 	uncompressedBufferSize uint32
 }
 
+var gzipWriters = sync.Pool{
+	New: func() interface{} {
+		// optimize for best comp.to reduce network transfer volume and time (at
+		// expense of more client CPU)
+		inner, err := gzip.NewWriterLevel(new(bytes.Buffer), gzip.DefaultCompression)
+		maybePanic(err)
+		return inner
+	},
+}
+
 // NewCompressor creates a new Compressor for the compressed contents using the given compression
 // codec. Larger values of uncompressedBufferSize will result in fewer calls to the uncompressed
 // io.Reader, at the expense of reading more than is needed into the internal buffer.
 func NewCompressor(
 	uncompressed io.Reader, codec Codec, keys *enc.EEK, uncompressedBufferSize uint32,
 ) (Compressor, error) {
-	var err error
 	var inner FlushCloseWriter
 	buf := new(bytes.Buffer)
 
 	switch codec {
 	case GZIPCodec:
-		// optimize for best comp.to reduce network transfer volume and time (at
-		// expense of more client CPU)
-		inner, err = gzip.NewWriterLevel(buf, gzip.BestCompression)
+		inner = gzipWriters.Get().(*gzip.Writer)
+		inner.(*gzip.Writer).Reset(buf)
 	case NoneCodec:
-		// inner, err = gzip.NewWriterLevel(buf, gzip.NoCompression)
 		inner = &noOpFlushCloseWriter{buf}
 	default:
 		panic(fmt.Errorf("unexpected codec: %s", codec))
-	}
-
-	if err != nil {
-		return nil, err
 	}
 	if uncompressedBufferSize < MinBufferSize {
 		return nil, ErrBufferSizeTooSmall
@@ -154,6 +156,8 @@ func NewCompressor(
 
 // Read reads compressed contents into p from the underling uncompressed io.Reader.
 func (c *compressor) Read(p []byte) (int, error) {
+	defer c.cleanup()
+
 	// write compressed contents into buffer until we have enough for p
 	for c.buf.Len() < len(p) {
 		more := make([]byte, int(c.uncompressedBufferSize))
@@ -207,6 +211,12 @@ func trimBuffer(buf *bytes.Buffer) error {
 	buf.Reset()
 	_, err = buf.ReadFrom(temp)
 	return err
+}
+
+func (c *compressor) cleanup() {
+	if _, ok := c.inner.(*gzip.Writer); ok {
+		gzipWriters.Put(c.inner)
+	}
 }
 
 // Decompressor is a CloseWriter with an enc.MAC on the uncompressed bytes.
@@ -320,4 +330,10 @@ func (d *decompressor) Close() error {
 	}
 	d.closed = true
 	return nil
+}
+
+func maybePanic(err error) {
+	if err != nil {
+		panic(err)
+	}
 }

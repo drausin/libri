@@ -2,14 +2,12 @@ package comp
 
 import (
 	"bytes"
-	"compress/gzip"
+	"github.com/klauspost/compress/gzip"
 	"fmt"
 	"io"
 	"math/rand"
 	"testing"
-
 	"errors"
-
 	"github.com/drausin/libri/libri/author/io/common"
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/stretchr/testify/assert"

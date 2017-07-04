@@ -8,11 +8,15 @@ GIT_STATUS_SUBDIRS=$(shell git status --porcelain | grep -e '\.go$$' | sed -r 's
 CHANGED_PKG_SUBDIRS=$(shell echo $(LIBRI_PKG_SUBDIRS) $(GIT_STATUS_SUBDIRS) | tr " " "\n" | sort | uniq -d)
 SHELL=/bin/bash -eou pipefail
 
-.PHONY: build
+.PHONY: bench build
 
 acceptance:
 	@echo "--> Running acceptance tests"
 	@go test -tags acceptance -v github.com/drausin/libri/libri/acceptance 2>&1 | tee acceptance.log
+
+bench:
+	@echo "--> Running benchmarks"
+	@./scripts/run-author-benchmarks.sh
 
 build:
 	@echo "--> Running go build"
@@ -20,7 +24,7 @@ build:
 
 build-static:
 	@echo "--> Running go build for static binary"
-	@./scripts/build-static deploy/bin/libri
+	@./scripts/build-static.sh deploy/bin/libri
 
 demo:
 	@echo "--> Running demo"

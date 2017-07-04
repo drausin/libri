@@ -11,16 +11,17 @@ import (
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
+	lclient "github.com/drausin/libri/libri/librarian/client"
 )
 
 const (
 	// DefaultPutTimeout is the default timeout duration for a Publisher's Put() call to a
 	// librarian.
-	DefaultPutTimeout = 10 * time.Second
+	DefaultPutTimeout = 3 * time.Second
 
 	// DefaultGetTimeout is the default timeout duration for an Acquirer's Get() call to a
 	// librarian.
-	DefaultGetTimeout = 10 * time.Second
+	DefaultGetTimeout = 3 * time.Second
 
 	// DefaultPutParallelism is the default parallelism a MultiLoadPublisher uses when
 	// making multiple Put calls to librarians.
@@ -222,6 +223,7 @@ func (p *multiLoadPublisher) Publish(
 	docKeys []cid.ID, authorPub []byte, cb api.ClientBalancer, delete bool,
 ) error {
 
+	rlc := lclient.NewRetryPutter(cb, p.params.PutTimeout)
 	docKeysChan := make(chan cid.ID, p.params.PutParallelism)
 	go loadChan(docKeys, docKeysChan)
 	wg := new(sync.WaitGroup)
@@ -230,12 +232,7 @@ func (p *multiLoadPublisher) Publish(
 		wg.Add(1)
 		go func() {
 			for docKey := range docKeysChan {
-				lc, err := cb.Next()
-				if err != nil {
-					putErrs <- err
-					return
-				}
-				if err := p.inner.Publish(docKey, authorPub, lc, delete); err != nil {
+				if err := p.inner.Publish(docKey, authorPub, rlc, delete); err != nil {
 					putErrs <- err
 					break
 				}

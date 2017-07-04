@@ -16,7 +16,7 @@ type Pinger interface {
 
 // Introducer issues Introduce queries.
 type Introducer interface {
-	// Identify identifies the node by name and ID.
+	// Introduce identifies the node by name and ID.
 	Introduce(ctx context.Context, in *IntroduceRequest, opts ...grpc.CallOption) (
 		*IntroduceResponse, error)
 }

@@ -12,8 +12,7 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 )
 
-// TODO (drausin) const?
-var (
+const (
 	// DefaultNReplicas is the numeber of
 	DefaultNReplicas = uint(3)
 

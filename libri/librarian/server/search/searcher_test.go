@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"time"
 )
 
 func TestNewDefaultSearcher(t *testing.T) {
@@ -205,7 +206,7 @@ func TestSearcher_query_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	connClient := api.NewConnector(nil) // won't actually be used since we're mocking the finder
 	peerID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
-	search := NewSearch(peerID, key, &Parameters{})
+	search := NewSearch(peerID, key, &Parameters{Timeout: 1 * time.Second})
 
 	s1 := &searcher{
 		signer: &client.TestNoOpSigner{},
@@ -267,6 +268,7 @@ func TestResponseProcessor_Process_Addresses(t *testing.T) {
 	rp := NewResponseProcessor(peer.NewFromer())
 	params := NewDefaultParameters()
 	result := NewInitialResult(key, params)
+	result.Unqueried = newClosestPeers(key, 9)
 
 	// create response or nAddresses and process it
 	response1 := &api.FindResponse{
