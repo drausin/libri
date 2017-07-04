@@ -48,7 +48,7 @@ func benchmarkEncrypt(b *testing.B, plaintextSizes []int) {
 	totBytes := int64(0)
 	for i, plaintextSize := range plaintextSizes {
 		plaintexts[i] = make([]byte, plaintextSize)
-		_, err := rng.Read(plaintexts[i])
+		_, err = rng.Read(plaintexts[i])
 		maybePanic(err)
 		totBytes += int64(plaintextSize)
 	}
@@ -79,10 +79,11 @@ func benchmarkDecrypt(b *testing.B, plaintextSizes []int) {
 	for i, plaintextSize := range plaintextSizes {
 
 		plaintext := make([]byte, plaintextSize)
-		_, err := rng.Read(plaintext)
+		_, err = rng.Read(plaintext)
 		maybePanic(err)
 
 		ciphertexts[i], err = encrypter.Encrypt(plaintext, 0)
+		maybePanic(err)
 		totBytes += int64(len(ciphertexts[i]))
 	}
 

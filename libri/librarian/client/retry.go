@@ -20,6 +20,7 @@ type retryGetter struct {
 	timeout time.Duration
 }
 
+// NewRetryGetter wraps a client balancer with an exponential backoff, returning an api.Getter.
 func NewRetryGetter(cb api.ClientBalancer, timeout time.Duration) api.Getter {
 	return &retryGetter{
 		cb:      cb,
@@ -51,6 +52,7 @@ type retryPutter struct {
 	timeout time.Duration
 }
 
+// NewRetryPutter wraps a client balancer with an exponential backoff, returning an api.Putter.
 func NewRetryPutter(cb api.ClientBalancer, timeout time.Duration) api.Putter {
 	return &retryPutter{
 		cb:      cb,

@@ -36,9 +36,6 @@ const (
 
 	benchmarksFilepath = "../../librarian.bench"
 
-	introduceName = "Introduce"
-	putName       = "Put"
-	getName       = "Get"
 )
 
 var grpcLogNoise = []string{
@@ -118,7 +115,10 @@ func setUp(params *params) *state {
 			zap.String("seed_name", seedConfigs[c].PublicName),
 			zap.String("seed_address", seedConfigs[c].PublicAddr.String()),
 		)
-		go func() { server.Start(logger, seedConfigs[c], seedsUp) }()
+		go func() {
+			err := server.Start(logger, seedConfigs[c], seedsUp)
+			maybePanic(err)
+		}()
 		seeds[c] = <-seedsUp // wait for seed to come up
 	}
 
@@ -231,7 +231,8 @@ func startLibrariansShard(
 func tearDown(state *state) {
 	// disconnect from librarians and remove data dir
 	for _, author := range state.authors {
-		author.CloseAndRemove()
+		err := author.CloseAndRemove()
+		maybePanic(err)
 	}
 
 	// gracefully shut down peers and seeds
@@ -241,11 +242,13 @@ func tearDown(state *state) {
 			// don't crash b/c of flurry of ended subscriptions from earlier librarians
 			p2.EndSubscriptions()
 			time.Sleep(3 * time.Second)
-			p2.Close()
+			err := p2.Close()
+			maybePanic(err)
 		}(p1)
 	}
 	for _, s := range state.seeds {
-		s.Close()
+		err := s.Close()
+		maybePanic(err)
 	}
 
 	// remove data dir shared by all
@@ -256,7 +259,7 @@ func writeBenchmarkResults(t *testing.T, benchmarks []*benchmarkObs) {
 	f, err := os.Create(benchmarksFilepath)
 	defer f.Close()
 	assert.Nil(t, err)
-	maxNameLen := len(introduceName)
+	maxNameLen := len("Introduce")
 
 	for _, benchmark := range benchmarks {
 		name := benchmarkName(benchmark.name, benchmark.procs)
@@ -394,4 +397,10 @@ func benchmarkName(name string, n int) string {
 		return fmt.Sprintf("Benchmark%s-%d", name, n)
 	}
 	return name
+}
+
+func maybePanic(err error) {
+	if err != nil {
+		panic(err)
+	}
 }

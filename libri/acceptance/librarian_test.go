@@ -30,7 +30,8 @@ const putPageSize = 1024 * 1024
 func TestLibrarianCluster(t *testing.T) {
 
 	// handle grpc log noise
-	restore := declareLogNoise(t, grpcLogNoise...)
+	noise := grpcLogNoise
+	restore := declareLogNoise(t, noise...)
 	defer restore()
 
 	params := &params{

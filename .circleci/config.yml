@@ -54,3 +54,8 @@ jobs:
               docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}
               docker push daedalus2718/libri:latest
             fi
+      - run:
+          name: Run benchmarks
+          command: make bench
+      - store_artifacts:
+          path: *.bench
