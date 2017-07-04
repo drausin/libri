@@ -1,14 +1,13 @@
+SHELL=/bin/bash -eou pipefail
 GOTOOLS= github.com/alecthomas/gometalinter \
 	 github.com/wadey/gocovmerge
-VETARGS?=-asmdecl -atomic -bool -buildtags -copylocks -methods \
-         -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
 LIBRI_PKGS=$(shell go list ./... | grep -v /vendor/)
 LIBRI_PKG_SUBDIRS=$(shell go list ./... | grep -v /vendor/ | sed -r 's|github.com/drausin/libri/||g' | sort)
 GIT_STATUS_SUBDIRS=$(shell git status --porcelain | grep -e '\.go$$' | sed -r 's|^...(.+)/[^/]+\.go$$|\1|' | sort | uniq)
-GIT_DIFF_SUBDIRS=$(shell git diff develop..HEAD --name-only | grep -e '\.go$' | sed -r 's|^(.+)/[^/]+\.go$|\1|' | sort | uniq)
-CHANGED_PKG_SUBDIRS=$(shell echo $(LIBRI_PKG_SUBDIRS) $(GIT_STATUS_SUBDIRS) | tr " " "\n" | sort | uniq -d)
+GIT_DIFF_SUBDIRS=$(shell git diff develop..HEAD --name-only | grep -e '\.go$$' | sed -r 's|^(.+)/[^/]+\.go$$|\1|' | sort | uniq)
+GIT_STATUS_PKG_SUBDIRS=$(shell echo $(LIBRI_PKG_SUBDIRS) $(GIT_STATUS_SUBDIRS) | tr " " "\n" | sort | uniq -d)
+GIT_DIFF_PKG_SUBDIRS=$(shell echo $(LIBRI_PKG_SUBDIRS) $(GIT_DIFF_SUBDIRS) | tr " " "\n" | sort | uniq -d)
 
-SHELL=/bin/bash -eou pipefail
 
 .PHONY: bench build
 
@@ -54,15 +53,15 @@ get-deps:
 
 lint:
 	@echo "--> Running gometalinter"
-	@echo $(GIT_DIFF_SUBDIRS) | tr " " "\n"
+	@echo $(GIT_DIFF_PKG_SUBDIRS) | tr " " "\n"
 	@gometalinter $(GIT_DIFF_SUBDIRS) --config=.gometalinter.json --deadline=10m  --vendored-linters
 	@gometalinter $(GIT_DIFF_SUBDIRS) --config=.gometalinter.slow.json --deadline=10m  --vendored-linters
 
 lint-diff:
 	@echo "--> Running gometalinter on packages with uncommitted changes"
-	@echo $(CHANGED_PKG_SUBDIRS) | tr " " "\n"
-	@echo $(CHANGED_PKG_SUBDIRS) | xargs gometalinter --config=.gometalinter.json --deadline=10m --vendored-linters
-	@echo $(CHANGED_PKG_SUBDIRS) | xargs gometalinter --config=.gometalinter.slow.json --deadline=10m --vendored-linters
+	@echo $(GIT_STATUS_PKG_SUBDIRS) | tr " " "\n"
+	@echo $(GIT_STATUS_PKG_SUBDIRS) | xargs gometalinter --config=.gometalinter.json --deadline=10m --vendored-linters
+	@echo $(GIT_STATUS_PKG_SUBDIRS) | xargs gometalinter --config=.gometalinter.slow.json --deadline=10m --vendored-linters
 
 lint-full:
 	@echo "--> Running gometalinter"
