@@ -115,7 +115,7 @@ func TestTo_BeginEnd(t *testing.T) {
 	getNewPub(newPubs, toImpl.end)
 
 	// check newPubs is closed
-	pub, open := <-newPubs:
+	pub, open := <-newPubs
 	assert.Nil(t, pub)
 	assert.False(t, open)
 

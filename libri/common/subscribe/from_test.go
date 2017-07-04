@@ -133,14 +133,10 @@ func TestFrom_Fanout_end(t *testing.T) {
 	out <- outPub
 
 	// check that subscription has ended and done channel is closed
-	select {
-	case fanPub, open := <-fanout:
-		assert.Nil(t, fanPub)
-		assert.False(t, open)
-	}
-	select {
-	case <-done: // if this doesn't block, means done is closed
-	}
+	fanPub, open := <-fanout
+	assert.Nil(t, fanPub)
+	assert.False(t, open)
+	<-done // if this doesn't block, means done is closed
 }
 
 func TestFrom_New_ok(t *testing.T) {

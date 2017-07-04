@@ -301,3 +301,9 @@ type fixedPassphraseGetter struct {
 func (f *fixedPassphraseGetter) get() (string, error) {
 	return f.passphrase, f.err
 }
+
+func maybePanic(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
