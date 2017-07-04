@@ -261,7 +261,9 @@ func writeBenchmarkResults(t *testing.T, benchmarks []*benchmarkObs) {
 	}
 }
 
-func averageSubsamples(original []testing.BenchmarkResult, subsampleSize int) []testing.BenchmarkResult {
+func averageSubsamples(
+	original []testing.BenchmarkResult, subsampleSize int,
+) []testing.BenchmarkResult {
 	k := 0
 	averagedLen := int(float32(len(original)/subsampleSize) + 0.99) // poor man's ceil()
 	averaged := make([]testing.BenchmarkResult, averagedLen)
