@@ -247,7 +247,7 @@ func tearDown(state *state) {
 func writeBenchmarkResults(t *testing.T, benchmarks []*benchmarkObs) {
 	f, err := os.Create(benchmarksFilepath)
 	defer func() {
-		err := f.Close()
+		err = f.Close()
 		maybePanic(err)
 	}()
 	assert.Nil(t, err)
