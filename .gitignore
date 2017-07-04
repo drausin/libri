@@ -3,7 +3,7 @@ vendor
 # created during CI
 .cover
 acceptance.log
-*.bench
+bench
 
 # Intellij files
 .idea/
