@@ -2,30 +2,31 @@ package author
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"errors"
 	"io"
 	"io/ioutil"
 	"math/rand"
+	"net"
 	"sync"
 	"testing"
-	"errors"
+
 	"github.com/drausin/libri/libri/author/io/common"
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/page"
 	"github.com/drausin/libri/libri/author/io/publish"
 	"github.com/drausin/libri/libri/author/io/ship"
+	"github.com/drausin/libri/libri/author/keychain"
+	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/librarian/api"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap/zapcore"
-	"net"
-	"google.golang.org/grpc"
 	"golang.org/x/net/context"
-	"github.com/drausin/libri/libri/author/keychain"
-	"github.com/drausin/libri/libri/common/ecid"
-	"crypto/ecdsa"
-	"crypto/elliptic"
+	"google.golang.org/grpc"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 const (
@@ -268,7 +269,7 @@ func TestAuthor_Share_ok(t *testing.T) {
 	}()
 	a.receiver = &fixedReceiver{
 		envelope: api.NewTestEnvelope(rng),
-		eek: enc.NewPseudoRandomEEK(rng),
+		eek:      enc.NewPseudoRandomEEK(rng),
 	}
 	expectedSharedEnvKey := id.NewPseudoRandom(rng)
 	a.shipper = &fixedShipper{

@@ -18,8 +18,8 @@ type Introducer interface {
 }
 
 type introducer struct {
-	signer client.Signer
-	querier client.IntroduceQuerier
+	signer       client.Signer
+	querier      client.IntroduceQuerier
 	repProcessor ResponseProcessor
 }
 

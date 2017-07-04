@@ -8,8 +8,8 @@ import (
 	"crypto/elliptic"
 
 	"github.com/drausin/libri/libri/common/ecid"
-	"github.com/stretchr/testify/assert"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewKEK_ok(t *testing.T) {
@@ -92,7 +92,7 @@ func TestKEK_Decrypt_err(t *testing.T) {
 	assert.Nil(t, eek)
 
 	kek3, _, _ := NewPseudoRandomKEK(rng)
-	eekCiphertext3 := api.RandBytes(rng, 4)  // too small, will cause Open() error
+	eekCiphertext3 := api.RandBytes(rng, 4) // too small, will cause Open() error
 	eek, err = kek3.Decrypt(eekCiphertext3, eekCiphertextMAC)
 	assert.NotNil(t, err)
 	assert.Nil(t, eek)

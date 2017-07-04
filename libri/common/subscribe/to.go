@@ -191,7 +191,7 @@ func (t *to) Begin() error {
 				case errs <- t.sb.begin(lc, sub, t.received, errs, t.end):
 				}
 				if err := t.csb.Remove(peerID); err != nil {
-					panic(err)  // should never happen
+					panic(err) // should never happen
 				}
 			}
 		}(c)
@@ -212,12 +212,12 @@ func (t *to) Begin() error {
 func (t *to) End() {
 	t.logger.Info("ending subscriptions")
 	select {
-	case <-t.received:  // already closed
+	case <-t.received: // already closed
 	default:
 		close(t.received)
 	}
 	select {
-	case <- t.end:  // already closed
+	case <-t.end: // already closed
 	default:
 		close(t.end)
 	}

@@ -2,9 +2,10 @@ package cmd
 
 import (
 	"testing"
+
+	"github.com/drausin/libri/libri/librarian/server"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
-	"github.com/drausin/libri/libri/librarian/server"
 )
 
 func TestGetLibrarianConfig_ok(t *testing.T) {
@@ -30,11 +31,11 @@ func TestGetLibrarianConfig_ok(t *testing.T) {
 	config, logger, err := getLibrarianConfig()
 	assert.Nil(t, err)
 	assert.NotNil(t, logger)
-	assert.Equal(t, localIP + ":" + localPort, config.LocalAddr.String())
-	assert.Equal(t, publicIP + ":" + publicPort, config.PublicAddr.String())
+	assert.Equal(t, localIP+":"+localPort, config.LocalAddr.String())
+	assert.Equal(t, publicIP+":"+publicPort, config.PublicAddr.String())
 	assert.Equal(t, publicName, config.PublicName)
 	assert.Equal(t, dataDir, config.DataDir)
-	assert.Equal(t, dataDir + "/" + server.DBSubDir, config.DbDir)
+	assert.Equal(t, dataDir+"/"+server.DBSubDir, config.DbDir)
 	assert.Equal(t, logLevel, config.LogLevel.String())
 	assert.Equal(t, uint32(nSubscriptions), config.SubscribeTo.NSubscriptions)
 	assert.Equal(t, float32(fpRate), config.SubscribeTo.FPRate)

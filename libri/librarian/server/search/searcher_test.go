@@ -8,6 +8,8 @@ import (
 
 	"errors"
 
+	"time"
+
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -16,7 +18,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"time"
 )
 
 func TestNewDefaultSearcher(t *testing.T) {
@@ -99,7 +100,7 @@ func TestSearcher_Search_queryErr(t *testing.T) {
 	assert.False(t, search.Exhausted()) // since NMaxErrors < len(Unqueried)
 	assert.True(t, search.Finished())
 	assert.False(t, search.FoundClosestPeers())
-	assert.Equal(t, int(search.Params.NMaxErrors), len(search.Result.Errored) - 1)
+	assert.Equal(t, int(search.Params.NMaxErrors), len(search.Result.Errored)-1)
 	assert.Equal(t, 0, search.Result.Closest.Len())
 	assert.True(t, 0 < search.Result.Unqueried.Len())
 	assert.Equal(t, 0, len(search.Result.Responded))

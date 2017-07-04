@@ -8,11 +8,12 @@ import (
 
 	"errors"
 
+	"net"
+
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/stretchr/testify/assert"
-	"net"
 )
 
 func TestEnvelopeKeySampler_Sample_ok(t *testing.T) {
@@ -72,7 +73,7 @@ func TestEnvelopeKeySampler_Sample_err(t *testing.T) {
 	offCurvePriv, err := ecdsa.GenerateKey(elliptic.P256(), rng)
 	assert.Nil(t, err)
 	s3 := &envelopeKeySamplerImpl{
-		authorKeys:     &fixedKeychain{  // will cause error in NewKEK
+		authorKeys: &fixedKeychain{ // will cause error in NewKEK
 			sampleID: ecid.FromPrivateKey(offCurvePriv),
 		},
 		selfReaderKeys: keychain.New(3),

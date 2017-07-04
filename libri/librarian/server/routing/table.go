@@ -3,11 +3,11 @@ package routing
 import (
 	"container/heap"
 	"errors"
+	"fmt"
 	"math/big"
 	"math/rand"
 	"sort"
 	"sync"
-	"fmt"
 
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"

@@ -2,13 +2,14 @@ package comp
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
-	"github.com/klauspost/compress/gzip"
 	"io"
 	"mime"
-	"errors"
-	"github.com/drausin/libri/libri/author/io/enc"
 	"sync"
+
+	"github.com/drausin/libri/libri/author/io/enc"
+	"github.com/klauspost/compress/gzip"
 )
 
 // Codec is a comp.codec.

@@ -1,14 +1,15 @@
 package page
 
 import (
-	"github.com/drausin/libri/libri/author/io/comp"
 	"bytes"
 	"fmt"
-	"github.com/drausin/libri/libri/author/io/enc"
-	"github.com/drausin/libri/libri/librarian/api"
 	"math/rand"
 	"testing"
+
 	"github.com/drausin/libri/libri/author/io/common"
+	"github.com/drausin/libri/libri/author/io/comp"
+	"github.com/drausin/libri/libri/author/io/enc"
+	"github.com/drausin/libri/libri/librarian/api"
 )
 
 const (

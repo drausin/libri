@@ -1,8 +1,8 @@
 package enc
 
 import (
-	"testing"
 	"math/rand"
+	"testing"
 )
 
 const (

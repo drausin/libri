@@ -4,13 +4,14 @@ import (
 	"os"
 
 	"fmt"
+	"log"
+
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/common/subscribe"
 	"github.com/drausin/libri/libri/librarian/server"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
-	"log"
 )
 
 const (
@@ -93,7 +94,7 @@ func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
 		WithPublicAddr(publicAddr).
 		WithPublicName(viper.GetString(publicNameFlag)).
 		WithDataDir(viper.GetString(dataDirFlag)).
-		WithDefaultDBDir().  // depends on DataDir
+		WithDefaultDBDir(). // depends on DataDir
 		WithLogLevel(getLogLevel())
 	config.SubscribeTo.NSubscriptions = uint32(viper.GetInt(nSubscriptionsFlag))
 	config.SubscribeTo.FPRate = float32(viper.GetFloat64(fpRateFlag))

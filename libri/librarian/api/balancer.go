@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"net"
 	"sync"
+
 	"github.com/drausin/libri/libri/common/id"
 )
 
@@ -34,7 +35,7 @@ type ClientSetBalancer interface {
 type uniformRandBalancer struct {
 	rng   *rand.Rand
 	mu    sync.Mutex
-	addrs [] *net.TCPAddr
+	addrs []*net.TCPAddr
 	conns []Connector
 }
 

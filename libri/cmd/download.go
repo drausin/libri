@@ -2,16 +2,17 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+
+	"github.com/drausin/libri/libri/common/id"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"os"
 	"go.uber.org/zap"
-	"github.com/pkg/errors"
-	"github.com/drausin/libri/libri/common/id"
 )
 
 const (
-	envelopeKeyFlag = "envelopeKey"
+	envelopeKeyFlag  = "envelopeKey"
 	downFilepathFlag = "downFilepath"
 )
 
@@ -23,7 +24,7 @@ var (
 var downloadCmd = &cobra.Command{
 	Use:   "download",
 	Short: "A brief description of your command",
-	Long: `TODO (drausin) add long description and examples`,
+	Long:  `TODO (drausin) add long description and examples`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if err := newFileDownloader().download(); err != nil {
 			fmt.Println(err)
@@ -56,7 +57,7 @@ type fileDownloader interface {
 
 func newFileDownloader() fileDownloader {
 	return &fileDownloaderImpl{
-		ag:  newAuthorGetter(),
+		ag: newAuthorGetter(),
 		ad: &authorDownloaderImpl{},
 		kc: &keychainsGetterImpl{
 			pg: &terminalPassphraseGetter{},
@@ -65,9 +66,9 @@ func newFileDownloader() fileDownloader {
 }
 
 type fileDownloaderImpl struct {
-	ag  authorGetter
-	ad  authorDownloader
-	kc  keychainsGetter
+	ag authorGetter
+	ad authorDownloader
+	kc keychainsGetter
 }
 
 func (d *fileDownloaderImpl) download() error {

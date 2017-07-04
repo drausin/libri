@@ -8,21 +8,22 @@ import (
 	"strings"
 	"time"
 
+	"os/signal"
+	"syscall"
+
+	cbackoff "github.com/cenkalti/backoff"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
-	cbackoff "github.com/cenkalti/backoff"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
-	"os/signal"
-	"syscall"
-	"go.uber.org/zap/zapcore"
 )
 
 const (
-	postListenNotifyWait = 100 * time.Millisecond
+	postListenNotifyWait  = 100 * time.Millisecond
 	backoffMaxElapsedTime = 5 * time.Second
 )
 

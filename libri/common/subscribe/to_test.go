@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/golang/protobuf/proto"
@@ -16,7 +17,6 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
-	"github.com/drausin/libri/libri/common/id"
 )
 
 func TestTo_BeginEnd(t *testing.T) {

@@ -1,11 +1,11 @@
 package ship
 
 import (
+	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/pack"
 	"github.com/drausin/libri/libri/author/io/publish"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/drausin/libri/libri/author/io/enc"
 )
 
 // Shipper publishes documents to libri.

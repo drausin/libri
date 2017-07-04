@@ -3,13 +3,14 @@ package cmd
 import (
 	"bufio"
 	"fmt"
+	"os"
+
 	"github.com/drausin/libri/libri/author"
 	"github.com/drausin/libri/libri/author/keychain"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"os"
 )
 
 var (
@@ -44,8 +45,8 @@ type keychainCreator interface {
 func newKeychainCreator() keychainCreator {
 	return &keychainCreatorImpl{
 		ps: &passphraseSetterImpl{
-			pg1: &terminalPassphraseGetter{},
-			pg2: &terminalPassphraseGetter{},
+			pg1:    &terminalPassphraseGetter{},
+			pg2:    &terminalPassphraseGetter{},
 			reader: bufio.NewReader(os.Stdin),
 		},
 		scryptN: keychain.LightScryptN,
@@ -54,7 +55,7 @@ func newKeychainCreator() keychainCreator {
 }
 
 type keychainCreatorImpl struct {
-	ps passphraseSetter
+	ps      passphraseSetter
 	scryptN int
 	scryptP int
 }
@@ -86,8 +87,8 @@ type passphraseSetter interface {
 }
 
 type passphraseSetterImpl struct {
-	pg1 passphraseGetter
-	pg2 passphraseGetter
+	pg1    passphraseGetter
+	pg2    passphraseGetter
 	reader *bufio.Reader
 }
 

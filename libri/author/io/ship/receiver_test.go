@@ -8,13 +8,13 @@ import (
 
 	"errors"
 
+	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/pack"
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
-	"github.com/drausin/libri/libri/author/io/enc"
 )
 
 func TestReceiver_ReceiveEntry_ok(t *testing.T) {
@@ -204,7 +204,7 @@ func TestReceiver_GetEEK_err(t *testing.T) {
 	assert.Nil(t, err)
 	readerKeys3 := &fixedKeychain{
 		getKey: ecid.FromPrivateKey(wrongCurveKey),
-		in: true,
+		in:     true,
 	}
 	wrongCurveKeyPubBytes := readerKeys3.getKey.PublicKeyBytes()
 	env3 := &api.Envelope{
@@ -222,10 +222,10 @@ func TestReceiver_GetEEK_err(t *testing.T) {
 	readerKey, err := readerKeys4.Sample()
 	assert.Nil(t, err)
 	env4 := &api.Envelope{
-		AuthorPublicKey: authorKey.PublicKeyBytes(),
-		ReaderPublicKey: readerKey.PublicKeyBytes(),
-		EekCiphertext: api.RandBytes(rng, api.EEKLength),
-		EekCiphertextMac: api.RandBytes(rng, api.HMAC256Length),  // does't match ciphertext
+		AuthorPublicKey:  authorKey.PublicKeyBytes(),
+		ReaderPublicKey:  readerKey.PublicKeyBytes(),
+		EekCiphertext:    api.RandBytes(rng, api.EEKLength),
+		EekCiphertextMac: api.RandBytes(rng, api.HMAC256Length), // does't match ciphertext
 	}
 	r4 := NewReceiver(cb, readerKeys4, acq, msAcq, docS).(*receiver)
 	eek, err = r4.GetEEK(env4)

@@ -1,8 +1,8 @@
 package client
 
 import (
-	"time"
 	"errors"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
@@ -14,10 +14,9 @@ const (
 )
 
 var (
-	errContextMissingMetadata = errors.New("context unexpectedly missing metadata")
+	errContextMissingMetadata  = errors.New("context unexpectedly missing metadata")
 	errContextMissingSignature = errors.New("metadata signature key unexpectedly does not exist")
 )
-
 
 // NewSignatureContext creates a new context with the signed JSON web token (JWT) string.
 func NewSignatureContext(ctx context.Context, signedJWT string) context.Context {

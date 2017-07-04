@@ -2,17 +2,18 @@ package enc
 
 import (
 	"bytes"
-	"crypto/ecdsa"
-	"crypto/sha256"
 	"crypto/aes"
-	mrand "math/rand"
+	"crypto/ecdsa"
 	crand "crypto/rand"
+	"crypto/sha256"
 	"errors"
+	mrand "math/rand"
+
+	"crypto/cipher"
 
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/api"
 	"golang.org/x/crypto/hkdf"
-	"crypto/cipher"
 )
 
 // ErrAuthorOffCurve indicates that an author ECDSA private key is is not on the expected curve.
@@ -221,7 +222,7 @@ func newGCMCipher(aesKey []byte) (cipher.AEAD, error) {
 }
 
 func next(x []byte, offset *int, len int) []byte {
-	next := x[*offset: *offset+len]
+	next := x[*offset : *offset+len]
 	*offset += len
 	return next
 }

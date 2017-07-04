@@ -2,17 +2,18 @@ package cmd
 
 import (
 	"fmt"
+	"io"
+	"mime"
+	"net/http"
+	"os"
+	"path/filepath"
+
 	lauthor "github.com/drausin/libri/libri/author"
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
-	"io"
-	"mime"
-	"net/http"
-	"os"
-	"path/filepath"
 )
 
 const (
@@ -68,7 +69,7 @@ type fileUploaderImpl struct {
 func newFileUploader() fileUploader {
 	return &fileUploaderImpl{
 		ag:  newAuthorGetter(),
-		au: &authorUploaderImpl{},
+		au:  &authorUploaderImpl{},
 		mtg: &mediaTypeGetterImpl{},
 		kc: &keychainsGetterImpl{
 			pg: &terminalPassphraseGetter{},

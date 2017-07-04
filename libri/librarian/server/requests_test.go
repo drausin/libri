@@ -31,7 +31,6 @@ func TestRequestVerifier_Verify_ok(t *testing.T) {
 	ctx := client.NewIncomingSignatureContext(context.Background(), "dummy.signed.token")
 	meta := client.NewRequestMetadata(ecid.NewPseudoRandom(rng))
 
-
 	assert.Nil(t, rv.Verify(ctx, nil, meta))
 }
 

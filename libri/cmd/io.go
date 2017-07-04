@@ -3,13 +3,14 @@ package cmd
 import (
 	"bytes"
 	"fmt"
+	"math/rand"
+	"os"
+
 	"github.com/drausin/libri/libri/author"
 	"github.com/drausin/libri/libri/author/io/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
-	"math/rand"
-	"os"
 )
 
 const (

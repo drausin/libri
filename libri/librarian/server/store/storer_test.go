@@ -61,12 +61,12 @@ func TestStorer_Store_ok(t *testing.T) {
 	for concurrency := uint(1); concurrency <= 3; concurrency++ {
 
 		searchParams := &ssearch.Parameters{
-			NMaxErrors:        DefaultNMaxErrors,
-			Concurrency:       concurrency,
-			Timeout:           DefaultQueryTimeout,
+			NMaxErrors:  DefaultNMaxErrors,
+			Concurrency: concurrency,
+			Timeout:     DefaultQueryTimeout,
 		}
 		storeParams := &Parameters{
-			NReplicas: nReplicas,
+			NReplicas:   nReplicas,
 			NMaxErrors:  DefaultNMaxErrors,
 			Concurrency: concurrency,
 		}
@@ -129,12 +129,12 @@ func newTestStore() (Storer, *Store, []int, []peer.Peer, cid.ID) {
 
 	concurrency := uint(1)
 	searchParams := &ssearch.Parameters{
-		NMaxErrors:        ssearch.DefaultNMaxErrors,
-		Concurrency:       concurrency,
-		Timeout:           DefaultQueryTimeout,
+		NMaxErrors:  ssearch.DefaultNMaxErrors,
+		Concurrency: concurrency,
+		Timeout:     DefaultQueryTimeout,
 	}
 	storeParams := &Parameters{
-		NReplicas: DefaultNReplicas,
+		NReplicas:   DefaultNReplicas,
 		NMaxErrors:  DefaultNMaxErrors,
 		Concurrency: concurrency,
 	}

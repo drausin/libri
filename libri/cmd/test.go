@@ -27,7 +27,6 @@ func init() {
 	testCmd.PersistentFlags().Int(timeoutFlag, 5,
 		"timeout (seconds) for requests to librarians")
 
-
 	// bind viper flags
 	viper.SetEnvPrefix(envVarPrefix) // look for env vars with "LIBRI_" prefix
 	viper.AutomaticEnv()             // read in environment variables that match
@@ -47,7 +46,7 @@ type testAuthorGetterImpl struct {
 
 func newTestAuthorGetter() testAuthorGetter {
 	return &testAuthorGetterImpl{
-		acg: &authorConfigGetterImpl{},
+		acg:            &authorConfigGetterImpl{},
 		librariansFlag: testLibrariansFlag,
 	}
 }

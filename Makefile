@@ -40,9 +40,7 @@ docker-image:
 
 fix:
 	@echo "--> Running goimports"
-	@find . -name *.go | xargs goimports -l -w
-	@echo "--> Running go fmt"
-	@go fmt $(LIBRI_PKGS)
+	@find . -name *.go | grep -v /vendor/ | xargs goimports -l -w
 
 get-deps:
 	@echo "--> Getting dependencies"
@@ -52,17 +50,17 @@ get-deps:
 	@gometalinter --install
 
 lint:
-	@echo "--> Running gometalinter on diff against develop branch"
-	@gometalinter $(LIBRI_PKG_SUBDIRS) --config=.gometalinter.json --deadline=10m  --vendored-linters
+	@echo "--> Running gometalinter"
+	@gometalinter $(LIBRI_PKG_SUBDIRS) --config=.gometalinter.json --deadline=10m
 
 lint-diff:
 	@echo "--> Running gometalinter on packages with uncommitted changes"
 	@echo $(GIT_STATUS_PKG_SUBDIRS) | tr " " "\n"
-	@echo $(GIT_STATUS_PKG_SUBDIRS) | xargs gometalinter --config=.gometalinter.json --deadline=10m --vendored-linters
+	@echo $(GIT_STATUS_PKG_SUBDIRS) | xargs gometalinter --config=.gometalinter.json --deadline=10m
 
 lint-slow:
-	@echo "--> Running gometalinter"
-	@gometalinter $(LIBRI_PKG_SUBDIRS) --config=.gometalinter.slow.json --deadline=30m --vendored-linters
+	@echo "--> Running gometalinter slow linters"
+	@gometalinter $(LIBRI_PKG_SUBDIRS) --config=.gometalinter.slow.json --deadline=30m
 
 proto:
 	@echo "--> Running protoc"

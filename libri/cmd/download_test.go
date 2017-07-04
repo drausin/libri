@@ -2,15 +2,16 @@ package cmd
 
 import (
 	"errors"
+	"io"
+	"io/ioutil"
+	"os"
+	"testing"
+
 	lauthor "github.com/drausin/libri/libri/author"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/logging"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
-	"io"
-	"io/ioutil"
-	"os"
-	"testing"
 )
 
 func TestNewFileDownloader(t *testing.T) {
@@ -62,7 +63,7 @@ func TestFileDownloader_download_err(t *testing.T) {
 	assert.Equal(t, errMissingFilepath, err)
 
 	// error getting author keys should bubble up
-	toDownloadFile, err := ioutil.TempFile("", "to-download")  // TODO (drausin) change to tempDir
+	toDownloadFile, err := ioutil.TempFile("", "to-download") // TODO (drausin) change to tempDir
 	assert.Nil(t, err)
 	err = toDownloadFile.Close()
 	assert.Nil(t, err)

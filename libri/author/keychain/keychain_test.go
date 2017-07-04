@@ -5,9 +5,10 @@ import (
 	"os"
 	"testing"
 
+	"math/rand"
+
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/stretchr/testify/assert"
-	"math/rand"
 )
 
 func TestSampler_Sample_ok(t *testing.T) {

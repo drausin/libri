@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	crand "crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	mrand "math/rand"
-	"encoding/hex"
 )
 
 const (
@@ -93,7 +93,7 @@ func FromBytes(value []byte) ID {
 
 // FromString creates an ID from a hex-encoded string.
 func FromString(value string) (ID, error) {
-	if len(value) != Length * 2 {
+	if len(value) != Length*2 {
 		return nil, fmt.Errorf("%s (len: %d) is not a valid %d-byte hex string", value,
 			len(value), Length)
 	}

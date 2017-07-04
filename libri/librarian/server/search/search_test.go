@@ -84,7 +84,7 @@ func TestSearch_Errored(t *testing.T) {
 
 	// errored state b/c of too many errors
 	search2 := NewSearch(selfID, target, NewDefaultParameters())
-	for c := uint(0); c < search2.Params.NMaxErrors + 1; c++ {
+	for c := uint(0); c < search2.Params.NMaxErrors+1; c++ {
 		peerID := cid.NewPseudoRandom(rng).String()
 		search2.Result.Errored[peerID] = errors.New("some Find error")
 	}

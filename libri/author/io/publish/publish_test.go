@@ -400,7 +400,7 @@ func (p *memPublisherAcquirer) Acquire(docKey id.ID, authorPub []byte, lc api.Ge
 
 type fixedSingleLoadPublisher struct {
 	mu            sync.Mutex
-	publishedKeys map[string]bool  // key -> deleted value
+	publishedKeys map[string]bool // key -> deleted value
 	err           error
 }
 

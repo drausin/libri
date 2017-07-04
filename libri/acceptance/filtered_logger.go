@@ -139,13 +139,13 @@ func declareLogNoise(t *testing.T, phrases ...string) (restore func()) {
 		// the filtered stuff below is almost always just noise, but leaving this here just in case
 		// someone in future wants it
 		/*
-		if t.Failed() {
-			fw.mu.Lock()
-			defer fw.mu.Unlock()
-			if fw.buf.Len() > 0 {
-				t.Logf("Complete log output:\n%s", fw.buf.Bytes())
+			if t.Failed() {
+				fw.mu.Lock()
+				defer fw.mu.Unlock()
+				if fw.buf.Len() > 0 {
+					t.Logf("Complete log output:\n%s", fw.buf.Bytes())
+				}
 			}
-		}
 		*/
 		testLogOutput.setWriter(os.Stderr)
 	}

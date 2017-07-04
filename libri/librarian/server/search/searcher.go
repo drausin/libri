@@ -3,13 +3,14 @@ package search
 import (
 	"bytes"
 	"container/heap"
-	"sync"
 	"errors"
+	"sync"
+	"time"
+
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
-	"time"
 )
 
 const searcherFindRetryTimeout = 100 * time.Millisecond
@@ -52,7 +53,7 @@ func NewDefaultSearcher(signer client.Signer) Searcher {
 
 func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
 	if err := search.Result.Unqueried.SafePushMany(seeds); err != nil {
-		panic(err)  // should never happen
+		panic(err) // should never happen
 	}
 
 	var wg sync.WaitGroup
@@ -116,7 +117,7 @@ func (s *searcher) searchWork(search *Search, wg *sync.WaitGroup) {
 		err = search.Result.Closest.SafePush(next)
 		search.mu.Unlock()
 		if err != nil {
-			panic(err)  // should never happen
+			panic(err) // should never happen
 		}
 
 		// add next peer to set of peers that responded
@@ -179,7 +180,7 @@ func (frp *responseProcessor) Process(rp *api.FindResponse, result *Result) erro
 				// only add discovered peers that we haven't already seen
 				newPeer := frp.fromer.FromAPI(pa)
 				if err := result.Unqueried.SafePush(newPeer); err != nil {
-					panic(err)  // should never happen
+					panic(err) // should never happen
 				}
 			}
 		}

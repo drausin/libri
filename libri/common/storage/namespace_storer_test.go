@@ -146,7 +146,7 @@ func TestDocumentStorerLoader_Load_empty(t *testing.T) {
 	key := cid.NewPseudoRandom(rng)
 	dsl1 := &documentSLD{
 		sld: &fixedNamespaceSLD{
-			loadValue: nil,  // simulates missing/empty value
+			loadValue: nil, // simulates missing/empty value
 		},
 	}
 
@@ -232,4 +232,3 @@ func (f *fixedNamespaceSLD) Load(key []byte) ([]byte, error) {
 func (f *fixedNamespaceSLD) Delete(key []byte) error {
 	return f.deleteErr
 }
-
