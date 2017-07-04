@@ -20,7 +20,14 @@ import (
 	"net"
 )
 
-const putPageSize = 1024 * 1024
+const (
+	putPageSize = 1024 * 1024
+
+	// for benchmark naming
+	introduceName = "Introduce"
+	putName       = "Put"
+	getName       = "Get"
+)
 
 var grpcLogNoise = []string{
 	"grpc: addrConn.resetTransport failed to create client transport: connection error",
@@ -124,8 +131,8 @@ func testIntroduce(t *testing.T, params *params, state *state) {
 	}
 
 	state.benchResults = append(state.benchResults, &benchmarkObs{
-		name: introduceName,
-		procs: runtime.NumCPU(),
+		name:    introduceName,
+		procs:   runtime.NumCPU(),
 		results: benchResults,
 	})
 }
@@ -157,8 +164,8 @@ func testPut(t *testing.T, params *params, state *state) {
 		rp, err := rlc.Put(ctx, rq)
 		cancel()
 		benchResults[c] = testing.BenchmarkResult{
-			N: 1,
-			T: time.Now().Sub(start),
+			N:     1,
+			T:     time.Now().Sub(start),
 			Bytes: int64(putPageSize),
 		}
 
@@ -172,8 +179,8 @@ func testPut(t *testing.T, params *params, state *state) {
 	}
 
 	state.benchResults = append(state.benchResults, &benchmarkObs{
-		name: putName,
-		procs: runtime.NumCPU(),
+		name:    putName,
+		procs:   runtime.NumCPU(),
 		results: benchResults,
 	})
 	state.putDocs = putDocs
@@ -205,8 +212,8 @@ func testGet(t *testing.T, params *params, state *state) {
 		rp, err := rlc.Get(ctx, rq)
 		state.client.logger.Debug("received Get response", zap.String("key", key.String()))
 		benchResults[c] = testing.BenchmarkResult{
-			N: 1,
-			T: time.Now().Sub(start),
+			N:     1,
+			T:     time.Now().Sub(start),
 			Bytes: int64(putPageSize),
 		}
 
@@ -219,8 +226,8 @@ func testGet(t *testing.T, params *params, state *state) {
 	}
 
 	state.benchResults = append(state.benchResults, &benchmarkObs{
-		name: getName,
-		procs: runtime.NumCPU(),
+		name:    getName,
+		procs:   runtime.NumCPU(),
 		results: benchResults,
 	})
 }
@@ -291,4 +298,3 @@ func testShare(t *testing.T, _ *params, state *state) {
 		assert.Equal(t, state.uploadedDocContents[i], downloaded.Bytes())
 	}
 }
-
