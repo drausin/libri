@@ -14,7 +14,6 @@
   "Concurrency": 2,
   "Format": "({{.Linter}}): {{.Severity}}: {{.Path}}:{{.Line}}:{{if .Col}}{{.Col}}{{end}}: {{.Message}}",
   "Linters": {
-    "dupl": "dupl -plumbing -threshold {duplthreshold} {path}:^(?P<path>.*?[^pb\\.]{3}\\.go):(?P<line>\\d+)-\\d+:\\s*(?P<message>.*)$",
     "unused": "unused {path}:^(?P<path>.*?[^filtered_logger]\\.go):(?P<line>\\d+):(?P<col>\\d+):\\s*(?P<message>.*)$"
   }
 }
