@@ -22,6 +22,18 @@ import (
 
 const putPageSize = 1024 * 1024
 
+var grpcLogNoise = []string{
+	"grpc: addrConn.resetTransport failed to create client transport: connection error",
+	"addrConn.resetTransport failed to create client transport",
+	"transport: http2Server.HandleStreams failed to read frame",
+	"transport: http2Server.HandleStreams failed to receive the preface from client: EOF",
+	"context canceled; please retry",
+	"grpc: the connection is closing; please retry",
+	"http2Client.notifyError got notified that the client transport was broken read",
+	"http2Client.notifyError got notified that the client transport was broken EOF",
+	"http2Client.notifyError got notified that the client transport was broken write tcp",
+}
+
 // things to add later
 // - random peer disconnects and additions
 // - bad puts and gets
@@ -30,8 +42,7 @@ const putPageSize = 1024 * 1024
 func TestLibrarianCluster(t *testing.T) {
 
 	// handle grpc log noise
-	noise := grpcLogNoise
-	restore := declareLogNoise(t, noise...)
+	restore := declareLogNoise(t, grpcLogNoise...)
 	defer restore()
 
 	params := &params{

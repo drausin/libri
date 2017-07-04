@@ -38,18 +38,6 @@ const (
 
 )
 
-var grpcLogNoise = []string{
-	"grpc: addrConn.resetTransport failed to create client transport: connection error",
-	"addrConn.resetTransport failed to create client transport",
-	"transport: http2Server.HandleStreams failed to read frame",
-	"transport: http2Server.HandleStreams failed to receive the preface from client: EOF",
-	"context canceled; please retry",
-	"grpc: the connection is closing; please retry",
-	"http2Client.notifyError got notified that the client transport was broken read",
-	"http2Client.notifyError got notified that the client transport was broken EOF",
-	"http2Client.notifyError got notified that the client transport was broken write tcp",
-}
-
 type state struct {
 	rng                 *rand.Rand
 	client              *testClient
@@ -252,12 +240,16 @@ func tearDown(state *state) {
 	}
 
 	// remove data dir shared by all
-	os.RemoveAll(state.seedConfigs[0].DataDir)
+	err := os.RemoveAll(state.seedConfigs[0].DataDir)
+	maybePanic(err)
 }
 
 func writeBenchmarkResults(t *testing.T, benchmarks []*benchmarkObs) {
 	f, err := os.Create(benchmarksFilepath)
-	defer f.Close()
+	defer func() {
+		err := f.Close()
+		maybePanic(err)
+	}()
 	assert.Nil(t, err)
 	maxNameLen := len("Introduce")
 
