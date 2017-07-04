@@ -226,7 +226,7 @@ func (f *fixedDocSLD) Store(key id.ID, value *api.Document) error {
 }
 
 func (f *fixedDocSLD) Load(key id.ID) (*api.Document, error) {
-	value, _ := f.stored[key.String()]
+	value := f.stored[key.String()]
 	return value, f.loadErr
 }
 

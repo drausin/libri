@@ -108,15 +108,12 @@ func TestFrom_Fanout_close(t *testing.T) {
 	close(out)
 	wg.Wait()
 	for i := range fanout {
-		select {
-		case pub, open := <-fanout[i]:
-			assert.Nil(t, pub)
-			assert.False(t, open)
-		}
-		select {
-		case _, open := <-done[i]:
-			assert.False(t, open)
-		}
+		pub, open := <-fanout[i]
+		assert.Nil(t, pub)
+		assert.False(t, open)
+
+		_, open = <-done[i]
+		assert.False(t, open)
 	}
 }
 

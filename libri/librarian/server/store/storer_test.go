@@ -95,15 +95,6 @@ func TestStorer_Store_ok(t *testing.T) {
 	}
 }
 
-type fixedSearcher struct {
-	fixed *ssearch.Result
-}
-
-func (s *fixedSearcher) Search(search *ssearch.Search, seeds []peer.Peer) error {
-	search.Result = s.fixed
-	return nil
-}
-
 func TestStorer_Store_queryErr(t *testing.T) {
 	storerImpl, store, selfPeerIdxs, peers, _ := newTestStore()
 	seeds := ssearch.NewTestSeeds(peers, selfPeerIdxs)

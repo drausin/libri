@@ -233,7 +233,7 @@ func (f *fixedLoader) Load(keys []id.ID, pages chan *api.Page, abort chan struct
 		return f.loadErr
 	}
 	for _, key := range keys {
-		p, _ := f.pages[key.String()]
+		p := f.pages[key.String()]
 		select {
 		case <-pages:
 			return nil

@@ -42,7 +42,7 @@ type uniformRandBalancer struct {
 // uniformly at random.
 func NewUniformRandomClientBalancer(libAddrs []*net.TCPAddr) (ClientBalancer, error) {
 	conns := make([]Connector, len(libAddrs))
-	if libAddrs == nil || len(libAddrs) == 0 {
+	if len(libAddrs) == 0 {
 		return nil, ErrEmptyLibrarianAddresses
 	}
 	return &uniformRandBalancer{

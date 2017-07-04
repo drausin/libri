@@ -51,7 +51,7 @@ type Sampler interface {
 
 }
 
-// GetterSampler and a colleciton of ECCSA keys that can be both looked up and sampled.
+// GetterSampler and a collection of ECCSA keys that can be both looked up and sampled.
 type GetterSampler interface {
 	Getter
 	Sampler

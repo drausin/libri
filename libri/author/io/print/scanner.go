@@ -20,7 +20,6 @@ type Scanner interface {
 
 type scanner struct {
 	params *Parameters
-	keys   *enc.EEK
 	pageL  page.Loader
 	init   scanInitializer
 }
@@ -76,11 +75,7 @@ func (s *scanner) Scan(
 	default:
 	}
 
-	if err := enc.CheckMACs(unpaginator.CiphertextMAC(), decompressor.UncompressedMAC(),
-		md); err != nil {
-		return err
-	}
-	return nil
+	return enc.CheckMACs(unpaginator.CiphertextMAC(), decompressor.UncompressedMAC(), md)
 }
 
 type scanInitializer interface {

@@ -124,10 +124,7 @@ func CreateKeychains(logger *zap.Logger, keychainDir, auth string, scryptN, scry
 		return err
 	}
 	selfReaderKeysFP := path.Join(keychainDir, SelfReaderKeychainFilename)
-	if err := CreateKeychain(logger, selfReaderKeysFP, auth, scryptN, scryptP); err != nil {
-		return err
-	}
-	return nil
+	return CreateKeychain(logger, selfReaderKeysFP, auth, scryptN, scryptP)
 }
 
 // CreateKeychain creates a keychain in the given filepath with the given auth and Scrypt params.

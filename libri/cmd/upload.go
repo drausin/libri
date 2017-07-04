@@ -111,12 +111,6 @@ func (u *fileUploaderImpl) upload() error {
 	return file.Close()
 }
 
-func maybePanic(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
 type mediaTypeGetter interface {
 	get(upFilepath string) (string, error)
 }

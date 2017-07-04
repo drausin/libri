@@ -68,7 +68,7 @@ func TestFileUploader_upload_err(t *testing.T) {
 	err = u2.upload()
 	assert.NotNil(t, err)
 
-	// non-existant file should throw error
+	// non-existent file should throw error
 	u3 := &fileUploaderImpl{
 		mtg: &fixedMediaTypeGetter{}, // ok that mediaType is nil since passing to mock
 	}
@@ -80,6 +80,7 @@ func TestFileUploader_upload_err(t *testing.T) {
 	toUploadFile, err := ioutil.TempFile("", "to-upload")
 	assert.Nil(t, err)
 	err = toUploadFile.Close()
+	assert.Nil(t, err)
 	viper.Set(upFilepathFlag, toUploadFile.Name())
 	u4 := &fileUploaderImpl{
 		mtg: &fixedMediaTypeGetter{}, // ok that mediaType is nil since passing to mock

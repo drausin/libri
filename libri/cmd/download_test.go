@@ -65,6 +65,7 @@ func TestFileDownloader_download_err(t *testing.T) {
 	toDownloadFile, err := ioutil.TempFile("", "to-download")  // TODO (drausin) change to tempDir
 	assert.Nil(t, err)
 	err = toDownloadFile.Close()
+	assert.Nil(t, err)
 	viper.Set(downFilepathFlag, toDownloadFile.Name())
 	d4 := &fileDownloaderImpl{
 		kc: &fixedKeychainsGetter{err: errors.New("some get error")},

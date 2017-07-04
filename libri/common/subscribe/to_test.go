@@ -115,11 +115,9 @@ func TestTo_BeginEnd(t *testing.T) {
 	getNewPub(newPubs, toImpl.end)
 
 	// check newPubs is closed
-	select {
-	case pub, open := <-newPubs:
-		assert.Nil(t, pub)
-		assert.False(t, open)
-	}
+	pub, open := <-newPubs:
+	assert.Nil(t, pub)
+	assert.False(t, open)
 
 	wg.Wait()
 }

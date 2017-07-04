@@ -289,7 +289,7 @@ type fixedDocSLD struct {
 func (f *fixedDocSLD) Load(key id.ID) (*api.Document, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	value, _ := f.docs[key.String()]
+	value := f.docs[key.String()]
 	return value, f.loadError
 }
 

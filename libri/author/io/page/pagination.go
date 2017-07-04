@@ -141,7 +141,6 @@ type Unpaginator interface {
 type unpaginator struct {
 	pages         chan *api.Page
 	decrypter     enc.Decrypter
-	compressedBuf *bytes.Buffer
 	pageMAC       enc.MAC
 	ciphertextMAC enc.MAC
 }

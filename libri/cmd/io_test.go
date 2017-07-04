@@ -89,7 +89,7 @@ func (f *fixedAuthorUploaderDownloader) download(
 	if f.downloadErr != nil {
 		return f.downloadErr
 	}
-	doc, _ := f.uploaded[envelopeKey.String()]
+	doc := f.uploaded[envelopeKey.String()]
 	if doc == nil {
 		return nil
 	}
