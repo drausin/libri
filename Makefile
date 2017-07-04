@@ -52,10 +52,10 @@ get-deps:
 	@gometalinter --install
 
 lint:
-	@echo "--> Running gometalinter"
+	@echo "--> Running gometalinter on diff against develop branch"
 	@echo $(GIT_DIFF_PKG_SUBDIRS) | tr " " "\n"
-	@gometalinter $(GIT_DIFF_SUBDIRS) --config=.gometalinter.json --deadline=10m  --vendored-linters
-	@gometalinter $(GIT_DIFF_SUBDIRS) --config=.gometalinter.slow.json --deadline=10m  --vendored-linters
+	@gometalinter $(GIT_DIFF_PKG_SUBDIRS) --config=.gometalinter.json --deadline=10m  --vendored-linters
+	@gometalinter $(GIT_DIFF_PKG_SUBDIRS) --config=.gometalinter.slow.json --deadline=10m  --vendored-linters
 
 lint-diff:
 	@echo "--> Running gometalinter on packages with uncommitted changes"
