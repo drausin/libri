@@ -53,19 +53,15 @@ get-deps:
 
 lint:
 	@echo "--> Running gometalinter on diff against develop branch"
-	@echo $(GIT_DIFF_PKG_SUBDIRS) | tr " " "\n"
-	@gometalinter $(GIT_DIFF_PKG_SUBDIRS) --config=.gometalinter.json --deadline=10m  --vendored-linters
-	@gometalinter $(GIT_DIFF_PKG_SUBDIRS) --config=.gometalinter.slow.json --deadline=10m  --vendored-linters
+	@gometalinter $(LIBRI_PKG_SUBDIRS) --config=.gometalinter.json --deadline=10m  --vendored-linters
 
 lint-diff:
 	@echo "--> Running gometalinter on packages with uncommitted changes"
 	@echo $(GIT_STATUS_PKG_SUBDIRS) | tr " " "\n"
 	@echo $(GIT_STATUS_PKG_SUBDIRS) | xargs gometalinter --config=.gometalinter.json --deadline=10m --vendored-linters
-	@echo $(GIT_STATUS_PKG_SUBDIRS) | xargs gometalinter --config=.gometalinter.slow.json --deadline=10m --vendored-linters
 
-lint-full:
+lint-slow:
 	@echo "--> Running gometalinter"
-	@gometalinter $(LIBRI_PKG_SUBDIRS) --config=.gometalinter.json --deadline=10m  --vendored-linters
 	@gometalinter $(LIBRI_PKG_SUBDIRS) --config=.gometalinter.slow.json --deadline=30m --vendored-linters
 
 proto:
