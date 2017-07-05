@@ -9,6 +9,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -24,6 +25,25 @@ const (
 
 	// DefaultQueryTimeout is the timeout for each query to a peer.
 	DefaultQueryTimeout = 5 * time.Second
+
+	// logging keys
+	logKey               = "key"
+	logNClosestResponses = "n_closest_responses"
+	logNMaxErrors        = "n_max_errors"
+	logConcurrency       = "concurrency"
+	logTimeout           = "timeout"
+	logNClosest          = "n_closest"
+	logNUnqueried        = "n_unqueried"
+	logNResponded        = "n_responded"
+	logErrors            = "errors"
+	logFatalError        = "fatal_error"
+	logResult            = "result"
+	logParams            = "params"
+	logFoundClosestPeers = "found_closest_peers"
+	logFoundValue        = "found_value"
+	logErrored           = "errored"
+	logExhausted         = "exhausted"
+	logFinished          = "finished"
 )
 
 // Parameters defines the parameters of the search.
@@ -39,6 +59,15 @@ type Parameters struct {
 
 	// timeout for queries to individual peers
 	Timeout time.Duration
+}
+
+// MarshalLogObject converts the Paramaters into an object (which will become json) for logging.
+func (p *Parameters) MarshalLogObject(oe zapcore.ObjectEncoder) error {
+	oe.AddUint(logNClosestResponses, p.NClosestResponses)
+	oe.AddUint(logNMaxErrors, p.NMaxErrors)
+	oe.AddUint(logConcurrency, p.Concurrency)
+	oe.AddDuration(logTimeout, p.Timeout)
+	return nil
 }
 
 // NewDefaultParameters creates an instance with default parameters.
@@ -83,6 +112,33 @@ func NewInitialResult(key cid.ID, params *Parameters) *Result {
 	}
 }
 
+// MarshalLogObject converts the Result into an object (which will become json) for logging.
+func (r *Result) MarshalLogObject(oe zapcore.ObjectEncoder) error {
+	errs := make([]error, len(r.Errored))
+	i := 0
+	for _, err := range r.Errored {
+		errs[i] = err
+		i++
+	}
+	oe.AddInt(logNClosest, r.Closest.Len())
+	oe.AddInt(logNUnqueried, r.Unqueried.Len())
+	oe.AddInt(logNResponded, len(r.Responded))
+	if err := oe.AddArray(logErrors, errArray(errs)); err != nil {
+		return err
+	}
+	oe.AddString(logFatalError, r.FatalErr.Error())
+	return nil
+}
+
+type errArray []error
+
+func (errs errArray) MarshalLogArray(arr zapcore.ArrayEncoder) error {
+	for _, err := range errs {
+		arr.AppendString(err.Error())
+	}
+	return nil
+}
+
 // Search contains things involved in a search for a particular target.
 type Search struct {
 	// ID search is looking for or close to
@@ -109,6 +165,23 @@ func NewSearch(selfID ecid.ID, key cid.ID, params *Parameters) *Search {
 		Result:  NewInitialResult(key, params),
 		Params:  params,
 	}
+}
+
+// MarshalLogObject converts the Search into an object (which will become json) for logging.
+func (s *Search) MarshalLogObject(oe zapcore.ObjectEncoder) error {
+	oe.AddString(logKey, cid.Hex(s.Key.Bytes()))
+	if err := oe.AddObject(logParams, s.Params); err != nil {
+		return err
+	}
+	if err := oe.AddObject(logResult, s.Result); err != nil {
+		return err
+	}
+	oe.AddBool(logFinished, s.Finished())
+	oe.AddBool(logFoundClosestPeers, s.FoundClosestPeers())
+	oe.AddBool(logFoundValue, s.FoundValue())
+	oe.AddBool(logErrored, s.Errored())
+	oe.AddBool(logExhausted, s.Exhausted())
+	return nil
 }
 
 // FoundClosestPeers returns whether the search has found the closest peers to a target. This event

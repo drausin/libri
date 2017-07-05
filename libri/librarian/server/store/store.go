@@ -10,6 +10,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -24,6 +25,24 @@ const (
 
 	// DefaultQueryTimeout is the timeout for each query to a peer.
 	DefaultQueryTimeout = 5 * time.Second
+
+	logSearch      = "search"
+	logNReplicas   = "n_replicas"
+	logNMaxErrors  = "n_max_errors"
+	logConcurrency = "concurrency"
+	logTimeout     = "timeout"
+	logNUnqueried  = "n_unqueried"
+	logNResponded  = "n_responded"
+	logErrors      = "errors"
+	logFatalError  = "fatal_error"
+	logResult      = "result"
+	logParams      = "params"
+	logStored      = "stored"
+	logFoundValue  = "found_value"
+	logExists = "exists"
+	logErrored     = "errored"
+	logExhausted   = "exhausted"
+	logFinished    = "finished"
 )
 
 // Parameters defines the parameters of the store.
@@ -49,6 +68,14 @@ func NewDefaultParameters() *Parameters {
 		Concurrency: DefaultConcurrency,
 		Timeout:     DefaultQueryTimeout,
 	}
+}
+
+func (p *Parameters) MarshalLogObject(oe zapcore.ObjectEncoder) error {
+	oe.AddUint(logNReplicas, p.NReplicas)
+	oe.AddUint(logNMaxErrors, p.NMaxErrors)
+	oe.AddUint(logConcurrency, p.Concurrency)
+	oe.AddDuration(logTimeout, p.Timeout)
+	return nil
 }
 
 // Result holds the store's (intermediate) result: the number of peers that have successfully
@@ -88,6 +115,23 @@ func NewFatalResult(fatalErr error) *Result {
 	}
 }
 
+func (r *Result) MarshalLogObject(oe zapcore.ObjectEncoder) error {
+	oe.AddInt(logNUnqueried, len(r.Unqueried))
+	oe.AddInt(logNResponded, len(r.Responded))
+	oe.AddArray(logErrors, errArray(r.Errors))
+	oe.AddString(logFatalError, r.FatalErr.Error())
+	return nil
+}
+
+type errArray []error
+
+func (errs errArray) MarshalLogArray(arr zapcore.ArrayEncoder) error {
+	for _, err := range errs {
+		arr.AppendString(err.Error())
+	}
+	return nil
+}
+
 // Store contains things involved in storing a particular key/value pair.
 type Store struct {
 	// Request used when querying peers
@@ -123,6 +167,18 @@ func NewStore(
 		Search:  search.NewSearch(peerID, key, &updatedSearchParams),
 		Params:  storeParams,
 	}
+}
+
+func (s *Store) MarshalLogObject(oe zapcore.ObjectEncoder) error {
+	oe.AddObject(logParams, s.Params)
+	oe.AddObject(logSearch, s.Search)
+	oe.AddObject(logResult, s.Result)
+	oe.AddBool(logFinished, s.Finished())
+	oe.AddBool(logStored, s.Stored())
+	oe.AddBool(logExists, s.Exists())
+	oe.AddBool(logErrored, s.Errored())
+	oe.AddBool(logExhausted, s.Exhausted())
+	return nil
 }
 
 // Stored returns whether the store has stored sufficient replicas.

@@ -35,7 +35,7 @@ const (
 	veryLightScryptN = 2
 	veryLightScryptP = 1
 
-	benchmarksFilepath = "../../librarian.bench"
+	benchmarksFilepath = "../../bench/librarian.bench"
 )
 
 type state struct {

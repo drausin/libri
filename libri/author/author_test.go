@@ -300,6 +300,7 @@ func TestAuthor_Share_err(t *testing.T) {
 		receiver: &fixedReceiver{
 			receiveEnvelopeErr: errors.New("some ReceiveEnvelope error"),
 		},
+		logger: clogging.NewDevLogger(zapcore.DebugLevel),
 	}
 	env, envID, err := a1.Share(origEnvKey, readerPub)
 	assert.NotNil(t, err)
@@ -311,6 +312,7 @@ func TestAuthor_Share_err(t *testing.T) {
 		receiver: &fixedReceiver{
 			getErrkErr: errors.New("some GetEEK error"),
 		},
+		logger: clogging.NewDevLogger(zapcore.DebugLevel),
 	}
 	env, envID, err = a2.Share(origEnvKey, readerPub)
 	assert.NotNil(t, err)
@@ -323,6 +325,7 @@ func TestAuthor_Share_err(t *testing.T) {
 		authorKeys: &fixedKeychain{
 			sampleErr: errors.New("some Sample error"),
 		},
+		logger: clogging.NewDevLogger(zapcore.DebugLevel),
 	}
 	env, envID, err = a3.Share(origEnvKey, readerPub)
 	assert.NotNil(t, err)
@@ -337,6 +340,7 @@ func TestAuthor_Share_err(t *testing.T) {
 		authorKeys: &fixedKeychain{
 			sampleID: ecid.FromPrivateKey(badCurvePK),
 		},
+		logger: clogging.NewDevLogger(zapcore.DebugLevel),
 	}
 	env, envID, err = a4.Share(origEnvKey, readerPub)
 	assert.NotNil(t, err)
@@ -351,6 +355,7 @@ func TestAuthor_Share_err(t *testing.T) {
 		shipper: &fixedShipper{
 			err: errors.New("some ShipEnvelope error"),
 		},
+		logger: clogging.NewDevLogger(zapcore.DebugLevel),
 	}
 	env, envID, err = a5.Share(origEnvKey, readerPub)
 	assert.NotNil(t, err)

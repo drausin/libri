@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"math/rand"
 
 	"github.com/drausin/libri/libri/common/db"
@@ -22,6 +21,7 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/health"
+	"go.uber.org/zap/zapcore"
 )
 
 // Librarian is the main service of a single peer in the peer to peer network.
@@ -90,7 +90,9 @@ type Librarian struct {
 	stop chan struct{}
 }
 
-var newPublicationsSlack = 16
+const (
+	newPublicationsSlack = 16
+)
 
 // NewLibrarian creates a new librarian instance.
 func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
@@ -107,8 +109,9 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 	if err != nil {
 		return nil, err
 	}
+	selfLogger := logger.With(zap.String(logSelfIDShort, cid.ShortHex(peerID.Bytes())))
 
-	rt, err := loadOrCreateRoutingTable(logger, serverSL, peerID, config.Routing)
+	rt, err := loadOrCreateRoutingTable(selfLogger, serverSL, peerID, config.Routing)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +125,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		return nil, err
 	}
 	clientBalancer := routing.NewClientBalancer(rt)
-	subscribeTo := subscribe.NewTo(config.SubscribeTo, logger, peerID, clientBalancer, signer,
+	subscribeTo := subscribe.NewTo(config.SubscribeTo, selfLogger, peerID, clientBalancer, signer,
 		recentPubs, newPubs)
 
 	return &Librarian{
@@ -144,11 +147,21 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		fromer:        peer.NewFromer(),
 		signer:        signer,
 		rt:            rt,
-		logger:        logger,
+		logger:        selfLogger,
 		health:        health.NewServer(),
 		stop:          make(chan struct{}),
 	}, nil
 }
+
+var (
+	errBadPeerIDSig           = errors.New("stated client peer ID does not match signature")
+	errSearchErr              = errors.New("error encountered during search")
+	errSearchExhausted        = errors.New("search exhausted closest peers")
+	errSearchUnexpectedResult = errors.New("unexpected search result")
+	errStoreErr               = errors.New("error storing")
+	errStoreExhausted         = errors.New("store exhausted closest peers")
+	errStoreUnexpectedResult  = errors.New("unexpected store result")
+)
 
 // Ping confirms simple request/response connectivity.
 func (l *Librarian) Ping(ctx context.Context, rq *api.PingRequest) (*api.PingResponse, error) {
@@ -158,17 +171,17 @@ func (l *Librarian) Ping(ctx context.Context, rq *api.PingRequest) (*api.PingRes
 // Introduce receives and gives identifying information about the peer in the network.
 func (l *Librarian) Introduce(ctx context.Context, rq *api.IntroduceRequest) (
 	*api.IntroduceResponse, error) {
-	l.logger.Debug("received introduce request")
+	logger := l.logger.With(rqMetadataFields(rq.Metadata)...)
+	logger.Debug("received introduce request", introduceRequestFields(rq)...)
 
 	// check request
 	requesterID, err := l.checkRequest(ctx, rq, rq.Metadata)
 	if err != nil {
-		l.logger.Debug("check request error", zap.String("error", err.Error()))
-		return nil, err
+		return nil, logAndReturnErr(logger, "error checking request", err)
 	}
 	requester := l.fromer.FromAPI(rq.Self)
 	if requester.ID().Cmp(requesterID) != 0 {
-		return nil, errors.New("stated client peer ID does not match signature")
+		return nil, logAndReturnErr(logger, "error matching peer ID to signature", errBadPeerIDSig)
 	}
 	l.record(requesterID, peer.Request, peer.Success)
 
@@ -179,96 +192,88 @@ func (l *Librarian) Introduce(ctx context.Context, rq *api.IntroduceRequest) (
 	seed := int64(binary.BigEndian.Uint64(rq.Metadata.RequestId[:8]))
 	peers := l.rt.Sample(uint(rq.NumPeers), rand.New(rand.NewSource(seed)))
 
-	l.logger.Info("introduced",
-		zap.String("self_id", l.selfID.String()),
-		zap.Int("n_peers", len(peers)),
-	)
-	return &api.IntroduceResponse{
+	rp := &api.IntroduceResponse{
 		Metadata: l.NewResponseMetadata(rq.Metadata),
 		Self:     l.apiSelf,
 		Peers:    peer.ToAPIs(peers),
-	}, nil
+	}
+	logger.Info("introduced", introduceResponseFields(rp)...)
+	return rp, nil
 }
 
 // Find returns either the value at a given target or the peers closest to it.
 func (l *Librarian) Find(ctx context.Context, rq *api.FindRequest) (*api.FindResponse, error) {
-	keyStr := fmt.Sprintf("%064x", rq.Key)
-	l.logger.Debug("received find request",
-		zap.String("key", keyStr),
-		zap.Uint32("n_peers", rq.NumPeers),
-	)
+	logger := l.logger.With(rqMetadataFields(rq.Metadata)...)
+	logger.Debug("received find request", findRequestFields(rq)...)
 
 	requesterID, err := l.checkRequestAndKey(ctx, rq, rq.Metadata, rq.Key)
 	if err != nil {
-		return nil, err
+		return nil, logAndReturnErr(logger, "check request error", err)
 	}
 	l.record(requesterID, peer.Request, peer.Success)
 
 	value, err := l.documentSL.Load(cid.FromBytes(rq.Key))
 	if err != nil {
 		// something went wrong during load
-		return nil, err
+		return nil, logAndReturnErr(logger, "error loading document", err)
 	}
 
 	// we have the value, so return it
 	if value != nil {
-		l.logger.Debug("found value", zap.String("key", keyStr))
-		return &api.FindResponse{
+		rp := &api.FindResponse{
 			Metadata: l.NewResponseMetadata(rq.Metadata),
 			Value:    value,
-		}, nil
+		}
+		logger.Info("found value", findValueResponseFields(rq, rp)...)
+		return rp, nil
 	}
 
 	// otherwise, return the peers closest to the key
 	key := cid.FromBytes(rq.Key)
 	closest := l.rt.Peak(key, uint(rq.NumPeers))
-	l.logger.Debug("found closest peers",
-		zap.String("key", keyStr),
-		zap.Int("n_peers", len(closest)),
-	)
-	return &api.FindResponse{
+	rp := &api.FindResponse{
 		Metadata: l.NewResponseMetadata(rq.Metadata),
 		Peers:    peer.ToAPIs(closest),
-	}, nil
+	}
+	logger.Info("found closest peers", findPeersResponseFields(rq, rp)...)
+	return rp, nil
 }
 
 // Store stores the value.
 func (l *Librarian) Store(ctx context.Context, rq *api.StoreRequest) (
 	*api.StoreResponse, error) {
-	keyStr := fmt.Sprintf("%064x", rq.Key)
-	l.logger.Debug("received store request", zap.String("key", keyStr))
+	logger := l.logger.With(rqMetadataFields(rq.Metadata)...)
+	logger.Debug("received store request", storeRequestFields(rq)...)
 
 	requesterID, err := l.checkRequestAndKeyValue(ctx, rq, rq.Metadata, rq.Key, rq.Value)
 	if err != nil {
-		return nil, err
+		return nil, logAndReturnErr(logger, "error checking request", err)
 	}
 	l.record(requesterID, peer.Request, peer.Success)
 
 	if err := l.documentSL.Store(cid.FromBytes(rq.Key), rq.Value); err != nil {
-		return nil, err
+		return nil, logAndReturnErr(logger, "error storing document", err)
 	}
 	if err := l.subscribeTo.Send(api.GetPublication(rq.Key, rq.Value)); err != nil {
-		return nil, err
+		return nil, logAndReturnErr(logger, "error sending publication", err)
 	}
 
-	l.logger.Debug("stored",
-		zap.String("key", fmt.Sprintf("032%x", rq.Key)),
-		zap.String("request_id", fmt.Sprintf("032%x", rq.Metadata.RequestId)),
-		zap.String("self_id", l.selfID.String()),
-	)
-	return &api.StoreResponse{
+	rp := &api.StoreResponse{
 		Metadata: l.NewResponseMetadata(rq.Metadata),
-	}, nil
+	}
+	l.logger.Debug("stored", storeResponseFields(rq, rp)...)
+	return rp, nil
 }
 
 // Get returns the value for a given key, if it exists. This endpoint handles the internals of
 // searching for the key.
 func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetResponse, error) {
-	keyStr := fmt.Sprintf("%064x", rq.Key)
-	l.logger.Debug("received get request", zap.String("key", keyStr))
+	logger := l.logger.With(rqMetadataFields(rq.Metadata)...)
+	logger.Debug("received get request", getRequestFields(rq)...)
 
 	requesterID, err := l.checkRequestAndKey(ctx, rq, rq.Metadata, rq.Key)
 	if err != nil {
+		logger.Error("error checking request", zap.Error(err))
 		return nil, err
 	}
 	l.record(requesterID, peer.Request, peer.Success)
@@ -276,9 +281,8 @@ func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetRespon
 	key := cid.FromBytes(rq.Key)
 	s := search.NewSearch(l.selfID, key, l.config.Search)
 	seeds := l.rt.Peak(key, s.Params.NClosestResponses)
-	err = l.searcher.Search(s, seeds)
-	if err != nil {
-		return nil, err
+	if err = l.searcher.Search(s, seeds); err != nil {
+		return nil, logAndReturnErr(logger, "error searching", err)
 	}
 
 	// add found peers to routing table
@@ -287,40 +291,39 @@ func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetRespon
 	}
 
 	if s.FoundValue() {
-		// return the value found by the search
-		l.logger.Info("got value", zap.String("key", key.String()))
-		return &api.GetResponse{
+		rp := &api.GetResponse{
 			Metadata: l.NewResponseMetadata(rq.Metadata),
 			Value:    s.Result.Value,
-		}, nil
+		}
+		logger.Info("got value", getResponseFields(rq, rp)...)
+		return rp, nil
 	}
 	if s.FoundClosestPeers() {
-		// return the nil value, indicating that the value wasn't found
-		l.logger.Info("did not get value", zap.String("key", key.String()))
-		return &api.GetResponse{
+		rp := &api.GetResponse{
 			Metadata: l.NewResponseMetadata(rq.Metadata),
-			Value:    nil,
-		}, nil
+		}
+		logger.Info("got closest peers", getResponseFields(rq, rp)...)
+		return rp, nil
 	}
 	if s.Errored() {
-		return nil, errors.New("search for key errored")
+		return nil, logFieldsAndReturnErr(logger, errSearchErr, searchDetailFields(s))
 	}
 	if s.Exhausted() {
-		return nil, errors.New("search for key exhausted")
+		return nil, logFieldsAndReturnErr(logger, errSearchExhausted, searchDetailFields(s))
 	}
 
-	return nil, errors.New("unexpected search result")
+	return nil, logFieldsAndReturnErr(logger, errSearchUnexpectedResult, []zapcore.Field{})
 }
 
 // Put stores a given key and value. This endpoint handles the internals of finding the right
 // peers to store the value in and then sending them store requests.
 func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutResponse, error) {
-	keyStr := fmt.Sprintf("%064x", rq.Key)
-	l.logger.Debug("received put request", zap.String("key", keyStr))
+	logger := l.logger.With(rqMetadataFields(rq.Metadata)...)
+	logger.Debug("received put request", putRequestFields(rq)...)
 
 	requesterID, err := l.checkRequestAndKeyValue(ctx, rq, rq.Metadata, rq.Key, rq.Value)
 	if err != nil {
-		return nil, err
+		return nil, logAndReturnErr(logger, "error checking request", err)
 	}
 	l.record(requesterID, peer.Request, peer.Success)
 
@@ -333,99 +336,67 @@ func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutRespon
 		l.config.Store,
 	)
 	seeds := l.rt.Peak(key, s.Search.Params.NClosestResponses)
-	err = l.storer.Store(s, seeds)
-	if err != nil {
-		return nil, err
+	if err = l.storer.Store(s, seeds); err != nil {
+		return nil, logFieldsAndReturnErr(logger, errStoreErr, storeDetailFields(s))
 	}
-	debugLogStoreResult("store result", s, l.logger)
 	for _, p := range s.Result.Responded {
 		l.rt.Push(p)
 	}
 	if s.Stored() {
-		l.logger.Info("put value",
-			zap.String("key", key.String()),
-			zap.String("operation", api.PutOperation_STORED.String()),
-		)
-		return &api.PutResponse{
+		rp := &api.PutResponse{
 			Metadata:  l.NewResponseMetadata(rq.Metadata),
 			Operation: api.PutOperation_STORED,
 			NReplicas: uint32(len(s.Result.Responded)),
-		}, nil
+		}
+		logger.Info("put new value", putResponseFields(rq, rp)...)
+		return rp, nil
 	}
 	if s.Exists() {
-		l.logger.Info("put value",
-			zap.String("key", key.String()),
-			zap.String("operation", api.PutOperation_LEFT_EXISTING.String()),
-		)
-		return &api.PutResponse{
+		rp := &api.PutResponse{
 			Metadata:  l.NewResponseMetadata(rq.Metadata),
 			Operation: api.PutOperation_LEFT_EXISTING,
 			NReplicas: uint32(len(s.Result.Responded)),
-		}, nil
+		}
+		logger.Info("put existing value", putResponseFields(rq, rp)...)
+		return rp, nil
 	}
 	if s.Errored() {
-		return nil, errors.New("received error during search or store operations")
+		return nil, logFieldsAndReturnErr(logger, errStoreErr, storeDetailFields(s))
 	}
 	if s.Exhausted() {
-		return nil, errors.New("store for key exhausted")
+		return nil, logFieldsAndReturnErr(logger, errStoreExhausted, storeDetailFields(s))
 	}
-
-	return nil, fmt.Errorf("unexpected store result: %v", s.Result)
-}
-
-func debugLogSearchResult(message string, s *search.Search, logger *zap.Logger) {
-	logger.Debug(message,
-		zap.Bool("finished", s.Finished()),
-		zap.Bool("errored", s.Errored()),
-		zap.Bool("exhausted", s.Exhausted()),
-		zap.Bool("found_value", s.FoundValue()),
-		zap.Bool("found_closest_peers", s.FoundClosestPeers()),
-		zap.Int("n_closest", s.Result.Closest.Len()),
-		zap.Int("n_unqueried", s.Result.Unqueried.Len()),
-		zap.Int("n_responded", len(s.Result.Responded)),
-		zap.Int("n_errors", len(s.Result.Errored)),
-		zap.Uint("param_n_closest_responses", s.Params.NClosestResponses),
-	)
-}
-
-func debugLogStoreResult(message string, s *store.Store, logger *zap.Logger) {
-	debugLogSearchResult(fmt.Sprintf("search %s", message), s.Search, logger)
-	logger.Debug(message,
-		zap.Bool("finished", s.Finished()),
-		zap.Bool("stored", s.Stored()),
-		zap.Bool("errored", s.Errored()),
-		zap.Bool("exhausted", s.Exhausted()),
-		zap.Bool("exists", s.Exists()),
-		zap.Int("n_unqueried", len(s.Result.Unqueried)),
-		zap.Int("n_responded", len(s.Result.Responded)),
-		zap.Errors("errors", s.Result.Errors),
-	)
+	return nil, logFieldsAndReturnErr(logger, errStoreUnexpectedResult, []zapcore.Field{})
 }
 
 // Subscribe begins a subscription to the peer's publication stream (from its own subscriptions to
 // other peers).
 func (l *Librarian) Subscribe(rq *api.SubscribeRequest, from api.Librarian_SubscribeServer) error {
+	logger := l.logger.With(rqMetadataFields(rq.Metadata)...)
+	logger.Debug("received subscribe request")
 	if _, err := l.checkRequest(from.Context(), rq, rq.Metadata); err != nil {
+		logger.Error("error checking request", zap.Error(err))
 		return err
 	}
 	authorFilter, err := subscribe.FromAPI(rq.Subscription.AuthorPublicKeys)
 	if err != nil {
-		return err
+		return logAndReturnErr(logger, "error decoding author filter", err)
 	}
 	readerFilter, err := subscribe.FromAPI(rq.Subscription.ReaderPublicKeys)
 	if err != nil {
-		return err
+		return logAndReturnErr(logger, "error decoding reader filter", err)
 	}
 	pubs, done, err := l.subscribeFrom.New()
 	if err != nil {
+		logger.Info(err.Error(), zap.Error(err))  // Info b/c more of a business as usual response
 		return err
 	}
 
 	responseMetadata := l.NewResponseMetadata(rq.Metadata)
 	for pub := range pubs {
-		err = l.maybeSend(pub, authorFilter, readerFilter, from, responseMetadata, done)
+		err = maybeSend(pub, authorFilter, readerFilter, from, responseMetadata, done)
 		if err != nil {
-			return err
+			return logAndReturnErr(logger, "subscribe send error", err)
 		}
 	}
 
@@ -435,10 +406,12 @@ func (l *Librarian) Subscribe(rq *api.SubscribeRequest, from api.Librarian_Subsc
 	default:
 		close(done)
 	}
+
+	logger.Debug("finished with subscription")
 	return nil
 }
 
-func (l *Librarian) maybeSend(
+func maybeSend(
 	pub *subscribe.KeyedPub,
 	authorFilter *bloom.BloomFilter,
 	readerFilter *bloom.BloomFilter,
@@ -462,10 +435,8 @@ func (l *Librarian) maybeSend(
 		Value:    pub.Value,
 	}
 	if err := from.Send(rp); err != nil {
-		l.logger.Error("subscribe send error", zap.Error(err))
 		close(done) // signal to l.subscribeFrom we're finished with this fanout
 		return err
 	}
-	l.logger.Debug("sent publication", zap.String("publication_key", pub.Key.String()))
 	return nil
 }

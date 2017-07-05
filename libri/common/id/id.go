@@ -61,7 +61,7 @@ func (x *id) Bytes() []byte {
 }
 
 func (x *id) String() string {
-	return fmt.Sprintf("%064x", x.Bytes())
+	return Hex(x.Bytes())
 }
 
 func (x *id) Cmp(other ID) int {
@@ -123,4 +123,12 @@ func NewPseudoRandom(rng *mrand.Rand) ID {
 // FromPublicKey returns an ID instance from an elliptic curve public key.
 func FromPublicKey(pubKey *ecdsa.PublicKey) ID {
 	return FromInt(pubKey.X)
+}
+
+func Hex(val []byte) string {
+	return fmt.Sprintf("%064x", val)
+}
+
+func ShortHex(val []byte) string {
+	return fmt.Sprintf("%016x", val[:8])
 }

@@ -2,7 +2,6 @@ package author
 
 import (
 	"crypto/ecdsa"
-	"fmt"
 	"io"
 	"time"
 
@@ -18,27 +17,9 @@ import (
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
-	"github.com/dustin/go-humanize"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
-)
-
-const (
-	// LoggerEntryKey is the logger key used for the key of an Entry document.
-	LoggerEntryKey = "entry_key"
-
-	// LoggerEnvelopeKey is the logger key used for the key of an Envelope document.
-	LoggerEnvelopeKey = "envelope_key"
-
-	// LoggerAuthorPub is the logger key used for an author public key.
-	LoggerAuthorPub = "author_pub"
-
-	// LoggerReaderPub is the logger key used for a reader public key.
-	LoggerReaderPub = "reader_pub"
-
-	// LoggerNPages is the logger key used for the number of pages in a document.
-	LoggerNPages = "n_pages"
 )
 
 var (
@@ -112,7 +93,8 @@ func NewAuthor(
 	config *Config,
 	authorKeys keychain.GetterSampler,
 	selfReaderKeys keychain.GetterSampler,
-	logger *zap.Logger) (*Author, error) {
+	logger *zap.Logger,
+) (*Author, error) {
 
 	rdb, err := db.NewRocksDB(config.DbDir)
 	if err != nil {
@@ -127,6 +109,7 @@ func NewAuthor(
 	if err != nil {
 		return nil, err
 	}
+	clientLogger := logger.With(zap.String(logClientIDShort, id.ShortHex(clientID.Bytes())))
 
 	allKeys := keychain.NewUnion(authorKeys, selfReaderKeys)
 	envKeys := &envelopeKeySamplerImpl{
@@ -174,7 +157,7 @@ func NewAuthor(
 		receiver:         receiver,
 		pageSL:           page.NewStorerLoader(documentSL),
 		signer:           signer,
-		logger:           logger,
+		logger:           clientLogger,
 		stop:             make(chan struct{}),
 	}
 
@@ -222,42 +205,27 @@ func (a *Author) Healthcheck() (bool, map[string]healthpb.HealthCheckResponse_Se
 // libri network. It returns the uploaded envelope for self-storage and its key.
 func (a *Author) Upload(content io.Reader, mediaType string) (*api.Document, id.ID, error) {
 	startTime := time.Now()
+	a.logger.Debug("uploading document")
+
 	authorPub, readerPub, kek, eek, err := a.envKeys.sample()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, a.logAndReturnErr("error sampling keys", err)
 	}
 
-	a.logger.Debug("packing content",
-		zap.String(LoggerAuthorPub, fmt.Sprintf("%065x", authorPub)),
-	)
+	a.logger.Debug("packing content", packingContentFields(authorPub)...)
 	entry, metadata, err := a.entryPacker.Pack(content, mediaType, eek, authorPub)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, a.logAndReturnErr("error packing content", err)
 	}
 
-	a.logger.Debug("shipping entry",
-		zap.String(LoggerAuthorPub, fmt.Sprintf("%065x", authorPub)),
-		zap.String(LoggerReaderPub, fmt.Sprintf("%065x", readerPub)),
-	)
+	a.logger.Debug("shipping entry", shippingEntryFields(authorPub, readerPub)...)
 	env, envKey, err := a.shipper.ShipEntry(entry, authorPub, readerPub, kek, eek)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, a.logAndReturnErr("error shipping entry", err)
 	}
 
 	elapsedTime := time.Since(startTime)
-	entryKeyBytes := env.Contents.(*api.Document_Envelope).Envelope.EntryKey
-	uncompressedSize, _ := metadata.GetUncompressedSize()
-	ciphertextSize, _ := metadata.GetCiphertextSize()
-	speedMbps := float32(uncompressedSize) * 8 / float32(2<<20) / float32(elapsedTime.Seconds())
-	a.logger.Info("successfully uploaded document",
-		zap.Stringer(LoggerEnvelopeKey, envKey),
-		zap.Stringer(LoggerEntryKey, id.FromBytes(entryKeyBytes)),
-		zap.Uint64("original_size", uncompressedSize),
-		zap.String("original_size_human", humanize.Bytes(uncompressedSize)),
-		zap.Uint64("uploaded_size", ciphertextSize),
-		zap.String("uploaded_size_human", humanize.Bytes(ciphertextSize)),
-		zap.Float32("speed_Mbps", speedMbps),
-	)
+	a.logger.Info("uploaded document", uploadedDocFields(envKey, env, metadata, elapsedTime)...)
 	return env, envKey, nil
 }
 
@@ -265,35 +233,26 @@ func (a *Author) Upload(content io.Reader, mediaType string) (*api.Document, id.
 // content writer.
 func (a *Author) Download(content io.Writer, envKey id.ID) error {
 	startTime := time.Now()
-	a.logger.Debug("receiving entry", zap.String(LoggerEnvelopeKey, envKey.String()))
+	a.logger.Debug("downloading document", downloadingDocFields(envKey)...)
+
 	entry, keys, err := a.receiver.ReceiveEntry(envKey)
 	if err != nil {
-		return err
+		return a.logAndReturnErr("error receiving entry", err)
 	}
 	entryKey, nPages, err := getEntryInfo(entry)
 	if err != nil {
-		return err
+		return a.logAndReturnErr("error getting entry info", err)
 	}
 
-	a.logger.Debug("unpacking content",
-		zap.String(LoggerEntryKey, entryKey.String()),
-		zap.Int(LoggerNPages, nPages),
-	)
+	a.logger.Debug("unpacking content", unpackingContentFields(entryKey, nPages)...)
 	metadata, err := a.entryUnpacker.Unpack(content, entry, keys)
 	if err != nil {
-		return err
+		return a.logAndReturnErr("error unpacking content", err)
 	}
 
 	elapsedTime := time.Since(startTime)
-	uncompressedSize, _ := metadata.GetUncompressedSize()
-	ciphertextSize, _ := metadata.GetCiphertextSize()
-	speedMbps := float32(uncompressedSize) * 8 / float32(2<<20) / float32(elapsedTime.Seconds())
-	a.logger.Info("successfully downloaded document",
-		zap.Stringer(LoggerEnvelopeKey, envKey),
-		zap.Stringer(LoggerEntryKey, entryKey),
-		zap.String("downloaded_size", humanize.Bytes(ciphertextSize)),
-		zap.String("original_size", humanize.Bytes(uncompressedSize)),
-		zap.Float32("speed_Mbps", speedMbps),
+	a.logger.Info("downloaded document",
+		downloadedDocFields(envKey, entryKey, metadata, elapsedTime)...,
 	)
 	return nil
 }
@@ -301,39 +260,39 @@ func (a *Author) Download(content io.Writer, envKey id.ID) error {
 // Share creates and uploads a new envelope with the given reader public key. The new envelope
 // has the same entry and entry encryption key as that of envelopeKey.
 func (a *Author) Share(envKey id.ID, readerPub *ecdsa.PublicKey) (*api.Document, id.ID, error) {
-
+	a.logger.Debug("sharing document", sharingDocFields(envKey, readerPub)...)
 	env, err := a.receiver.ReceiveEnvelope(envKey)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, a.logAndReturnErr("error receiving envelope", err)
 	}
 	eek, err := a.receiver.GetEEK(env)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, a.logAndReturnErr("error getting EEK", err)
 	}
 	authorKey, err := a.authorKeys.Sample()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, a.logAndReturnErr("error sampling author keys", err)
 	}
 	kek, err := enc.NewKEK(authorKey.Key(), readerPub)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, a.logAndReturnErr("error creating new KEK", err)
 	}
 	entryKey := id.FromBytes(env.EntryKey)
 	authKeyBs, readKeyBs := authorKey.PublicKeyBytes(), ecid.ToPublicKeyBytes(readerPub)
 	sharedEnv, sharedEnvKey, err := a.shipper.ShipEnvelope(kek, eek, entryKey, authKeyBs, readKeyBs)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, a.logAndReturnErr("error shipping envelope", err)
 	}
 
 	a.logger.Info("successfully shared document",
-		zap.Stringer(LoggerEntryKey, entryKey),
-		zap.Stringer(LoggerEnvelopeKey, envKey),
-	)
-	a.logger.Debug("shared with",
-		zap.String(LoggerAuthorPub, fmt.Sprintf("%065x", authKeyBs)),
-		zap.String(LoggerReaderPub, fmt.Sprintf("%065x", readKeyBs)),
+		sharedDocFields(envKey, entryKey, authKeyBs, readKeyBs)...,
 	)
 	return sharedEnv, sharedEnvKey, nil
+}
+
+func (a *Author) logAndReturnErr(msg string, err error) error {
+	a.logger.Error(msg, zap.Error(err))
+	return err
 }
 
 func getEntryInfo(entry *api.Document) (id.ID, int, error) {
