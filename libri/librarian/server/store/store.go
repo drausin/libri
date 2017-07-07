@@ -38,7 +38,6 @@ const (
 	logResult      = "result"
 	logParams      = "params"
 	logStored      = "stored"
-	logFoundValue  = "found_value"
 	logExists      = "exists"
 	logErrored     = "errored"
 	logExhausted   = "exhausted"

@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"path"
 )
 
 const (
@@ -35,7 +36,8 @@ const (
 	veryLightScryptN = 2
 	veryLightScryptP = 1
 
-	benchmarksFilepath = "../../bench/librarian.bench"
+	benchmarksDir = "../../bench"
+	benchmarksFile = "librarian.bench"
 )
 
 type state struct {
@@ -245,7 +247,11 @@ func tearDown(state *state) {
 }
 
 func writeBenchmarkResults(t *testing.T, benchmarks []*benchmarkObs) {
-	f, err := os.Create(benchmarksFilepath)
+	if _, err := os.Stat(benchmarksDir); os.IsNotExist(err) {
+		err = os.Mkdir(benchmarksDir, 0755)
+		maybePanic(err)
+	}
+	f, err := os.Create(path.Join(benchmarksDir, benchmarksFile))
 	defer func() {
 		err = f.Close()
 		maybePanic(err)
