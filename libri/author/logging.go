@@ -1,14 +1,15 @@
 package author
 
 import (
-	"go.uber.org/zap/zapcore"
-	"go.uber.org/zap"
+	"crypto/ecdsa"
+	"fmt"
+	"time"
+
+	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
-	"time"
-	"crypto/ecdsa"
-	"github.com/drausin/libri/libri/common/ecid"
-	"fmt"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -43,7 +44,7 @@ func uploadedDocFields(
 }
 
 func downloadingDocFields(envKey fmt.Stringer) []zapcore.Field {
-	return []zapcore.Field {
+	return []zapcore.Field{
 		zap.Stringer(logEnvelopeKey, envKey),
 	}
 }
@@ -70,21 +71,21 @@ func docFields(
 }
 
 func unpackingContentFields(entryKey fmt.Stringer, nPages int) []zapcore.Field {
-	return []zapcore.Field {
+	return []zapcore.Field{
 		zap.Stringer(logEntryKey, entryKey),
 		zap.Int(logNPages, nPages),
 	}
 }
 
 func sharingDocFields(envKey fmt.Stringer, readerPub *ecdsa.PublicKey) []zapcore.Field {
-	return []zapcore.Field {
+	return []zapcore.Field{
 		zap.Stringer(logEnvelopeKey, envKey),
 		zap.String(logReaderPubShort, id.ShortHex(ecid.ToPublicKeyBytes(readerPub)[1:9])),
 	}
 }
 
 func sharedDocFields(envKey, entryKey fmt.Stringer, authorPub, readerPub []byte) []zapcore.Field {
-	return []zapcore.Field {
+	return []zapcore.Field{
 		zap.Stringer(logEntryKey, entryKey),
 		zap.Stringer(logEnvelopeKey, envKey),
 		zap.String(logAuthorPubShort, id.ShortHex(authorPub[1:9])),

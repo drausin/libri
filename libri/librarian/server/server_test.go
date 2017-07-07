@@ -741,8 +741,8 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 
 	// check request error bubbles up
 	l1 := &Librarian{
-		rqv: &neverRequestVerifier{},
-		rt:  routing.NewEmpty(selfID, routing.NewDefaultParameters()),
+		rqv:    &neverRequestVerifier{},
+		rt:     routing.NewEmpty(selfID, routing.NewDefaultParameters()),
 		logger: clogging.NewDevInfoLogger(),
 	}
 	err = l1.Subscribe(rq, from)
@@ -754,7 +754,7 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 	sub2.AuthorPublicKeys.Encoded = nil // will trigger error
 	rq2 := client.NewSubscribeRequest(ecid.NewPseudoRandom(rng), sub2)
 	l2 := &Librarian{
-		rqv: &alwaysRequestVerifier{},
+		rqv:    &alwaysRequestVerifier{},
 		logger: clogging.NewDevInfoLogger(),
 	}
 	err = l2.Subscribe(rq2, from)
@@ -766,7 +766,7 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 	sub3.ReaderPublicKeys.Encoded = nil // will trigger error
 	rq3 := client.NewSubscribeRequest(ecid.NewPseudoRandom(rng), sub3)
 	l3 := &Librarian{
-		rqv: &alwaysRequestVerifier{},
+		rqv:    &alwaysRequestVerifier{},
 		logger: clogging.NewDevInfoLogger(),
 	}
 	err = l3.Subscribe(rq3, from)
@@ -781,7 +781,7 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 		subscribeFrom: &fixedFrom{
 			err: subscribe.ErrNotAcceptingNewSubscriptions,
 		},
-		rqv: &alwaysRequestVerifier{},
+		rqv:    &alwaysRequestVerifier{},
 		logger: clogging.NewDevInfoLogger(),
 	}
 	err = l4.Subscribe(rq4, from)

@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"path"
+
 	lauthor "github.com/drausin/libri/libri/author"
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/ecid"
@@ -27,7 +29,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"path"
 )
 
 const (
@@ -36,7 +37,7 @@ const (
 	veryLightScryptN = 2
 	veryLightScryptP = 1
 
-	benchmarksDir = "../../bench"
+	benchmarksDir  = "../../bench"
 	benchmarksFile = "librarian.bench"
 )
 

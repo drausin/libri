@@ -4,8 +4,9 @@ import (
 	"encoding/binary"
 
 	"errors"
-	"go.uber.org/zap/zapcore"
+
 	"github.com/dustin/go-humanize"
+	"go.uber.org/zap/zapcore"
 )
 
 // required Entry metadata fields
@@ -101,11 +102,11 @@ func (m *Metadata) MarshalLogObject(oe zapcore.ObjectEncoder) error {
 	}
 	if ciphertextSize, in := m.GetCiphertextSize(); in {
 		oe.AddUint64(logCiphertextSize, ciphertextSize)
-		oe.AddString(logCiphertextSizeHuman,  humanize.Bytes(ciphertextSize))
+		oe.AddString(logCiphertextSizeHuman, humanize.Bytes(ciphertextSize))
 	}
 	if uncompressedSize, in := m.GetUncompressedSize(); in {
 		oe.AddUint64(logUncompressedSize, uncompressedSize)
-		oe.AddString(logUncompressedSizeHuman,  humanize.Bytes(uncompressedSize))
+		oe.AddString(logUncompressedSizeHuman, humanize.Bytes(uncompressedSize))
 	}
 	return nil
 }

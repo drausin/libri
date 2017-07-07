@@ -1,12 +1,12 @@
 package server
 
 import (
-	"go.uber.org/zap/zapcore"
-	"go.uber.org/zap"
-	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/store"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 const (

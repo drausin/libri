@@ -19,9 +19,9 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/store"
 	"github.com/willf/bloom"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/health"
-	"go.uber.org/zap/zapcore"
 )
 
 // Librarian is the main service of a single peer in the peer to peer network.
@@ -388,7 +388,7 @@ func (l *Librarian) Subscribe(rq *api.SubscribeRequest, from api.Librarian_Subsc
 	}
 	pubs, done, err := l.subscribeFrom.New()
 	if err != nil {
-		logger.Info(err.Error(), zap.Error(err))  // Info b/c more of a business as usual response
+		logger.Info(err.Error(), zap.Error(err)) // Info b/c more of a business as usual response
 		return err
 	}
 
