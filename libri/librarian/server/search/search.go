@@ -126,7 +126,9 @@ func (r *Result) MarshalLogObject(oe zapcore.ObjectEncoder) error {
 	if err := oe.AddArray(logErrors, errArray(errs)); err != nil {
 		return err
 	}
-	oe.AddString(logFatalError, r.FatalErr.Error())
+	if r.FatalErr != nil {
+		oe.AddString(logFatalError, r.FatalErr.Error())
+	}
 	return nil
 }
 

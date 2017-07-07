@@ -743,6 +743,7 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 	l1 := &Librarian{
 		rqv: &neverRequestVerifier{},
 		rt:  routing.NewEmpty(selfID, routing.NewDefaultParameters()),
+		logger: clogging.NewDevInfoLogger(),
 	}
 	err = l1.Subscribe(rq, from)
 	assert.NotNil(t, err)
@@ -752,7 +753,10 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 	assert.Nil(t, err)
 	sub2.AuthorPublicKeys.Encoded = nil // will trigger error
 	rq2 := client.NewSubscribeRequest(ecid.NewPseudoRandom(rng), sub2)
-	l2 := &Librarian{rqv: &alwaysRequestVerifier{}}
+	l2 := &Librarian{
+		rqv: &alwaysRequestVerifier{},
+		logger: clogging.NewDevInfoLogger(),
+	}
 	err = l2.Subscribe(rq2, from)
 	assert.NotNil(t, err)
 
@@ -761,7 +765,10 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 	assert.Nil(t, err)
 	sub3.ReaderPublicKeys.Encoded = nil // will trigger error
 	rq3 := client.NewSubscribeRequest(ecid.NewPseudoRandom(rng), sub3)
-	l3 := &Librarian{rqv: &alwaysRequestVerifier{}}
+	l3 := &Librarian{
+		rqv: &alwaysRequestVerifier{},
+		logger: clogging.NewDevInfoLogger(),
+	}
 	err = l3.Subscribe(rq3, from)
 	assert.NotNil(t, err)
 
@@ -775,6 +782,7 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 			err: subscribe.ErrNotAcceptingNewSubscriptions,
 		},
 		rqv: &alwaysRequestVerifier{},
+		logger: clogging.NewDevInfoLogger(),
 	}
 	err = l4.Subscribe(rq4, from)
 	assert.Equal(t, subscribe.ErrNotAcceptingNewSubscriptions, err)

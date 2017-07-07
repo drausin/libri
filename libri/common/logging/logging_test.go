@@ -16,3 +16,8 @@ func TestNewDevInfoLogger(t *testing.T) {
 	l := NewDevInfoLogger()
 	assert.NotNil(t, l)
 }
+
+func TestNewProdLogger(t *testing.T) {
+	l := NewProdLogger(zap.InfoLevel)
+	assert.NotNil(t, l)
+}

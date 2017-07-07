@@ -23,3 +23,14 @@ func NewDevLogger(logLevel zapcore.Level) *zap.Logger {
 func NewDevInfoLogger() *zap.Logger {
 	return NewDevLogger(zap.InfoLevel)
 }
+
+func NewProdLogger(logLevel zapcore.Level) *zap.Logger {
+	config := zap.NewProductionConfig()
+	config.Level.SetLevel(logLevel)
+
+	logger, err := config.Build()
+	if err != nil {
+		panic(err)
+	}
+	return logger
+}

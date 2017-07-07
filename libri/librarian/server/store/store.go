@@ -39,7 +39,7 @@ const (
 	logParams      = "params"
 	logStored      = "stored"
 	logFoundValue  = "found_value"
-	logExists = "exists"
+	logExists      = "exists"
 	logErrored     = "errored"
 	logExhausted   = "exhausted"
 	logFinished    = "finished"
@@ -116,10 +116,15 @@ func NewFatalResult(fatalErr error) *Result {
 }
 
 func (r *Result) MarshalLogObject(oe zapcore.ObjectEncoder) error {
+	if r == nil {
+		return nil
+	}
 	oe.AddInt(logNUnqueried, len(r.Unqueried))
 	oe.AddInt(logNResponded, len(r.Responded))
 	oe.AddArray(logErrors, errArray(r.Errors))
-	oe.AddString(logFatalError, r.FatalErr.Error())
+	if r.FatalErr != nil {
+		oe.AddString(logFatalError, r.FatalErr.Error())
+	}
 	return nil
 }
 
@@ -170,14 +175,19 @@ func NewStore(
 }
 
 func (s *Store) MarshalLogObject(oe zapcore.ObjectEncoder) error {
+	if s == nil {
+		return nil
+	}
 	oe.AddObject(logParams, s.Params)
 	oe.AddObject(logSearch, s.Search)
 	oe.AddObject(logResult, s.Result)
-	oe.AddBool(logFinished, s.Finished())
-	oe.AddBool(logStored, s.Stored())
-	oe.AddBool(logExists, s.Exists())
-	oe.AddBool(logErrored, s.Errored())
-	oe.AddBool(logExhausted, s.Exhausted())
+	if s.Result != nil {
+		oe.AddBool(logFinished, s.Finished())
+		oe.AddBool(logStored, s.Stored())
+		oe.AddBool(logExists, s.Exists())
+		oe.AddBool(logErrored, s.Errored())
+		oe.AddBool(logExhausted, s.Exhausted())
+	}
 	return nil
 }
 
