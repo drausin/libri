@@ -3,13 +3,15 @@ package store
 import (
 	"bytes"
 	"sync"
-
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
+	"time"
 )
+
+const storerStoreRetryTimeout = 100 * time.Millisecond
 
 // Storer executes store operations.
 type Storer interface {
@@ -25,15 +27,15 @@ type storer struct {
 	searcher search.Searcher
 
 	// issues store queries to the peers
-	querier client.StoreQuerier
+	storerCreator client.StorerCreator
 }
 
 // NewStorer creates a new Storer instance with given Searcher and StoreQuerier instances.
-func NewStorer(signer client.Signer, searcher search.Searcher, q client.StoreQuerier) Storer {
+func NewStorer(signer client.Signer, searcher search.Searcher, c client.StorerCreator) Storer {
 	return &storer{
-		signer:   signer,
-		searcher: searcher,
-		querier:  q,
+		signer:        signer,
+		searcher:      searcher,
+		storerCreator: c,
 	}
 }
 
@@ -43,7 +45,7 @@ func NewDefaultStorer(peerID ecid.ID) Storer {
 	return NewStorer(
 		signer,
 		search.NewDefaultSearcher(signer),
-		client.NewStoreQuerier(),
+		client.NewStorerCreator(),
 	)
 }
 
@@ -101,13 +103,17 @@ func (s *storer) storeWork(store *Store, wg *sync.WaitGroup) {
 }
 
 func (s *storer) query(pConn api.Connector, store *Store) (*api.StoreResponse, error) {
+	storeClient, err := s.storerCreator.Create(pConn)
+	if err != nil {
+		return nil, err
+	}
 	ctx, cancel, err := client.NewSignedTimeoutContext(s.signer, store.Request,
 		store.Params.Timeout)
 	if err != nil {
 		return nil, err
 	}
-
-	rp, err := s.querier.Query(ctx, pConn, store.Request)
+	retryStoreClient := client.NewRetryStorer(storeClient, storerStoreRetryTimeout)
+	rp, err := retryStoreClient.Store(ctx, store.Request)
 	cancel()
 	if err != nil {
 		return nil, err

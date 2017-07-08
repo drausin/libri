@@ -16,12 +16,72 @@ const (
 	defaultExpBackoffMaxInterval         = 250 * time.Millisecond
 )
 
+type retryFinder struct {
+	inner   api.Finder
+	timeout time.Duration
+}
+
+// NewRetryFinder creates a new api.Finder with exponential backoff retries.
+func NewRetryFinder(inner api.Finder, timeout time.Duration) api.Finder {
+	return &retryFinder{
+		inner:   inner,
+		timeout: timeout,
+	}
+}
+
+func (r *retryFinder) Find(ctx context.Context, rq *api.FindRequest, opts ...grpc.CallOption) (
+	*api.FindResponse, error) {
+	var rp *api.FindResponse
+	operation := func() error {
+		var err error
+		rp, err = r.inner.Find(ctx, rq, opts...)
+		return err
+	}
+
+	backoff := newExpBackoff(r.timeout)
+	if err := cbackoff.Retry(operation, backoff); err != nil {
+		return nil, err
+	}
+	return rp, nil
+}
+
+type retryStorer struct {
+	inner   api.Storer
+	timeout time.Duration
+}
+
+// NewRetryStorer creates a new api.Storer with exponential backoff retries.
+func NewRetryStorer(inner api.Storer, timeout time.Duration) api.Storer {
+	return &retryStorer{
+		inner:   inner,
+		timeout: timeout,
+	}
+}
+
+func (r *retryStorer) Store(ctx context.Context, rq *api.StoreRequest, opts ...grpc.CallOption) (
+	*api.StoreResponse, error) {
+
+	var rp *api.StoreResponse
+	operation := func() error {
+		var err error
+		rp, err = r.inner.Store(ctx, rq, opts...)
+		return err
+	}
+
+	backoff := newExpBackoff(r.timeout)
+	if err := cbackoff.Retry(operation, backoff); err != nil {
+		return nil, err
+	}
+	return rp, nil
+}
+
 type retryGetter struct {
 	cb      api.GetterBalancer
 	timeout time.Duration
 }
 
-// NewRetryGetter wraps a client balancer with an exponential backoff, returning an api.Getter.
+// NewRetryGetter wraps a client balancer with an exponential backoff, returning an api.Getter. Each
+// backoff attempt samples a (possibly) different api.Getter to use for the query.
 func NewRetryGetter(cb api.GetterBalancer, timeout time.Duration) api.Getter {
 	return &retryGetter{
 		cb:      cb,

@@ -30,23 +30,23 @@ type searcher struct {
 	// signs queries
 	signer client.Signer
 
-	// issues find queries to the peers
-	querier client.FindQuerier
+	// creates api.Finders
+	finderCreator client.FinderCreator
 
 	// processes the find query responses from the peers
 	rp ResponseProcessor
 }
 
 // NewSearcher returns a new Searcher with the given Querier and ResponseProcessor.
-func NewSearcher(s client.Signer, q client.FindQuerier, rp ResponseProcessor) Searcher {
-	return &searcher{signer: s, querier: q, rp: rp}
+func NewSearcher(s client.Signer, c client.FinderCreator, rp ResponseProcessor) Searcher {
+	return &searcher{signer: s, finderCreator: c, rp: rp}
 }
 
 // NewDefaultSearcher creates a new Searcher with default sub-object instantiations.
 func NewDefaultSearcher(signer client.Signer) Searcher {
 	return NewSearcher(
 		signer,
-		client.NewFindQuerier(),
+		client.NewFinderCreator(),
 		NewResponseProcessor(peer.NewFromer()),
 	)
 }
@@ -130,13 +130,17 @@ func (s *searcher) searchWork(search *Search, wg *sync.WaitGroup) {
 }
 
 func (s *searcher) query(pConn api.Connector, search *Search) (*api.FindResponse, error) {
+	findClient, err := s.finderCreator.Create(pConn)
+	if err != nil {
+		return nil, err
+	}
 	ctx, cancel, err := client.NewSignedTimeoutContext(s.signer, search.Request,
 		search.Params.Timeout)
 	if err != nil {
 		return nil, err
 	}
-	querier := client.NewRetryFindQuerier(s.querier, searcherFindRetryTimeout)
-	rp, err := querier.Query(ctx, pConn, search.Request)
+	retryFindClient := client.NewRetryFinder(findClient, searcherFindRetryTimeout)
+	rp, err := retryFindClient.Find(ctx, search.Request)
 	cancel()
 	if err != nil {
 		return nil, err

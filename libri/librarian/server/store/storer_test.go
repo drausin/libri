@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"fmt"
 )
 
 func TestNewDefaultStorer(t *testing.T) {
@@ -22,31 +23,7 @@ func TestNewDefaultStorer(t *testing.T) {
 	s := NewDefaultStorer(ecid.NewPseudoRandom(rng))
 	assert.NotNil(t, s.(*storer).signer)
 	assert.NotNil(t, s.(*storer).searcher)
-	assert.NotNil(t, s.(*storer).querier)
-}
-
-// TestStoreQuerier mocks the StoreQuerier interface. The Query() method returns an
-// api.StoreResponse, as if the remote peer had successfully stored the value.
-type TestStoreQuerier struct {
-	peerID ecid.ID
-}
-
-func (c *TestStoreQuerier) Query(ctx context.Context, pConn api.Connector, rq *api.StoreRequest,
-	opts ...grpc.CallOption) (*api.StoreResponse, error) {
-	return &api.StoreResponse{
-		Metadata: &api.ResponseMetadata{
-			RequestId: rq.Metadata.RequestId,
-			PubKey:    c.peerID.PublicKeyBytes(),
-		},
-	}, nil
-}
-
-func NewTestStorer(peerID ecid.ID, peersMap map[string]peer.Peer) Storer {
-	return &storer{
-		searcher: ssearch.NewTestSearcher(peersMap),
-		querier:  &TestStoreQuerier{peerID: peerID},
-		signer:   &client.TestNoOpSigner{},
-	}
+	assert.NotNil(t, s.(*storer).storerCreator)
 }
 
 func TestStorer_Store_ok(t *testing.T) {
@@ -56,7 +33,11 @@ func TestStorer_Store_ok(t *testing.T) {
 
 	// create our searcher
 	value, key := api.NewTestDocument(rng)
-	storer := NewTestStorer(selfID, peersMap)
+	storer := &storer{
+		searcher:      ssearch.NewTestSearcher(peersMap),
+		storerCreator: &fixedStorerCreator{},
+		signer:        &client.TestNoOpSigner{},
+	}
 
 	for concurrency := uint(1); concurrency <= 3; concurrency++ {
 
@@ -99,8 +80,10 @@ func TestStorer_Store_queryErr(t *testing.T) {
 	storerImpl, store, selfPeerIdxs, peers, _ := newTestStore()
 	seeds := ssearch.NewTestSeeds(peers, selfPeerIdxs)
 
-	// mock querier to always timeout
-	storerImpl.(*storer).querier = &timeoutQuerier{}
+	// mock storerCreator to always error
+	storerImpl.(*storer).storerCreator = &fixedStorerCreator{
+		err: errors.New("some Create error"),
+	}
 
 	// do the search!
 	err := storerImpl.Store(store, seeds)
@@ -118,6 +101,63 @@ func TestStorer_Store_queryErr(t *testing.T) {
 	assert.Nil(t, store.Result.FatalErr)
 }
 
+func TestStorer_Store_err(t *testing.T) {
+	s := &storer{
+		searcher: &errSearcher{},
+	}
+
+	// check that Store() surfaces searcher error
+	store := &Store{
+		Result: &Result{},
+	}
+	assert.NotNil(t, s.Store(store, nil))
+}
+
+func TestStorer_query_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(int64(0)))
+	clientConn := api.NewConnector(nil) // won't actually be used since we're mocking the storer
+	value, key := api.NewTestDocument(rng)
+	selfID := ecid.NewPseudoRandom(rng)
+	searchParams := &ssearch.Parameters{Timeout: DefaultQueryTimeout}
+	store := NewStore(selfID, key, value, searchParams, &Parameters{})
+
+	cases := []*storer{
+		// case 0
+		{
+			signer:        &client.TestNoOpSigner{},
+			storerCreator: &fixedStorerCreator{err: errors.New("some Create error")},
+		},
+
+		// case 1
+		{
+			signer:        &client.TestErrSigner{},
+			storerCreator: &fixedStorerCreator{},
+		},
+
+		// case 2
+		{
+			signer: &client.TestNoOpSigner{},
+			storerCreator: &fixedStorerCreator{
+				storer: &fixedStorer{err: errors.New("some Store error")},
+			},
+		},
+
+		// case 3
+		{
+			signer: &client.TestNoOpSigner{},
+			storerCreator: &fixedStorerCreator{
+				storer: &fixedStorer{requestID: []byte{1, 2, 3, 4}},
+			},
+		},
+	}
+	for i, c := range cases {
+		info := fmt.Sprintf("case %d", i)
+		rp1, err := c.query(clientConn, store)
+		assert.Nil(t, rp1, info)
+		assert.NotNil(t, err, info)
+	}
+}
+
 func newTestStore() (Storer, *Store, []int, []peer.Peer, cid.ID) {
 	n := 32
 	rng := rand.New(rand.NewSource(int64(n)))
@@ -125,7 +165,11 @@ func newTestStore() (Storer, *Store, []int, []peer.Peer, cid.ID) {
 
 	// create our searcher
 	value, key := api.NewTestDocument(rng)
-	storerImpl := NewTestStorer(selfID, peersMap)
+	storerImpl := &storer{
+		searcher:      ssearch.NewTestSearcher(peersMap),
+		storerCreator: &fixedStorerCreator{},
+		signer:        &client.TestNoOpSigner{},
+	}
 
 	concurrency := uint(1)
 	searchParams := &ssearch.Parameters{
@@ -149,76 +193,39 @@ func (es *errSearcher) Search(search *ssearch.Search, seeds []peer.Peer) error {
 	return errors.New("some search error")
 }
 
-func TestStorer_Store_err(t *testing.T) {
-	s := &storer{
-		searcher: &errSearcher{},
+type fixedStorerCreator struct {
+	storer api.Storer
+	err    error
+}
+
+func (c *fixedStorerCreator) Create(pConn api.Connector) (api.Storer, error) {
+	if c.err != nil {
+		return nil, c.err
 	}
-
-	// check that Store() surfaces searcher error
-	store := &Store{
-		Result: &Result{},
+	if c.storer != nil {
+		return c.storer, nil
 	}
-	assert.NotNil(t, s.Store(store, nil))
+	return &fixedStorer{}, nil
 }
 
-// timeoutQuerier returns an error simulating a request timeout
-type timeoutQuerier struct{}
-
-func (f *timeoutQuerier) Query(ctx context.Context, pConn api.Connector, fr *api.StoreRequest,
-	opts ...grpc.CallOption) (*api.StoreResponse, error) {
-	return nil, errors.New("simulated timeout error")
+type fixedStorer struct {
+	requestID []byte
+	err       error
 }
 
-// diffRequestIDFinder returns a response with a different request ID
-type diffRequestIDQuerier struct {
-	rng    *rand.Rand
-	peerID ecid.ID
-}
+func (f *fixedStorer) Store(ctx context.Context, rq *api.StoreRequest, opts ...grpc.CallOption) (
+	*api.StoreResponse, error) {
 
-func (f *diffRequestIDQuerier) Query(ctx context.Context, pConn api.Connector,
-	fr *api.StoreRequest, opts ...grpc.CallOption) (*api.StoreResponse, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	requestID := f.requestID
+	if requestID == nil {
+		requestID = rq.Metadata.RequestId
+	}
 	return &api.StoreResponse{
 		Metadata: &api.ResponseMetadata{
-			RequestId: cid.NewPseudoRandom(f.rng).Bytes(),
-			PubKey:    f.peerID.PublicKeyBytes(),
+			RequestId: requestID,
 		},
 	}, nil
-}
-
-func TestStorer_query_err(t *testing.T) {
-	rng := rand.New(rand.NewSource(int64(0)))
-	clientConn := api.NewConnector(nil) // won't actually be used since we're mocking the finder
-	value, key := api.NewTestDocument(rng)
-	selfID := ecid.NewPseudoRandom(rng)
-	searchParams := &ssearch.Parameters{Timeout: DefaultQueryTimeout}
-	store := NewStore(selfID, key, value, searchParams, &Parameters{})
-
-	s1 := &storer{
-		signer: &client.TestNoOpSigner{},
-		// use querier that simulates a timeout
-		querier: &timeoutQuerier{},
-	}
-	rp1, err := s1.query(clientConn, store)
-	assert.Nil(t, rp1)
-	assert.NotNil(t, err)
-
-	s2 := &storer{
-		signer: &client.TestNoOpSigner{},
-		// use querier that simulates a different request ID
-		querier: &diffRequestIDQuerier{
-			rng:    rng,
-			peerID: selfID,
-		},
-	}
-	rp2, err := s2.query(clientConn, store)
-	assert.Nil(t, rp2)
-	assert.NotNil(t, err)
-
-	s3 := &storer{
-		// use signer that returns an error
-		signer: &client.TestErrSigner{},
-	}
-	rp3, err := s3.query(clientConn, store)
-	assert.Nil(t, rp3)
-	assert.NotNil(t, err)
 }

@@ -14,15 +14,13 @@ import (
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 )
 
 func TestNewDefaultSearcher(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	s := NewDefaultSearcher(client.NewSigner(ecid.NewPseudoRandom(rng).Key()))
 	assert.NotNil(t, s.(*searcher).signer)
-	assert.NotNil(t, s.(*searcher).querier)
+	assert.NotNil(t, s.(*searcher).finderCreator)
 	assert.NotNil(t, s.(*searcher).rp)
 }
 
@@ -86,8 +84,10 @@ func TestSearcher_Search_queryErr(t *testing.T) {
 	// duplicate seeds so we cover branch of hitting errored peer more than once
 	seeds = append(seeds, seeds[0])
 
-	// all queries return errors as if they'd timed out
-	searcherImpl.(*searcher).querier = &timeoutQuerier{}
+	// all queries return errors
+	searcherImpl.(*searcher).finderCreator = &TestFinderCreator{
+		err: errors.New("some Create error"),
+	}
 
 	// do the search!
 	err := searcherImpl.Search(search, seeds)
@@ -151,27 +151,17 @@ func newTestSearch() (Searcher, *Search, []int, []peer.Peer) {
 	return searcher, search, selfPeerIdxs, peers
 }
 
-type noOpQuerier struct{}
-
-func (f *noOpQuerier) Query(ctx context.Context, pConn api.Connector, fr *api.FindRequest,
-	opts ...grpc.CallOption) (*api.FindResponse, error) {
-	return &api.FindResponse{
-		Metadata: &api.ResponseMetadata{
-			RequestId: fr.Metadata.RequestId,
-		},
-	}, nil
-}
 
 func TestSearcher_query_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	peerID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
 	search := NewSearch(peerID, key, &Parameters{})
 	s := &searcher{
-		signer:  &client.TestNoOpSigner{},
-		querier: &noOpQuerier{},
-		rp:      nil,
+		signer:        &client.TestNoOpSigner{},
+		finderCreator: &TestFinderCreator{},
+		rp:            nil,
 	}
-	connClient := api.NewConnector(nil) // won't actually be uses since we're mocking the finder
+	connClient := &peer.TestConnector{}
 
 	rp, err := s.query(connClient, search)
 	assert.Nil(t, err)
@@ -179,60 +169,48 @@ func TestSearcher_query_ok(t *testing.T) {
 	assert.Nil(t, rp.Value)
 }
 
-// timeoutQuerier returns an error simulating a request timeout
-type timeoutQuerier struct{}
-
-func (f *timeoutQuerier) Query(ctx context.Context, pConn api.Connector, fr *api.FindRequest,
-	opts ...grpc.CallOption) (*api.FindResponse, error) {
-	return nil, errors.New("simulated timeout error")
-}
-
-// diffRequestIDFinder returns a response with a different request ID
-type diffRequestIDQuerier struct {
-	rng *rand.Rand
-}
-
-func (f *diffRequestIDQuerier) Query(ctx context.Context, pConn api.Connector,
-	fr *api.FindRequest, opts ...grpc.CallOption) (*api.FindResponse, error) {
-	return &api.FindResponse{
-		Metadata: &api.ResponseMetadata{
-			RequestId: cid.NewPseudoRandom(f.rng).Bytes(),
-		},
-	}, nil
-}
-
 func TestSearcher_query_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	connClient := api.NewConnector(nil) // won't actually be used since we're mocking the finder
+	connClient := &peer.TestConnector{}
 	peerID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
 	search := NewSearch(peerID, key, &Parameters{Timeout: 1 * time.Second})
 
-	s1 := &searcher{
-		signer: &client.TestNoOpSigner{},
-		// use querier that simulates a timeout
-		querier: &timeoutQuerier{},
-	}
-	rp1, err := s1.query(connClient, search)
-	assert.Nil(t, rp1)
-	assert.NotNil(t, err)
+	cases := []*searcher{
+		// case 0
+		{
+			signer:        &client.TestNoOpSigner{},
+			finderCreator: &TestFinderCreator{err: errors.New("some create error")},
+		},
 
-	s2 := &searcher{
-		signer: &client.TestNoOpSigner{},
-		// use querier that simulates a different request ID
-		querier: &diffRequestIDQuerier{
-			rng: rng,
+		// case 1
+		{
+			signer: &client.TestErrSigner{},
+			finderCreator: &TestFinderCreator{},
+		},
+
+		// case 2
+		{
+			signer:        &client.TestNoOpSigner{},
+			finderCreator: &TestFinderCreator{
+				finder: &fixedFinder{err: errors.New("some Find error")},
+			},
+		},
+
+		// case 3
+		{
+			signer:        &client.TestNoOpSigner{},
+			finderCreator: &TestFinderCreator{
+				finder: &fixedFinder{requestID: []byte{1, 2, 3, 4}},
+			},
 		},
 	}
-	rp2, err := s2.query(connClient, search)
-	assert.Nil(t, rp2)
-	assert.NotNil(t, err)
 
-	s3 := &searcher{
-		signer: &client.TestErrSigner{},
+	for i, c := range cases {
+		info := fmt.Sprintf("case %d", i)
+		rp, err := c.query(connClient, search)
+		assert.Nil(t, rp, info)
+		assert.NotNil(t, err, info)
 	}
-	rp3, err := s3.query(connClient, search)
-	assert.Nil(t, rp3)
-	assert.NotNil(t, err)
 }
 
 func TestResponseProcessor_Process_Value(t *testing.T) {

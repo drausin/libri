@@ -96,7 +96,7 @@ func TestLibrarianCluster(t *testing.T) {
 
 func testIntroduce(t *testing.T, params *params, state *state) {
 	nPeers := len(state.peers)
-	q := lclient.NewIntroduceQuerier()
+	ic := lclient.NewIntroducerCreator()
 	benchResults := make([]testing.BenchmarkResult, params.nIntroductions)
 
 	// introduce oneself to a number of peers and ensure that each returns the requisite
@@ -114,7 +114,9 @@ func testIntroduce(t *testing.T, params *params, state *state) {
 		state.client.logger.Debug("issuing Introduce request",
 			zap.String("to_peer", conn.Address().String()),
 		)
-		rp, err := q.Query(ctx, conn, rq)
+		introducer, err := ic.Create(conn)
+		assert.Nil(t, err)
+		rp, err := introducer.Introduce(ctx, rq)
 		cancel()
 
 		// check everything went fine

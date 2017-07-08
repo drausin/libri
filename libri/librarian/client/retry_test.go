@@ -12,6 +12,160 @@ import (
 	"fmt"
 )
 
+func TestRetryFinder_Find_ok(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	timeout := 100 * time.Millisecond
+	doc, _ := api.NewTestDocument(rng)
+	err := errors.New("some Find error")
+
+	// check each case ultimately succeeds despite possible initial failures
+	cases := []api.Finder{
+
+		// case 0
+		&fixedFinder{ // first call succeeds
+			responses: []*api.FindResponse{{Value: doc}},
+			errs:      []error{nil},
+		},
+
+		// case 1
+		&fixedFinder{ // first call fails; second call succeeds
+			responses: []*api.FindResponse{nil, {Value: doc}},
+			errs:      []error{err, nil},
+		},
+
+		// case 2
+		&fixedFinder{ // first & second calls fail; third call succeeds
+			responses: []*api.FindResponse{nil, nil, {Value: doc}},
+			errs:      []error{err, err, nil},
+		},
+	}
+	for i, c := range cases {
+		info := fmt.Sprintf("case %d", i)
+		rg := NewRetryFinder(c, timeout)
+		rp, err := rg.Find(nil, nil) // since .Find() is mocked, inputs don't matter
+		assert.Nil(t, err, info)
+		assert.Equal(t, doc, rp.Value, info)
+	}
+}
+
+func TestRetryFinder_Find_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	timeout := 100 * time.Millisecond
+	doc, _ := api.NewTestDocument(rng)
+	err := errors.New("some Find error")
+
+	// check each case ultimately succeeds despite possible initial failures
+	cases := []api.Finder{
+
+		// case 0
+		&fixedFinder{
+			responses: []*api.FindResponse{nil},
+			errs:      []error{err},
+		},
+
+		// case 1
+		&fixedFinder{
+			responses: []*api.FindResponse{nil, nil},
+			errs:      []error{err, err},
+		},
+
+		// case 2
+		&fixedFinder{
+			responses: []*api.FindResponse{nil, nil, nil},
+			errs:      []error{err, err, err},
+		},
+
+		// case 3
+		&fixedFinder{
+			responses: []*api.FindResponse{nil, {Value: doc}},
+			errs:      []error{err, nil},
+			sleep:     200 * time.Millisecond, // will trigger timeout before next Find
+		},
+	}
+	for i, c := range cases {
+		info := fmt.Sprintf("case %d", i)
+		rg := NewRetryFinder(c, timeout)
+		rp, err := rg.Find(nil, nil) // since .Find() is mocked, inputs don't matter
+		assert.NotNil(t, err, info)
+		assert.Nil(t, rp, info)
+	}
+}
+
+func TestRetryStorer_Store_ok(t *testing.T) {
+	timeout := 100 * time.Millisecond
+	err := errors.New("some Store error")
+
+	// check each case ultimately succeeds despite possible initial failures
+	cases := []api.Storer{
+
+		// case 0
+		&fixedStorer{ // first call succeeds
+			responses: []*api.StoreResponse{{}},
+			errs:      []error{nil},
+		},
+
+		// case 1
+		&fixedStorer{ // first call fails; second call succeeds
+			responses: []*api.StoreResponse{nil, {}},
+			errs:      []error{err, nil},
+		},
+
+		// case 2
+		&fixedStorer{ // first & second calls fail; third call succeeds
+			responses: []*api.StoreResponse{nil, nil, {}},
+			errs:      []error{err, err, nil},
+		},
+	}
+	for i, c := range cases {
+		info := fmt.Sprintf("case %d", i)
+		rg := NewRetryStorer(c, timeout)
+		rp, err := rg.Store(nil, nil) // since .Store() is mocked, inputs don't matter
+		assert.Nil(t, err, info)
+		assert.Equal(t, &api.StoreResponse{}, rp, info)
+	}
+}
+
+func TestRetryStorer_Store_err(t *testing.T) {
+	timeout := 100 * time.Millisecond
+	err := errors.New("some Stor error")
+
+	// check each case ultimately fails
+	cases := []api.Storer{
+
+		// case 0
+		&fixedStorer{
+			responses: []*api.StoreResponse{{}},
+			errs:      []error{err},
+		},
+
+		// case 1
+		&fixedStorer{
+			responses: []*api.StoreResponse{{}, {}},
+			errs:      []error{err, err},
+		},
+
+		// case 2
+		&fixedStorer{
+			responses: []*api.StoreResponse{{}, {}, {}},
+			errs:      []error{err, err, err},
+		},
+
+		// case 3
+		&fixedStorer{
+			responses: []*api.StoreResponse{{}, {}},
+			errs:      []error{err, nil},
+			sleep:     200 * time.Millisecond, // will trigger timeout before next Stor
+		},
+	}
+	for i, c := range cases {
+		info := fmt.Sprintf("case %d", i)
+		rg := NewRetryStorer(c, timeout)
+		rp, err := rg.Store(nil, nil) // since .Store() is mocked, inputs don't matter
+		assert.NotNil(t, err, info)
+		assert.Nil(t, rp, info)
+	}
+}
+
 func TestRetryGetter_Get_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	timeout := 100 * time.Millisecond
@@ -58,7 +212,7 @@ func TestRetryGetter_Get_err(t *testing.T) {
 	timeout := 100 * time.Millisecond
 	doc, _ := api.NewTestDocument(rng)
 
-	// check each case ultimately succeeds despite possible initial failures
+	// check each case ultimately fails
 	cases := []api.GetterBalancer{
 		// case 0
 		&fixedGetterBalancer{
@@ -93,8 +247,8 @@ func TestRetryGetter_Get_err(t *testing.T) {
 		&fixedGetterBalancer{
 			clients: []api.Getter{
 				&fixedGetter{
-					sleep: 200 * time.Millisecond,  // will trigger timeout before next Get
-					err: errors.New("some Get error"),
+					sleep: 200 * time.Millisecond, // will trigger timeout before next Get
+					err:   errors.New("some Get error"),
 				},
 				&fixedGetter{
 					responseValue: doc,
@@ -155,7 +309,7 @@ func TestRetryPutter_Put_err(t *testing.T) {
 	timeout := 100 * time.Millisecond
 	response := &api.PutResponse{NReplicas: 3}
 
-	// check each case ultimately succeeds despite possible initial failures
+	// check each case ultimately fails
 	cases := []api.PutterBalancer{
 		// case 0
 		&fixedPutterBalancer{
@@ -190,8 +344,8 @@ func TestRetryPutter_Put_err(t *testing.T) {
 		&fixedPutterBalancer{
 			clients: []api.Putter{
 				&fixedPutter{
-					sleep: 200 * time.Millisecond,  // will trigger timeout before next Put
-					err: errors.New("some Put error"),
+					sleep: 200 * time.Millisecond, // will trigger timeout before next Put
+					err:   errors.New("some Put error"),
 				},
 				&fixedPutter{
 					response: response,
@@ -206,6 +360,44 @@ func TestRetryPutter_Put_err(t *testing.T) {
 		assert.NotNil(t, err, info)
 		assert.Nil(t, rp, info)
 	}
+}
+
+type fixedFinder struct {
+	responses []*api.FindResponse
+	sleep     time.Duration
+	errs      []error
+}
+
+func (f *fixedFinder) Find(ctx context.Context, rq *api.FindRequest, opts ...grpc.CallOption) (
+	*api.FindResponse, error) {
+	if len(f.responses) == 0 {
+		return nil, errors.New("no more responses")
+	}
+	nextRP := f.responses[0]
+	nextErr := f.errs[0]
+	f.responses = f.responses[1:]
+	f.errs = f.errs[1:]
+	time.Sleep(f.sleep)
+	return nextRP, nextErr
+}
+
+type fixedStorer struct {
+	responses []*api.StoreResponse
+	sleep     time.Duration
+	errs      []error
+}
+
+func (f *fixedStorer) Store(ctx context.Context, rq *api.StoreRequest, opts ...grpc.CallOption) (
+	*api.StoreResponse, error) {
+	if len(f.responses) == 0 {
+		return nil, errors.New("no more responses")
+	}
+	nextRP := f.responses[0]
+	nextErr := f.errs[0]
+	f.responses = f.responses[1:]
+	f.errs = f.errs[1:]
+	time.Sleep(f.sleep)
+	return nextRP, nextErr
 }
 
 type fixedGetterBalancer struct {
@@ -224,7 +416,7 @@ func (f *fixedGetterBalancer) Next() (api.Getter, error) {
 
 type fixedPutterBalancer struct {
 	clients []api.Putter
-	err    error
+	err     error
 }
 
 func (f *fixedPutterBalancer) Next() (api.Putter, error) {
@@ -250,8 +442,8 @@ func (f *fixedGetter) Get(ctx context.Context, in *api.GetRequest, opts ...grpc.
 
 type fixedPutter struct {
 	response *api.PutResponse
-	sleep         time.Duration
-	err     error
+	sleep    time.Duration
+	err      error
 }
 
 func (f *fixedPutter) Put(
