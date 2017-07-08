@@ -105,7 +105,7 @@ func (i *introducer) introduceWork(intro *Introduction, wg *sync.WaitGroup) {
 
 func (i *introducer) query(pConn api.Connector, intro *Introduction) (*api.IntroduceResponse,
 	error) {
-	lc, err := i.introducerCreator.Create(pConn)
+	introClient, err := i.introducerCreator.Create(pConn)
 	if err != nil {
 		return nil, err
 	}
@@ -114,8 +114,11 @@ func (i *introducer) query(pConn api.Connector, intro *Introduction) (*api.Intro
 	if err != nil {
 		return nil, err
 	}
-	rp, err := lc.Introduce(ctx, rq)
+	rp, err := introClient.Introduce(ctx, rq)
 	cancel()
+	if err != nil {
+		return nil, err
+	}
 	if !bytes.Equal(rp.Metadata.RequestId, rq.Metadata.RequestId) {
 		return nil, client.ErrUnexpectedRequestID
 	}

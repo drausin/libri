@@ -134,7 +134,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		apiSelf:       api.FromAddress(peerID.ID(), config.PublicName, config.PublicAddr),
 		introducer:    introduce.NewDefaultIntroducer(signer, peerID.ID()),
 		searcher:      searcher,
-		storer:        store.NewStorer(signer, searcher, client.NewStoreQuerier()),
+		storer:        store.NewStorer(signer, searcher, client.NewStorerCreator()),
 		subscribeFrom: subscribe.NewFrom(config.SubscribeFrom, logger, newPubs),
 		subscribeTo:   subscribeTo,
 		RecentPubs:    recentPubs,

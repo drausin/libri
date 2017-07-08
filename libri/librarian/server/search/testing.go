@@ -14,19 +14,43 @@ import (
 	"google.golang.org/grpc"
 )
 
-// TestFindQuerier mocks the FindQuerier interface. The Query() method returns a fixed
+// TestFinderCreator mocks the FindQuerier interface. The Query() method returns a fixed
 // api.FindPeersResponse, derived from a list of addresses in the client.
-type TestFindQuerier struct{}
+type TestFinderCreator struct{
+	finder api.Finder
+	err error
+}
 
-// Query mocks a real query to a peer, returning a fixed list of addresses stored in the
-// TestConnector mock of the pConn api.Connector.
-func (c *TestFindQuerier) Query(ctx context.Context, pConn api.Connector, rq *api.FindRequest,
-	opts ...grpc.CallOption) (*api.FindResponse, error) {
+// Create creates an api.Finder that mocks a real query to a peer and returns a fixed list of
+// addresses stored in the TestConnector mock of the pConn api.Connector.
+func (c *TestFinderCreator) Create(pConn api.Connector) (api.Finder, error) {
+	if c.err != nil {
+		return nil, c.err
+	}
+	if c.finder != nil {
+		return c.finder, nil
+	}
+	return &fixedFinder{addresses: pConn.(*peer.TestConnector).Addresses}, nil
+}
+
+type fixedFinder struct {
+	addresses []*api.PeerAddress
+	requestID []byte
+	err error
+}
+
+func (f *fixedFinder) Find(ctx context.Context, rq *api.FindRequest, opts ...grpc.CallOption) (
+	*api.FindResponse, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	requestID := f.requestID
+	if requestID == nil {
+		requestID = rq.Metadata.RequestId
+	}
 	return &api.FindResponse{
-		Metadata: &api.ResponseMetadata{
-			RequestId: rq.Metadata.RequestId,
-		},
-		Peers: pConn.(*peer.TestConnector).Addresses,
+		Metadata: &api.ResponseMetadata{RequestId: requestID},
+		Peers: f.addresses,
 	}, nil
 }
 
@@ -48,7 +72,7 @@ func (f *TestFromer) FromAPI(apiAddress *api.PeerAddress) peer.Peer {
 func NewTestSearcher(peersMap map[string]peer.Peer) Searcher {
 	return NewSearcher(
 		&client.TestNoOpSigner{},
-		&TestFindQuerier{},
+		&TestFinderCreator{},
 		&responseProcessor{
 			fromer: &TestFromer{Peers: peersMap},
 		},

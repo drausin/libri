@@ -98,11 +98,12 @@ func AssertPeersEqual(t *testing.T, sp *storage.Peer, p Peer) {
 type TestConnector struct {
 	APISelf   *api.PeerAddress
 	Addresses []*api.PeerAddress
+	Client    api.LibrarianClient
 }
 
 // Connect is a no-op stub to satisfy the interface's signature.
 func (c *TestConnector) Connect() (api.LibrarianClient, error) {
-	return nil, nil
+	return c.Client, nil
 }
 
 // Disconnect is a no-op stub to satisfy the interface's signature.

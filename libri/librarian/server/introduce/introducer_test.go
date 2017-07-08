@@ -9,7 +9,7 @@ import (
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/drausin/libri/libri/librarian/client"
+	lclient "github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/stretchr/testify/assert"
@@ -20,11 +20,11 @@ import (
 func TestNewDefaultIntroducer(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	s := NewDefaultIntroducer(
-		client.NewSigner(ecid.NewPseudoRandom(rng).Key()),
+		lclient.NewSigner(ecid.NewPseudoRandom(rng).Key()),
 		cid.NewPseudoRandom(rng),
 	)
 	assert.NotNil(t, s.(*introducer).signer)
-	assert.NotNil(t, s.(*introducer).querier)
+	assert.NotNil(t, s.(*introducer).introducerCreator)
 	assert.NotNil(t, s.(*introducer).repProcessor)
 }
 
@@ -75,7 +75,9 @@ func TestIntroducer_Introduce_queryErr(t *testing.T) {
 	seeds := search.NewTestSeeds(peers, selfPeerIdxs)
 
 	// all queries return errors as if they'd timed out
-	introducerImpl.(*introducer).querier = &timeoutQuerier{}
+	introducerImpl.(*introducer).introducerCreator = &fixedIntroducerCreator{
+		err: errors.New("some Create error"),
+	}
 
 	// do the intro!
 	err := introducerImpl.Introduce(intro, seeds)
@@ -115,45 +117,55 @@ func TestIntroducer_Introduce_rpErr(t *testing.T) {
 func TestIntroducer_query_ok(t *testing.T) {
 	intro := newQueryTestIntroduction()
 	introducerImpl := &introducer{
-		signer:  &client.TestNoOpSigner{},
-		querier: &noOpQuerier{},
+		signer:            &lclient.TestNoOpSigner{},
+		introducerCreator: &fixedIntroducerCreator{},
 	}
 
-	client := api.NewConnector(nil) // won't actually be uses since we're mocking the finder
+	client := &peer.TestConnector{}
 	rp, err := introducerImpl.query(client, intro)
 
 	assert.Nil(t, err)
 	assert.NotNil(t, rp.Metadata.RequestId)
 }
 
-func TestIntroducer_query_timeoutErr(t *testing.T) {
+func TestIntroducer_query_err(t *testing.T) {
+	clientConn := &peer.TestConnector{}
 	intro := newQueryTestIntroduction()
-	introducerImpl := &introducer{
-		signer:  &client.TestNoOpSigner{},
-		querier: &timeoutQuerier{},
-	}
+	cases := []*introducer{
+		// case 0
+		{
+			signer:            &lclient.TestNoOpSigner{},
+			introducerCreator: &fixedIntroducerCreator{err: errors.New("some Create error")},
+		},
 
-	client := api.NewConnector(nil) // won't actually be uses since we're mocking the finder
-	rp, err := introducerImpl.query(client, intro)
+		// case 1
+		{
+			signer:            &lclient.TestErrSigner{},
+			introducerCreator: &fixedIntroducerCreator{},
+		},
 
-	assert.NotNil(t, err)
-	assert.Nil(t, rp)
-}
+		// case 2
+		{
+			signer: &lclient.TestNoOpSigner{},
+			introducerCreator: &fixedIntroducerCreator{
+				introducer: &fixedIntroducer{err: errors.New("some Store error")},
+			},
+		},
 
-func TestIntroducer_query_diffRequestIdErr(t *testing.T) {
-	intro := newQueryTestIntroduction()
-	introducerImpl := &introducer{
-		signer: &client.TestNoOpSigner{},
-		querier: &diffRequestIDQuerier{
-			rng: rand.New(rand.NewSource(int64(0))),
+		// case 3
+		{
+			signer: &lclient.TestNoOpSigner{},
+			introducerCreator: &fixedIntroducerCreator{
+				introducer: &fixedIntroducer{requestID: []byte{1, 2, 3, 4}},
+			},
 		},
 	}
-
-	client := api.NewConnector(nil) // won't actually be uses since we're mocking the finder
-	rp, err := introducerImpl.query(client, intro)
-
-	assert.NotNil(t, err)
-	assert.Nil(t, rp)
+	for i, c := range cases {
+		info := fmt.Sprintf("case %d", i)
+		rp1, err := c.query(clientConn, intro)
+		assert.Nil(t, rp1, info)
+		assert.NotNil(t, err, info)
+	}
 }
 
 func TestResponseProcessor_Process(t *testing.T) {
@@ -219,38 +231,6 @@ func newQueryTestIntroduction() *Introduction {
 	return intro
 }
 
-type noOpQuerier struct{}
-
-func (f *noOpQuerier) Query(ctx context.Context, pConn api.Connector, fr *api.IntroduceRequest,
-	opts ...grpc.CallOption) (*api.IntroduceResponse, error) {
-	return &api.IntroduceResponse{
-		Metadata: &api.ResponseMetadata{
-			RequestId: fr.Metadata.RequestId,
-		},
-	}, nil
-}
-
-// timeoutQuerier returns an error simulating a request timeout
-type timeoutQuerier struct{}
-
-func (f *timeoutQuerier) Query(ctx context.Context, pConn api.Connector, fr *api.IntroduceRequest,
-	opts ...grpc.CallOption) (*api.IntroduceResponse, error) {
-	return nil, errors.New("simulated timeout error")
-}
-
-type diffRequestIDQuerier struct {
-	rng *rand.Rand
-}
-
-func (f *diffRequestIDQuerier) Query(ctx context.Context, pConn api.Connector,
-	fr *api.IntroduceRequest, opts ...grpc.CallOption) (*api.IntroduceResponse, error) {
-	return &api.IntroduceResponse{
-		Metadata: &api.ResponseMetadata{
-			RequestId: cid.NewPseudoRandom(f.rng).Bytes(),
-		},
-	}, nil
-}
-
 type errResponseProcessor struct{}
 
 func (erp *errResponseProcessor) Process(rp *api.IntroduceResponse, result *Result) error {
@@ -259,8 +239,8 @@ func (erp *errResponseProcessor) Process(rp *api.IntroduceResponse, result *Resu
 
 func newTestIntroducer(peersMap map[string]peer.Peer, selfID cid.ID) Introducer {
 	return NewIntroducer(
-		&client.TestNoOpSigner{},
-		&fixedIntroQuerier{},
+		&lclient.TestNoOpSigner{},
+		&fixedIntroducerCreator{},
 		&responseProcessor{
 			fromer: &search.TestFromer{Peers: peersMap},
 			selfID: selfID,
@@ -288,4 +268,48 @@ func newTestIntros(concurrency uint) (Introducer, *Introduction, []int, []peer.P
 	})
 
 	return introducer, intro, selfPeerIdxs, peers
+}
+
+type fixedIntroducerCreator struct {
+	introducer api.Introducer
+	err        error
+}
+
+func (c *fixedIntroducerCreator) Create(pConn api.Connector) (api.Introducer, error) {
+	if c.err != nil {
+		return nil, c.err
+	}
+	if c.introducer != nil {
+		return c.introducer, nil
+	}
+	return &fixedIntroducer{
+		self:      pConn.(*peer.TestConnector).APISelf,
+		addresses: pConn.(*peer.TestConnector).Addresses,
+	}, nil
+}
+
+type fixedIntroducer struct {
+	self      *api.PeerAddress
+	addresses []*api.PeerAddress
+	requestID []byte
+	err       error
+}
+
+func (f *fixedIntroducer) Introduce(ctx context.Context, rq *api.IntroduceRequest,
+	opts ...grpc.CallOption) (*api.IntroduceResponse, error) {
+
+	if f.err != nil {
+		return nil, f.err
+	}
+	requestID := f.requestID
+	if requestID == nil {
+		requestID = rq.Metadata.RequestId
+	}
+	return &api.IntroduceResponse{
+		Metadata: &api.ResponseMetadata{
+			RequestId: requestID,
+		},
+		Self: f.self,
+		Peers: f.addresses,
+	}, nil
 }

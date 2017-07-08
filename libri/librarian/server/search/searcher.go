@@ -46,7 +46,7 @@ func NewSearcher(s client.Signer, c client.FinderCreator, rp ResponseProcessor) 
 func NewDefaultSearcher(signer client.Signer) Searcher {
 	return NewSearcher(
 		signer,
-		client.NewFindQuerier(),
+		client.NewFinderCreator(),
 		NewResponseProcessor(peer.NewFromer()),
 	)
 }
@@ -130,7 +130,7 @@ func (s *searcher) searchWork(search *Search, wg *sync.WaitGroup) {
 }
 
 func (s *searcher) query(pConn api.Connector, search *Search) (*api.FindResponse, error) {
-	lc, err := s.finderCreator.Create(pConn)
+	findClient, err := s.finderCreator.Create(pConn)
 	if err != nil {
 		return nil, err
 	}
@@ -139,10 +139,12 @@ func (s *searcher) query(pConn api.Connector, search *Search) (*api.FindResponse
 	if err != nil {
 		return nil, err
 	}
-
-	querier := client.NewRetryFindQuerier(s.finderCreator, searcherFindRetryTimeout)
-	rp, err := querier.Query(ctx, pConn, search.Request)
+	retryFindClient := client.NewRetryFinder(findClient, searcherFindRetryTimeout)
+	rp, err := retryFindClient.Find(ctx, search.Request)
 	cancel()
+	if err != nil {
+		return nil, err
+	}
 	if !bytes.Equal(rp.Metadata.RequestId, search.Request.Metadata.RequestId) {
 		return nil, client.ErrUnexpectedRequestID
 	}
