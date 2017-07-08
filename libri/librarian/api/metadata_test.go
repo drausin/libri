@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap"
 )
 
 func TestValidateMetadata_ok(t *testing.T) {
@@ -38,6 +40,16 @@ func TestValidateMetadata_err(t *testing.T) {
 	m5, err := NewEntryMetadata(mediaType, 1, RandBytes(rng, 32), 2, nil)
 	assert.NotNil(t, err)
 	assert.Nil(t, m5)
+}
+
+func TestMetadata_MarshalLogObject(t *testing.T) {
+	oe := zapcore.NewJSONEncoder(zap.NewDevelopmentEncoderConfig())
+	rng := rand.New(rand.NewSource(0))
+	mediaType := "application/x-pdf"
+	m, err := NewEntryMetadata(mediaType, 1, RandBytes(rng, 32), 2, RandBytes(rng, 32))
+	assert.Nil(t, err)
+	err = m.MarshalLogObject(oe)
+	assert.Nil(t, err)
 }
 
 func TestMetadata_GetMediaType(t *testing.T) {

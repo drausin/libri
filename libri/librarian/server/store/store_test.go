@@ -38,6 +38,7 @@ func TestResult_MarshalLogObject(t *testing.T) {
 	assert.Nil(t, err)
 
 	r2 := NewFatalResult(errors.New("some fatal error"))
+	r2.Errors = []error{errors.New("some non-fatal error")}
 	err = r2.MarshalLogObject(oe)
 	assert.Nil(t, err)
 }

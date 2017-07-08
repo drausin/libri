@@ -3,6 +3,7 @@ package server
 import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"github.com/drausin/libri/libri/common/errors"
 )
 
 // NewDevLogger creates a new logger with a given log level for use in development (i.e., not
@@ -13,9 +14,7 @@ func NewDevLogger(logLevel zapcore.Level) *zap.Logger {
 	config.Level.SetLevel(logLevel)
 
 	logger, err := config.Build()
-	if err != nil {
-		panic(err)
-	}
+	errors.MaybePanic(err)
 	return logger
 }
 
@@ -30,8 +29,6 @@ func NewProdLogger(logLevel zapcore.Level) *zap.Logger {
 	config.Level.SetLevel(logLevel)
 
 	logger, err := config.Build()
-	if err != nil {
-		panic(err)
-	}
+	errors.MaybePanic(err)
 	return logger
 }

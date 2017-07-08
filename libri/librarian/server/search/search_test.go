@@ -36,6 +36,7 @@ func TestResult_MarshalLogObject(t *testing.T) {
 	oe := zapcore.NewJSONEncoder(zap.NewDevelopmentEncoderConfig())
 	r := NewInitialResult(cid.NewPseudoRandom(rng), NewDefaultParameters())
 	r.Errored["some peer ID"] = errors.New("some error")
+	r.FatalErr = errors.New("some fatal error")
 	err := r.MarshalLogObject(oe)
 	assert.Nil(t, err)
 }
