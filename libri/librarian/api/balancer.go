@@ -21,14 +21,15 @@ type ClientBalancer interface {
 	CloseAll() error
 }
 
-
+// GetterBalancer load balances between a collection of Getters.
 type GetterBalancer interface {
 	// Next selects the next Getter.
 	Next() (Getter, error)
 }
 
+// PutterBalancer laod balances between a collection of Putters.
 type PutterBalancer interface {
-	// Next selects the next LibrarianClient.
+	// Next selects the next Putter.
 	Next() (Putter, error)
 }
 
