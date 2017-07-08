@@ -104,7 +104,7 @@ func FromString(value string) (ID, error) {
 	return FromBytes(bytesID), nil
 }
 
-// NewRandomID returns a random 32-byte ID using local machine's local random number generator.
+// NewRandom returns a random 32-byte ID using local machine's local random number generator.
 func NewRandom() ID {
 	b := make([]byte, Length)
 	_, err := crand.Read(b)
@@ -125,10 +125,12 @@ func FromPublicKey(pubKey *ecdsa.PublicKey) ID {
 	return FromInt(pubKey.X)
 }
 
+// Hex returns the 64-char hex value of a 32-byte values.
 func Hex(val []byte) string {
-	return fmt.Sprintf("%064x", val)
+	return fmt.Sprintf("%064x", val[:32])
 }
 
+// ShortHex returns the 16-char hex value of the first 8 butes of a value.
 func ShortHex(val []byte) string {
 	return fmt.Sprintf("%016x", val[:8])
 }

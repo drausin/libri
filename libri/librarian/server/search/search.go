@@ -10,6 +10,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"go.uber.org/zap/zapcore"
+	"github.com/drausin/libri/libri/common/errors"
 )
 
 const (
@@ -123,9 +124,7 @@ func (r *Result) MarshalLogObject(oe zapcore.ObjectEncoder) error {
 	oe.AddInt(logNClosest, r.Closest.Len())
 	oe.AddInt(logNUnqueried, r.Unqueried.Len())
 	oe.AddInt(logNResponded, len(r.Responded))
-	if err := oe.AddArray(logErrors, errArray(errs)); err != nil {
-		return err
-	}
+	errors.MaybePanic(oe.AddArray(logErrors, errArray(errs)))
 	if r.FatalErr != nil {
 		oe.AddString(logFatalError, r.FatalErr.Error())
 	}
@@ -172,12 +171,8 @@ func NewSearch(selfID ecid.ID, key cid.ID, params *Parameters) *Search {
 // MarshalLogObject converts the Search into an object (which will become json) for logging.
 func (s *Search) MarshalLogObject(oe zapcore.ObjectEncoder) error {
 	oe.AddString(logKey, cid.Hex(s.Key.Bytes()))
-	if err := oe.AddObject(logParams, s.Params); err != nil {
-		return err
-	}
-	if err := oe.AddObject(logResult, s.Result); err != nil {
-		return err
-	}
+	errors.MaybePanic(oe.AddObject(logParams, s.Params))
+	errors.MaybePanic(oe.AddObject(logResult, s.Result))
 	oe.AddBool(logFinished, s.Finished())
 	oe.AddBool(logFoundClosestPeers, s.FoundClosestPeers())
 	oe.AddBool(logFoundValue, s.FoundValue())

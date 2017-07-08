@@ -93,6 +93,7 @@ type uniformGetterBalancer struct {
 	inner ClientBalancer
 }
 
+// NewUniformGetterBalancer creates a GetterBalancer using an internal ClientBalancer.
 func NewUniformGetterBalancer(inner ClientBalancer) GetterBalancer {
 	return &uniformGetterBalancer{inner}
 }
@@ -109,6 +110,7 @@ type uniformPutterBalancer struct {
 	inner ClientBalancer
 }
 
+// NewUniformPutterBalancer creates a PutterBalancer using an internal ClientBalancer.
 func NewUniformPutterBalancer(inner ClientBalancer) PutterBalancer {
 	return &uniformPutterBalancer{inner}
 }

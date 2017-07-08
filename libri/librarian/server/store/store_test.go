@@ -24,26 +24,37 @@ func TestNewDefaultParameters(t *testing.T) {
 
 func TestParameters_MarshalLogObject(t *testing.T) {
 	oe := zapcore.NewJSONEncoder(zap.NewDevelopmentEncoderConfig())
+
 	p := NewDefaultParameters()
 	err := p.MarshalLogObject(oe)
 	assert.Nil(t, err)
 }
 
 func TestResult_MarshalLogObject(t *testing.T) {
-	r := NewFatalResult(errors.New("some fatal error"))
 	oe := zapcore.NewJSONEncoder(zap.NewDevelopmentEncoderConfig())
-	err := r.MarshalLogObject(oe)
+
+	var r1 *Result
+	err := r1.MarshalLogObject(oe)
+	assert.Nil(t, err)
+
+	r2 := NewFatalResult(errors.New("some fatal error"))
+	err = r2.MarshalLogObject(oe)
 	assert.Nil(t, err)
 }
 
-func TestStore_MarshalLogObject(t *testing.T) {
+func TestStore_MarshalLogObject_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
+
+	var s1 *Store
+	err := s1.MarshalLogObject(nil)
+	assert.Nil(t, err)
+
 	oe := zapcore.NewJSONEncoder(zap.NewDevelopmentEncoderConfig())
 	doc, key := api.NewTestDocument(rng)
 	searchParams := ssearch.NewDefaultParameters()
-	s := NewStore(ecid.NewPseudoRandom(rng), key, doc, searchParams, NewDefaultParameters())
-	s.Result = NewInitialResult(ssearch.NewInitialResult(key, searchParams))
-	err := s.MarshalLogObject(oe)
+	s2 := NewStore(ecid.NewPseudoRandom(rng), key, doc, searchParams, NewDefaultParameters())
+	s2.Result = NewInitialResult(ssearch.NewInitialResult(key, searchParams))
+	err = s2.MarshalLogObject(oe)
 	assert.Nil(t, err)
 }
 

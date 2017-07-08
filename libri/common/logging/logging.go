@@ -24,6 +24,7 @@ func NewDevInfoLogger() *zap.Logger {
 	return NewDevLogger(zap.InfoLevel)
 }
 
+// NewProdLogger creates a new logger with a given log level for use in production.
 func NewProdLogger(logLevel zapcore.Level) *zap.Logger {
 	config := zap.NewProductionConfig()
 	config.Level.SetLevel(logLevel)

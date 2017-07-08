@@ -11,6 +11,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"go.uber.org/zap/zapcore"
+	"github.com/drausin/libri/libri/common/errors"
 )
 
 const (
@@ -69,6 +70,7 @@ func NewDefaultParameters() *Parameters {
 	}
 }
 
+// MarshalLogObject marshals the parameters to to a zap ObjectEncoder (usually a JsonEncoder).
 func (p *Parameters) MarshalLogObject(oe zapcore.ObjectEncoder) error {
 	oe.AddUint(logNReplicas, p.NReplicas)
 	oe.AddUint(logNMaxErrors, p.NMaxErrors)
@@ -114,13 +116,14 @@ func NewFatalResult(fatalErr error) *Result {
 	}
 }
 
+// MarshalLogObject marshals the result to a zap ObjectEncoder (usually a JsonEncoder).
 func (r *Result) MarshalLogObject(oe zapcore.ObjectEncoder) error {
 	if r == nil {
 		return nil
 	}
 	oe.AddInt(logNUnqueried, len(r.Unqueried))
 	oe.AddInt(logNResponded, len(r.Responded))
-	oe.AddArray(logErrors, errArray(r.Errors))
+	errors.MaybePanic(oe.AddArray(logErrors, errArray(r.Errors)))
 	if r.FatalErr != nil {
 		oe.AddString(logFatalError, r.FatalErr.Error())
 	}
@@ -173,13 +176,14 @@ func NewStore(
 	}
 }
 
+// MarshalLogObject marshals the search to a zap ObjectEncoder (usually a JsonEncoder).
 func (s *Store) MarshalLogObject(oe zapcore.ObjectEncoder) error {
 	if s == nil {
 		return nil
 	}
-	oe.AddObject(logParams, s.Params)
-	oe.AddObject(logSearch, s.Search)
-	oe.AddObject(logResult, s.Result)
+	errors.MaybePanic(oe.AddObject(logParams, s.Params))
+	errors.MaybePanic(oe.AddObject(logResult, s.Result))
+	errors.MaybePanic(oe.AddObject(logSearch, s.Search))
 	if s.Result != nil {
 		oe.AddBool(logFinished, s.Finished())
 		oe.AddBool(logStored, s.Stored())
