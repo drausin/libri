@@ -10,6 +10,7 @@ import (
 
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/klauspost/compress/gzip"
+	cerrors "github.com/drausin/libri/libri/common/errors"
 )
 
 // Codec is a comp.codec.
@@ -120,7 +121,7 @@ var gzipWriters = sync.Pool{
 		// optimize for best comp.to reduce network transfer volume and time (at
 		// expense of more client CPU)
 		inner, err := gzip.NewWriterLevel(new(bytes.Buffer), gzip.DefaultCompression)
-		maybePanic(err)
+		cerrors.MaybePanic(err)
 		return inner
 	},
 }
@@ -331,10 +332,4 @@ func (d *decompressor) Close() error {
 	}
 	d.closed = true
 	return nil
-}
-
-func maybePanic(err error) {
-	if err != nil {
-		panic(err)
-	}
 }

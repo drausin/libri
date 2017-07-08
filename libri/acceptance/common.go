@@ -25,6 +25,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
+	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -108,7 +109,7 @@ func setUp(params *params) *state {
 		)
 		go func() {
 			err := server.Start(logger, seedConfigs[c], seedsUp)
-			maybePanic(err)
+			errors.MaybePanic(err)
 		}()
 		seeds[c] = <-seedsUp // wait for seed to come up
 	}
@@ -223,7 +224,7 @@ func tearDown(state *state) {
 	// disconnect from librarians and remove data dir
 	for _, author := range state.authors {
 		err := author.CloseAndRemove()
-		maybePanic(err)
+		errors.MaybePanic(err)
 	}
 
 	// gracefully shut down peers and seeds
@@ -234,28 +235,28 @@ func tearDown(state *state) {
 			p2.EndSubscriptions()
 			time.Sleep(3 * time.Second)
 			err := p2.Close()
-			maybePanic(err)
+			errors.MaybePanic(err)
 		}(p1)
 	}
 	for _, s := range state.seeds {
 		err := s.Close()
-		maybePanic(err)
+		errors.MaybePanic(err)
 	}
 
 	// remove data dir shared by all
 	err := os.RemoveAll(state.seedConfigs[0].DataDir)
-	maybePanic(err)
+	errors.MaybePanic(err)
 }
 
 func writeBenchmarkResults(t *testing.T, benchmarks []*benchmarkObs) {
 	if _, err := os.Stat(benchmarksDir); os.IsNotExist(err) {
 		err = os.Mkdir(benchmarksDir, 0755)
-		maybePanic(err)
+		errors.MaybePanic(err)
 	}
 	f, err := os.Create(path.Join(benchmarksDir, benchmarksFile))
 	defer func() {
 		err = f.Close()
-		maybePanic(err)
+		errors.MaybePanic(err)
 	}()
 	assert.Nil(t, err)
 	maxNameLen := len("Introduce")
@@ -396,10 +397,4 @@ func benchmarkName(name string, n int) string {
 		return fmt.Sprintf("Benchmark%s-%d", name, n)
 	}
 	return name
-}
-
-func maybePanic(err error) {
-	if err != nil {
-		panic(err)
-	}
 }

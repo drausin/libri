@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/drausin/libri/libri/author/io/common"
+	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/author/io/enc"
 )
 
@@ -69,14 +70,14 @@ func benchmarkCompress(b *testing.B, uncompressedSizes []int, codec Codec) {
 		for _, uncompressed := range uncompressedBytes {
 			compressor, err := NewCompressor(bytes.NewBuffer(uncompressed), codec, keys,
 				uint32(uncompressedBufferSize))
-			maybePanic(err)
+			errors.MaybePanic(err)
 			compressed := new(bytes.Buffer)
 			n1 := uncompressedBufferSize
 			buf := make([]byte, uncompressedBufferSize)
 			for n1 == uncompressedBufferSize {
 				n1, err = compressor.Read(buf)
 				if err != io.EOF {
-					maybePanic(err)
+					errors.MaybePanic(err)
 				}
 				compressed.Write(buf[:n1])
 			}
@@ -96,14 +97,14 @@ func benchmarkDecompress(b *testing.B, uncompressedSizes []int, codec Codec) {
 	for i, uncompressedSize := range uncompressedSizes {
 		uncompressed := common.NewCompressableBytes(rng, uncompressedSize)
 		compressor, err := NewCompressor(uncompressed, codec, keys, uint32(uncompressedBufferSize))
-		maybePanic(err)
+		errors.MaybePanic(err)
 		compressed := new(bytes.Buffer)
 		n1 := uncompressedBufferSize
 		buf := make([]byte, uncompressedBufferSize)
 		for n1 == uncompressedBufferSize {
 			n1, err = compressor.Read(buf)
 			if err != io.EOF {
-				maybePanic(err)
+				errors.MaybePanic(err)
 			}
 			compressed.Write(buf[:n1])
 		}
@@ -118,13 +119,13 @@ func benchmarkDecompress(b *testing.B, uncompressedSizes []int, codec Codec) {
 			uncompressed := new(bytes.Buffer)
 			decompressor, err := NewDecompressor(uncompressed, codec, keys,
 				uint32(uncompressedBufferSize))
-			maybePanic(err)
+			errors.MaybePanic(err)
 
 			_, err = decompressor.Write(compressed)
-			maybePanic(err)
+			errors.MaybePanic(err)
 
 			err = decompressor.Close()
-			maybePanic(err)
+			errors.MaybePanic(err)
 		}
 	}
 }
