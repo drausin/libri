@@ -4,6 +4,9 @@ import (
 	"encoding/binary"
 
 	"errors"
+
+	"github.com/dustin/go-humanize"
+	"go.uber.org/zap/zapcore"
 )
 
 // required Entry metadata fields
@@ -35,6 +38,13 @@ const (
 	// MetadataEntrySchema indicates the schema (however defined) of the data contained in the
 	// entry.
 	MetadataEntrySchema = metadataEntryPrefix + "schema"
+
+	// logging keys
+	logMediaType             = "media_type"
+	logCiphertextSize        = "ciphertext_size"
+	logCiphertextSizeHuman   = "ciphertext_size_human"
+	logUncompressedSize      = "uncompressed_size"
+	logUncompressedSizeHuman = "uncompressed_size_human"
 )
 
 var (
@@ -81,6 +91,22 @@ func ValidateMetadata(m *Metadata) error {
 	}
 	if value, _ := m.GetUncompressedMAC(); ValidateHMAC256(value) != nil {
 		return ValidateHMAC256(value)
+	}
+	return nil
+}
+
+// MarshalLogObject converts the metadata into an object (which will become json) for logging.
+func (m *Metadata) MarshalLogObject(oe zapcore.ObjectEncoder) error {
+	if mediaType, in := m.GetMediaType(); in {
+		oe.AddString(logMediaType, mediaType)
+	}
+	if ciphertextSize, in := m.GetCiphertextSize(); in {
+		oe.AddUint64(logCiphertextSize, ciphertextSize)
+		oe.AddString(logCiphertextSizeHuman, humanize.Bytes(ciphertextSize))
+	}
+	if uncompressedSize, in := m.GetUncompressedSize(); in {
+		oe.AddUint64(logUncompressedSize, uncompressedSize)
+		oe.AddString(logUncompressedSizeHuman, humanize.Bytes(uncompressedSize))
 	}
 	return nil
 }

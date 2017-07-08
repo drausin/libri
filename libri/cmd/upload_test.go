@@ -8,13 +8,14 @@ import (
 	"os"
 	"path"
 	"testing"
+	"errors"
 
 	"github.com/drausin/libri/libri/author"
 	lauthor "github.com/drausin/libri/libri/author"
 	"github.com/drausin/libri/libri/author/keychain"
+	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/logging"
-	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -41,15 +42,13 @@ func TestFileUploader_upload_ok(t *testing.T) {
 		kc:  &fixedKeychainsGetter{}, // ok that KCs are null for same reason
 	}
 	toUploadFile, err := ioutil.TempFile("", "to-upload")
+	defer func() { cerrors.MaybePanic(os.Remove(toUploadFile.Name())) }()
 	assert.Nil(t, err)
 	err = toUploadFile.Close()
 	assert.Nil(t, err)
 	viper.Set(upFilepathFlag, toUploadFile.Name())
 
 	err = u.upload()
-	assert.Nil(t, err)
-
-	err = os.Remove(toUploadFile.Name())
 	assert.Nil(t, err)
 }
 
@@ -79,6 +78,7 @@ func TestFileUploader_upload_err(t *testing.T) {
 
 	// error getting author keys should bubble up
 	toUploadFile, err := ioutil.TempFile("", "to-upload")
+	defer func() { cerrors.MaybePanic(os.Remove(toUploadFile.Name())) }()
 	assert.Nil(t, err)
 	err = toUploadFile.Close()
 	assert.Nil(t, err)
@@ -113,9 +113,6 @@ func TestFileUploader_upload_err(t *testing.T) {
 	}
 	err = u6.upload()
 	assert.NotNil(t, err)
-
-	err = os.Remove(toUploadFile.Name())
-	assert.Nil(t, err)
 }
 
 func TestMediaTypeGetter_get_ok(t *testing.T) {
@@ -130,7 +127,7 @@ func TestMediaTypeGetter_get_ok(t *testing.T) {
 	compressedFile, err := ioutil.TempFile("", "compressed-file")
 	assert.Nil(t, err)
 	err = compressedFile.Close()
-	defer maybePanic(os.Remove(compressedFile.Name()))
+	defer func() { cerrors.MaybePanic(os.Remove(compressedFile.Name())) }()
 	assert.Nil(t, err)
 	err = ioutil.WriteFile(compressedFile.Name(), compressed.Bytes(), 0666)
 	assert.Nil(t, err)
@@ -141,6 +138,7 @@ func TestMediaTypeGetter_get_ok(t *testing.T) {
 
 	// should infer media type from extension
 	testDir, err := ioutil.TempDir("", "test")
+	defer func() { cerrors.MaybePanic(os.RemoveAll(testDir)) }()
 	assert.Nil(t, err)
 	emptyGzipFile := path.Join(testDir, "empty.pdf")
 	f, err := os.Create(emptyGzipFile)
@@ -162,8 +160,6 @@ func TestMediaTypeGetter_get_ok(t *testing.T) {
 	mediaType, err = mtg.get(emptyFileNoExt)
 	assert.Nil(t, err)
 	assert.Equal(t, octetMediaType, mediaType)
-
-	maybePanic(os.RemoveAll(testDir))
 }
 
 func TestMediaTypeGetter_get_err(t *testing.T) {
@@ -176,6 +172,7 @@ func TestMediaTypeGetter_get_err(t *testing.T) {
 
 func TestKeychainsGetter_get_ok(t *testing.T) {
 	keychainDir, err := ioutil.TempDir("", "test-keychains")
+	defer func() { cerrors.MaybePanic(os.RemoveAll(keychainDir)) }()
 	assert.Nil(t, err)
 	logger := server.NewDevInfoLogger()
 	passphrase := "some test passphrase"
@@ -200,13 +197,11 @@ func TestKeychainsGetter_get_ok(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, authorKeys)
 	assert.NotNil(t, selfReaderKeys)
-
-	err = os.RemoveAll(keychainDir)
-	assert.Nil(t, err)
 }
 
 func TestKeychainsGetter_get_err(t *testing.T) {
 	keychainDir, err := ioutil.TempDir("", "test-keychains")
+	defer func() { cerrors.MaybePanic(os.RemoveAll(keychainDir)) }()
 	assert.Nil(t, err)
 	logger := server.NewDevInfoLogger()
 	passphrase := "some test passphrase"
@@ -249,9 +244,6 @@ func TestKeychainsGetter_get_err(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Nil(t, authorKeys)
 	assert.Nil(t, selfReaderKeys)
-
-	err = os.RemoveAll(keychainDir)
-	assert.Nil(t, err)
 }
 
 type fixedAuthorUploader struct {
@@ -303,8 +295,3 @@ func (f *fixedPassphraseGetter) get() (string, error) {
 	return f.passphrase, f.err
 }
 
-func maybePanic(err error) {
-	if err != nil {
-		panic(err)
-	}
-}

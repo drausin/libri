@@ -145,9 +145,10 @@ func testPut(t *testing.T, params *params, state *state) {
 	for i, peerConfig := range state.peerConfigs {
 		librarianAddrs[i] = peerConfig.PublicAddr
 	}
-	librarians, err := api.NewUniformRandomClientBalancer(librarianAddrs)
+	librarians, err := api.NewUniformClientBalancer(librarianAddrs)
 	assert.Nil(t, err)
-	rlc := lclient.NewRetryPutter(librarians, store.DefaultQueryTimeout)
+	putters := api.NewUniformPutterBalancer(librarians)
+	rlc := lclient.NewRetryPutter(putters, store.DefaultQueryTimeout)
 
 	// create a bunch of random putDocs to put
 	for c := 0; c < params.nPuts; c++ {
@@ -193,9 +194,10 @@ func testGet(t *testing.T, params *params, state *state) {
 	for i, peerConfig := range state.peerConfigs {
 		librarianAddrs[i] = peerConfig.PublicAddr
 	}
-	librarians, err := api.NewUniformRandomClientBalancer(librarianAddrs)
+	librarians, err := api.NewUniformClientBalancer(librarianAddrs)
 	assert.Nil(t, err)
-	rlc := lclient.NewRetryGetter(librarians, search.DefaultQueryTimeout)
+	getters := api.NewUniformGetterBalancer(librarians)
+	rlc := lclient.NewRetryGetter(getters, search.DefaultQueryTimeout)
 
 	// create a bunch of random values to put
 	for c := 0; c < len(state.putDocs); c++ {

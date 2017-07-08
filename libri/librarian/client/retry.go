@@ -17,12 +17,12 @@ const (
 )
 
 type retryGetter struct {
-	cb      api.ClientBalancer
+	cb      api.GetterBalancer
 	timeout time.Duration
 }
 
 // NewRetryGetter wraps a client balancer with an exponential backoff, returning an api.Getter.
-func NewRetryGetter(cb api.ClientBalancer, timeout time.Duration) api.Getter {
+func NewRetryGetter(cb api.GetterBalancer, timeout time.Duration) api.Getter {
 	return &retryGetter{
 		cb:      cb,
 		timeout: timeout,
@@ -49,12 +49,12 @@ func (r *retryGetter) Get(ctx context.Context, in *api.GetRequest, opts ...grpc.
 }
 
 type retryPutter struct {
-	cb      api.ClientBalancer
+	cb      api.PutterBalancer
 	timeout time.Duration
 }
 
 // NewRetryPutter wraps a client balancer with an exponential backoff, returning an api.Putter.
-func NewRetryPutter(cb api.ClientBalancer, timeout time.Duration) api.Putter {
+func NewRetryPutter(cb api.PutterBalancer, timeout time.Duration) api.Putter {
 	return &retryPutter{
 		cb:      cb,
 		timeout: timeout,
@@ -72,9 +72,6 @@ func (r *retryPutter) Put(ctx context.Context, in *api.PutRequest, opts ...grpc.
 			return err
 		}
 		rp, err = lc.Put(ctx, in, opts...)
-		if err != nil {
-			_, err = lc.Ping(ctx, &api.PingRequest{})
-		}
 		return err
 	}
 	if err := cbackoff.Retry(operation, newExpBackoff(r.timeout)); err != nil {

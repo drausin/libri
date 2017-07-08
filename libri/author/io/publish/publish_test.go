@@ -181,7 +181,7 @@ func TestSingleLoadPublisher_Publish_err(t *testing.T) {
 
 func TestMultiLoadPublisher_Publish_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	cb := &fixedClientBalancer{}
+	cb := &fixedPutterBalancer{}
 	for _, nDocs := range []int{1, 2, 4, 8, 16} {
 		docKeys := make([]id.ID, nDocs)
 		for i := 0; i < nDocs; i++ {
@@ -214,7 +214,7 @@ func TestMultiLoadPublisher_Publish_ok(t *testing.T) {
 
 func TestMultiLoadPublisher_Publish_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	cb := &fixedClientBalancer{}
+	cb := &fixedPutterBalancer{}
 	for _, nDocs := range []int{1, 2, 4, 8, 16} {
 		docKeys := make([]id.ID, nDocs)
 		for i := 0; i < nDocs; i++ {
@@ -238,7 +238,8 @@ func TestMultiLoadPublisher_Publish_err(t *testing.T) {
 
 func TestMultiAcquirePublish(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	cb := &fixedClientBalancer{}
+	getterBalancer := &fixedGetterBalancer{}
+	putterBalancer := &fixedPutterBalancer{}
 
 	getParallelisms := []uint32{1, 2, 3}
 	putParallelisms := []uint32{1, 2, 3}
@@ -278,9 +279,9 @@ func TestMultiAcquirePublish(t *testing.T) {
 		}
 
 		// publish & then acquire docs
-		err = mlP.Publish(docKeys, nil, cb, false)
+		err = mlP.Publish(docKeys, nil, putterBalancer, false)
 		assert.Nil(t, err)
-		err = msA.Acquire(docKeys, nil, cb)
+		err = msA.Acquire(docKeys, nil, getterBalancer)
 		assert.Nil(t, err)
 
 		// test that states of both DocumentStorerLoaders contain all the docs
@@ -415,17 +416,22 @@ func (f *fixedSingleLoadPublisher) Publish(
 	return f.err
 }
 
-type fixedClientBalancer struct {
-	client api.LibrarianClient
+type fixedGetterBalancer struct {
+	client api.Getter
 	err    error
 }
 
-func (f *fixedClientBalancer) Next() (api.LibrarianClient, error) {
+func (f *fixedGetterBalancer) Next() (api.Getter, error) {
 	return f.client, f.err
 }
 
-func (f *fixedClientBalancer) CloseAll() error {
-	return f.err
+type fixedPutterBalancer struct {
+	client api.Putter
+	err    error
+}
+
+func (f *fixedPutterBalancer) Next() (api.Putter, error) {
+	return f.client, f.err
 }
 
 type publishTestCase struct {

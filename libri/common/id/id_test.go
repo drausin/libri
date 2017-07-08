@@ -150,3 +150,13 @@ func TestID_Bytes(t *testing.T) {
 		assert.Equal(t, c.expected, c.x.Bytes())
 	}
 }
+
+func TestShortHex(t *testing.T) {
+	cases := [][]byte {
+		bytes.Repeat([]byte{1}, 8),
+		bytes.Repeat([]byte{1}, 16),
+	}
+	for _, c := range cases {
+		assert.Equal(t, 16, len(ShortHex(c)))
+	}
+}

@@ -11,6 +11,8 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	ssearch "github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap"
 )
 
 func TestNewDefaultParameters(t *testing.T) {
@@ -18,6 +20,43 @@ func TestNewDefaultParameters(t *testing.T) {
 	assert.NotZero(t, p.NMaxErrors)
 	assert.NotZero(t, p.Concurrency)
 	assert.NotZero(t, p.Timeout)
+}
+
+func TestParameters_MarshalLogObject(t *testing.T) {
+	oe := zapcore.NewJSONEncoder(zap.NewDevelopmentEncoderConfig())
+
+	p := NewDefaultParameters()
+	err := p.MarshalLogObject(oe)
+	assert.Nil(t, err)
+}
+
+func TestResult_MarshalLogObject(t *testing.T) {
+	oe := zapcore.NewJSONEncoder(zap.NewDevelopmentEncoderConfig())
+
+	var r1 *Result
+	err := r1.MarshalLogObject(oe)
+	assert.Nil(t, err)
+
+	r2 := NewFatalResult(errors.New("some fatal error"))
+	r2.Errors = []error{errors.New("some non-fatal error")}
+	err = r2.MarshalLogObject(oe)
+	assert.Nil(t, err)
+}
+
+func TestStore_MarshalLogObject_ok(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+
+	var s1 *Store
+	err := s1.MarshalLogObject(nil)
+	assert.Nil(t, err)
+
+	oe := zapcore.NewJSONEncoder(zap.NewDevelopmentEncoderConfig())
+	doc, key := api.NewTestDocument(rng)
+	searchParams := ssearch.NewDefaultParameters()
+	s2 := NewStore(ecid.NewPseudoRandom(rng), key, doc, searchParams, NewDefaultParameters())
+	s2.Result = NewInitialResult(ssearch.NewInitialResult(key, searchParams))
+	err = s2.MarshalLogObject(oe)
+	assert.Nil(t, err)
 }
 
 func TestStore_Stored(t *testing.T) {

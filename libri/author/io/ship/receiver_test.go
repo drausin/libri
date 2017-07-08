@@ -5,7 +5,6 @@ import (
 	"crypto/elliptic"
 	"math/rand"
 	"testing"
-
 	"errors"
 
 	"github.com/drausin/libri/libri/author/io/enc"
@@ -26,7 +25,7 @@ func TestReceiver_ReceiveEntry_ok(t *testing.T) {
 	assert.Nil(t, err)
 	kek, err := enc.NewKEK(authorKey.Key(), &readerKey.Key().PublicKey)
 	assert.Nil(t, err)
-	cb := &fixedClientBalancer{}
+	cb := &fixedGetterBalancer{}
 
 	entries := []*api.Document{
 		{
@@ -88,7 +87,7 @@ func TestReceiver_ReceiveEntry_ok(t *testing.T) {
 
 func TestReceiver_ReceiveEntry_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	cb := &fixedClientBalancer{}
+	cb := &fixedGetterBalancer{}
 	authorKeys, readerKeys := keychain.New(3), keychain.New(3)
 	authorKey, err := authorKeys.Sample()
 	assert.Nil(t, err)
@@ -117,7 +116,7 @@ func TestReceiver_ReceiveEntry_err(t *testing.T) {
 	acq.docs[envelopeKey.String()] = envelope
 
 	// check clientBalancer.Next() error bubbles up
-	cb1 := &fixedClientBalancer{errors.New("some Next error")}
+	cb1 := &fixedGetterBalancer{err: errors.New("some Next error")}
 	r1 := NewReceiver(cb1, readerKeys, acq, msAcq, docS)
 	receivedDoc, receivedKeys, err := r1.ReceiveEntry(envelopeKey)
 	assert.NotNil(t, err)
@@ -176,7 +175,7 @@ func TestReceiver_ReceiveEntry_err(t *testing.T) {
 
 func TestReceiver_GetEEK_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	cb := &fixedClientBalancer{}
+	cb := &fixedGetterBalancer{}
 	acq := &fixedAcquirer{}
 	msAcq := &fixedMultiStoreAcquirer{}
 	docS := &fixedStorer{}
@@ -254,7 +253,7 @@ type fixedMultiStoreAcquirer struct {
 }
 
 func (f *fixedMultiStoreAcquirer) Acquire(
-	docKeys []id.ID, authorPub []byte, cb api.ClientBalancer,
+	docKeys []id.ID, authorPub []byte, cb api.GetterBalancer,
 ) error {
 	f.docKeys, f.authorPub = docKeys, authorPub
 	return f.err

@@ -23,7 +23,7 @@ type Receiver interface {
 }
 
 type receiver struct {
-	librarians api.ClientBalancer
+	librarians api.GetterBalancer
 	readerKeys keychain.Getter
 	acquirer   publish.Acquirer
 	msAcquirer publish.MultiStoreAcquirer
@@ -33,7 +33,7 @@ type receiver struct {
 // NewReceiver creates a new Receiver from the librarian balancer, keychain of reader keys,
 // acquirers, and storage.DocumentStorer.
 func NewReceiver(
-	librarians api.ClientBalancer,
+	librarians api.GetterBalancer,
 	readerKeys keychain.Getter,
 	acquirer publish.Acquirer,
 	msAcquirer publish.MultiStoreAcquirer,

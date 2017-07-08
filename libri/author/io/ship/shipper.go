@@ -22,7 +22,7 @@ type Shipper interface {
 }
 
 type shipper struct {
-	librarians  api.ClientBalancer
+	librarians  api.PutterBalancer
 	publisher   publish.Publisher
 	mlPublisher publish.MultiLoadPublisher
 	deletePages bool
@@ -30,7 +30,7 @@ type shipper struct {
 
 // NewShipper creates a new Shipper from a librarian api.ClientBalancer and two publisher variants.
 func NewShipper(
-	librarians api.ClientBalancer,
+	librarians api.PutterBalancer,
 	publisher publish.Publisher,
 	mlPublisher publish.MultiLoadPublisher) Shipper {
 	return &shipper{

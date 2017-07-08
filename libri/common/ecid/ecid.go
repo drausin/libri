@@ -24,7 +24,7 @@ const CurveName = "secp256k1"
 var ErrKeyPointOffCurve = errors.New("key point is off the expected curve")
 
 // ID is an elliptic curve identifier, where the ID is the x-value of the (x, y) public key
-// point on the curve. When couples with the private key, this allows something (e.g., a libri
+// point on the curve. When coupled with the private key, this allows something (e.g., a libri
 // peer) to sign messages that a receiver can verify.
 type ID interface {
 	cid.ID

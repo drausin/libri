@@ -6,6 +6,8 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/golang/protobuf/proto"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"golang.org/x/net/context"
 )
 
@@ -88,4 +90,14 @@ func (l *Librarian) record(fromPeerID cid.ID, t peer.QueryType, o peer.Outcome) 
 		// when it changes the outcome of peer.Before()
 		l.rt.Push(peer)
 	}
+}
+
+func logAndReturnErr(logger *zap.Logger, msg string, err error) error {
+	logger.Error(msg, zap.Error(err))
+	return err
+}
+
+func logFieldsAndReturnErr(logger *zap.Logger, err error, fields []zapcore.Field) error {
+	logger.Error(err.Error(), fields...)
+	return err
 }

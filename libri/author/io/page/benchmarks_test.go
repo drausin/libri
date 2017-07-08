@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/drausin/libri/libri/author/io/common"
+	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/author/io/comp"
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -57,7 +58,7 @@ func benchmarkPaginate(b *testing.B, uncompressedSizes []int, codec comp.Codec) 
 	keys := enc.NewPseudoRandomEEK(rng)
 	authorPub := api.RandBytes(rng, api.ECPubKeyLength)
 	encrypter, err := enc.NewEncrypter(keys)
-	maybePanic(err)
+	errors.MaybePanic(err)
 	pageSize := DefaultSize
 
 	uncompressedBytes := make([][]byte, len(uncompressedSizes))
@@ -73,14 +74,14 @@ func benchmarkPaginate(b *testing.B, uncompressedSizes []int, codec comp.Codec) 
 		for i := range uncompressedSizes {
 			pagesChan := make(chan *api.Page, 10)
 			paginator, err := NewPaginator(pagesChan, encrypter, keys, authorPub, pageSize)
-			maybePanic(err)
+			errors.MaybePanic(err)
 
 			compressor, err := comp.NewCompressor(bytes.NewBuffer(uncompressedBytes[i]), codec,
 				keys, comp.DefaultBufferSize)
-			maybePanic(err)
+			errors.MaybePanic(err)
 
 			_, err = paginator.ReadFrom(compressor)
-			maybePanic(err)
+			errors.MaybePanic(err)
 			close(pagesChan)
 
 		}
@@ -93,9 +94,9 @@ func benchmarkUnpaginate(b *testing.B, uncompressedSizes []int, codec comp.Codec
 	keys := enc.NewPseudoRandomEEK(rng)
 	authorPub := api.RandBytes(rng, api.ECPubKeyLength)
 	encrypter, err := enc.NewEncrypter(keys)
-	maybePanic(err)
+	errors.MaybePanic(err)
 	decrypter, err := enc.NewDecrypter(keys)
-	maybePanic(err)
+	errors.MaybePanic(err)
 	pageSize := DefaultSize
 
 	uncompressedBytes := make([][]byte, len(uncompressedSizes))
@@ -105,15 +106,15 @@ func benchmarkUnpaginate(b *testing.B, uncompressedSizes []int, codec comp.Codec
 		pagesChan := make(chan *api.Page, 10) // max uncompressed size < assumes 10 * pageSize
 		pages[i] = make([]*api.Page, 0)
 		paginator, err := NewPaginator(pagesChan, encrypter, keys, authorPub, pageSize)
-		maybePanic(err)
+		errors.MaybePanic(err)
 
 		uncompressedBytes[i] = common.NewCompressableBytes(rng, uncompressedSize).Bytes()
 		compressor, err := comp.NewCompressor(bytes.NewBuffer(uncompressedBytes[i]), codec, keys,
 			comp.DefaultBufferSize)
-		maybePanic(err)
+		errors.MaybePanic(err)
 
 		_, err = paginator.ReadFrom(compressor)
-		maybePanic(err)
+		errors.MaybePanic(err)
 		close(pagesChan)
 
 		for page := range pagesChan {
@@ -129,11 +130,11 @@ func benchmarkUnpaginate(b *testing.B, uncompressedSizes []int, codec comp.Codec
 			decompressed := new(bytes.Buffer)
 			decompressor, err := comp.NewDecompressor(decompressed, codec, keys,
 				comp.DefaultBufferSize)
-			maybePanic(err)
+			errors.MaybePanic(err)
 
 			inPages := make(chan *api.Page, 10) // max uncompressed size < assumes 10 * pageSize
 			unpaginator, err := NewUnpaginator(inPages, decrypter, keys)
-			maybePanic(err)
+			errors.MaybePanic(err)
 
 			go func() {
 				// fill inPages chan w/ pages
@@ -144,7 +145,7 @@ func benchmarkUnpaginate(b *testing.B, uncompressedSizes []int, codec comp.Codec
 			}()
 
 			_, err = unpaginator.WriteTo(decompressor)
-			maybePanic(err)
+			errors.MaybePanic(err)
 
 			// basic sanity check
 			if decompressed.Len() != uncompressedSizes[i] {
@@ -152,11 +153,5 @@ func benchmarkUnpaginate(b *testing.B, uncompressedSizes []int, codec comp.Codec
 					decompressed.Len(), uncompressedSize))
 			}
 		}
-	}
-}
-
-func maybePanic(err error) {
-	if err != nil {
-		panic(err)
 	}
 }

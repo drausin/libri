@@ -12,6 +12,8 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap"
 )
 
 func TestNewDefaultParameters(t *testing.T) {
@@ -20,6 +22,31 @@ func TestNewDefaultParameters(t *testing.T) {
 	assert.NotZero(t, p.NMaxErrors)
 	assert.NotZero(t, p.Concurrency)
 	assert.NotZero(t, p.Timeout)
+}
+
+func TestParameters_MarshalLogObject(t *testing.T) {
+	oe := zapcore.NewJSONEncoder(zap.NewDevelopmentEncoderConfig())
+	p := NewDefaultParameters()
+	err := p.MarshalLogObject(oe)
+	assert.Nil(t, err)
+}
+
+func TestResult_MarshalLogObject(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	oe := zapcore.NewJSONEncoder(zap.NewDevelopmentEncoderConfig())
+	r := NewInitialResult(cid.NewPseudoRandom(rng), NewDefaultParameters())
+	r.Errored["some peer ID"] = errors.New("some error")
+	r.FatalErr = errors.New("some fatal error")
+	err := r.MarshalLogObject(oe)
+	assert.Nil(t, err)
+}
+
+func TestSearch_MarshalLogObject(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	oe := zapcore.NewJSONEncoder(zap.NewDevelopmentEncoderConfig())
+	s := NewSearch(ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng), NewDefaultParameters())
+	err := s.MarshalLogObject(oe)
+	assert.Nil(t, err)
 }
 
 func TestSearch_FoundClosestPeers(t *testing.T) {

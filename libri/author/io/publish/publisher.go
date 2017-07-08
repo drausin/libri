@@ -203,7 +203,7 @@ type MultiLoadPublisher interface {
 	// Publish in parallel loads and publishes the documents with the given keys, optionally
 	// deleting them from local storage after successful delete. It balances between librarian
 	// clients for its Put requests.
-	Publish(docKeys []cid.ID, authorPub []byte, cb api.ClientBalancer, delete bool) error
+	Publish(docKeys []cid.ID, authorPub []byte, cb api.PutterBalancer, delete bool) error
 }
 
 type multiLoadPublisher struct {
@@ -220,7 +220,7 @@ func NewMultiLoadPublisher(inner SingleLoadPublisher, params *Parameters) MultiL
 }
 
 func (p *multiLoadPublisher) Publish(
-	docKeys []cid.ID, authorPub []byte, cb api.ClientBalancer, delete bool,
+	docKeys []cid.ID, authorPub []byte, cb api.PutterBalancer, delete bool,
 ) error {
 
 	rlc := lclient.NewRetryPutter(cb, p.params.PutTimeout)

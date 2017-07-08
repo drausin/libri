@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"testing"
-
 	"errors"
-
 	"time"
 
 	"github.com/drausin/libri/libri/common/ecid"

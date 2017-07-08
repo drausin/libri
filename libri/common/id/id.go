@@ -61,7 +61,7 @@ func (x *id) Bytes() []byte {
 }
 
 func (x *id) String() string {
-	return fmt.Sprintf("%064x", x.Bytes())
+	return Hex(x.Bytes())
 }
 
 func (x *id) Cmp(other ID) int {
@@ -104,7 +104,7 @@ func FromString(value string) (ID, error) {
 	return FromBytes(bytesID), nil
 }
 
-// NewRandomID returns a random 32-byte ID using local machine's local random number generator.
+// NewRandom returns a random 32-byte ID using local machine's local random number generator.
 func NewRandom() ID {
 	b := make([]byte, Length)
 	_, err := crand.Read(b)
@@ -123,4 +123,14 @@ func NewPseudoRandom(rng *mrand.Rand) ID {
 // FromPublicKey returns an ID instance from an elliptic curve public key.
 func FromPublicKey(pubKey *ecdsa.PublicKey) ID {
 	return FromInt(pubKey.X)
+}
+
+// Hex returns the 64-char hex value of a 32-byte values.
+func Hex(val []byte) string {
+	return fmt.Sprintf("%064x", val[:32])
+}
+
+// ShortHex returns the 16-char hex value of the first 8 butes of a value.
+func ShortHex(val []byte) string {
+	return fmt.Sprintf("%016x", val[:8])
 }

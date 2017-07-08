@@ -3,6 +3,7 @@ package enc
 import (
 	"math/rand"
 	"testing"
+	"github.com/drausin/libri/libri/common/errors"
 )
 
 const (
@@ -42,14 +43,14 @@ func benchmarkEncrypt(b *testing.B, plaintextSizes []int) {
 	rng := rand.New(rand.NewSource(0))
 	keys := NewPseudoRandomEEK(rng)
 	encrypter, err := NewEncrypter(keys)
-	maybePanic(err)
+	errors.MaybePanic(err)
 
 	plaintexts := make([][]byte, len(plaintextSizes))
 	totBytes := int64(0)
 	for i, plaintextSize := range plaintextSizes {
 		plaintexts[i] = make([]byte, plaintextSize)
 		_, err = rng.Read(plaintexts[i])
-		maybePanic(err)
+		errors.MaybePanic(err)
 		totBytes += int64(plaintextSize)
 	}
 
@@ -58,7 +59,7 @@ func benchmarkEncrypt(b *testing.B, plaintextSizes []int) {
 	for n := 0; n < b.N; n++ {
 		for _, plaintext := range plaintexts {
 			_, err = encrypter.Encrypt(plaintext, 0)
-			maybePanic(err)
+			errors.MaybePanic(err)
 		}
 	}
 }
@@ -69,10 +70,10 @@ func benchmarkDecrypt(b *testing.B, plaintextSizes []int) {
 	keys := NewPseudoRandomEEK(rng)
 
 	decrypter, err := NewDecrypter(keys)
-	maybePanic(err)
+	errors.MaybePanic(err)
 
 	encrypter, err := NewEncrypter(keys)
-	maybePanic(err)
+	errors.MaybePanic(err)
 
 	ciphertexts := make([][]byte, len(plaintextSizes))
 	totBytes := int64(0)
@@ -80,10 +81,10 @@ func benchmarkDecrypt(b *testing.B, plaintextSizes []int) {
 
 		plaintext := make([]byte, plaintextSize)
 		_, err = rng.Read(plaintext)
-		maybePanic(err)
+		errors.MaybePanic(err)
 
 		ciphertexts[i], err = encrypter.Encrypt(plaintext, 0)
-		maybePanic(err)
+		errors.MaybePanic(err)
 		totBytes += int64(len(ciphertexts[i]))
 	}
 
@@ -92,13 +93,7 @@ func benchmarkDecrypt(b *testing.B, plaintextSizes []int) {
 	for n := 0; n < b.N; n++ {
 		for _, ciphertext := range ciphertexts {
 			_, err = decrypter.Decrypt(ciphertext, 0)
-			maybePanic(err)
+			errors.MaybePanic(err)
 		}
-	}
-}
-
-func maybePanic(err error) {
-	if err != nil {
-		panic(err)
 	}
 }
