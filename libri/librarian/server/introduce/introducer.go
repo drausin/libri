@@ -18,18 +18,18 @@ type Introducer interface {
 }
 
 type introducer struct {
-	signer       client.Signer
-	querier      client.IntroduceQuerier
-	repProcessor ResponseProcessor
+	signer            client.Signer
+	introducerCreator client.IntroducerCreator
+	repProcessor      ResponseProcessor
 }
 
 // NewIntroducer creates a new Introducer instance with the given signer, querier, and response
 // processor.
-func NewIntroducer(s client.Signer, q client.IntroduceQuerier, rp ResponseProcessor) Introducer {
+func NewIntroducer(s client.Signer, c client.IntroducerCreator, rp ResponseProcessor) Introducer {
 	return &introducer{
-		signer:       s,
-		querier:      q,
-		repProcessor: rp,
+		signer:            s,
+		introducerCreator: c,
+		repProcessor:      rp,
 	}
 }
 
@@ -38,7 +38,7 @@ func NewIntroducer(s client.Signer, q client.IntroduceQuerier, rp ResponseProces
 func NewDefaultIntroducer(s client.Signer, selfID cid.ID) Introducer {
 	return NewIntroducer(
 		s,
-		client.NewIntroduceQuerier(),
+		client.NewIntroducerCreator(),
 		NewResponseProcessor(peer.NewFromer(), selfID),
 	)
 }
@@ -105,16 +105,17 @@ func (i *introducer) introduceWork(intro *Introduction, wg *sync.WaitGroup) {
 
 func (i *introducer) query(pConn api.Connector, intro *Introduction) (*api.IntroduceResponse,
 	error) {
+	lc, err := i.introducerCreator.Create(pConn)
+	if err != nil {
+		return nil, err
+	}
 	rq := intro.NewRequest()
 	ctx, cancel, err := client.NewSignedTimeoutContext(i.signer, rq, intro.Params.Timeout)
 	if err != nil {
 		return nil, err
 	}
-	rp, err := i.querier.Query(ctx, pConn, rq)
+	rp, err := lc.Introduce(ctx, rq)
 	cancel()
-	if err != nil {
-		return nil, err
-	}
 	if !bytes.Equal(rp.Metadata.RequestId, rq.Metadata.RequestId) {
 		return nil, client.ErrUnexpectedRequestID
 	}

@@ -15,7 +15,7 @@ import (
 
 func TestIntroduceQuerier_Query_err(t *testing.T) {
 	c := &peer.TestErrConnector{}
-	q := NewIntroduceQuerier()
+	q := NewIntroducerCreator()
 
 	// check that error from c.Connect() surfaces to q.Query(...)
 	_, err := q.Query(nil, c, nil, nil)

@@ -11,51 +11,46 @@ import (
 
 // TODO (drausin) move all queriers to api.(Finder|Storer|Getter|Putter)...?
 
-// IntroduceQuerier issues Introduce queries to a peer.
-type IntroduceQuerier interface {
-	// Query uses a peer connection to make an Introduce query and returns its response.
-	Query(ctx context.Context, pConn api.Connector, rq *api.IntroduceRequest,
-		opts ...grpc.CallOption) (*api.IntroduceResponse, error)
+// IntroducerCreator creates api.Introducers.
+type IntroducerCreator interface {
+	// Create creates an api.Introducer from the api.Connector.
+	Create(conn api.Connector) (api.Introducer, error)
 }
 
-type introQuerier struct{}
+type introducerCreator struct {}
 
-// NewIntroduceQuerier creates a new IntroduceQuerier.
-func NewIntroduceQuerier() IntroduceQuerier {
-	return &introQuerier{}
+// NewIntroducerCreator creates a new IntroducerCreator.
+func NewIntroducerCreator() IntroducerCreator {
+	return &introducerCreator{}
 }
 
-func (q *introQuerier) Query(ctx context.Context, pConn api.Connector, rq *api.IntroduceRequest,
-	opts ...grpc.CallOption) (*api.IntroduceResponse, error) {
-	client, err := pConn.Connect() // *should* be already connected, but do here just in case
+func (*introducerCreator) Create(c api.Connector) (api.Introducer, error) {
+	lc, err := c.Connect()
 	if err != nil {
 		return nil, err
 	}
-	return client.Introduce(ctx, rq, opts...)
+	return lc.(api.Introducer), nil
 }
 
-// FindQuerier issues Find queries to a peer.
-type FindQuerier interface {
-	// Query uses a peer connection to query for a particular key with an api.FindRequest and
-	// returns its response.
-	Query(ctx context.Context, pConn api.Connector, rq *api.FindRequest,
-		opts ...grpc.CallOption) (*api.FindResponse, error)
+// FinderCreator creates api.Finders.
+type FinderCreator interface {
+	// Create creates an api.Finder from the api.Connector.
+	Create(conn api.Connector) (api.Finder, error)
 }
 
-type findQuerier struct{}
+type finderCreator struct {}
 
-// NewFindQuerier creates a new FindQuerier instance for FindPeers queries.
-func NewFindQuerier() FindQuerier {
-	return &findQuerier{}
+// NewFinderCreator creates a new FinderCreator.
+func NewFinderCreator() IntroducerCreator {
+	return &introducerCreator{}
 }
 
-func (q *findQuerier) Query(ctx context.Context, pConn api.Connector, rq *api.FindRequest,
-	opts ...grpc.CallOption) (*api.FindResponse, error) {
-	client, err := pConn.Connect() // *should* be already connected, but do here just in case
+func (*finderCreator) Create(c api.Connector) (api.Finder, error) {
+	lc, err := c.Connect()
 	if err != nil {
 		return nil, err
 	}
-	return client.Find(ctx, rq, opts...)
+	return lc.(api.Finder), nil
 }
 
 type retryFindQuerier struct {

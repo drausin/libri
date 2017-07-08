@@ -22,7 +22,7 @@ func TestNewDefaultSearcher(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	s := NewDefaultSearcher(client.NewSigner(ecid.NewPseudoRandom(rng).Key()))
 	assert.NotNil(t, s.(*searcher).signer)
-	assert.NotNil(t, s.(*searcher).querier)
+	assert.NotNil(t, s.(*searcher).finderCreator)
 	assert.NotNil(t, s.(*searcher).rp)
 }
 
@@ -87,7 +87,7 @@ func TestSearcher_Search_queryErr(t *testing.T) {
 	seeds = append(seeds, seeds[0])
 
 	// all queries return errors as if they'd timed out
-	searcherImpl.(*searcher).querier = &timeoutQuerier{}
+	searcherImpl.(*searcher).finderCreator = &timeoutQuerier{}
 
 	// do the search!
 	err := searcherImpl.Search(search, seeds)
@@ -167,9 +167,9 @@ func TestSearcher_query_ok(t *testing.T) {
 	peerID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
 	search := NewSearch(peerID, key, &Parameters{})
 	s := &searcher{
-		signer:  &client.TestNoOpSigner{},
-		querier: &noOpQuerier{},
-		rp:      nil,
+		signer:        &client.TestNoOpSigner{},
+		finderCreator: &noOpQuerier{},
+		rp:            nil,
 	}
 	connClient := api.NewConnector(nil) // won't actually be uses since we're mocking the finder
 
@@ -209,8 +209,8 @@ func TestSearcher_query_err(t *testing.T) {
 
 	s1 := &searcher{
 		signer: &client.TestNoOpSigner{},
-		// use querier that simulates a timeout
-		querier: &timeoutQuerier{},
+		// use finderCreator that simulates a timeout
+		finderCreator: &timeoutQuerier{},
 	}
 	rp1, err := s1.query(connClient, search)
 	assert.Nil(t, rp1)
@@ -218,8 +218,8 @@ func TestSearcher_query_err(t *testing.T) {
 
 	s2 := &searcher{
 		signer: &client.TestNoOpSigner{},
-		// use querier that simulates a different request ID
-		querier: &diffRequestIDQuerier{
+		// use finderCreator that simulates a different request ID
+		finderCreator: &diffRequestIDQuerier{
 			rng: rng,
 		},
 	}
