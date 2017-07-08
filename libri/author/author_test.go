@@ -215,7 +215,6 @@ func TestAuthor_Download_err(t *testing.T) {
 func TestAuthor_UploadDownload(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	a := newTestAuthor()
-	a.librarians = &fixedClientBalancer{}
 
 	// just mock interaction with libri network
 	pubAcq := &memPublisherAcquirer{
@@ -227,9 +226,9 @@ func TestAuthor_UploadDownload(t *testing.T) {
 	ssAcquirer := publish.NewSingleStoreAcquirer(pubAcq, a.documentSLD)
 	mlPublisher := publish.NewMultiLoadPublisher(slPublisher, a.config.Publish)
 	msAcquirer := publish.NewMultiStoreAcquirer(ssAcquirer, a.config.Publish)
-	a.shipper = ship.NewShipper(a.librarians, pubAcq, mlPublisher)
-	a.receiver = ship.NewReceiver(a.librarians, a.selfReaderKeys, pubAcq, msAcquirer,
-		a.documentSLD)
+	a.shipper = ship.NewShipper(&fixedPutterBalancer{}, pubAcq, mlPublisher)
+	a.receiver = ship.NewReceiver(&fixedGetterBalancer{}, a.selfReaderKeys, pubAcq,
+		msAcquirer, a.documentSLD)
 
 	page.MinSize = 64 // just for testing
 	pageSizes := []uint32{128, 256, 512}
@@ -449,17 +448,22 @@ func (p *memPublisherAcquirer) Acquire(docKey id.ID, authorPub []byte, lc api.Ge
 	return p.docs[docKey.String()], nil
 }
 
-type fixedClientBalancer struct {
-	client api.LibrarianClient
+type fixedGetterBalancer struct {
+	client api.Getter
 	err    error
 }
 
-func (f *fixedClientBalancer) Next() (api.LibrarianClient, error) {
+func (f *fixedGetterBalancer) Next() (api.Getter, error) {
 	return f.client, f.err
 }
 
-func (f *fixedClientBalancer) CloseAll() error {
-	return f.err
+type fixedPutterBalancer struct {
+	client api.Putter
+	err    error
+}
+
+func (f *fixedPutterBalancer) Next() (api.Putter, error) {
+	return f.client, f.err
 }
 
 type fixedHealthClient struct {

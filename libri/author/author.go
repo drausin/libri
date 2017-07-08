@@ -116,10 +116,12 @@ func NewAuthor(
 		authorKeys:     authorKeys,
 		selfReaderKeys: selfReaderKeys,
 	}
-	librarians, err := api.NewUniformRandomClientBalancer(config.LibrarianAddrs)
+	librarians, err := api.NewUniformClientBalancer(config.LibrarianAddrs)
 	if err != nil {
 		return nil, err
 	}
+	getters := api.NewUniformGetterBalancer(librarians)
+	putters := api.NewUniformPutterBalancer(librarians)
 	librarianHealths, err := getLibrarianHealthClients(config.LibrarianAddrs)
 	if err != nil {
 		return nil, err
@@ -132,8 +134,8 @@ func NewAuthor(
 	ssAcquirer := publish.NewSingleStoreAcquirer(acquirer, documentSL)
 	mlPublisher := publish.NewMultiLoadPublisher(slPublisher, config.Publish)
 	msAcquirer := publish.NewMultiStoreAcquirer(ssAcquirer, config.Publish)
-	shipper := ship.NewShipper(librarians, publisher, mlPublisher)
-	receiver := ship.NewReceiver(librarians, allKeys, acquirer, msAcquirer, documentSL)
+	shipper := ship.NewShipper(putters, publisher, mlPublisher)
+	receiver := ship.NewReceiver(getters, allKeys, acquirer, msAcquirer, documentSL)
 
 	mdEncDec := enc.NewMetadataEncrypterDecrypter()
 	entryPacker := pack.NewEntryPacker(config.Print, mdEncDec, documentSL)

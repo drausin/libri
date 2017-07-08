@@ -20,7 +20,7 @@ func TestShipper_Ship_ok(t *testing.T) {
 	eek := enc.NewPseudoRandomEEK(rng)
 	mlPub := &fixedMultiLoadPublisher{}
 	s := NewShipper(
-		&fixedClientBalancer{},
+		&fixedPutterBalancer{},
 		&fixedPublisher{},
 		mlPub,
 	)
@@ -68,7 +68,7 @@ func TestShipper_Ship_err(t *testing.T) {
 	}
 
 	s := NewShipper(
-		&fixedClientBalancer{},
+		&fixedPutterBalancer{},
 		&fixedPublisher{},
 		&fixedMultiLoadPublisher{err: errors.New("some Publish error")},
 	)
@@ -92,7 +92,7 @@ func TestShipper_Ship_err(t *testing.T) {
 
 	// check getting next librarian error bubbles up
 	s = NewShipper(
-		&fixedClientBalancer{errors.New("some Next error")},
+		&fixedPutterBalancer{err: errors.New("some Next error")},
 		&fixedPublisher{},
 		&fixedMultiLoadPublisher{},
 	)
@@ -103,7 +103,7 @@ func TestShipper_Ship_err(t *testing.T) {
 
 	// check entry publish error bubbles up
 	s = NewShipper(
-		&fixedClientBalancer{},
+		&fixedPutterBalancer{},
 		&fixedPublisher{[]error{errors.New("some Publish error")}},
 		&fixedMultiLoadPublisher{},
 	)
@@ -114,7 +114,7 @@ func TestShipper_Ship_err(t *testing.T) {
 
 	// check kek.Encrypt error bubbles up
 	s = NewShipper(
-		&fixedClientBalancer{},
+		&fixedPutterBalancer{},
 		&fixedPublisher{},
 		&fixedMultiLoadPublisher{},
 	)
@@ -125,7 +125,7 @@ func TestShipper_Ship_err(t *testing.T) {
 
 	// check envelope publish error bubbles up
 	s = NewShipper(
-		&fixedClientBalancer{},
+		&fixedPutterBalancer{},
 		&fixedPublisher{[]error{nil, errors.New("some Publish error")}},
 		&fixedMultiLoadPublisher{},
 	)
@@ -137,7 +137,8 @@ func TestShipper_Ship_err(t *testing.T) {
 
 func TestShipReceive(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	cb := &fixedClientBalancer{}
+	getterBalancer := &fixedGetterBalancer{}
+	putterBalancer := &fixedPutterBalancer{}
 	authorKeys, readerKeys := keychain.New(3), keychain.New(3)
 	authorKey, err := authorKeys.Sample()
 	assert.Nil(t, err)
@@ -196,7 +197,7 @@ func TestShipReceive(t *testing.T) {
 			publish.NewSingleLoadPublisher(pubAcq, docSL1),
 			params,
 		)
-		s := NewShipper(cb, pubAcq, mlP).(*shipper)
+		s := NewShipper(putterBalancer, pubAcq, mlP).(*shipper)
 		s.deletePages = false // so we can check them at the end
 		eek := enc.NewPseudoRandomEEK(rng)
 		envelopeKeys := make([]id.ID, nDocs)
@@ -215,7 +216,7 @@ func TestShipReceive(t *testing.T) {
 			publish.NewSingleStoreAcquirer(pubAcq, docSL2),
 			params,
 		)
-		r := NewReceiver(cb, readerKeys, pubAcq, msA, docSL2)
+		r := NewReceiver(getterBalancer, readerKeys, pubAcq, msA, docSL2)
 		for i := uint32(0); i < nDocs; i++ {
 			entry, _, err := r.ReceiveEntry(envelopeKeys[i])
 			assert.Equal(t, docs[i], entry)
@@ -242,7 +243,7 @@ type fixedMultiLoadPublisher struct {
 }
 
 func (f *fixedMultiLoadPublisher) Publish(
-	docKeys []id.ID, authorPub []byte, cb api.ClientBalancer, delete bool,
+	docKeys []id.ID, authorPub []byte, cb api.PutterBalancer, delete bool,
 ) error {
 	f.deleted = delete
 	return f.err
@@ -266,17 +267,24 @@ func (f *fixedPublisher) Publish(doc *api.Document, authorPub []byte, lc api.Put
 	return docID, nextErr
 }
 
-type fixedClientBalancer struct {
-	err error
+type fixedGetterBalancer struct {
+	client api.Getter
+	err    error
 }
 
-func (f *fixedClientBalancer) Next() (api.LibrarianClient, error) {
-	return nil, f.err
+func (f *fixedGetterBalancer) Next() (api.Getter, error) {
+	return f.client, f.err
 }
 
-func (f *fixedClientBalancer) CloseAll() error {
-	return nil
+type fixedPutterBalancer struct {
+	client api.Putter
+	err    error
 }
+
+func (f *fixedPutterBalancer) Next() (api.Putter, error) {
+	return f.client, f.err
+}
+
 
 type fixedDocSLD struct {
 	docs        map[string]*api.Document

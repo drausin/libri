@@ -113,7 +113,7 @@ func TestSingleStoreAcquirer_Acquire_err(t *testing.T) {
 
 func TestMultiStoreAcquirer_Acquire_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	cb := &fixedClientBalancer{}
+	cb := &fixedGetterBalancer{}
 	for _, nDocs := range []int{1, 2, 4, 8, 16} {
 		docKeys := make([]id.ID, nDocs)
 		for i := 0; i < nDocs; i++ {
@@ -143,7 +143,7 @@ func TestMultiStoreAcquirer_Acquire_ok(t *testing.T) {
 
 func TestMultiStoreAcquirer_Acquire_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	cb := &fixedClientBalancer{}
+	cb := &fixedGetterBalancer{}
 	for _, nDocs := range []int{1, 2, 4, 8, 16} {
 		docKeys := make([]id.ID, nDocs)
 		for i := 0; i < nDocs; i++ {

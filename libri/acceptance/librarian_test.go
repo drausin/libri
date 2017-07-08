@@ -145,7 +145,7 @@ func testPut(t *testing.T, params *params, state *state) {
 	for i, peerConfig := range state.peerConfigs {
 		librarianAddrs[i] = peerConfig.PublicAddr
 	}
-	librarians, err := api.NewUniformRandomClientBalancer(librarianAddrs)
+	librarians, err := api.NewUniformClientBalancer(librarianAddrs)
 	assert.Nil(t, err)
 	rlc := lclient.NewRetryPutter(librarians, store.DefaultQueryTimeout)
 
@@ -193,7 +193,7 @@ func testGet(t *testing.T, params *params, state *state) {
 	for i, peerConfig := range state.peerConfigs {
 		librarianAddrs[i] = peerConfig.PublicAddr
 	}
-	librarians, err := api.NewUniformRandomClientBalancer(librarianAddrs)
+	librarians, err := api.NewUniformClientBalancer(librarianAddrs)
 	assert.Nil(t, err)
 	rlc := lclient.NewRetryGetter(librarians, search.DefaultQueryTimeout)
 

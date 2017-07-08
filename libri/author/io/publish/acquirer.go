@@ -89,7 +89,7 @@ func (a *singleStoreAcquirer) Acquire(docKey id.ID, authorPub []byte, lc api.Get
 type MultiStoreAcquirer interface {
 	// Acquire in parallel Gets and stores the documents with the given keys. It balances
 	// between librarian clients for its Put requests.
-	Acquire(docKeys []id.ID, authorPub []byte, cb api.ClientBalancer) error
+	Acquire(docKeys []id.ID, authorPub []byte, cb api.GetterBalancer) error
 }
 
 type multiStoreAcquirer struct {
@@ -107,7 +107,7 @@ func NewMultiStoreAcquirer(inner SingleStoreAcquirer, params *Parameters) MultiS
 }
 
 func (a *multiStoreAcquirer) Acquire(
-	docKeys []id.ID, authorPub []byte, cb api.ClientBalancer,
+	docKeys []id.ID, authorPub []byte, cb api.GetterBalancer,
 ) error {
 
 	rlc := lclient.NewRetryGetter(cb, a.params.GetTimeout)

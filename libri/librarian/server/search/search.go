@@ -61,15 +61,6 @@ type Parameters struct {
 	Timeout time.Duration
 }
 
-// MarshalLogObject converts the Paramaters into an object (which will become json) for logging.
-func (p *Parameters) MarshalLogObject(oe zapcore.ObjectEncoder) error {
-	oe.AddUint(logNClosestResponses, p.NClosestResponses)
-	oe.AddUint(logNMaxErrors, p.NMaxErrors)
-	oe.AddUint(logConcurrency, p.Concurrency)
-	oe.AddDuration(logTimeout, p.Timeout)
-	return nil
-}
-
 // NewDefaultParameters creates an instance with default parameters.
 func NewDefaultParameters() *Parameters {
 	return &Parameters{
@@ -78,6 +69,15 @@ func NewDefaultParameters() *Parameters {
 		Concurrency:       DefaultConcurrency,
 		Timeout:           DefaultQueryTimeout,
 	}
+}
+
+// MarshalLogObject converts the Paramaters into an object (which will become json) for logging.
+func (p *Parameters) MarshalLogObject(oe zapcore.ObjectEncoder) error {
+	oe.AddUint(logNClosestResponses, p.NClosestResponses)
+	oe.AddUint(logNMaxErrors, p.NMaxErrors)
+	oe.AddUint(logConcurrency, p.Concurrency)
+	oe.AddDuration(logTimeout, p.Timeout)
+	return nil
 }
 
 // Result holds search's (intermediate) result: collections of peers and possibly the value.

@@ -21,6 +21,17 @@ type ClientBalancer interface {
 	CloseAll() error
 }
 
+
+type GetterBalancer interface {
+	// Next selects the next Getter.
+	Next() (Getter, error)
+}
+
+type PutterBalancer interface {
+	// Next selects the next LibrarianClient.
+	Next() (Putter, error)
+}
+
 // ClientSetBalancer load balances between librarian clients, ensuring that a new librarian is
 // always returned.
 type ClientSetBalancer interface {
@@ -39,9 +50,9 @@ type uniformRandBalancer struct {
 	conns []Connector
 }
 
-// NewUniformRandomClientBalancer creates a new ClientBalancer that selects the next client
+// NewUniformClientBalancer creates a new ClientBalancer that selects the next client
 // uniformly at random.
-func NewUniformRandomClientBalancer(libAddrs []*net.TCPAddr) (ClientBalancer, error) {
+func NewUniformClientBalancer(libAddrs []*net.TCPAddr) (ClientBalancer, error) {
 	conns := make([]Connector, len(libAddrs))
 	if len(libAddrs) == 0 {
 		return nil, ErrEmptyLibrarianAddresses
@@ -76,3 +87,36 @@ func (b *uniformRandBalancer) CloseAll() error {
 	}
 	return nil
 }
+
+type uniformGetterBalancer struct {
+	inner ClientBalancer
+}
+
+func NewUniformGetterBalancer(inner ClientBalancer) GetterBalancer {
+	return &uniformGetterBalancer{inner}
+}
+
+func (b *uniformGetterBalancer) Next() (Getter, error) {
+	next, err := b.inner.Next()
+	if err != nil {
+		return nil, err
+	}
+	return next.(Getter), nil
+}
+
+type uniformPutterBalancer struct {
+	inner ClientBalancer
+}
+
+func NewUniformPutterBalancer(inner ClientBalancer) PutterBalancer {
+	return &uniformPutterBalancer{inner}
+}
+
+func (b *uniformPutterBalancer) Next() (Putter, error) {
+	next, err := b.inner.Next()
+	if err != nil {
+		return nil, err
+	}
+	return next.(Putter), nil
+}
+
