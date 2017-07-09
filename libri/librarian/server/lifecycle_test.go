@@ -20,6 +20,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+	"os"
 )
 
 func TestStart_ok(t *testing.T) {
@@ -71,6 +72,7 @@ func TestStart_newLibrarianErr(t *testing.T) {
 
 func TestStart_bootstrapPeersErr(t *testing.T) {
 	dataDir, err := ioutil.TempDir("", "test-start")
+	defer func() {err = os.RemoveAll(dataDir)}()
 	assert.Nil(t, err)
 	config := NewDefaultConfig()
 	config.WithDataDir(dataDir).WithDefaultDBDir()

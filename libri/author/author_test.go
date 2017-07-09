@@ -20,6 +20,7 @@ import (
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
+	cerrors "github.com/drausin/libri/libri/common/errors"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
@@ -27,6 +28,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+	"os"
 )
 
 const (
@@ -262,10 +264,7 @@ func TestAuthor_UploadDownload(t *testing.T) {
 func TestAuthor_Share_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	a := newTestAuthor()
-	defer func() {
-		err := a.CloseAndRemove()
-		assert.Nil(t, err)
-	}()
+	defer func() { cerrors.MaybePanic(a.CloseAndRemove()) }()
 	a.receiver = &fixedReceiver{
 		envelope: api.NewTestEnvelope(rng),
 		eek:      enc.NewPseudoRandomEEK(rng),
@@ -524,6 +523,7 @@ func newTestAuthor() *Author {
 func newTestConfig() *Config {
 	config := NewDefaultConfig()
 	dir, err := ioutil.TempDir("", "author-test-data-dir")
+	defer func() { cerrors.MaybePanic(os.RemoveAll(dir)) }()
 	if err != nil {
 		panic(err)
 	}

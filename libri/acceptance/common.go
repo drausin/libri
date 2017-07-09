@@ -38,7 +38,7 @@ const (
 	veryLightScryptN = 2
 	veryLightScryptP = 1
 
-	benchmarksDir  = "../../bench"
+	benchmarksDir  = "../../artifacts/bench"
 	benchmarksFile = "librarian.bench"
 )
 

@@ -13,7 +13,7 @@ GIT_DIFF_PKG_SUBDIRS=$(shell echo $(LIBRI_PKG_SUBDIRS) $(GIT_DIFF_SUBDIRS) | tr 
 
 acceptance:
 	@echo "--> Running acceptance tests"
-	@go test -tags acceptance -v github.com/drausin/libri/libri/acceptance 2>&1 | tee acceptance.log
+	@go test -tags acceptance -v github.com/drausin/libri/libri/acceptance 2>&1 | tee artifacts/acceptance.log
 
 bench:
 	@echo "--> Running benchmarks"
@@ -76,5 +76,10 @@ test-cover:
 test:
 	@echo "--> Running go test"
 	@go test -race $(LIBRI_PKGS)
+
+test-stress:
+	@echo "--> Running stress tests"
+	@./scripts/stress-test.sh
+
 
 

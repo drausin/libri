@@ -6,7 +6,7 @@ AUTHOR_BENCH_PKGS='github.com/drausin/libri/libri/author/io/enc
     github.com/drausin/libri/libri/author/io/comp
     github.com/drausin/libri/libri/author/io/page'
 N_TRIALS=16
-BENCH_DIR='bench'
+BENCH_DIR='artifacts/bench'
 RAW_RESULT_FILE="${BENCH_DIR}/author.raw.bench"
 RESULT_FILE="${BENCH_DIR}/author.bench"
 TEST_BINARY="pkg.test"

@@ -37,15 +37,18 @@ jobs:
                 ;;
               1)
                 make test-cover
-                make acceptance
                 bash <(curl -s https://codecov.io/bash) -f test-coverage-merged.cov
+                make acceptance
+                if [[ "${CIRCLE_BRANCH}" == "develop-build-intensive" ]]; then test-stress; fi
                 ;;
             esac
-      - store_artifacts:
-          path: acceptance.log
       - run:
           name: Lint
-          command: if [[ ${CIRCLE_NODE_INDEX} -eq 0 ]]; then make lint; fi
+          command: |
+            if [[ ${CIRCLE_NODE_INDEX} -eq 0 ]]; then
+              make lint
+              if [[ "${CIRCLE_BRANCH}" == "develop-build-intensive" ]]; then make lint-slow; fi
+            fi
 
       - deploy:
           name: Publish docker image
@@ -61,4 +64,4 @@ jobs:
               make bench
             fi
       - store_artifacts:
-          path: bench
+          path:
