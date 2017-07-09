@@ -64,4 +64,4 @@ jobs:
               make bench
             fi
       - store_artifacts:
-          path:
+          path: artifacts
