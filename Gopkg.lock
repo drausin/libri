@@ -5,13 +5,13 @@
   branch = "master"
   name = "github.com/aristanetworks/goarista"
   packages = ["monotime"]
-  revision = "6c446722131a3182ce8d354a85816742fd61a838"
+  revision = "56c485217d1f67015b1e66a64ea709abff05f7dc"
 
 [[projects]]
   branch = "master"
   name = "github.com/btcsuite/btcd"
   packages = ["btcec"]
-  revision = "a6965d493fdfb833b6b3a83c3958ab18968fe24e"
+  revision = "9822ffad6802d3b902442b727a238230194d961f"
 
 [[projects]]
   name = "github.com/cenkalti/backoff"
@@ -40,8 +40,8 @@
 [[projects]]
   name = "github.com/ethereum/go-ethereum"
   packages = [".","accounts","accounts/keystore","common","common/hexutil","common/math","common/mclock","core/types","crypto","crypto/randentropy","crypto/secp256k1","crypto/sha3","event","log","params","rlp","trie"]
-  revision = "cf87713dd42162861b7ed227f79f0638a33571df"
-  version = "v1.6.5"
+  revision = "10a45cb59bd9bc9f717817afc029a57b222e558d"
+  version = "v1.6.6"
 
 [[projects]]
   name = "github.com/fsnotify/fsnotify"
@@ -59,7 +59,7 @@
   branch = "master"
   name = "github.com/golang/protobuf"
   packages = ["proto","protoc-gen-go/descriptor","ptypes/any"]
-  revision = "1fb8fd32a09087bcd727225167edd31e1b9ceb24"
+  revision = "6a1fa9404c0aebf36c879bc50152edcc953910d2"
 
 [[projects]]
   branch = "master"
@@ -173,7 +173,7 @@
   branch = "master"
   name = "github.com/spf13/cobra"
   packages = ["."]
-  revision = "31694f19adeeaeb0a0e5fe95441b390d757753d2"
+  revision = "8c6fa02d2225de0f9bdcb7ca912556f68d172d8c"
 
 [[projects]]
   branch = "master"
@@ -232,25 +232,25 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["hkdf","pbkdf2","scrypt","ssh/terminal"]
-  revision = "adbae1b6b6fb4b02448a0fc0dbbc9ba2b95b294d"
+  revision = "a48ac81e47fd6f9ed1258f3b60ae9e75f93cb7ed"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
   packages = ["context","http2","http2/hpack","idna","internal/timeseries","lex/httplex","trace"]
-  revision = "057a25b06247e0c51ba15d8ae475feb2fcb72164"
+  revision = "054b33e6527139ad5b1ec2f6232c3b175bd9a30c"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "fb4cac33e3196ff7f507ab9b2d2a44b0142f5b5a"
+  revision = "739734461d1c916b6c72a63d7efda2b27edb369f"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/text"
   packages = ["internal/gen","internal/triegen","internal/ucd","secure/bidirule","transform","unicode/bidi","unicode/cldr","unicode/norm","unicode/rangetable"]
-  revision = "4e9ab9ee170f2a39bd66c92b3e0a47ff47a4bc77"
+  revision = "cfdf022e86b4ecfb646e1efbd7db175dd623a8fa"
 
 [[projects]]
   branch = "master"
@@ -261,8 +261,8 @@
 [[projects]]
   name = "google.golang.org/grpc"
   packages = [".","codes","credentials","grpclb/grpc_lb_v1","grpclog","health","health/grpc_health_v1","internal","keepalive","metadata","naming","peer","reflection","reflection/grpc_reflection_v1alpha","stats","status","tap","transport"]
-  revision = "42c095b6c9bdd80d4435b064508c398afdb0ec99"
-  version = "v1.4.1"
+  revision = "b15215fb911b24a5d61d57feec4233d610530464"
+  version = "v1.4.2"
 
 [[projects]]
   branch = "v2"
