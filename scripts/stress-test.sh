@@ -13,9 +13,10 @@ rm -rf ${OUTPUT_DIR} ${TEST_BINARY}
 mkdir -p ${OUTPUT_DIR}
 
 # stress test indiv packages
+errored=false
 for pkg in ${PKGS}; do
     pkg_dir=$(echo ${pkg} | sed -r "s|github.com/drausin/libri/||g")
-    pushd ${pkg_dir} 2>&1 /dev/null
+    pushd ${pkg_dir} > /dev/null
     echo "stress testing ${pkg}"
     echo -n "- compiling test binary ... "
     if [[ ${pkg} == github.com/drausin/libri/libri/acceptance ]]; then
@@ -34,13 +35,22 @@ for pkg in ${PKGS}; do
             echo -ne "\r- trial ${c} of ${N_TRIALS} with GOMAXPROCS=${GOMAXPROCS} ... "
             ./${TEST_BINARY} -test.v &> ${LOG_FILE}
             if [[ $? -ne 0 ]]; then
-                echo "error found, please consult ${LOG_FILE}
+                echo "ERROR found, please consult ${LOG_FILE}"
+                errored=true
             fi
         done
         rm ${TEST_BINARY}
         echo -e "done\n"
     fi
-    popd 2>&1 /dev/null
+    popd > /dev/null
 done
 
 export GOMAXPROCS=${ORIG_GOMAXPROCS}
+
+if [[ ${errored} = "true" ]]; then
+    echo 'One or more stress tests had errors.'
+    exit 1
+fi
+
+echo 'All stress tests passed.'
+

@@ -72,7 +72,7 @@ func NewDefaultParameters() *Parameters {
 	}
 }
 
-// MarshalLogObject converts the Paramaters into an object (which will become json) for logging.
+// MarshalLogObject converts the Parameters into an object (which will become json) for logging.
 func (p *Parameters) MarshalLogObject(oe zapcore.ObjectEncoder) error {
 	oe.AddUint(logNClosestResponses, p.NClosestResponses)
 	oe.AddUint(logNMaxErrors, p.NMaxErrors)

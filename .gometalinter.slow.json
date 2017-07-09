@@ -3,17 +3,17 @@
     "deadcode",
     "gas",
     "goconst",
-    "gosimple",
     "misspell",
-    "staticcheck",
     "structcheck",
-    "unused"
+    "megacheck"
   ],
   "VendoredLinters": true,
   "Vendor": true,
   "Concurrency": 2,
   "Format": "({{.Linter}}): {{.Severity}}: {{.Path}}:{{.Line}}:{{if .Col}}{{.Col}}{{end}}: {{.Message}}",
   "Linters": {
-    "unused": "unused {path}:^(?P<path>.*?[^filtered_logger]\\.go):(?P<line>\\d+):(?P<col>\\d+):\\s*(?P<message>.*)$"
+    "deadcode": "deadcode {path}:^(?P<path>libri/(author|cmd|common|librarian).+\\.go):(?P<line>\\d+):(?P<col>\\d+):\\s*(?P<message>.*)$",
+    "megacheck": "unused {path}:^(?P<path>libri/(author|cmd|common|librarian).+\\.go):(?P<line>\\d+):(?P<col>\\d+):\\s*(?P<message>.*)$",
+    "structcheck": "structcheck {path}:^(?P<path>libri/(author|cmd|common|librarian).+\\.go):(?P<line>\\d+):(?P<col>\\d+):\\s*(?P<message>.*)$"
   }
 }
