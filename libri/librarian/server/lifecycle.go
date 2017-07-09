@@ -7,7 +7,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
 	"os/signal"
 	"syscall"
 
@@ -20,6 +19,9 @@ import (
 	"google.golang.org/grpc"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"net/http"
+	"github.com/grpc-ecosystem/go-grpc-prometheus"
 )
 
 const (
@@ -143,10 +145,16 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 		return err
 	}
 
-	s := grpc.NewServer()
+	s := grpc.NewServer(
+		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
+		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
+	)
+
 	api.RegisterLibrarianServer(s, l)
 	healthpb.RegisterHealthServer(s, l.health)
+	grpc_prometheus.Register(s)
 	reflection.Register(s)
+	http.Handle("/metrics", promhttp.Handler())
 
 	// handle stop signal
 	go func() {
