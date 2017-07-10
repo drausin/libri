@@ -9,7 +9,7 @@ mkdir -p ${OUT_DIR}
 
 PKGS=$(go list ./... | grep -v /vendor/)
 echo ${PKGS} | sed 's| |\n|g' | xargs -I {} bash -c '
-    COVER_FILE=${OUT_DIR}/$(echo {} | sed -r "s|github.com/drausin/libri/||g" | sed "s|/|-|g").cov &&
+    COVER_FILE=artifacts/cover/$(echo {} | sed -r "s|github.com/drausin/libri/||g" | sed "s|/|-|g").cov &&
     go test -race -coverprofile=${COVER_FILE} {}
 '
 
