@@ -33,6 +33,7 @@ librarian_containers=""
 host='localhost'
 for c in $(seq 0 $((${N_LIBRARIANS} - 1))); do
     port=$((20100+c))
+    metricsPort=$((20200+c))
     name="librarian-${c}"
     docker run --name "${name}" --net=host -d -p ${port}:${port} ${IMAGE} \
         librarian start \
@@ -40,6 +41,7 @@ for c in $(seq 0 $((${N_LIBRARIANS} - 1))); do
         --publicPort ${port} \
         --publicHost ${host} \
         --localPort ${port} \
+        --localMetricsPort ${metricsPort} \
         --localHost ${host} \
         --bootstraps "${host}:20100"
     librarian_addrs="${host}:${port},${librarian_addrs}"
