@@ -14,12 +14,16 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/store"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"github.com/drausin/libri/libri/common/errors"
 )
 
 const (
 
 	// DefaultPort is the default port of both local and public addresses.
 	DefaultPort = 20100
+
+	// DefaultMetricsPort is the default port to service metrics from.
+	DefaultMetricsPort = 20200
 
 	// DefaultIP is the default IP of both local and public addresses.
 	DefaultIP = "localhost"
@@ -36,8 +40,11 @@ const (
 
 // Config is used to configure a Librarian server
 type Config struct {
-	// LocalAddr is the local address the server listens to.
+	// LocalAddr is the local address the main grpc server listens to.
 	LocalAddr *net.TCPAddr
+
+	// LocalMetricsAddr is the local address the metrics server listens to.
+	LocalMetricsAddr *net.TCPAddr
 
 	// PublicAddr is the public address clients make requests to.
 	PublicAddr *net.TCPAddr
@@ -84,6 +91,7 @@ func NewDefaultConfig() *Config {
 	// set defaults via zero values; in cases where the config B depends on config A, config A
 	// should be set before config B
 	config.WithDefaultLocalAddr()
+	config.WithDefaultLocalMetricsAddr()
 	config.WithDefaultPublicAddr()
 	config.WithDefaultPublicName()
 	config.WithDefaultDataDir()
@@ -118,6 +126,24 @@ func (c *Config) WithDefaultLocalAddr() *Config {
 		panic(err)
 	}
 	c.LocalAddr = addr
+	return c
+}
+
+// WithLocalMetricsAddr sets config's local metrics address to the given value or to the default
+// if the given value is nil.
+func (c *Config) WithLocalMetricsAddr(localMetricsAddr *net.TCPAddr) *Config {
+	if localMetricsAddr == nil {
+		return c.WithDefaultLocalMetricsAddr()
+	}
+	c.LocalMetricsAddr = localMetricsAddr
+	return c
+}
+
+// WithDefaultLocalMetricsAddr sets the local address to the default value.
+func (c *Config) WithDefaultLocalMetricsAddr() *Config {
+	addr, err := ParseAddr(DefaultIP, DefaultMetricsPort)
+	errors.MaybePanic(err) // should never happen with default
+	c.LocalMetricsAddr = addr
 	return c
 }
 

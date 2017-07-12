@@ -21,6 +21,8 @@ import (
 	"google.golang.org/grpc"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"os"
+	"net/http"
+	"fmt"
 )
 
 func TestStart_ok(t *testing.T) {
@@ -42,8 +44,8 @@ func TestStart_ok(t *testing.T) {
 	conn, err := grpc.Dial(config.LocalAddr.String(), grpc.WithInsecure())
 	assert.NotNil(t, conn)
 	assert.Nil(t, err)
-	clientHealth := healthpb.NewHealthClient(conn)
 	client := api.NewLibrarianClient(conn)
+	clientHealth := healthpb.NewHealthClient(conn)
 
 	// confirm ok health check
 	ctx1, cancel := context.WithTimeout(context.Background(), 1*time.Second)
@@ -51,6 +53,12 @@ func TestStart_ok(t *testing.T) {
 	cancel()
 	assert.Nil(t, err)
 	assert.Equal(t, healthpb.HealthCheckResponse_SERVING, rp.Status)
+
+	// confirm ok metrics
+	metricsAddr := fmt.Sprintf("http://%s/metrics", config.LocalMetricsAddr)
+	resp, err := http.Get(metricsAddr)
+	assert.Nil(t, err)
+	assert.Equal(t, "200 OK", resp.Status)
 
 	// confirm server is up and responds to ping
 	rq2 := &api.PingRequest{}

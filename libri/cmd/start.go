@@ -15,14 +15,15 @@ import (
 )
 
 const (
-	bootstrapsFlag     = "bootstraps"
-	localHostFlag      = "localHost"
-	localPortFlag      = "localPort"
-	publicHostFlag     = "publicHost"
-	publicNameFlag     = "publicName"
-	publicPortFlag     = "publicPort"
-	nSubscriptionsFlag = "nSubscriptions"
-	fpRateFlag         = "fpRate"
+	bootstrapsFlag       = "bootstraps"
+	localHostFlag        = "localHost"
+	localPortFlag        = "localPort"
+	localMetricsPortFlag = "localMetricsPort"
+	publicHostFlag       = "publicHost"
+	publicNameFlag       = "publicName"
+	publicPortFlag       = "publicPort"
+	nSubscriptionsFlag   = "nSubscriptions"
+	fpRateFlag           = "fpRate"
 )
 
 // startLibrarianCmd represents the librarian start command
@@ -51,6 +52,8 @@ func init() {
 		"local host (IPv4 or URL)")
 	startLibrarianCmd.Flags().Int(localPortFlag, server.DefaultPort,
 		"local port")
+	startLibrarianCmd.Flags().Int(localMetricsPortFlag, server.DefaultMetricsPort,
+		"local metrics port")
 	startLibrarianCmd.Flags().StringP(publicHostFlag, "i", server.DefaultIP,
 		"public host (IPv4 or URL)")
 	startLibrarianCmd.Flags().IntP(publicPortFlag, "p", server.DefaultPort,

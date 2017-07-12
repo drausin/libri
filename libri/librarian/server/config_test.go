@@ -16,6 +16,7 @@ import (
 func TestDefaultConfig(t *testing.T) {
 	c := NewDefaultConfig()
 	assert.NotEmpty(t, c.LocalAddr)
+	assert.NotEmpty(t, c.LocalMetricsAddr)
 	assert.NotEmpty(t, c.PublicAddr)
 	assert.NotEmpty(t, c.PublicName)
 	assert.NotEmpty(t, c.DataDir)
@@ -37,6 +38,15 @@ func TestConfig_WithLocalAddr(t *testing.T) {
 	c3Addr, err := ParseAddr("localhost", 1234)
 	assert.Nil(t, err)
 	assert.NotEqual(t, c1.LocalAddr, c3.WithLocalAddr(c3Addr).LocalAddr)
+}
+
+func TestConfig_WithLocalMetricsAddr(t *testing.T) {
+	c1, c2, c3 := &Config{}, &Config{}, &Config{}
+	c1.WithDefaultLocalMetricsAddr()
+	assert.Equal(t, c1.LocalMetricsAddr, c2.WithLocalMetricsAddr(nil).LocalMetricsAddr)
+	c3Addr, err := ParseAddr("localhost", 1234)
+	assert.Nil(t, err)
+	assert.NotEqual(t, c1.LocalMetricsAddr, c3.WithLocalMetricsAddr(c3Addr).LocalMetricsAddr)
 }
 
 func TestConfig_WithPublicAddr(t *testing.T) {
