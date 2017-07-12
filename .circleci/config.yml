@@ -37,7 +37,7 @@ jobs:
                 ;;
               1)
                 make test-cover
-                bash <(curl -s https://codecov.io/bash) -f test-coverage-merged.cov
+                bash <(curl -s https://codecov.io/bash) -f artifacts/cover/test-coverage-merged.cov
                 make acceptance
                 if [[ "${CIRCLE_BRANCH}" == "develop-build-intensive" ]]; then test-stress; fi
                 ;;
