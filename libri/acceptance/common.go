@@ -38,7 +38,7 @@ const (
 	veryLightScryptN = 2
 	veryLightScryptP = 1
 
-	benchmarksDir  = "../../bench"
+	benchmarksDir  = "../../artifacts/bench"
 	benchmarksFile = "librarian.bench"
 )
 
@@ -294,11 +294,13 @@ func averageSubsamples(
 func newLibrarianConfigs(dataDir string, nSeeds, nPeers int, maxBucketPeers uint,
 	logLevel zapcore.Level) ([]*server.Config, []*server.Config, []*net.TCPAddr) {
 	seedStartPort, peerStartPort := 12000, 13000
+	metricsPortOffset := 500
 
 	seedConfigs := make([]*server.Config, nSeeds)
 	bootstrapAddrs := make([]*net.TCPAddr, nSeeds)
 	for c := 0; c < nSeeds; c++ {
-		seedConfigs[c] = newConfig(dataDir, seedStartPort+c, maxBucketPeers, logLevel)
+		localPort, metricsPort := seedStartPort+c, seedStartPort + metricsPortOffset + c
+		seedConfigs[c] = newConfig(dataDir, localPort, metricsPort, maxBucketPeers, logLevel)
 		bootstrapAddrs[c] = seedConfigs[c].PublicAddr
 	}
 	for c := 0; c < nSeeds; c++ {
@@ -308,7 +310,8 @@ func newLibrarianConfigs(dataDir string, nSeeds, nPeers int, maxBucketPeers uint
 	peerConfigs := make([]*server.Config, nPeers)
 	peerAddrs := make([]*net.TCPAddr, nPeers)
 	for c := 0; c < nPeers; c++ {
-		peerConfigs[c] = newConfig(dataDir, peerStartPort+c, maxBucketPeers, logLevel).
+		localPort, metricsPort := peerStartPort+c, peerStartPort + metricsPortOffset + c
+		peerConfigs[c] = newConfig(dataDir, localPort, metricsPort, maxBucketPeers, logLevel).
 			WithBootstrapAddrs(bootstrapAddrs)
 		peerAddrs[c] = peerConfigs[c].PublicAddr
 	}
@@ -332,7 +335,7 @@ func newAuthorConfigs(dataDir string, nAuthors int, librarianAddrs []*net.TCPAdd
 }
 
 func newConfig(
-	dataDir string, port int, maxBucketPeers uint, logLevel zapcore.Level,
+	dataDir string, port, metricsPort int, maxBucketPeers uint, logLevel zapcore.Level,
 ) *server.Config {
 
 	rtParams := routing.NewDefaultParameters()
@@ -347,14 +350,15 @@ func newConfig(
 	subscribeToParams.FPRate = 0.9
 
 	localAddr, err := server.ParseAddr("localhost", port)
-	if err != nil {
-		// should never happen
-		panic(err)
-	}
+	errors.MaybePanic(err)  // should never happen
 	peerDataDir := filepath.Join(dataDir, server.NameFromAddr(localAddr))
+
+	localMetricsAddr, err := server.ParseAddr("localhost", metricsPort)
+	errors.MaybePanic(err)  // should never happen
 
 	return server.NewDefaultConfig().
 		WithLocalAddr(localAddr).
+		WithLocalMetricsAddr(localMetricsAddr).
 		WithDefaultPublicAddr().
 		WithDefaultPublicName().
 		WithDataDir(peerDataDir).

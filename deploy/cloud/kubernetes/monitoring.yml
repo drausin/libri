@@ -1,0 +1,99 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    name: prometheus
+  name: prometheus
+spec:
+  selector:
+    app: prometheus
+  type: NodePort  # prob want to disable later on
+  ports:
+  - name: prometheus
+    protocol: TCP
+    port: 9090
+    targetPort: 9090
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-configmap
+data:
+  # see also:
+  # - https://prometheus.io/docs/operating/configuration/#<kubernetes_sd_config>
+  # - https://github.com/kayrus/prometheus-kubernetes
+  # - https://grafana.com/dashboards/315
+  prometheus.yml: |-
+    # Kubernetes labels will be added as Prometheus labels on metrics via the
+    # `labelmap` relabeling action.
+    #rule_files:
+    #  - "/etc/prometheus-rules/*.rules"
+
+    scrape_configs:
+    - job_name: 'kubernetes-cluster'
+      scheme: http
+      kubernetes_sd_configs:
+      - role: service
+
+    - job_name: 'kubernetes-nodes'
+      scheme: http
+      kubernetes_sd_configs:
+      - role: node
+      relabel_configs:
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+      # Use insecure read-only HTTP 10255 port
+      # More info is here: http://github.com/kayrus/kubelet-exploit
+      - source_labels: [__address__]
+        regex: '(.*):10250'
+        replacement: '${1}:10255'
+        target_label: __address__
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: prometheus
+spec:
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      name: prometheus
+      labels:
+        app: prometheus
+    spec:
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v1.7.1
+        args:
+          - '-storage.local.retention=360h'
+          - '-storage.local.memory-chunks=1048576'
+          - '-config.file=/etc/prometheus/prometheus.yml'
+#          - '-alertmanager.url=http://alertmanager:9093/alertmanager'
+#          - '-web.external-url=$(EXTERNAL_URL)'
+        ports:
+        - name: web
+          containerPort: 9090
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/prometheus
+#        - name: rules-volume
+#          mountPath: /etc/prometheus-rules
+        - name: prometheus-data
+          mountPath: /prometheus
+      volumes:
+      - name: config-volume
+        configMap:
+          name: prometheus-configmap
+#      - name: rules-volume
+#        configMap:
+#          name: prometheus-rules
+      - name: prometheus-data
+        emptyDir: {}

@@ -22,6 +22,8 @@ import (
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/health"
+	"net/http"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // Librarian is the main service of a single peer in the peer to peer network.
@@ -86,6 +88,9 @@ type Librarian struct {
 	// health server
 	health *health.Server
 
+	// metrics server
+	metrics *http.Server
+
 	// receives graceful stop signal
 	stop chan struct{}
 }
@@ -128,6 +133,10 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 	subscribeTo := subscribe.NewTo(config.SubscribeTo, selfLogger, peerID, clientBalancer, signer,
 		recentPubs, newPubs)
 
+	metricsSM := http.NewServeMux()
+	metricsSM.Handle("/metrics", promhttp.Handler())
+	metrics := &http.Server{Addr: config.LocalMetricsAddr.String(), Handler: metricsSM}
+
 	return &Librarian{
 		selfID:        peerID,
 		config:        config,
@@ -149,6 +158,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		rt:            rt,
 		logger:        selfLogger,
 		health:        health.NewServer(),
+		metrics:       metrics,
 		stop:          make(chan struct{}),
 	}, nil
 }

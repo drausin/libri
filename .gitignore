@@ -1,9 +1,7 @@
 vendor
 
 # created during CI
-.cover
-acceptance.log
-bench
+artifacts
 
 # Intellij files
 .idea/

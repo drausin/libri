@@ -10,7 +10,7 @@ import (
 
 func TestGetLibrarianConfig_ok(t *testing.T) {
 	localIP, publicIP := "1.2.3.4", "5.6.7.8"
-	localPort, publicPort := "1234", "5678"
+	localPort, localMetricsPort, publicPort := "1234", "1235", "6789"
 	publicName := "some name"
 	dataDir := "some/data/dir"
 	logLevel := "debug"
@@ -21,6 +21,7 @@ func TestGetLibrarianConfig_ok(t *testing.T) {
 	viper.Set(localHostFlag, localIP)
 	viper.Set(publicHostFlag, publicIP)
 	viper.Set(localPortFlag, localPort)
+	viper.Set(localMetricsPortFlag, localMetricsPort)
 	viper.Set(publicPortFlag, publicPort)
 	viper.Set(publicNameFlag, publicName)
 	viper.Set(dataDirFlag, dataDir)
@@ -32,6 +33,7 @@ func TestGetLibrarianConfig_ok(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, logger)
 	assert.Equal(t, localIP+":"+localPort, config.LocalAddr.String())
+	assert.Equal(t, localIP+":"+localMetricsPort, config.LocalMetricsAddr.String())
 	assert.Equal(t, publicIP+":"+publicPort, config.PublicAddr.String())
 	assert.Equal(t, publicName, config.PublicName)
 	assert.Equal(t, dataDir, config.DataDir)
@@ -45,6 +47,13 @@ func TestGetLibrarianConfig_ok(t *testing.T) {
 func TestGetLibrarianConfig_err(t *testing.T) {
 	viper.Set(localHostFlag, "bad local host")
 	config, logger, err := getLibrarianConfig()
+	assert.NotNil(t, err)
+	assert.Nil(t, config)
+	assert.Nil(t, logger)
+
+	viper.Set(localHostFlag, "1.2.3.4")
+	viper.Set(localMetricsPortFlag, -1)
+	config, logger, err = getLibrarianConfig()
 	assert.NotNil(t, err)
 	assert.Nil(t, config)
 	assert.Nil(t, logger)

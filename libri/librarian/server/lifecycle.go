@@ -7,7 +7,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
 	"os/signal"
 	"syscall"
 
@@ -20,6 +19,10 @@ import (
 	"google.golang.org/grpc"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
+	"github.com/grpc-ecosystem/go-grpc-prometheus"
+	cerrors "github.com/drausin/libri/libri/common/errors"
+	"golang.org/x/net/context"
+	"net/http"
 )
 
 const (
@@ -137,16 +140,22 @@ func makeBootstrapPeers(bootstrapAddrs []*net.TCPAddr, selfPublicAddr fmt.String
 }
 
 func (l *Librarian) listenAndServe(up chan *Librarian) error {
-	lis, err := net.Listen("tcp", l.config.LocalAddr.String())
-	if err != nil {
-		l.logger.Error("failed to listen", zap.Error(err))
-		return err
-	}
+	s := grpc.NewServer(
+		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
+		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
+	)
 
-	s := grpc.NewServer()
 	api.RegisterLibrarianServer(s, l)
 	healthpb.RegisterHealthServer(s, l.health)
+	grpc_prometheus.Register(s)
 	reflection.Register(s)
+
+	go func () {
+		if err := l.metrics.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			l.logger.Error("error serving Prometheus metrics", zap.Error(err))
+			cerrors.MaybePanic(l.Close())  // don't try to recover from Close error
+		}
+	}()
 
 	// handle stop signal
 	go func() {
@@ -161,10 +170,7 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 	signal.Notify(stopSignals, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	go func() {
 		<-stopSignals
-		if err := l.Close(); err != nil {
-			// don't try to recover
-			panic(err)
-		}
+		cerrors.MaybePanic(l.Close())  // don't try to recover from Close error
 	}()
 
 	// long-running goroutine managing subscriptions from other peers
@@ -174,10 +180,7 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 	go func() {
 		if err := l.subscribeTo.Begin(); err != nil && !l.config.isBootstrap() {
 			l.logger.Error("fatal subscriptionTo error", zap.Error(err))
-			if err := l.Close(); err != nil {
-				panic(err) // don't try to recover from Close error
-			}
-
+			cerrors.MaybePanic(l.Close())  // don't try to recover from Close error
 		}
 	}()
 
@@ -193,6 +196,11 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 		up <- l
 	}()
 
+	lis, err := net.Listen("tcp", l.config.LocalAddr.String())
+	if err != nil {
+		l.logger.Error("failed to listen", zap.Error(err))
+		return err
+	}
 	if err := s.Serve(lis); err != nil {
 		if strings.Contains(fmt.Sprintf("%s", err.Error()), "use of closed network connection") {
 			return nil
@@ -219,6 +227,17 @@ func (l *Librarian) Close() error {
 	default:
 		close(l.stop)
 	}
+
+	// end metrics server
+	ctx, cancel := context.WithTimeout(context.Background(), 1 * time.Second)
+	if err := l.metrics.Shutdown(ctx); err != nil {
+		if err == context.DeadlineExceeded {
+			if err := l.metrics.Close(); err != nil {
+				return err
+			}
+		}
+	}
+	cancel()
 
 	// disconnect from peers in routing table
 	if err := l.rt.Disconnect(); err != nil {
