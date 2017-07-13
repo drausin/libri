@@ -14,7 +14,7 @@ TEST_BINARY="pkg.test"
 FAST_BENCH_DURATION='0.1s'
 SLOW_BENCH_DURATION='3s'
 
-mkdir ${BENCH_DIR}
+mkdir -p ${BENCH_DIR}
 rm -f ${RAW_RESULT_FILE}
 
 for pkg in ${AUTHOR_BENCH_PKGS}; do
