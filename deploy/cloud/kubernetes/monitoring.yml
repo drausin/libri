@@ -24,11 +24,6 @@ data:
   # - https://github.com/kayrus/prometheus-kubernetes
   # - https://grafana.com/dashboards/315
   prometheus.yml: |-
-    # Kubernetes labels will be added as Prometheus labels on metrics via the
-    # `labelmap` relabeling action.
-    #rule_files:
-    #  - "/etc/prometheus-rules/*.rules"
-
     scrape_configs:
     - job_name: 'kubernetes-cluster'
       scheme: http
