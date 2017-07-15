@@ -9,6 +9,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/drausin/libri/libri/librarian/server"
 )
 
 const (
@@ -16,7 +17,8 @@ const (
 	defaultOutputFilepath   = "libri.yml"
 	defaultNReplicas        = 3
 	defaultPublicPortStart  = 30100
-	defaultLocalPort        = 20100
+	defaultLocalPort        = server.DefaultPort
+	defaultLocalMetricsPort = server.DefaultMetricsPort
 	defaultLocalCluster     = false
 	defaultGCECluster       = false
 )
@@ -27,16 +29,18 @@ var (
 	nReplicas        int
 	publicPortStart  int
 	localPort        int
+	localMetricsPort int
 	localCluster     bool
 	gceCluster       bool
 )
 
 // Config contains the configuration to apply to the template.
 type Config struct {
-	LocalPort    int
-	Librarians   []Librarian
-	LocalCluster bool
-	GCECluster   bool
+	LocalPort        int
+	LocalMetricsPort int
+	Librarians       []Librarian
+	LocalCluster     bool
+	GCECluster       bool
 }
 
 // Librarian contains the public-facing configuration for an individual librarian.
@@ -63,10 +67,11 @@ var genCmd = &cobra.Command{
 		}
 
 		config := Config{
-			LocalPort:    localPort,
-			Librarians:   make([]Librarian, nReplicas),
-			LocalCluster: localCluster,
-			GCECluster:   gceCluster,
+			LocalPort:        localPort,
+			LocalMetricsPort: localMetricsPort,
+			Librarians:       make([]Librarian, nReplicas),
+			LocalCluster:     localCluster,
+			GCECluster:       gceCluster,
 		}
 		for i := range config.Librarians {
 			config.Librarians[i].PublicPort = publicPortStart + i
@@ -95,6 +100,8 @@ func init() {
 		"starting public port for librarians")
 	genCmd.Flags().IntVarP(&localPort, "localPort", "l", defaultLocalPort,
 		"localCluster port for librarian node")
+	genCmd.Flags().IntVarP(&localMetricsPort, "localMetricsPort", "m", defaultLocalMetricsPort,
+		"local metrics port for librarian node")
 	genCmd.Flags().BoolVar(&localCluster, "local", defaultLocalCluster,
 		"whether the config is for a local (minikube) cluster")
 	genCmd.Flags().BoolVar(&gceCluster, "gce", defaultGCECluster,
