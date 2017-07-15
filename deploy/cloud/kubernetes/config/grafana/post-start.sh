@@ -20,12 +20,12 @@ for file in ${DIR}/datasource.*.json ; do
     echo
 done
 
-#for file in ${DIR}/dashboard.*.json ; do
-#    echo "importing dashboard from ${file}"
-#    (echo '{"dashboard":';cat "${file}";echo ',"inputs":[{"name":"DS_PROMETHEUS","pluginId":"prometheus","type":"datasource","value":"prometheus"}]}') | \
-#    curl --silent --fail --show-error \
-#        --request POST ${DASHBOARDS_URL} \
-#        --header "Content-Type: application/json" \
-#        --data-binary @-;
-#    echo
-#done
+for file in ${DIR}/dashboard.*.json ; do
+    echo "importing dashboard from ${file}"
+    (echo '{"dashboard":';cat "${file}";echo ',"inputs":[{"name":"DS_PROMETHEUS","pluginId":"prometheus","type":"datasource","value":"prometheus"}]}') | \
+    curl --silent --fail --show-error \
+        --request POST ${DASHBOARDS_URL} \
+        --header "Content-Type: application/json" \
+        --data-binary @-;
+    echo
+done
