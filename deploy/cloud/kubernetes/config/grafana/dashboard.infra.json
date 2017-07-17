@@ -1,8 +1,10 @@
 {
+  "title": "Libri Infrastructure",
+  "description": "Monitoring for Libri cluster Kubernetes pods & nodes.",
+
   "annotations": {
     "list": []
   },
-  "description": "Monitoring for Libri cluster Kubernetes pods & nodes.",
   "editable": true,
   "gnetId": 162,
   "graphTooltip": 1,
@@ -962,6 +964,5 @@
     ]
   },
   "timezone": "browser",
-  "title": "Libri Infrastructure",
   "version": 3
 }

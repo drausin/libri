@@ -74,8 +74,8 @@ spec:
           mountPath: /etc/prometheus
 #        - name: rules-volume
 #          mountPath: /etc/prometheus-rules
-        - name: prometheus-data
-          mountPath: /prometheus
+#        - name: prometheus-data
+#          mountPath: /prometheus
       volumes:
       - name: prometheus-config
         configMap:
@@ -83,8 +83,8 @@ spec:
 #      - name: rules-volume
 #        configMap:
 #          name: prometheus-rules
-      - name: prometheus-data
-        emptyDir: {}  # TODO (drausin) PeristentVolume
+#      - name: prometheus-data
+#        emptyDir: {}  # TODO (drausin) PeristentVolume
 ---
 apiVersion: v1
 kind: Service
@@ -145,12 +145,12 @@ spec:
         volumeMounts:
         - name: grafana-config
           mountPath: /opt/grafana
-        - name: grafana-storage
-          mountPath: /var
+#        - name: grafana-storage
+#          mountPath: /var
 
       volumes:
       - name: grafana-config
         configMap:
           name: grafana-config
-      - name: grafana-storage
-        emptyDir: {}
+#      - name: grafana-storage
+#        emptyDir: {}  # TODO (drausin) PersistentVolume

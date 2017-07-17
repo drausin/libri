@@ -87,6 +87,8 @@ scrape_configs:
   - action: keep
     source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
     regex: true
+  - action: labelmap
+    regex: __meta_kubernetes_(pod_(?:node_)?name)
   - action: replace
     source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
     target_label: __address__
