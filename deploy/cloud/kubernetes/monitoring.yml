@@ -25,6 +25,8 @@ metadata:
   name: prometheus
   labels:
     name: prometheus
+  annotations:
+      prometheus.io/scrape: 'true'
 spec:
   selector:
     app: prometheus
@@ -90,6 +92,8 @@ metadata:
   name: grafana
   labels:
     app: grafana
+  annotations:
+      prometheus.io/scrape: 'false'
 spec:
   selector:
     app: grafana
