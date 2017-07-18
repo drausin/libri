@@ -1,15 +1,16 @@
 package client
 
 import (
+	"fmt"
+	"math/rand"
 	"testing"
+	"time"
+
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"math/rand"
-	"github.com/pkg/errors"
-	"time"
-	"github.com/stretchr/testify/assert"
-	"fmt"
 )
 
 func TestRetryFinder_Find_ok(t *testing.T) {

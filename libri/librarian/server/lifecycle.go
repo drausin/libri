@@ -5,24 +5,25 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strings"
-	"time"
 	"os/signal"
+	"strings"
 	"syscall"
+	"time"
+
+	"net/http"
 
 	cbackoff "github.com/cenkalti/backoff"
+	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
+	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
-	"github.com/grpc-ecosystem/go-grpc-prometheus"
-	cerrors "github.com/drausin/libri/libri/common/errors"
-	"golang.org/x/net/context"
-	"net/http"
 )
 
 const (
@@ -151,10 +152,10 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 	grpc_prometheus.EnableHandlingTimeHistogram()
 	reflection.Register(s)
 
-	go func () {
+	go func() {
 		if err := l.metrics.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			l.logger.Error("error serving Prometheus metrics", zap.Error(err))
-			cerrors.MaybePanic(l.Close())  // don't try to recover from Close error
+			cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
 		}
 	}()
 
@@ -171,7 +172,7 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 	signal.Notify(stopSignals, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	go func() {
 		<-stopSignals
-		cerrors.MaybePanic(l.Close())  // don't try to recover from Close error
+		cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
 	}()
 
 	// long-running goroutine managing subscriptions from other peers
@@ -181,7 +182,7 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 	go func() {
 		if err := l.subscribeTo.Begin(); err != nil && !l.config.isBootstrap() {
 			l.logger.Error("fatal subscriptionTo error", zap.Error(err))
-			cerrors.MaybePanic(l.Close())  // don't try to recover from Close error
+			cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
 		}
 	}()
 
@@ -230,7 +231,7 @@ func (l *Librarian) Close() error {
 	}
 
 	// end metrics server
-	ctx, cancel := context.WithTimeout(context.Background(), 1 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	if err := l.metrics.Shutdown(ctx); err != nil {
 		if err == context.DeadlineExceeded {
 			if err := l.metrics.Close(); err != nil {

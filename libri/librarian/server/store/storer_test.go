@@ -6,6 +6,8 @@ import (
 
 	"errors"
 
+	"fmt"
+
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -15,7 +17,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"fmt"
 )
 
 func TestNewDefaultStorer(t *testing.T) {

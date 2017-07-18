@@ -122,4 +122,3 @@ func (b *uniformPutterBalancer) Next() (Putter, error) {
 	}
 	return next.(Putter), nil
 }
-

@@ -285,7 +285,6 @@ func (f *fixedPutterBalancer) Next() (api.Putter, error) {
 	return f.client, f.err
 }
 
-
 type fixedDocSLD struct {
 	docs        map[string]*api.Document
 	mu          sync.Mutex

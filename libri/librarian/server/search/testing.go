@@ -5,20 +5,20 @@ import (
 	"math/rand"
 	"net"
 
+	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"github.com/drausin/libri/libri/common/ecid"
 )
 
 // TestFinderCreator mocks the FindQuerier interface. The Query() method returns a fixed
 // api.FindPeersResponse, derived from a list of addresses in the client.
-type TestFinderCreator struct{
+type TestFinderCreator struct {
 	finder api.Finder
-	err error
+	err    error
 }
 
 // Create creates an api.Finder that mocks a real query to a peer and returns a fixed list of
@@ -36,7 +36,7 @@ func (c *TestFinderCreator) Create(pConn api.Connector) (api.Finder, error) {
 type fixedFinder struct {
 	addresses []*api.PeerAddress
 	requestID []byte
-	err error
+	err       error
 }
 
 func (f *fixedFinder) Find(ctx context.Context, rq *api.FindRequest, opts ...grpc.CallOption) (
@@ -50,7 +50,7 @@ func (f *fixedFinder) Find(ctx context.Context, rq *api.FindRequest, opts ...grp
 	}
 	return &api.FindResponse{
 		Metadata: &api.ResponseMetadata{RequestId: requestID},
-		Peers: f.addresses,
+		Peers:    f.addresses,
 	}, nil
 }
 

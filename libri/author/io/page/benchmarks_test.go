@@ -7,9 +7,9 @@ import (
 	"testing"
 
 	"github.com/drausin/libri/libri/author/io/common"
-	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/author/io/comp"
 	"github.com/drausin/libri/libri/author/io/enc"
+	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/librarian/api"
 )
 

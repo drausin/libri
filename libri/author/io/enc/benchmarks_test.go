@@ -3,6 +3,7 @@ package enc
 import (
 	"math/rand"
 	"testing"
+
 	"github.com/drausin/libri/libri/common/errors"
 )
 

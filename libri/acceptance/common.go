@@ -16,6 +16,7 @@ import (
 	lauthor "github.com/drausin/libri/libri/author"
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/common/subscribe"
@@ -25,7 +26,6 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
-	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -299,7 +299,7 @@ func newLibrarianConfigs(dataDir string, nSeeds, nPeers int, maxBucketPeers uint
 	seedConfigs := make([]*server.Config, nSeeds)
 	bootstrapAddrs := make([]*net.TCPAddr, nSeeds)
 	for c := 0; c < nSeeds; c++ {
-		localPort, metricsPort := seedStartPort+c, seedStartPort + metricsPortOffset + c
+		localPort, metricsPort := seedStartPort+c, seedStartPort+metricsPortOffset+c
 		seedConfigs[c] = newConfig(dataDir, localPort, metricsPort, maxBucketPeers, logLevel)
 		bootstrapAddrs[c] = seedConfigs[c].PublicAddr
 	}
@@ -310,7 +310,7 @@ func newLibrarianConfigs(dataDir string, nSeeds, nPeers int, maxBucketPeers uint
 	peerConfigs := make([]*server.Config, nPeers)
 	peerAddrs := make([]*net.TCPAddr, nPeers)
 	for c := 0; c < nPeers; c++ {
-		localPort, metricsPort := peerStartPort+c, peerStartPort + metricsPortOffset + c
+		localPort, metricsPort := peerStartPort+c, peerStartPort+metricsPortOffset+c
 		peerConfigs[c] = newConfig(dataDir, localPort, metricsPort, maxBucketPeers, logLevel).
 			WithBootstrapAddrs(bootstrapAddrs)
 		peerAddrs[c] = peerConfigs[c].PublicAddr
@@ -350,11 +350,11 @@ func newConfig(
 	subscribeToParams.FPRate = 0.9
 
 	localAddr, err := server.ParseAddr("localhost", port)
-	errors.MaybePanic(err)  // should never happen
+	errors.MaybePanic(err) // should never happen
 	peerDataDir := filepath.Join(dataDir, server.NameFromAddr(localAddr))
 
 	localMetricsAddr, err := server.ParseAddr("localhost", metricsPort)
-	errors.MaybePanic(err)  // should never happen
+	errors.MaybePanic(err) // should never happen
 
 	return server.NewDefaultConfig().
 		WithLocalAddr(localAddr).

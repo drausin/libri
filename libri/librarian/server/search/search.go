@@ -5,12 +5,12 @@ import (
 	"time"
 
 	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"go.uber.org/zap/zapcore"
-	"github.com/drausin/libri/libri/common/errors"
 )
 
 const (

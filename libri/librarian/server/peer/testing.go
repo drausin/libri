@@ -1,12 +1,12 @@
 package peer
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"net"
 	"testing"
 	"time"
-	"errors"
 
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"

@@ -9,8 +9,8 @@ import (
 	"sync"
 
 	"github.com/drausin/libri/libri/author/io/enc"
-	"github.com/klauspost/compress/gzip"
 	cerrors "github.com/drausin/libri/libri/common/errors"
+	"github.com/klauspost/compress/gzip"
 )
 
 // Codec is a comp.codec.

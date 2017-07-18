@@ -1,9 +1,9 @@
 package server
 
 import (
+	"errors"
 	"math/rand"
 	"testing"
-	"errors"
 
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"

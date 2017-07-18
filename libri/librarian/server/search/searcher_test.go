@@ -2,10 +2,10 @@ package search
 
 import (
 	"container/heap"
+	"errors"
 	"fmt"
 	"math/rand"
 	"testing"
-	"errors"
 	"time"
 
 	"github.com/drausin/libri/libri/common/ecid"
@@ -151,7 +151,6 @@ func newTestSearch() (Searcher, *Search, []int, []peer.Peer) {
 	return searcher, search, selfPeerIdxs, peers
 }
 
-
 func TestSearcher_query_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	peerID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
@@ -184,13 +183,13 @@ func TestSearcher_query_err(t *testing.T) {
 
 		// case 1
 		{
-			signer: &client.TestErrSigner{},
+			signer:        &client.TestErrSigner{},
 			finderCreator: &TestFinderCreator{},
 		},
 
 		// case 2
 		{
-			signer:        &client.TestNoOpSigner{},
+			signer: &client.TestNoOpSigner{},
 			finderCreator: &TestFinderCreator{
 				finder: &fixedFinder{err: errors.New("some Find error")},
 			},
@@ -198,7 +197,7 @@ func TestSearcher_query_err(t *testing.T) {
 
 		// case 3
 		{
-			signer:        &client.TestNoOpSigner{},
+			signer: &client.TestNoOpSigner{},
 			finderCreator: &TestFinderCreator{
 				finder: &fixedFinder{requestID: []byte{1, 2, 3, 4}},
 			},

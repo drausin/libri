@@ -2,6 +2,15 @@ package server
 
 import (
 	"errors"
+	"fmt"
+	"io/ioutil"
+	"math/rand"
+	"net"
+	"net/http"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
@@ -14,13 +23,6 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
-	"io/ioutil"
-	"math/rand"
-	"net"
-	"net/http"
-	"os"
-	"testing"
-	"time"
 )
 
 func TestStart_ok(t *testing.T) {

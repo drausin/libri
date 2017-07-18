@@ -5,6 +5,8 @@ import (
 	"errors"
 	"math/rand"
 
+	"net/http"
+
 	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
@@ -17,13 +19,12 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/store"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/willf/bloom"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/health"
-	"net/http"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // Librarian is the main service of a single peer in the peer to peer network.

@@ -309,7 +309,7 @@ func (f *fixedIntroducer) Introduce(ctx context.Context, rq *api.IntroduceReques
 		Metadata: &api.ResponseMetadata{
 			RequestId: requestID,
 		},
-		Self: f.self,
+		Self:  f.self,
 		Peers: f.addresses,
 	}, nil
 }

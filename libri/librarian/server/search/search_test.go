@@ -1,17 +1,17 @@
 package search
 
 import (
-	"testing"
-	"math/rand"
 	"errors"
+	"math/rand"
+	"testing"
 
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 func TestNewDefaultParameters(t *testing.T) {

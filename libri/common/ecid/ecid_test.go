@@ -2,11 +2,12 @@ package ecid
 
 import (
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/sha256"
+	"errors"
 	"math/rand"
 	"testing"
-	"crypto/elliptic"
-	"errors"
+
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/stretchr/testify/assert"
 )

@@ -3,9 +3,9 @@ package ship
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"errors"
 	"math/rand"
 	"testing"
-	"errors"
 
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/pack"

@@ -11,8 +11,8 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	ssearch "github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 func TestNewDefaultParameters(t *testing.T) {

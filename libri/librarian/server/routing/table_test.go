@@ -469,7 +469,7 @@ func TestSplitLowerBound_Ok(t *testing.T) {
 		assert.Equal(t, expected, actual)
 	}
 
-	check(id.FromInt64(0), 0, newIDLsh(1, 255))                   // no prefix
+	check(id.FromInt64(0), 0, newIDLsh(1, 255))                    // no prefix
 	check(newIDLsh(128, 248), 1, newIDLsh(192, 248))               // prefix 1
 	check(newIDLsh(1, 254), 2, newIDLsh(3, 253))                   // prefix 01
 	check(newIDLsh(3, 254), 2, newIDLsh(7, 253))                   // prefix 11

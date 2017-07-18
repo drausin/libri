@@ -1,8 +1,8 @@
 package server
 
 import (
-	"fmt"
 	"errors"
+	"fmt"
 
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"

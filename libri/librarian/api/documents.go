@@ -3,8 +3,8 @@ package api
 import (
 	"bytes"
 	"crypto/sha256"
-	"fmt"
 	"errors"
+	"fmt"
 
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/golang/protobuf/proto"

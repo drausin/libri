@@ -3,12 +3,12 @@ package cmd
 import (
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
 	"testing"
-	"errors"
 
 	"github.com/drausin/libri/libri/author"
 	lauthor "github.com/drausin/libri/libri/author"
@@ -294,4 +294,3 @@ type fixedPassphraseGetter struct {
 func (f *fixedPassphraseGetter) get() (string, error) {
 	return f.passphrase, f.err
 }
-

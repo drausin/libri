@@ -10,7 +10,7 @@ type IntroducerCreator interface {
 	Create(conn api.Connector) (api.Introducer, error)
 }
 
-type introducerCreator struct {}
+type introducerCreator struct{}
 
 // NewIntroducerCreator creates a new IntroducerCreator.
 func NewIntroducerCreator() IntroducerCreator {
@@ -31,7 +31,7 @@ type FinderCreator interface {
 	Create(conn api.Connector) (api.Finder, error)
 }
 
-type finderCreator struct {}
+type finderCreator struct{}
 
 // NewFinderCreator creates a new FinderCreator.
 func NewFinderCreator() FinderCreator {
@@ -52,7 +52,7 @@ type StorerCreator interface {
 	Create(conn api.Connector) (api.Storer, error)
 }
 
-type storerCreator struct {}
+type storerCreator struct{}
 
 // NewStorerCreator creates a new StorerCreator.
 func NewStorerCreator() StorerCreator {

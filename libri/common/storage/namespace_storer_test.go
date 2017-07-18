@@ -2,9 +2,9 @@ package storage
 
 import (
 	"bytes"
+	"errors"
 	"math/rand"
 	"testing"
-	"errors"
 
 	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/common/id"
