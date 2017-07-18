@@ -1,0 +1,100 @@
+# good resources
+# - https://github.com/kayrus/prometheus-kubernetes
+# - https://github.com/kubernetes/kube-state-metrics
+
+scrape_configs:
+- job_name: 'etcd'
+  scheme: http
+  kubernetes_sd_configs:
+  - role: node
+  relabel_configs:
+  - action: labelmap
+    regex: __meta_kubernetes_node_label_(.+)
+  - source_labels: [__address__]
+    regex: '(.*):10250'
+    replacement: '${1}:2379'
+    target_label: __address__
+
+- job_name: 'kubernetes-cluster'
+  scheme: http
+  kubernetes_sd_configs:
+  - role: service
+  relabel_configs:
+  - action: keep
+    source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+    regex: true
+  - action: replace
+    source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+    target_label: __address__
+    regex: (.+)(?::\d+);(\d+)
+
+- job_name: 'kubernetes-service-endpoints'
+  kubernetes_sd_configs:
+  - role: endpoints
+  relabel_configs:
+  - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+    action: keep
+    regex: true
+  - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+    action: replace
+    target_label: __address__
+    regex: (.+)(?::\d+);(\d+)
+    replacement: $1:$2
+  - action: labelmap
+    regex: __meta_kubernetes_service_label_(.+)
+  - source_labels: [__meta_kubernetes_service_namespace]
+    action: replace
+    target_label: kubernetes_namespace
+  - source_labels: [__meta_kubernetes_service_name]
+    action: replace
+    target_label: kubernetes_name
+
+- job_name: 'kubernetes-nodes'
+  scheme: http
+  kubernetes_sd_configs:
+  - role: node
+  relabel_configs:
+  - action: labelmap
+    regex: __meta_kubernetes_node_label_(.+)
+  # Use insecure read-only HTTP 10255 port
+  # More info is here: http://github.com/kayrus/kubelet-exploit
+  - source_labels: [__address__]
+    regex: '(.*):10250'
+    replacement: '${1}:10255'
+    target_label: __address__
+
+- job_name: 'kubernetes-node-exporter'
+  kubernetes_sd_configs:
+  - role: node
+  relabel_configs:
+  - action: labelmap
+    regex: __meta_kubernetes_node_label_(.+)
+  - source_labels: [__meta_kubernetes_role]
+    action: replace
+    target_label: kubernetes_role
+  - source_labels: [__address__]
+    regex: '(.*):10250'
+    replacement: '${1}:9100'
+    target_label: __address__
+  - source_labels: [__meta_kubernetes_node_label_kubernetes_io_hostname]
+    target_label: __instance__
+  - source_labels: [job]
+    regex: 'kubernetes-(.*)'
+    replacement: '${1}'
+    target_label: name
+
+- job_name: 'kubernetes-pods'
+  scheme: http
+  kubernetes_sd_configs:
+  - role: pod
+  relabel_configs:
+  - action: keep
+    source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+    regex: true
+  - action: labelmap
+    regex: __meta_kubernetes_(pod_(?:node_)?name)
+  - action: replace
+    source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+    target_label: __address__
+    regex: (.+)(?::\d+);(\d+)
+    replacement: $1:$2

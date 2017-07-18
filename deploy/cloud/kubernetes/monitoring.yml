@@ -1,53 +1,42 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: node-exporter
+spec:
+  template:
+    metadata:
+      labels:
+        app: node-exporter
+      name: node-exporter
+    spec:
+      containers:
+      - image: prom/node-exporter:v0.14.0
+        name: node-exporter
+        ports:
+        - containerPort: 9100
+          hostPort: 9100
+          name: scrape
+      hostNetwork: true
+      hostPID: true
+---
 apiVersion: v1
 kind: Service
 metadata:
+  name: prometheus
   labels:
     name: prometheus
-  name: prometheus
+  annotations:
+      prometheus.io/scrape: 'true'
 spec:
   selector:
     app: prometheus
-  type: NodePort  # prob want to disable later on
+  type: NodePort  # prob want to move behind LB at some point
   ports:
   - name: prometheus
     protocol: TCP
     port: 9090
     targetPort: 9090
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: prometheus-configmap
-data:
-  # see also:
-  # - https://prometheus.io/docs/operating/configuration/#<kubernetes_sd_config>
-  # - https://github.com/kayrus/prometheus-kubernetes
-  # - https://grafana.com/dashboards/315
-  prometheus.yml: |-
-    # Kubernetes labels will be added as Prometheus labels on metrics via the
-    # `labelmap` relabeling action.
-    #rule_files:
-    #  - "/etc/prometheus-rules/*.rules"
-
-    scrape_configs:
-    - job_name: 'kubernetes-cluster'
-      scheme: http
-      kubernetes_sd_configs:
-      - role: service
-
-    - job_name: 'kubernetes-nodes'
-      scheme: http
-      kubernetes_sd_configs:
-      - role: node
-      relabel_configs:
-      - action: labelmap
-        regex: __meta_kubernetes_node_label_(.+)
-      # Use insecure read-only HTTP 10255 port
-      # More info is here: http://github.com/kayrus/kubelet-exploit
-      - source_labels: [__address__]
-        regex: '(.*):10250'
-        replacement: '${1}:10255'
-        target_label: __address__
+    nodePort: 30090
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -82,18 +71,84 @@ spec:
         - name: web
           containerPort: 9090
         volumeMounts:
-        - name: config-volume
+        - name: prometheus-config
           mountPath: /etc/prometheus
 #        - name: rules-volume
 #          mountPath: /etc/prometheus-rules
-        - name: prometheus-data
-          mountPath: /prometheus
+#        - name: prometheus-data
+#          mountPath: /prometheus
       volumes:
-      - name: config-volume
+      - name: prometheus-config
         configMap:
-          name: prometheus-configmap
+          name: prometheus-config
 #      - name: rules-volume
 #        configMap:
 #          name: prometheus-rules
-      - name: prometheus-data
-        emptyDir: {}
+#      - name: prometheus-data
+#        emptyDir: {}  # TODO (drausin) PeristentVolume
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  labels:
+    app: grafana
+  annotations:
+      prometheus.io/scrape: 'false'
+spec:
+  selector:
+    app: grafana
+  type: NodePort  # prob want to move behind LB at some point
+  ports:
+  - name: grafana
+    protocol: TCP
+    port: 3000
+    targetPort: 3000
+    nodePort: 30300
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: grafana
+  labels:
+    app: grafana
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+      - image: grafana/grafana:4.4.1
+        name: grafana
+        resources:
+        env:
+            # The following env variables are required to make Grafana accessible via
+            # the kubernetes api-server proxy. On production clusters, we recommend
+            # removing these env variables, setup auth for grafana, and expose the grafana
+            # service using a LoadBalancer or a public IP.
+          - name: GF_AUTH_BASIC_ENABLED
+            value: "false"
+          - name: GF_AUTH_ANONYMOUS_ENABLED
+            value: "true"
+          - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+            value: Admin
+          # - name: GF_SERVER_ROOT_URL
+          #   value: /api/v1/proxy/namespaces/kube-system/services/monitoring-grafana/
+
+        lifecycle:
+          postStart:
+            exec:
+              command: [
+                "sh", "/opt/grafana/post-start.sh", "http://localhost:3000"
+              ]
+
+        volumeMounts:
+        - name: grafana-config
+          mountPath: /opt/grafana
+
+      volumes:
+      - name: grafana-config
+        configMap:
+          name: grafana-config

@@ -1,6 +1,7 @@
 {{/* the next line is obviously just for the generated file, not this template */}}
 # This file is generated from libri.template.yml. Please edit that instead!
 {{ $localPort := .LocalPort -}}
+{{ $localMetricsPort := .LocalMetricsPort -}}
 {{ $gceCluster := .GCECluster -}}
 {{ $localCluster := .LocalCluster -}}
 ---
@@ -9,6 +10,8 @@ kind: Service
 apiVersion: v1
 metadata:
   name: libri
+  annotations:
+    prometheus.io/scrape: "false"  # we get stats from individual pods
 spec:
   clusterIP: None
   ports:
@@ -22,6 +25,8 @@ kind: Service
 apiVersion: v1
 metadata:
   name: librarians-{{ $index }}
+  annotations:
+    prometheus.io/scrape: "false"  # we get stats from individual pods
 spec:
   type: NodePort
   ports:
@@ -81,6 +86,9 @@ spec:
     metadata:
       labels:
         app: libri
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ $localMetricsPort }}"
     spec:
 
       containers:
@@ -90,6 +98,8 @@ spec:
           "librarian", "start",
           "--nSubscriptions", "2",
           "--dataDir", "/data",
+          "--localPort", "{{ $localPort }}",
+          "--localMetricsPort", "{{ $localMetricsPort }}",
           "--bootstraps", "librarians-0.libri.default.svc.cluster.local:{{ $localPort }}",
         ]
         env:
@@ -107,6 +117,7 @@ spec:
               fieldPath: status.podIP
         ports:
         - containerPort: {{ $localPort }}
+        - containerPort: {{ $localMetricsPort }}
         livenessProbe:
           exec:
             command: [

@@ -148,6 +148,7 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 	api.RegisterLibrarianServer(s, l)
 	healthpb.RegisterHealthServer(s, l.health)
 	grpc_prometheus.Register(s)
+	grpc_prometheus.EnableHandlingTimeHistogram()
 	reflection.Register(s)
 
 	go func () {
