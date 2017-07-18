@@ -5,13 +5,13 @@ import (
 	"math/rand"
 	"net"
 
-	"github.com/drausin/libri/libri/common/ecid"
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"github.com/drausin/libri/libri/common/ecid"
 )
 
 // TestFinderCreator mocks the FindQuerier interface. The Query() method returns a fixed
@@ -64,7 +64,7 @@ type TestFromer struct {
 // FromAPI mocks creating a new peer.Peer instance, instead looking up an existing peer stored
 // in the TestFromer instance.
 func (f *TestFromer) FromAPI(apiAddress *api.PeerAddress) peer.Peer {
-	return f.Peers[cid.FromBytes(apiAddress.PeerId).String()]
+	return f.Peers[id.FromBytes(apiAddress.PeerId).String()]
 }
 
 // NewTestSearcher creates a new Searcher instance with a FindQuerier and FindResponseProcessor that
@@ -84,7 +84,7 @@ func NewTestSearcher(peersMap map[string]peer.Peer) Searcher {
 // that peer 0 has in its routing table.
 func NewTestPeers(rng *rand.Rand, n int) ([]peer.Peer, map[string]peer.Peer, []int, ecid.ID) {
 	addresses := make([]*net.TCPAddr, n)
-	ids := make([]cid.ID, n)
+	ids := make([]id.ID, n)
 	names := make([]string, n)
 
 	// create the addresses and IDs
@@ -94,7 +94,7 @@ func NewTestPeers(rng *rand.Rand, n int) ([]peer.Peer, map[string]peer.Peer, []i
 			selfID = ecid.NewPseudoRandom(rng)
 			ids[0] = selfID.ID()
 		} else {
-			ids[i] = cid.NewPseudoRandom(rng)
+			ids[i] = id.NewPseudoRandom(rng)
 		}
 		names[i] = fmt.Sprintf("peer-%03d", i)
 		address, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("localhost:%v", 20100+i))

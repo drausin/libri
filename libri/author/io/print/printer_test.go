@@ -14,7 +14,7 @@ import (
 	"github.com/drausin/libri/libri/author/io/comp"
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/page"
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
 )
@@ -280,12 +280,12 @@ type fixedStorer struct {
 	storeErr error
 }
 
-func (f *fixedStorer) Store(pages chan *api.Page) ([]cid.ID, error) {
+func (f *fixedStorer) Store(pages chan *api.Page) ([]id.ID, error) {
 	if f.storeErr != nil {
 		return nil, f.storeErr
 	}
 
-	pageKeys := make([]cid.ID, 0)
+	pageKeys := make([]id.ID, 0)
 	for chanPage := range pages {
 		pageKey, err := api.GetKey(chanPage)
 		if err != nil {
@@ -369,22 +369,22 @@ type fixedDocumentSLD struct {
 	deleteErr error
 }
 
-func (f *fixedDocumentSLD) Store(key cid.ID, value *api.Document) error {
+func (f *fixedDocumentSLD) Store(key id.ID, value *api.Document) error {
 	f.stored[key.String()] = value
 	return f.storeErr
 }
 
-func (f *fixedDocumentSLD) Load(key cid.ID) (*api.Document, error) {
+func (f *fixedDocumentSLD) Load(key id.ID) (*api.Document, error) {
 	return f.stored[key.String()], f.loadErr
 }
 
-func (f *fixedDocumentSLD) Delete(key cid.ID) error {
+func (f *fixedDocumentSLD) Delete(key id.ID) error {
 	return f.deleteErr
 }
 
-func randPages(t *testing.T, rng *rand.Rand, n int) ([]cid.ID, []*api.Page) {
+func randPages(t *testing.T, rng *rand.Rand, n int) ([]id.ID, []*api.Page) {
 	pages := make([]*api.Page, n)
-	pageKeys := make([]cid.ID, n)
+	pageKeys := make([]id.ID, n)
 	var err error
 	for i := 0; i < n; i++ {
 		pages[i] = api.NewTestPage(rng)

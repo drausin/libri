@@ -3,7 +3,7 @@ package peer
 import (
 	"fmt"
 
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 )
@@ -17,7 +17,7 @@ const (
 type Peer interface {
 
 	// ID returns the peer ID.
-	ID() cid.ID
+	ID() id.ID
 
 	// Connector returns the Connector instance for connecting to the peer.
 	Connector() api.Connector
@@ -42,7 +42,7 @@ type Peer interface {
 
 type peer struct {
 	// 256-bit ID
-	id cid.ID
+	id id.ID
 
 	// self-reported name
 	name string
@@ -55,7 +55,7 @@ type peer struct {
 }
 
 // New creates a new Peer instance with empty response stats.
-func New(id cid.ID, name string, conn api.Connector) Peer {
+func New(id id.ID, name string, conn api.Connector) Peer {
 	return &peer{
 		id:       id,
 		name:     name,
@@ -65,7 +65,7 @@ func New(id cid.ID, name string, conn api.Connector) Peer {
 }
 
 // NewStub creates a new peer without a name or connector.
-func NewStub(id cid.ID, name string) Peer {
+func NewStub(id id.ID, name string) Peer {
 	return New(id, name, nil)
 }
 
@@ -74,7 +74,7 @@ func (p *peer) WithQueryRecorder(rec Recorder) *peer {
 	return p
 }
 
-func (p *peer) ID() cid.ID {
+func (p *peer) ID() id.ID {
 	return p.id
 }
 
@@ -148,7 +148,7 @@ func NewFromer() Fromer {
 
 func (f *fromer) FromAPI(apiAddress *api.PeerAddress) Peer {
 	return New(
-		cid.FromBytes(apiAddress.PeerId),
+		id.FromBytes(apiAddress.PeerId),
 		apiAddress.PeerName,
 		api.NewConnector(api.ToAddress(apiAddress)),
 	)

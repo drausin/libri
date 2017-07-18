@@ -2,7 +2,7 @@ package storage
 
 import (
 	"github.com/drausin/libri/libri/common/db"
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/golang/protobuf/proto"
 )
@@ -110,19 +110,19 @@ func (nsl *namespaceSLD) Delete(key []byte) error {
 // DocumentStorer stores api.Document values.
 type DocumentStorer interface {
 	// Store an api.Document value under the given key.
-	Store(key cid.ID, value *api.Document) error
+	Store(key id.ID, value *api.Document) error
 }
 
 // DocumentLoader loads api.Document values.
 type DocumentLoader interface {
 	// Load an api.Document value with the given key.
-	Load(key cid.ID) (*api.Document, error)
+	Load(key id.ID) (*api.Document, error)
 }
 
 // DocumentDeleter deletes api.Document values.
 type DocumentDeleter interface {
 	// Delete the api.Document value with the given key.
-	Delete(key cid.ID) error
+	Delete(key id.ID) error
 }
 
 // DocumentSL stores & loads api.Document values.
@@ -165,7 +165,7 @@ func NewDocumentSLD(kvdb db.KVDB) DocumentSLD {
 }
 
 // Store checks that the key equals the SHA256 hash of the value before storing it.
-func (dsld *documentSLD) Store(key cid.ID, value *api.Document) error {
+func (dsld *documentSLD) Store(key id.ID, value *api.Document) error {
 	if err := api.ValidateDocument(value); err != nil {
 		return err
 	}
@@ -180,7 +180,7 @@ func (dsld *documentSLD) Store(key cid.ID, value *api.Document) error {
 	return dsld.sld.Store(keyBytes, valueBytes)
 }
 
-func (dsld *documentSLD) Load(key cid.ID) (*api.Document, error) {
+func (dsld *documentSLD) Load(key id.ID) (*api.Document, error) {
 	keyBytes := key.Bytes()
 	valueBytes, err := dsld.sld.Load(keyBytes)
 	if err != nil {
@@ -204,6 +204,6 @@ func (dsld *documentSLD) Load(key cid.ID) (*api.Document, error) {
 	return doc, nil
 }
 
-func (dsld *documentSLD) Delete(key cid.ID) error {
+func (dsld *documentSLD) Delete(key id.ID) error {
 	return dsld.sld.Delete(key.Bytes())
 }

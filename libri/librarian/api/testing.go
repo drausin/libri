@@ -4,11 +4,11 @@ import (
 	"math/rand"
 
 	"github.com/drausin/libri/libri/common/ecid"
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 )
 
 // NewTestDocument generates a dummy Entry document for use in testing.
-func NewTestDocument(rng *rand.Rand) (*Document, cid.ID) {
+func NewTestDocument(rng *rand.Rand) (*Document, id.ID) {
 	doc := &Document{&Document_Entry{NewTestSinglePageEntry(rng)}}
 	key, err := GetKey(doc)
 	if err != nil {
@@ -43,8 +43,8 @@ func NewTestSinglePageEntry(rng *rand.Rand) *Entry {
 // NewTestMultiPageEntry generates a dummy Entry document with two page keys for use in testing.
 func NewTestMultiPageEntry(rng *rand.Rand) *Entry {
 	pageKeys := [][]byte{
-		cid.NewPseudoRandom(rng).Bytes(),
-		cid.NewPseudoRandom(rng).Bytes(),
+		id.NewPseudoRandom(rng).Bytes(),
+		id.NewPseudoRandom(rng).Bytes(),
 	}
 	return &Entry{
 		AuthorPublicKey:       ecid.NewPseudoRandom(rng).PublicKeyBytes(),
@@ -67,8 +67,8 @@ func NewTestPage(rng *rand.Rand) *Page {
 // NewTestPublication generates a dummy Publication for use in testing.
 func NewTestPublication(rng *rand.Rand) *Publication {
 	return &Publication{
-		EnvelopeKey:     RandBytes(rng, cid.Length),
-		EntryKey:        RandBytes(rng, cid.Length),
+		EnvelopeKey:     RandBytes(rng, id.Length),
+		EntryKey:        RandBytes(rng, id.Length),
 		AuthorPublicKey: fakePubKey(rng),
 		ReaderPublicKey: fakePubKey(rng),
 	}

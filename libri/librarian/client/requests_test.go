@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/drausin/libri/libri/common/ecid"
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
 )
@@ -17,7 +17,7 @@ func TestNewRequestMetadata(t *testing.T) {
 	pub, err := ecid.FromPublicKeyBytes(m.PubKey)
 	assert.Nil(t, err)
 
-	assert.Equal(t, cid.Length, len(m.RequestId))
+	assert.Equal(t, id.Length, len(m.RequestId))
 	assert.NotNil(t, m.PubKey)
 	assert.Equal(t, &peerID.Key().PublicKey, pub)
 }
@@ -34,7 +34,7 @@ func TestNewIntroduceRequest(t *testing.T) {
 
 func TestNewFindRequest(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	peerID, key, nPeers := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng), uint(8)
+	peerID, key, nPeers := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng), uint(8)
 	rq := NewFindRequest(peerID, key, nPeers)
 	assert.NotNil(t, rq.Metadata)
 	assert.Equal(t, key.Bytes(), rq.Key)
@@ -53,7 +53,7 @@ func TestNewStoreRequest(t *testing.T) {
 
 func TestNewGetRequest(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	peerID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
+	peerID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
 	rq := NewGetRequest(peerID, key)
 	assert.NotNil(t, rq.Metadata)
 	assert.Equal(t, key.Bytes(), rq.Key)

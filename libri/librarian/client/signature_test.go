@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/drausin/libri/libri/common/ecid"
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
@@ -72,7 +72,7 @@ func TestEcdsaSigner_Sign_err(t *testing.T) {
 func TestEcdsaVerifer_Verify_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	peerID := ecid.NewPseudoRandom(rng)
-	key, value := cid.NewPseudoRandom(rng), make([]byte, 512)
+	key, value := id.NewPseudoRandom(rng), make([]byte, 512)
 	rng.Read(value)
 
 	signer, verifier := NewSigner(peerID.Key()), NewVerifier()

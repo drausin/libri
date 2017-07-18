@@ -2,7 +2,7 @@ package server
 
 import (
 	"github.com/drausin/libri/libri/common/ecid"
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/golang/protobuf/proto"
@@ -12,12 +12,12 @@ import (
 )
 
 // newStubPeerFromPublicKeyBytes creates a new stub peer with an ID coming from an ECDSA public key.
-func newIDFromPublicKeyBytes(pubKeyBytes []byte) (cid.ID, error) {
+func newIDFromPublicKeyBytes(pubKeyBytes []byte) (id.ID, error) {
 	pubKey, err := ecid.FromPublicKeyBytes(pubKeyBytes)
 	if err != nil {
 		return nil, err
 	}
-	return cid.FromPublicKey(pubKey), nil
+	return id.FromPublicKey(pubKey), nil
 }
 
 // NewResponseMetadata creates a new api.ResponseMatadata object with the same RequestID as that
@@ -32,7 +32,7 @@ func (l *Librarian) NewResponseMetadata(m *api.RequestMetadata) *api.ResponseMet
 // checkRequest verifies the request signature and records an error with the peer if necessary. It
 // returns the ID of the requester or an error.
 func (l *Librarian) checkRequest(ctx context.Context, rq proto.Message, meta *api.RequestMetadata) (
-	cid.ID, error) {
+	id.ID, error) {
 	requesterID, err := newIDFromPublicKeyBytes(meta.PubKey)
 	if err != nil {
 		return nil, err
@@ -49,7 +49,7 @@ func (l *Librarian) checkRequest(ctx context.Context, rq proto.Message, meta *ap
 // checkRequestAndKey verifies the request signature and key, recording errors with the peer if
 // necessary. It returns the ID of the requester or an error.
 func (l *Librarian) checkRequestAndKey(ctx context.Context, rq proto.Message,
-	meta *api.RequestMetadata, key []byte) (cid.ID, error) {
+	meta *api.RequestMetadata, key []byte) (id.ID, error) {
 	requester, err := l.checkRequest(ctx, rq, meta)
 	if err != nil {
 		return nil, err
@@ -64,7 +64,7 @@ func (l *Librarian) checkRequestAndKey(ctx context.Context, rq proto.Message,
 // checkRequestAndKey verifies the request signature and key/value combo, recording errors with
 // the peer if necessary. It returns the ID of the requester or an error.
 func (l *Librarian) checkRequestAndKeyValue(ctx context.Context, rq proto.Message,
-	meta *api.RequestMetadata, key []byte, value *api.Document) (cid.ID, error) {
+	meta *api.RequestMetadata, key []byte, value *api.Document) (id.ID, error) {
 	requester, err := l.checkRequest(ctx, rq, meta)
 	if err != nil {
 		return nil, err
@@ -81,14 +81,14 @@ func (l *Librarian) checkRequestAndKeyValue(ctx context.Context, rq proto.Messag
 }
 
 // record records query outcome for a particular peer if that peer is in the routing table.
-func (l *Librarian) record(fromPeerID cid.ID, t peer.QueryType, o peer.Outcome) {
-	if peer, exists := l.rt.Get(fromPeerID); exists {
+func (l *Librarian) record(fromPeerID id.ID, t peer.QueryType, o peer.Outcome) {
+	if fromPeer, exists := l.rt.Get(fromPeerID); exists {
 		// only record query outcomes for peers already in our routing table
-		peer.Recorder().Record(t, o)
+		fromPeer.Recorder().Record(t, o)
 
 		// re-heap; if this proves expensive, we could choose to only selectively re-heap
-		// when it changes the outcome of peer.Before()
-		l.rt.Push(peer)
+		// when it changes the outcome of fromPeer.Before()
+		l.rt.Push(fromPeer)
 	}
 }
 

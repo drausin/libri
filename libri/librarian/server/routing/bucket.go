@@ -1,7 +1,7 @@
 package routing
 
 import (
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 )
 
@@ -11,10 +11,10 @@ type bucket struct {
 	depth uint
 
 	// (inclusive) lower bound of IDs in this bucket
-	lowerBound cid.ID
+	lowerBound id.ID
 
 	// (exclusive) upper bound of IDs in this bucket
-	upperBound cid.ID
+	upperBound id.ID
 
 	// proportion of the 256-bit ID space that this bucket spans
 	idMass float64
@@ -39,8 +39,8 @@ type bucket struct {
 func newFirstBucket(maxActivePeers uint) *bucket {
 	return &bucket{
 		depth:          0,
-		lowerBound:     cid.LowerBound,
-		upperBound:     cid.UpperBound,
+		lowerBound:     id.LowerBound,
+		upperBound:     id.UpperBound,
 		idMass:         1.0,
 		idCumMass:      1.0,
 		maxActivePeers: maxActivePeers,
@@ -95,6 +95,6 @@ func (b *bucket) Vacancy() bool {
 }
 
 // Contains returns whether the bucket's ID range contains the target.
-func (b *bucket) Contains(target cid.ID) bool {
+func (b *bucket) Contains(target id.ID) bool {
 	return target.Cmp(b.lowerBound) >= 0 && target.Cmp(b.upperBound) < 0
 }

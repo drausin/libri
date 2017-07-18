@@ -6,16 +6,16 @@ import (
 	"testing"
 	"time"
 
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNew(t *testing.T) {
-	id, name := cid.FromInt64(1), "test name"
+	peerID, name := id.FromInt64(1), "test name"
 	addr := &net.TCPAddr{IP: net.ParseIP("192.168.1.1"), Port: 1000}
-	p := New(id, name, api.NewConnector(addr))
-	assert.Equal(t, 0, id.Cmp(p.ID()))
+	p := New(peerID, name, api.NewConnector(addr))
+	assert.Equal(t, 0, peerID.Cmp(p.ID()))
 	assert.Equal(t, name, p.(*peer).name)
 	assert.Equal(t, addr, addr)
 
@@ -27,7 +27,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestNewStub(t *testing.T) {
-	peerID := cid.FromInt64(1)
+	peerID := id.FromInt64(1)
 	name := "some name"
 	p := NewStub(peerID, name)
 	assert.Equal(t, peerID, p.ID())
@@ -87,7 +87,7 @@ func TestPeer_Merge_ok(t *testing.T) {
 	var p1, p2 Peer
 
 	// p2's name should replace p1's, and response counts should sum
-	p1ID := cid.NewPseudoRandom(rng)
+	p1ID := id.NewPseudoRandom(rng)
 	p1 = New(p1ID, "p1", api.NewConnector(&net.TCPAddr{
 		IP:   net.ParseIP("192.168.1.1"),
 		Port: 20100,
@@ -129,7 +129,7 @@ func TestPeer_Merge_ok(t *testing.T) {
 	assert.Equal(t, p1Conn, p1.(*peer).conn)
 
 	// p2's connector should replace p1's
-	p1ID = cid.NewPseudoRandom(rng)
+	p1ID = id.NewPseudoRandom(rng)
 	p1 = New(p1ID, "p1", api.NewConnector(&net.TCPAddr{
 		IP:   net.ParseIP("192.168.1.1"),
 		Port: 20100,

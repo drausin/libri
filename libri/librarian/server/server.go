@@ -7,7 +7,7 @@ import (
 
 	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/common/ecid"
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/common/subscribe"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -114,7 +114,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 	if err != nil {
 		return nil, err
 	}
-	selfLogger := logger.With(zap.String(logSelfIDShort, cid.ShortHex(peerID.Bytes())))
+	selfLogger := logger.With(zap.String(logSelfIDShort, id.ShortHex(peerID.Bytes())))
 
 	rt, err := loadOrCreateRoutingTable(selfLogger, serverSL, peerID, config.Routing)
 	if err != nil {
@@ -222,7 +222,7 @@ func (l *Librarian) Find(ctx context.Context, rq *api.FindRequest) (*api.FindRes
 	}
 	l.record(requesterID, peer.Request, peer.Success)
 
-	value, err := l.documentSL.Load(cid.FromBytes(rq.Key))
+	value, err := l.documentSL.Load(id.FromBytes(rq.Key))
 	if err != nil {
 		// something went wrong during load
 		return nil, logAndReturnErr(logger, "error loading document", err)
@@ -239,7 +239,7 @@ func (l *Librarian) Find(ctx context.Context, rq *api.FindRequest) (*api.FindRes
 	}
 
 	// otherwise, return the peers closest to the key
-	key := cid.FromBytes(rq.Key)
+	key := id.FromBytes(rq.Key)
 	closest := l.rt.Peak(key, uint(rq.NumPeers))
 	rp := &api.FindResponse{
 		Metadata: l.NewResponseMetadata(rq.Metadata),
@@ -261,7 +261,7 @@ func (l *Librarian) Store(ctx context.Context, rq *api.StoreRequest) (
 	}
 	l.record(requesterID, peer.Request, peer.Success)
 
-	if err := l.documentSL.Store(cid.FromBytes(rq.Key), rq.Value); err != nil {
+	if err := l.documentSL.Store(id.FromBytes(rq.Key), rq.Value); err != nil {
 		return nil, logAndReturnErr(logger, "error storing document", err)
 	}
 	if err := l.subscribeTo.Send(api.GetPublication(rq.Key, rq.Value)); err != nil {
@@ -288,7 +288,7 @@ func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetRespon
 	}
 	l.record(requesterID, peer.Request, peer.Success)
 
-	key := cid.FromBytes(rq.Key)
+	key := id.FromBytes(rq.Key)
 	s := search.NewSearch(l.selfID, key, l.config.Search)
 	seeds := l.rt.Peak(key, s.Params.NClosestResponses)
 	if err = l.searcher.Search(s, seeds); err != nil {
@@ -337,7 +337,7 @@ func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutRespon
 	}
 	l.record(requesterID, peer.Request, peer.Success)
 
-	key := cid.FromBytes(rq.Key)
+	key := id.FromBytes(rq.Key)
 	s := store.NewStore(
 		l.selfID,
 		key,

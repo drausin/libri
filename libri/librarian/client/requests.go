@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/drausin/libri/libri/common/ecid"
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 )
 
@@ -15,7 +15,7 @@ var ErrUnexpectedRequestID = errors.New("response contains unexpected RequestID"
 // NewRequestMetadata creates a RequestMetadata object from the peer ID and a random request ID.
 func NewRequestMetadata(peerID ecid.ID) *api.RequestMetadata {
 	return &api.RequestMetadata{
-		RequestId: cid.NewRandom().Bytes(),
+		RequestId: id.NewRandom().Bytes(),
 		PubKey:    peerID.PublicKeyBytes(),
 	}
 }
@@ -32,7 +32,7 @@ func NewIntroduceRequest(
 }
 
 // NewFindRequest creates a FindRequest object.
-func NewFindRequest(peerID ecid.ID, key cid.ID, nPeers uint) *api.FindRequest {
+func NewFindRequest(peerID ecid.ID, key id.ID, nPeers uint) *api.FindRequest {
 	return &api.FindRequest{
 		Metadata: NewRequestMetadata(peerID),
 		Key:      key.Bytes(),
@@ -41,7 +41,7 @@ func NewFindRequest(peerID ecid.ID, key cid.ID, nPeers uint) *api.FindRequest {
 }
 
 // NewStoreRequest creates a StoreRequest object.
-func NewStoreRequest(peerID ecid.ID, key cid.ID, value *api.Document) *api.StoreRequest {
+func NewStoreRequest(peerID ecid.ID, key id.ID, value *api.Document) *api.StoreRequest {
 	return &api.StoreRequest{
 		Metadata: NewRequestMetadata(peerID),
 		Key:      key.Bytes(),
@@ -50,7 +50,7 @@ func NewStoreRequest(peerID ecid.ID, key cid.ID, value *api.Document) *api.Store
 }
 
 // NewGetRequest creates a GetRequest object.
-func NewGetRequest(peerID ecid.ID, key cid.ID) *api.GetRequest {
+func NewGetRequest(peerID ecid.ID, key id.ID) *api.GetRequest {
 	return &api.GetRequest{
 		Metadata: NewRequestMetadata(peerID),
 		Key:      key.Bytes(),
@@ -58,7 +58,7 @@ func NewGetRequest(peerID ecid.ID, key cid.ID) *api.GetRequest {
 }
 
 // NewPutRequest creates a PutRequest object.
-func NewPutRequest(peerID ecid.ID, key cid.ID, value *api.Document) *api.PutRequest {
+func NewPutRequest(peerID ecid.ID, key id.ID, value *api.Document) *api.PutRequest {
 	return &api.PutRequest{
 		Metadata: NewRequestMetadata(peerID),
 		Key:      key.Bytes(),

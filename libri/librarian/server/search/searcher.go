@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
@@ -179,7 +179,7 @@ func (frp *responseProcessor) Process(rp *api.FindResponse, result *Result) erro
 	if rp.Peers != nil {
 		// response has peer addresses close to key
 		for _, pa := range rp.Peers {
-			newID := cid.FromBytes(pa.PeerId)
+			newID := id.FromBytes(pa.PeerId)
 			if !result.Closest.In(newID) && !result.Unqueried.In(newID) {
 				// only add discovered peers that we haven't already seen
 				newPeer := frp.fromer.FromAPI(pa)

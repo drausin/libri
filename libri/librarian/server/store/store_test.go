@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/drausin/libri/libri/common/ecid"
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	ssearch "github.com/drausin/libri/libri/librarian/server/search"
@@ -89,7 +89,7 @@ func TestStore_Stored(t *testing.T) {
 
 func TestStore_Errored(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	peerID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
+	peerID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
 
 	// create search with result of closest peers
 	nClosestResponse := uint(4)

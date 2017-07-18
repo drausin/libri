@@ -2,11 +2,9 @@ package server
 
 import (
 	"fmt"
-
 	"errors"
 
 	"github.com/drausin/libri/libri/common/ecid"
-	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/golang/protobuf/proto"
@@ -65,7 +63,7 @@ func savePeerID(ns storage.NamespaceStorer, peerID ecid.ID) error {
 	return ns.Store(peerIDKey, bytes)
 }
 
-func loadOrCreateRoutingTable(logger *zap.Logger, nl storage.NamespaceLoader, selfID cid.ID,
+func loadOrCreateRoutingTable(logger *zap.Logger, nl storage.NamespaceLoader, selfID ecid.ID,
 	params *routing.Parameters) (routing.Table, error) {
 	rt, err := routing.Load(nl, params)
 	if err != nil {
@@ -74,7 +72,7 @@ func loadOrCreateRoutingTable(logger *zap.Logger, nl storage.NamespaceLoader, se
 	}
 
 	if rt != nil {
-		if selfID.Cmp(rt.SelfID()) != 0 {
+		if selfID.ID().Cmp(rt.SelfID()) != 0 {
 			msg := fmt.Sprintf("selfID (%v) of loaded routing table does not match "+
 				"Librarian selfID (%v)", rt.SelfID(), selfID)
 			err := errors.New(msg)
@@ -89,5 +87,5 @@ func loadOrCreateRoutingTable(logger *zap.Logger, nl storage.NamespaceLoader, se
 	}
 
 	defer logger.Info("created new routing table")
-	return routing.NewEmpty(selfID, params), nil
+	return routing.NewEmpty(selfID.ID(), params), nil
 }

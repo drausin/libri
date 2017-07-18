@@ -2,11 +2,10 @@ package server
 
 import (
 	"fmt"
-
 	"errors"
 
 	"github.com/drausin/libri/libri/common/ecid"
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/golang/protobuf/proto"
@@ -42,9 +41,9 @@ func (rv *verifier) Verify(ctx context.Context, msg proto.Message,
 	if meta.RequestId == nil {
 		return errors.New("RequestId must not be nil")
 	}
-	if len(meta.RequestId) != cid.Length {
+	if len(meta.RequestId) != id.Length {
 		return fmt.Errorf("invalid RequestId length: %v; expected length %v",
-			len(meta.RequestId), cid.Length)
+			len(meta.RequestId), id.Length)
 	}
 
 	return rv.sigVerifier.Verify(encToken, pubKey, msg)

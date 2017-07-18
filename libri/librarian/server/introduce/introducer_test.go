@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/drausin/libri/libri/common/ecid"
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	lclient "github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
@@ -21,7 +21,7 @@ func TestNewDefaultIntroducer(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	s := NewDefaultIntroducer(
 		lclient.NewSigner(ecid.NewPseudoRandom(rng).Key()),
-		cid.NewPseudoRandom(rng),
+		id.NewPseudoRandom(rng),
 	)
 	assert.NotNil(t, s.(*introducer).signer)
 	assert.NotNil(t, s.(*introducer).introducerCreator)
@@ -237,7 +237,7 @@ func (erp *errResponseProcessor) Process(rp *api.IntroduceResponse, result *Resu
 	return errors.New("some fatal processing error")
 }
 
-func newTestIntroducer(peersMap map[string]peer.Peer, selfID cid.ID) Introducer {
+func newTestIntroducer(peersMap map[string]peer.Peer, selfID id.ID) Introducer {
 	return NewIntroducer(
 		&lclient.TestNoOpSigner{},
 		&fixedIntroducerCreator{},
@@ -257,7 +257,7 @@ func newTestIntros(concurrency uint) (Introducer, *Introduction, []int, []peer.P
 	}
 
 	// create our introducer
-	introducer := newTestIntroducer(peersMap, selfID)
+	introducer := newTestIntroducer(peersMap, selfID.ID())
 
 	intro := NewIntroduction(selfID, apiSelf, &Parameters{
 		TargetNumIntroductions: targetNumIntros,

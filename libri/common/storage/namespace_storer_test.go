@@ -4,11 +4,10 @@ import (
 	"bytes"
 	"math/rand"
 	"testing"
-
 	"errors"
 
 	"github.com/drausin/libri/libri/common/db"
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
@@ -20,8 +19,8 @@ func TestServerClientStorerLoader_StoreLoad_ok(t *testing.T) {
 		key   []byte
 		value []byte
 	}{
-		{bytes.Repeat([]byte{0}, cid.Length), []byte{0}},
-		{cid.NewPseudoRandom(rng).Bytes(), []byte("test value")},
+		{bytes.Repeat([]byte{0}, id.Length), []byte{0}},
+		{id.NewPseudoRandom(rng).Bytes(), []byte("test value")},
 	}
 
 	kvdb, cleanup, err := db.NewTempDirRocksDB()
@@ -136,14 +135,14 @@ func TestDocumentNamespaceStorerLoader_Store_err(t *testing.T) {
 
 	// check bad key returns error
 	value2, _ := api.NewTestDocument(rng)
-	key2 := cid.NewPseudoRandom(rng)
+	key2 := id.NewPseudoRandom(rng)
 	err = dsl.Store(key2, value2)
 	assert.NotNil(t, err)
 }
 
 func TestDocumentStorerLoader_Load_empty(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	key := cid.NewPseudoRandom(rng)
+	key := id.NewPseudoRandom(rng)
 	dsl1 := &documentSLD{
 		sld: &fixedNamespaceSLD{
 			loadValue: nil, // simulates missing/empty value
@@ -158,7 +157,7 @@ func TestDocumentStorerLoader_Load_empty(t *testing.T) {
 
 func TestDocumentStorerLoader_Load_loadErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	key := cid.NewPseudoRandom(rng)
+	key := id.NewPseudoRandom(rng)
 	dsl1 := &documentSLD{
 		sld: &fixedNamespaceSLD{
 			loadErr: errors.New("some load error"),
@@ -173,7 +172,7 @@ func TestDocumentStorerLoader_Load_loadErr(t *testing.T) {
 func TestDocumentStorerLoader_Load_checkErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	value, _ := api.NewTestDocument(rng)
-	key := cid.NewPseudoRandom(rng)
+	key := id.NewPseudoRandom(rng)
 	kvdb, cleanup, err := db.NewTempDirRocksDB()
 	defer cleanup()
 	defer kvdb.Close()
@@ -195,7 +194,7 @@ func TestDocumentStorerLoader_Load_validateDocumentErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	value, _ := api.NewTestDocument(rng)
 	value.Contents.(*api.Document_Entry).Entry.AuthorPublicKey = nil
-	key := cid.NewPseudoRandom(rng)
+	key := id.NewPseudoRandom(rng)
 	kvdb, cleanup, err := db.NewTempDirRocksDB()
 	defer cleanup()
 	defer kvdb.Close()

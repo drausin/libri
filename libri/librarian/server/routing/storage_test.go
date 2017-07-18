@@ -4,11 +4,10 @@ import (
 	"container/heap"
 	"math/rand"
 	"testing"
-
 	"errors"
 
 	"github.com/drausin/libri/libri/common/db"
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/stretchr/testify/assert"
@@ -68,7 +67,7 @@ func TestRoutingTable_SaveLoad(t *testing.T) {
 
 func newTestStoredTable(rng *rand.Rand, n int) *storage.RoutingTable {
 	rt := &storage.RoutingTable{
-		SelfId: cid.NewPseudoRandom(rng).Bytes(),
+		SelfId: id.NewPseudoRandom(rng).Bytes(),
 		Peers:  make([]*storage.Peer, n),
 	}
 	for i := 0; i < n; i++ {
@@ -80,7 +79,7 @@ func newTestStoredTable(rng *rand.Rand, n int) *storage.RoutingTable {
 func assertRoutingTablesEqual(t *testing.T, rt Table, srt *storage.RoutingTable) {
 	assert.Equal(t, srt.SelfId, rt.SelfID().Bytes())
 	for _, sp := range srt.Peers {
-		spIDStr := cid.FromBytes(sp.Id).String()
+		spIDStr := id.FromBytes(sp.Id).String()
 		if toPeer, exists := rt.(*table).peers[spIDStr]; exists {
 			peer.AssertPeersEqual(t, sp, toPeer)
 		}
