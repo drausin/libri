@@ -103,7 +103,7 @@ func (s *storer) storeWork(store *Store, wg *sync.WaitGroup) {
 	}
 }
 
-func (s *storer) query(pConn api.Connector, store *Store) (*api.StoreResponse, error) {
+func (s *storer) query(pConn peer.Connector, store *Store) (*api.StoreResponse, error) {
 	storeClient, err := s.storerCreator.Create(pConn)
 	if err != nil {
 		return nil, err

@@ -14,6 +14,7 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
+	"github.com/drausin/libri/libri/librarian/client"
 )
 
 func TestReceiver_ReceiveEntry_ok(t *testing.T) {
@@ -253,7 +254,7 @@ type fixedMultiStoreAcquirer struct {
 }
 
 func (f *fixedMultiStoreAcquirer) Acquire(
-	docKeys []id.ID, authorPub []byte, cb api.GetterBalancer,
+	docKeys []id.ID, authorPub []byte, cb client.GetterBalancer,
 ) error {
 	f.docKeys, f.authorPub = docKeys, authorPub
 	return f.err

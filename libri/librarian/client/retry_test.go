@@ -173,7 +173,7 @@ func TestRetryGetter_Get_ok(t *testing.T) {
 	doc, _ := api.NewTestDocument(rng)
 
 	// check each case ultimately succeeds despite possible initial failures
-	cases := []api.GetterBalancer{
+	cases := []GetterBalancer{
 
 		// case 0
 		&fixedGetterBalancer{
@@ -214,7 +214,7 @@ func TestRetryGetter_Get_err(t *testing.T) {
 	doc, _ := api.NewTestDocument(rng)
 
 	// check each case ultimately fails
-	cases := []api.GetterBalancer{
+	cases := []GetterBalancer{
 		// case 0
 		&fixedGetterBalancer{
 			err: errors.New("some Next error"),
@@ -271,7 +271,7 @@ func TestRetryPutter_Put_ok(t *testing.T) {
 	response := &api.PutResponse{NReplicas: 3}
 
 	// check each case ultimately succeeds despite possible initial failures
-	cases := []api.PutterBalancer{
+	cases := []PutterBalancer{
 
 		// case 0
 		&fixedPutterBalancer{
@@ -311,7 +311,7 @@ func TestRetryPutter_Put_err(t *testing.T) {
 	response := &api.PutResponse{NReplicas: 3}
 
 	// check each case ultimately fails
-	cases := []api.PutterBalancer{
+	cases := []PutterBalancer{
 		// case 0
 		&fixedPutterBalancer{
 			err: errors.New("some Next error"),

@@ -137,7 +137,7 @@ func setUp(params *params) *state {
 	rng := rand.New(rand.NewSource(0))
 	selfID := ecid.NewPseudoRandom(rng)
 	publicAddr := peer.NewTestPublicAddr(params.nSeeds + params.nPeers + 1)
-	selfPeer := peer.New(selfID.ID(), "test client", api.NewConnector(publicAddr))
+	selfPeer := peer.New(selfID.ID(), "test client", peer.NewConnector(publicAddr))
 	signer := lclient.NewSigner(selfID.Key())
 	client := &testClient{
 		selfID:  selfID,

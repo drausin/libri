@@ -8,6 +8,7 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/client"
 )
 
 // Receiver downloads the envelope, entry, and pages from the libri network.
@@ -23,7 +24,7 @@ type Receiver interface {
 }
 
 type receiver struct {
-	librarians api.GetterBalancer
+	librarians client.GetterBalancer
 	readerKeys keychain.Getter
 	acquirer   publish.Acquirer
 	msAcquirer publish.MultiStoreAcquirer
@@ -33,7 +34,7 @@ type receiver struct {
 // NewReceiver creates a new Receiver from the librarian balancer, keychain of reader keys,
 // acquirers, and storage.DocumentStorer.
 func NewReceiver(
-	librarians api.GetterBalancer,
+	librarians client.GetterBalancer,
 	readerKeys keychain.Getter,
 	acquirer publish.Acquirer,
 	msAcquirer publish.MultiStoreAcquirer,

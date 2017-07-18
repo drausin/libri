@@ -30,7 +30,7 @@ func TestNewDefaultIntroducer(t *testing.T) {
 
 type fixedIntroQuerier struct{}
 
-func (q *fixedIntroQuerier) Query(ctx context.Context, pConn api.Connector,
+func (q *fixedIntroQuerier) Query(ctx context.Context, pConn peer.Connector,
 	rq *api.IntroduceRequest, opts ...grpc.CallOption) (*api.IntroduceResponse, error) {
 	return &api.IntroduceResponse{
 		Metadata: &api.ResponseMetadata{
@@ -275,7 +275,7 @@ type fixedIntroducerCreator struct {
 	err        error
 }
 
-func (c *fixedIntroducerCreator) Create(pConn api.Connector) (api.Introducer, error) {
+func (c *fixedIntroducerCreator) Create(pConn peer.Connector) (api.Introducer, error) {
 	if c.err != nil {
 		return nil, c.err
 	}

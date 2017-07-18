@@ -59,7 +59,7 @@ type Author struct {
 	documentSLD storage.DocumentSLD
 
 	// load balancer for librarian clients
-	librarians api.ClientBalancer
+	librarians client.Balancer
 
 	// librarian address -> health check client for all librarians
 	librarianHealths map[string]healthpb.HealthClient
@@ -116,12 +116,12 @@ func NewAuthor(
 		authorKeys:     authorKeys,
 		selfReaderKeys: selfReaderKeys,
 	}
-	librarians, err := api.NewUniformClientBalancer(config.LibrarianAddrs)
+	librarians, err := client.NewUniformBalancer(config.LibrarianAddrs)
 	if err != nil {
 		return nil, err
 	}
-	getters := api.NewUniformGetterBalancer(librarians)
-	putters := api.NewUniformPutterBalancer(librarians)
+	getters := client.NewUniformGetterBalancer(librarians)
+	putters := client.NewUniformPutterBalancer(librarians)
 	librarianHealths, err := getLibrarianHealthClients(config.LibrarianAddrs)
 	if err != nil {
 		return nil, err

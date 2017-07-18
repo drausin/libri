@@ -23,7 +23,7 @@ type TestFinderCreator struct {
 
 // Create creates an api.Finder that mocks a real query to a peer and returns a fixed list of
 // addresses stored in the TestConnector mock of the pConn api.Connector.
-func (c *TestFinderCreator) Create(pConn api.Connector) (api.Finder, error) {
+func (c *TestFinderCreator) Create(pConn peer.Connector) (api.Finder, error) {
 	if c.err != nil {
 		return nil, c.err
 	}
@@ -113,7 +113,7 @@ func NewTestPeers(rng *rand.Rand, n int) ([]peer.Peer, map[string]peer.Peer, []i
 		connectedAddresses := make([]*api.PeerAddress, nConnectedPeers)
 		for j := int32(0); j < nConnectedPeers; j++ {
 			k := rng.Int31n(int32(n)) // sample a random peer to connect to
-			connectedAddresses[j] = api.FromAddress(ids[k], names[k], addresses[k])
+			connectedAddresses[j] = peer.FromAddress(ids[k], names[k], addresses[k])
 			if i == 0 {
 				selfPeerIdxs = append(selfPeerIdxs, int(k))
 			}
@@ -122,7 +122,7 @@ func NewTestPeers(rng *rand.Rand, n int) ([]peer.Peer, map[string]peer.Peer, []i
 		// create test connector with a test client that returns pre-determined set of
 		// addresses
 		conn := peer.TestConnector{
-			APISelf:   api.FromAddress(ids[i], names[i], addresses[i]),
+			APISelf:   peer.FromAddress(ids[i], names[i], addresses[i]),
 			Addresses: connectedAddresses,
 		}
 		peers[i] = peer.New(ids[i], names[i], &conn)

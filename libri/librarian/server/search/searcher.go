@@ -129,7 +129,7 @@ func (s *searcher) searchWork(search *Search, wg *sync.WaitGroup) {
 	}
 }
 
-func (s *searcher) query(pConn api.Connector, search *Search) (*api.FindResponse, error) {
+func (s *searcher) query(pConn peer.Connector, search *Search) (*api.FindResponse, error) {
 	findClient, err := s.finderCreator.Create(pConn)
 	if err != nil {
 		return nil, err

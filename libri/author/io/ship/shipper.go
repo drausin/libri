@@ -6,6 +6,7 @@ import (
 	"github.com/drausin/libri/libri/author/io/publish"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/client"
 )
 
 // Shipper publishes documents to libri.
@@ -22,15 +23,15 @@ type Shipper interface {
 }
 
 type shipper struct {
-	librarians  api.PutterBalancer
+	librarians  client.PutterBalancer
 	publisher   publish.Publisher
 	mlPublisher publish.MultiLoadPublisher
 	deletePages bool
 }
 
-// NewShipper creates a new Shipper from a librarian api.ClientBalancer and two publisher variants.
+// NewShipper creates a new Shipper from a librarian api.Balancer and two publisher variants.
 func NewShipper(
-	librarians api.PutterBalancer,
+	librarians client.PutterBalancer,
 	publisher publish.Publisher,
 	mlPublisher publish.MultiLoadPublisher) Shipper {
 	return &shipper{

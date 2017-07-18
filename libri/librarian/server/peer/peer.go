@@ -2,6 +2,7 @@ package peer
 
 import (
 	"fmt"
+	"net"
 
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
@@ -20,7 +21,7 @@ type Peer interface {
 	ID() id.ID
 
 	// Connector returns the Connector instance for connecting to the peer.
-	Connector() api.Connector
+	Connector() Connector
 
 	// Recorder returns the Recorder instance for recording query outcomes.
 	Recorder() Recorder
@@ -48,14 +49,14 @@ type peer struct {
 	name string
 
 	// Connector instance for the peer
-	conn api.Connector
+	conn Connector
 
 	// tracks query outcomes from the peer
 	recorder Recorder
 }
 
 // New creates a new Peer instance with empty response stats.
-func New(id id.ID, name string, conn api.Connector) Peer {
+func New(id id.ID, name string, conn Connector) Peer {
 	return &peer{
 		id:       id,
 		name:     name,
@@ -98,7 +99,7 @@ func (p *peer) Merge(other Peer) error {
 	return nil
 }
 
-func (p *peer) Connector() api.Connector {
+func (p *peer) Connector() Connector {
 	return p.conn
 }
 
@@ -135,7 +136,7 @@ func ToAPIs(peers []Peer) []*api.PeerAddress {
 
 // Fromer creates new Peer instances from api.PeerAddresses.
 type Fromer interface {
-	// New creates a new Peer instance.
+	// FromAPI creates a new Peer instance.
 	FromAPI(address *api.PeerAddress) Peer
 }
 
@@ -150,6 +151,24 @@ func (f *fromer) FromAPI(apiAddress *api.PeerAddress) Peer {
 	return New(
 		id.FromBytes(apiAddress.PeerId),
 		apiAddress.PeerName,
-		api.NewConnector(api.ToAddress(apiAddress)),
+		NewConnector(ToAddress(apiAddress)),
 	)
+}
+
+// ToAddress creates a net.TCPAddr from an api.PeerAddress.
+func ToAddress(addr *api.PeerAddress) *net.TCPAddr {
+	return &net.TCPAddr{
+		IP:   net.ParseIP(addr.Ip),
+		Port: int(addr.Port),
+	}
+}
+
+// FromAddress creates an api.PeerAddress from a net.TCPAddr.
+func FromAddress(id id.ID, name string, addr *net.TCPAddr) *api.PeerAddress {
+	return &api.PeerAddress{
+		PeerId:   id.Bytes(),
+		PeerName: name,
+		Ip:       addr.IP.String(),
+		Port:     uint32(addr.Port),
+	}
 }

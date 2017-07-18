@@ -12,6 +12,7 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
+	"github.com/drausin/libri/libri/librarian/client"
 )
 
 func TestShipper_Ship_ok(t *testing.T) {
@@ -243,7 +244,7 @@ type fixedMultiLoadPublisher struct {
 }
 
 func (f *fixedMultiLoadPublisher) Publish(
-	docKeys []id.ID, authorPub []byte, cb api.PutterBalancer, delete bool,
+	docKeys []id.ID, authorPub []byte, cb client.PutterBalancer, delete bool,
 ) error {
 	f.deleted = delete
 	return f.err

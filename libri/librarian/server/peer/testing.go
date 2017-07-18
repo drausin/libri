@@ -41,8 +41,8 @@ func NewTestPublicAddr(idx int) *net.TCPAddr {
 }
 
 // NewTestConnector creates a new Connector instance for a particular peer index.
-func NewTestConnector(idx int) api.Connector {
-	return api.NewConnector(NewTestPublicAddr(idx))
+func NewTestConnector(idx int) Connector {
+	return NewConnector(NewTestPublicAddr(idx))
 }
 
 // NewTestPeers generates n new peers suitable for testing use with random IDs and incrementing

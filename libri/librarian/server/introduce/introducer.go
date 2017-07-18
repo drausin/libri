@@ -103,7 +103,7 @@ func (i *introducer) introduceWork(intro *Introduction, wg *sync.WaitGroup) {
 	}
 }
 
-func (i *introducer) query(pConn api.Connector, intro *Introduction) (*api.IntroduceResponse,
+func (i *introducer) query(pConn peer.Connector, intro *Introduction) (*api.IntroduceResponse,
 	error) {
 	introClient, err := i.introducerCreator.Create(pConn)
 	if err != nil {

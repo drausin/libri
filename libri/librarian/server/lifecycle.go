@@ -132,7 +132,7 @@ func makeBootstrapPeers(bootstrapAddrs []*net.TCPAddr, selfPublicAddr fmt.String
 	for i, bootstrap := range bootstrapAddrs {
 		if bootstrap.String() != selfPublicAddr.String() {
 			dummyIDStr := fmt.Sprintf("bootstrap-seed%02d", i)
-			conn := api.NewConnector(bootstrap)
+			conn := peer.NewConnector(bootstrap)
 			peers = append(peers, peer.New(nil, dummyIDStr, conn))
 			addrStrs = append(addrStrs, bootstrap.String())
 		}

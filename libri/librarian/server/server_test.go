@@ -93,7 +93,7 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 			PublicName: peerName,
 			LocalAddr:  publicAddr,
 		},
-		apiSelf: api.FromAddress(serverID.ID(), peerName, publicAddr),
+		apiSelf: peer.FromAddress(serverID.ID(), peerName, publicAddr),
 		fromer:  peer.NewFromer(),
 		selfID:  serverID,
 		rt:      rt,
