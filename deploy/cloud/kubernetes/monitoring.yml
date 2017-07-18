@@ -36,6 +36,7 @@ spec:
     protocol: TCP
     port: 9090
     targetPort: 9090
+    nodePort: 30090
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -103,6 +104,7 @@ spec:
     protocol: TCP
     port: 3000
     targetPort: 3000
+    nodePort: 30300
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -145,12 +147,8 @@ spec:
         volumeMounts:
         - name: grafana-config
           mountPath: /opt/grafana
-#        - name: grafana-storage
-#          mountPath: /var
 
       volumes:
       - name: grafana-config
         configMap:
           name: grafana-config
-#      - name: grafana-storage
-#        emptyDir: {}  # TODO (drausin) PersistentVolume
