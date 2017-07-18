@@ -90,11 +90,13 @@ func (f *from) Fanout() {
 			case f.fanout[i] <- pub:
 			}
 		}
+		f.removeEndedSubscriptions()
 	}
 	// end all fanout channels
 	for i := range f.fanout {
 		f.endSubscription(i)
 	}
+	f.removeEndedSubscriptions()
 }
 
 func (f *from) New() (chan *KeyedPub, chan struct{}, error) {
@@ -113,6 +115,7 @@ func (f *from) New() (chan *KeyedPub, chan struct{}, error) {
 
 func (f *from) endSubscription(i uint64) {
 	f.mu.Lock()
+	defer f.mu.Unlock()
 	select {
 	case <-f.done[i]:
 	default:
@@ -122,7 +125,20 @@ func (f *from) endSubscription(i uint64) {
 	close(f.fanout[i])
 	delete(f.fanout, i)
 	delete(f.done, i)
-	f.mu.Unlock()
+}
+
+func (f *from) removeEndedSubscriptions() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	toRemove := make([]uint64, 0)
+	for i := range f.fanout {
+		if _, in := f.done[i]; !in {
+			toRemove = append(toRemove, i)
+		}
+	}
+	for _, i := range toRemove {
+		delete(f.fanout, i)
+	}
 }
 
 // ender decides whether to end a subscription to a client.
