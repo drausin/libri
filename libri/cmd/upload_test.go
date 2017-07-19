@@ -26,9 +26,18 @@ const (
 	veryLightScryptP = 1
 )
 
-func TestNewFileUploader(t *testing.T) {
-	u := newFileUploader()
-	assert.NotNil(t, u)
+// TestUploadCmd_ok : this path is annoying to test b/c it involves lots of setup; but this is
+// tested in acceptance/local-demo.sh, so it's ok to skip here
+
+func TestUploadCmd_err(t *testing.T) {
+	dataDir, err := ioutil.TempDir("", "test-author-data-dir")
+	defer func() { err = os.RemoveAll(dataDir) }()
+	viper.Set(dataDirFlag, dataDir)
+
+	// check upload() error bubbles up
+	viper.Set(upFilepathFlag, "")
+	err = uploadCmd.RunE(uploadCmd, []string{})
+	assert.Equal(t, errMissingFilepath, err)
 }
 
 func TestFileUploader_upload_ok(t *testing.T) {

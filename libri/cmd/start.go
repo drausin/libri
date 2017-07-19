@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/common/subscribe"
@@ -10,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
+	"github.com/drausin/libri/libri/common/errors"
 )
 
 const (
@@ -33,17 +33,16 @@ var startLibrarianCmd = &cobra.Command{
 	Use:   "start",
 	Short: "start a librarian server",
 	Long:  `TODO (drausin) add longer description and examples here`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		config, logger, err := getLibrarianConfig()
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			return err
 		}
 		up := make(chan *server.Librarian, 1)
 		if err = server.Start(logger, config, up); err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			return err
 		}
+		return nil
 	},
 }
 
@@ -72,9 +71,7 @@ func init() {
 	// bind viper flags
 	viper.SetEnvPrefix("LIBRI") // look for env vars with "LIBRI_" prefix
 	viper.AutomaticEnv()        // read in environment variables that match
-	if err := viper.BindPFlags(startLibrarianCmd.Flags()); err != nil {
-		panic(err)
-	}
+	errors.MaybePanic(viper.BindPFlags(startLibrarianCmd.Flags()))
 }
 
 func getLibrarianConfig() (*server.Config, *zap.Logger, error) {

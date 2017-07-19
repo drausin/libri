@@ -2,11 +2,33 @@ package cmd
 
 import (
 	"testing"
-
 	"github.com/drausin/libri/libri/librarian/server"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
+	"os"
+	"io/ioutil"
 )
+
+// TestStartLibrarianCmd_ok : happy path is kinda hard to test b/c it involves a long-running
+// server, but this is tested in acceptance/local-demo.sh, so it's ok to skip here
+
+func TestStartLibrarianCmd_err(t *testing.T) {
+	dataDir, err := ioutil.TempDir("", "test-librarian-data-dir")
+	defer func() { err = os.RemoveAll(dataDir) }()
+	viper.Set(dataDirFlag, dataDir)
+
+	// check getLibrarianConfig error bubbles up
+	viper.Set(localHostFlag, "bad local host")
+	err = startLibrarianCmd.RunE(startLibrarianCmd, []string{})
+	assert.NotNil(t, err)
+
+	// reset to ok value
+	viper.Set(localHostFlag, "1.2.3.4")
+
+	// check Start failure (from no bootstraps) bubbles up
+	err = startLibrarianCmd.RunE(librarianCmd, []string{})
+	assert.NotNil(t, err)
+}
 
 func TestGetLibrarianConfig_ok(t *testing.T) {
 	localIP, publicIP := "1.2.3.4", "5.6.7.8"
@@ -42,6 +64,8 @@ func TestGetLibrarianConfig_ok(t *testing.T) {
 	assert.Equal(t, uint32(nSubscriptions), config.SubscribeTo.NSubscriptions)
 	assert.Equal(t, float32(fpRate), config.SubscribeTo.FPRate)
 	assert.Equal(t, 2, len(config.BootstrapAddrs))
+
+	assert.Nil(t, os.RemoveAll(config.DataDir))
 }
 
 func TestGetLibrarianConfig_err(t *testing.T) {
@@ -51,21 +75,27 @@ func TestGetLibrarianConfig_err(t *testing.T) {
 	assert.Nil(t, config)
 	assert.Nil(t, logger)
 
+	// reset to ok value
 	viper.Set(localHostFlag, "1.2.3.4")
+
 	viper.Set(localMetricsPortFlag, -1)
 	config, logger, err = getLibrarianConfig()
 	assert.NotNil(t, err)
 	assert.Nil(t, config)
 	assert.Nil(t, logger)
 
-	viper.Set(localHostFlag, "1.2.3.4")
+	// reset to ok value
+	viper.Set(localMetricsPortFlag, 1234)
+
 	viper.Set(publicHostFlag, "bad public host")
 	config, logger, err = getLibrarianConfig()
 	assert.NotNil(t, err)
 	assert.Nil(t, config)
 	assert.Nil(t, logger)
 
+	// reset to ok value
 	viper.Set(publicHostFlag, "1.2.3.4")
+
 	viper.Set(bootstrapsFlag, "bad bootstrap")
 	config, logger, err = getLibrarianConfig()
 	assert.NotNil(t, err)

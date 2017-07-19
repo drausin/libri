@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
+	"github.com/drausin/libri/libri/common/errors"
 )
 
 const (
@@ -30,9 +31,7 @@ func init() {
 	// bind viper flags
 	viper.SetEnvPrefix(envVarPrefix) // look for env vars with "LIBRI_" prefix
 	viper.AutomaticEnv()             // read in environment variables that match
-	if err := viper.BindPFlags(testCmd.PersistentFlags()); err != nil {
-		panic(err)
-	}
+	errors.MaybePanic(viper.BindPFlags(testCmd.PersistentFlags()))
 }
 
 type testAuthorGetter interface {

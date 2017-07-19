@@ -14,9 +14,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewFileDownloader(t *testing.T) {
-	u := newFileDownloader()
-	assert.NotNil(t, u)
+// TestDownloadCmd_ok : this path is annoying to test b/c it involves lots of setup; but this is
+// tested in acceptance/local-demo.sh, so it's ok to skip here
+
+func TestDownloadCmd_err(t *testing.T) {
+	dataDir, err := ioutil.TempDir("", "test-author-data-dir")
+	defer func() { err = os.RemoveAll(dataDir) }()
+	viper.Set(dataDirFlag, dataDir)
+
+	// check upload() error bubbles up
+	viper.Set(envelopeKeyFlag, "")
+	err = downloadCmd.RunE(downloadCmd, []string{})
+	assert.Equal(t, errMissingEnvelopeKey, err)
 }
 
 func TestFileDownloader_download_ok(t *testing.T) {

@@ -15,6 +15,8 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/ssh/terminal"
+	"github.com/drausin/libri/libri/common/errors"
+	"log"
 )
 
 const (
@@ -44,9 +46,7 @@ func init() {
 	// bind viper flags
 	viper.SetEnvPrefix(envVarPrefix) // look for env vars with "LIBRI_" prefix
 	viper.AutomaticEnv()             // read in environment variables that match
-	if err := viper.BindPFlags(authorCmd.PersistentFlags()); err != nil {
-		panic(err)
-	}
+	errors.MaybePanic(viper.BindPFlags(authorCmd.PersistentFlags()))
 }
 
 type authorGetter interface {
@@ -83,8 +83,10 @@ type authorConfigGetter interface {
 type authorConfigGetterImpl struct{}
 
 func (*authorConfigGetterImpl) get(librariansFlag string) (*author.Config, *zap.Logger, error) {
+	log.Printf("dataDir: %s", viper.GetString(dataDirFlag))
 	config := author.NewDefaultConfig().
 		WithDataDir(viper.GetString(dataDirFlag)).
+		WithDefaultDBDir().  // depends on DataDir
 		WithLogLevel(getLogLevel())
 	timeout := time.Duration(viper.GetInt(timeoutFlag) * 1e9)
 	config.Publish.PutTimeout = timeout

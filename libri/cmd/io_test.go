@@ -5,14 +5,43 @@ import (
 	"io"
 	"math/rand"
 	"testing"
-
 	lauthor "github.com/drausin/libri/libri/author"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/logging"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
+	"io/ioutil"
+	"os"
 )
+
+func TestIOCmd_ok(t *testing.T) {
+	dataDir, err := ioutil.TempDir("", "test-author-data-dir")
+	defer func() { err = os.RemoveAll(dataDir) }()
+	viper.Set(dataDirFlag, dataDir)
+
+	viper.Set(nEntriesFlag, 0)
+	viper.Set(testLibrariansFlag, "localhost:20200 localhost:20201")
+	err = ioCmd.RunE(ioCmd, []string{})
+	assert.Nil(t, err)
+}
+
+func TestIOCmd_err(t *testing.T) {
+	dataDir, err := ioutil.TempDir("", "test-author-data-dir")
+	defer func() { err = os.RemoveAll(dataDir) }()
+	viper.Set(dataDirFlag, dataDir)
+
+	// check newTestAuthorGetter() error bubbles up
+	viper.Set(testLibrariansFlag, "bad librarians address")
+	err = ioCmd.RunE(ioCmd, []string{})
+	assert.NotNil(t, err)
+
+	// check ioTest.test() error from ok but missing librarians bubbles up
+	viper.Set(testLibrariansFlag, "localhost:20200 localhost:20201")
+	viper.Set(nEntriesFlag, 1)
+	err = ioCmd.RunE(ioCmd, []string{})
+	assert.NotNil(t, err)
+}
 
 func TestIOTester_test_ok(t *testing.T) {
 	viper.Set(nEntriesFlag, 1)

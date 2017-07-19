@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
+	cerrors "github.com/drausin/libri/libri/common/errors"
 )
 
 const (
@@ -31,11 +32,8 @@ var uploadCmd = &cobra.Command{
 	Use:   "upload",
 	Short: "upload a local file to the libri network",
 	Long:  `TODO (drausin) add longer description and examples here`,
-	Run: func(cmd *cobra.Command, args []string) {
-		if err := newFileUploader().upload(); err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return newFileUploader().upload()
 	},
 }
 
@@ -50,9 +48,7 @@ func init() {
 	// bind viper flags
 	viper.SetEnvPrefix(envVarPrefix) // look for env vars with "LIBRI_" prefix
 	viper.AutomaticEnv()             // read in environment variables that match
-	if err := viper.BindPFlags(uploadCmd.Flags()); err != nil {
-		panic(err)
-	}
+	cerrors.MaybePanic(viper.BindPFlags(uploadCmd.Flags()))
 }
 
 type fileUploader interface {
