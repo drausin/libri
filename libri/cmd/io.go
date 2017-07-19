@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"math/rand"
-	"os"
 
 	"github.com/drausin/libri/libri/author"
 	"github.com/drausin/libri/libri/author/io/common"
+	"github.com/drausin/libri/libri/common/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -27,16 +27,15 @@ var ioCmd = &cobra.Command{
 	Use:   "io",
 	Short: "check ability to upload and download entries",
 	Long:  `TODO(drausin)`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		author, logger, err := newTestAuthorGetter().get()
 		if err != nil {
-			logger.Error("error while initializing author", zap.Error(err))
-			os.Exit(1)
+			return err
 		}
 		if err := newIOTester().test(author, logger); err != nil {
-			logger.Error("error while testing io", zap.Error(err))
-			os.Exit(1)
+			return err
 		}
+		return nil
 	},
 }
 
@@ -48,9 +47,7 @@ func init() {
 	// bind viper flags
 	viper.SetEnvPrefix("LIBRI") // look for env vars with "LIBRI_" prefix
 	viper.AutomaticEnv()        // read in environment variables that match
-	if err := viper.BindPFlags(ioCmd.Flags()); err != nil {
-		panic(err)
-	}
+	errors.MaybePanic(viper.BindPFlags(ioCmd.Flags()))
 }
 
 type ioTester interface {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/drausin/libri/libri/common/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -27,7 +28,7 @@ var RootCmd = &cobra.Command{
 func Execute() {
 	if err := RootCmd.Execute(); err != nil {
 		fmt.Println(err)
-		os.Exit(-1)
+		os.Exit(1)
 	}
 }
 
@@ -40,16 +41,11 @@ func init() {
 	// bind viper flags
 	viper.SetEnvPrefix("LIBRI") // look for env vars with "LIBRI_" prefix
 	viper.AutomaticEnv()        // read in environment variables that match
-	if err := viper.BindPFlags(RootCmd.PersistentFlags()); err != nil {
-		panic(err)
-	}
+	errors.MaybePanic(viper.BindPFlags(RootCmd.PersistentFlags()))
 }
 
 func getLogLevel() zapcore.Level {
 	var ll zapcore.Level
-	err := ll.Set(viper.GetString(logLevelFlag))
-	if err != nil {
-		panic(err)
-	}
+	errors.MaybePanic(ll.Set(viper.GetString(logLevelFlag)))
 	return ll
 }

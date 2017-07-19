@@ -1,26 +1,26 @@
 package cmd
 
 import (
-	"os"
-
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"go.uber.org/zap"
 )
+
+var errFailedHealthcheck = errors.New("some or all librarians unhealthy")
 
 // healthCmd represents the health command
 var healthCmd = &cobra.Command{
 	Use:   "health",
 	Short: "check health of librarian peers",
 	Long:  `TODO (drausin) more detailed description`,
-	Run: func(cmd *cobra.Command, args []string) {
-		author, logger, err := newTestAuthorGetter().get()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		author, _, err := newTestAuthorGetter().get()
 		if err != nil {
-			logger.Error("fatal error while initializing author", zap.Error(err))
-			os.Exit(1)
+			return err
 		}
 		if allHealthy, _ := author.Healthcheck(); !allHealthy {
-			os.Exit(1)
+			return errFailedHealthcheck
 		}
+		return nil
 	},
 }
 

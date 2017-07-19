@@ -369,10 +369,10 @@ func ParseAddrs(addrs []string) ([]*net.TCPAddr, error) {
 	netAddrs := make([]*net.TCPAddr, len(addrs))
 	for i, a := range addrs {
 		netAddr, err := net.ResolveTCPAddr("tcp4", a)
-		netAddrs[i] = netAddr
 		if err != nil {
 			return nil, err
 		}
+		netAddrs[i] = netAddr
 	}
 	return netAddrs, nil
 }

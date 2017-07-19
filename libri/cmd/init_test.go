@@ -15,9 +15,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewKeychainCreator(t *testing.T) {
-	kc := newKeychainCreator()
-	assert.NotNil(t, kc)
+func TestInitCmd_err(t *testing.T) {
+	dataDir, err := ioutil.TempDir("", "test-author-data-dir")
+	defer func() { err = os.RemoveAll(dataDir) }()
+	viper.Set(dataDirFlag, dataDir)
+
+	viper.Set(keychainDirFlag, "")
+	err = initCmd.RunE(initCmd, []string{})
+	assert.NotNil(t, err)
 }
 
 func TestKeychainCreator_create_ok(t *testing.T) {

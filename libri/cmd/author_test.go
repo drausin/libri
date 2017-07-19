@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"path/filepath"
+
 	"github.com/drausin/libri/libri/author"
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/logging"
@@ -39,6 +41,7 @@ func TestAuthorGetter_get_ok(t *testing.T) {
 	assert.Equal(t, logger1, logger2)
 
 	assert.Nil(t, os.RemoveAll(keychainDir))
+	assert.Nil(t, os.RemoveAll(config.DataDir))
 }
 
 func TestAuthorGetter_get_err(t *testing.T) {
@@ -74,6 +77,10 @@ func TestAuthorConfigGetter_get_ok(t *testing.T) {
 		assert.Equal(t, libAddrs[i], la.String())
 	}
 	assert.NotNil(t, logger)
+
+	cwd, err := os.Getwd()
+	assert.Nil(t, err)
+	assert.Nil(t, os.RemoveAll(filepath.Join(cwd, dataDir)))
 }
 
 func TestAuthorConfigGetter_get_err(t *testing.T) {

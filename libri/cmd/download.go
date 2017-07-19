@@ -1,9 +1,9 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 
+	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -25,11 +25,8 @@ var downloadCmd = &cobra.Command{
 	Use:   "download",
 	Short: "A brief description of your command",
 	Long:  `TODO (drausin) add long description and examples`,
-	Run: func(cmd *cobra.Command, args []string) {
-		if err := newFileDownloader().download(); err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return newFileDownloader().download()
 	},
 }
 
@@ -46,9 +43,7 @@ func init() {
 	// bind viper flags
 	viper.SetEnvPrefix(envVarPrefix) // look for env vars with "LIBRI_" prefix
 	viper.AutomaticEnv()             // read in environment variables that match
-	if err := viper.BindPFlags(downloadCmd.Flags()); err != nil {
-		panic(err)
-	}
+	cerrors.MaybePanic(viper.BindPFlags(downloadCmd.Flags()))
 }
 
 type fileDownloader interface {
