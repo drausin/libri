@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
 	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 )
 
 var errFailedHealthcheck = errors.New("some or all librarians unhealthy")

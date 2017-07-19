@@ -5,9 +5,12 @@ import (
 	"io"
 	"time"
 
+	"log"
+
 	"github.com/drausin/libri/libri/author"
 	lauthor "github.com/drausin/libri/libri/author"
 	"github.com/drausin/libri/libri/author/keychain"
+	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/librarian/server"
@@ -15,8 +18,6 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/ssh/terminal"
-	"github.com/drausin/libri/libri/common/errors"
-	"log"
 )
 
 const (
@@ -86,7 +87,7 @@ func (*authorConfigGetterImpl) get(librariansFlag string) (*author.Config, *zap.
 	log.Printf("dataDir: %s", viper.GetString(dataDirFlag))
 	config := author.NewDefaultConfig().
 		WithDataDir(viper.GetString(dataDirFlag)).
-		WithDefaultDBDir().  // depends on DataDir
+		WithDefaultDBDir(). // depends on DataDir
 		WithLogLevel(getLogLevel())
 	timeout := time.Duration(viper.GetInt(timeoutFlag) * 1e9)
 	config.Publish.PutTimeout = timeout

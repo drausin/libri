@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"path/filepath"
+
 	"github.com/drausin/libri/libri/author"
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/logging"
@@ -14,7 +16,6 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
-	"path/filepath"
 )
 
 func TestAuthorGetter_get_ok(t *testing.T) {

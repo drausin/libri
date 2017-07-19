@@ -3,12 +3,12 @@ package cmd
 import (
 	"os"
 
+	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
-	cerrors "github.com/drausin/libri/libri/common/errors"
 )
 
 const (

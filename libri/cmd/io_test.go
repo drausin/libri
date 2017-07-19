@@ -3,16 +3,17 @@ package cmd
 import (
 	"bytes"
 	"io"
+	"io/ioutil"
 	"math/rand"
+	"os"
 	"testing"
+
 	lauthor "github.com/drausin/libri/libri/author"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/logging"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
-	"os"
 )
 
 func TestIOCmd_ok(t *testing.T) {

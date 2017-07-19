@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/drausin/libri/libri/common/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"github.com/drausin/libri/libri/common/errors"
 )
 
 const (

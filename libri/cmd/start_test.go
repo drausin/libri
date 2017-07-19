@@ -1,12 +1,13 @@
 package cmd
 
 import (
+	"io/ioutil"
+	"os"
 	"testing"
+
 	"github.com/drausin/libri/libri/librarian/server"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
-	"os"
-	"io/ioutil"
 )
 
 // TestStartLibrarianCmd_ok : happy path is kinda hard to test b/c it involves a long-running

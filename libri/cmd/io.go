@@ -7,10 +7,10 @@ import (
 
 	"github.com/drausin/libri/libri/author"
 	"github.com/drausin/libri/libri/author/io/common"
+	"github.com/drausin/libri/libri/common/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
-	"github.com/drausin/libri/libri/common/errors"
 )
 
 const (

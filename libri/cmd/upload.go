@@ -10,11 +10,11 @@ import (
 
 	lauthor "github.com/drausin/libri/libri/author"
 	"github.com/drausin/libri/libri/author/keychain"
+	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
-	cerrors "github.com/drausin/libri/libri/common/errors"
 )
 
 const (

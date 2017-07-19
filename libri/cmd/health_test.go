@@ -1,11 +1,12 @@
 package cmd
 
 import (
+	"io/ioutil"
+	"os"
 	"testing"
+
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
-	"os"
-	"io/ioutil"
 )
 
 // TestHealthCmd_ok : this path is annoying to test b/c it involves lots of setup; but this is

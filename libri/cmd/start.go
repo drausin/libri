@@ -3,13 +3,13 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/drausin/libri/libri/common/errors"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/common/subscribe"
 	"github.com/drausin/libri/libri/librarian/server"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
-	"github.com/drausin/libri/libri/common/errors"
 )
 
 const (
