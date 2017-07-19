@@ -1,11 +1,12 @@
 package client
 
 import (
-	"testing"
 	"net"
-	"github.com/stretchr/testify/assert"
+	"testing"
+
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewUniformBalancer_err(t *testing.T) {
