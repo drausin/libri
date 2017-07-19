@@ -12,15 +12,15 @@ import (
 
 	"github.com/drausin/libri/libri/author/io/common"
 	"github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/client"
 	lclient "github.com/drausin/libri/libri/librarian/client"
+	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/store"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"github.com/drausin/libri/libri/librarian/server/peer"
 )
 
 const (

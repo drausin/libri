@@ -3,8 +3,8 @@ package peer
 import (
 	"net"
 
-	"google.golang.org/grpc"
 	"github.com/drausin/libri/libri/librarian/api"
+	"google.golang.org/grpc"
 )
 
 // Connector creates and destroys connections with a peer.
