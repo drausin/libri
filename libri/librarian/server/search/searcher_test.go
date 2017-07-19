@@ -2,14 +2,14 @@ package search
 
 import (
 	"container/heap"
+	"errors"
 	"fmt"
 	"math/rand"
 	"testing"
-	"errors"
 	"time"
 
 	"github.com/drausin/libri/libri/common/ecid"
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
@@ -30,7 +30,7 @@ func TestSearcher_Search_ok(t *testing.T) {
 	peers, peersMap, selfPeerIdxs, selfID := NewTestPeers(rng, n)
 
 	// create our searcher
-	key := cid.NewPseudoRandom(rng)
+	key := id.NewPseudoRandom(rng)
 	searcher := NewTestSearcher(peersMap)
 
 	for concurrency := uint(1); concurrency <= 3; concurrency++ {
@@ -139,7 +139,7 @@ func newTestSearch() (Searcher, *Search, []int, []peer.Peer) {
 	peers, peersMap, selfPeerIdxs, selfID := NewTestPeers(rng, n)
 
 	// create our searcher
-	key := cid.NewPseudoRandom(rng)
+	key := id.NewPseudoRandom(rng)
 	searcher := NewTestSearcher(peersMap)
 
 	search := NewSearch(selfID, key, &Parameters{
@@ -151,10 +151,9 @@ func newTestSearch() (Searcher, *Search, []int, []peer.Peer) {
 	return searcher, search, selfPeerIdxs, peers
 }
 
-
 func TestSearcher_query_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	peerID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
+	peerID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
 	search := NewSearch(peerID, key, &Parameters{})
 	s := &searcher{
 		signer:        &client.TestNoOpSigner{},
@@ -172,7 +171,7 @@ func TestSearcher_query_ok(t *testing.T) {
 func TestSearcher_query_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	connClient := &peer.TestConnector{}
-	peerID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
+	peerID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
 	search := NewSearch(peerID, key, &Parameters{Timeout: 1 * time.Second})
 
 	cases := []*searcher{
@@ -184,13 +183,13 @@ func TestSearcher_query_err(t *testing.T) {
 
 		// case 1
 		{
-			signer: &client.TestErrSigner{},
+			signer:        &client.TestErrSigner{},
 			finderCreator: &TestFinderCreator{},
 		},
 
 		// case 2
 		{
-			signer:        &client.TestNoOpSigner{},
+			signer: &client.TestNoOpSigner{},
 			finderCreator: &TestFinderCreator{
 				finder: &fixedFinder{err: errors.New("some Find error")},
 			},
@@ -198,7 +197,7 @@ func TestSearcher_query_err(t *testing.T) {
 
 		// case 3
 		{
-			signer:        &client.TestNoOpSigner{},
+			signer: &client.TestNoOpSigner{},
 			finderCreator: &TestFinderCreator{
 				finder: &fixedFinder{requestID: []byte{1, 2, 3, 4}},
 			},
@@ -215,7 +214,7 @@ func TestSearcher_query_err(t *testing.T) {
 
 func TestResponseProcessor_Process_Value(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	key := cid.NewPseudoRandom(rng)
+	key := id.NewPseudoRandom(rng)
 	rp := NewResponseProcessor(peer.NewFromer())
 	result := NewInitialResult(key, NewDefaultParameters())
 
@@ -241,7 +240,7 @@ func TestResponseProcessor_Process_Addresses(t *testing.T) {
 	nAddresses1 := 6
 	peerAddresses1 := newPeerAddresses(rng, nAddresses1)
 
-	key := cid.NewPseudoRandom(rng)
+	key := id.NewPseudoRandom(rng)
 	rp := NewResponseProcessor(peer.NewFromer())
 	params := NewDefaultParameters()
 	result := NewInitialResult(key, params)
@@ -285,7 +284,7 @@ func TestResponseProcessor_Process_Addresses(t *testing.T) {
 
 func TestResponseProcessor_Process_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	key := cid.NewPseudoRandom(rng)
+	key := id.NewPseudoRandom(rng)
 	rp := NewResponseProcessor(peer.NewFromer())
 	result := NewInitialResult(key, NewDefaultParameters())
 
@@ -302,7 +301,7 @@ func newPeerAddresses(rng *rand.Rand, n int) []*api.PeerAddress {
 	peerAddresses := make([]*api.PeerAddress, n)
 	for i := 0; i < n; i++ {
 		peerAddresses[i] = &api.PeerAddress{
-			PeerId:   cid.NewPseudoRandom(rng).Bytes(),
+			PeerId:   id.NewPseudoRandom(rng).Bytes(),
 			PeerName: fmt.Sprintf("peer-%03d", i),
 			Ip:       "localhost",
 			Port:     uint32(20100 + i),

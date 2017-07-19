@@ -3,11 +3,10 @@ package api
 import (
 	"bytes"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 
-	"errors"
-
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -18,7 +17,7 @@ const (
 	ECPubKeyLength = 65
 
 	// DocumentKeyLength is the byte length a document's key.
-	DocumentKeyLength = cid.Length
+	DocumentKeyLength = id.Length
 
 	// AESKeyLength is the byte length of an AES-256 encryption key.
 	AESKeyLength = 32
@@ -65,13 +64,13 @@ var (
 )
 
 // GetKey calculates the key from the has of the proto.Message.
-func GetKey(value proto.Message) (cid.ID, error) {
+func GetKey(value proto.Message) (id.ID, error) {
 	valueBytes, err := proto.Marshal(value)
 	if err != nil {
 		return nil, err
 	}
 	hash := sha256.Sum256(valueBytes)
-	return cid.FromBytes(hash[:]), nil
+	return id.FromBytes(hash[:]), nil
 }
 
 // GetAuthorPub returns the author public key for a given document.
@@ -89,15 +88,15 @@ func GetAuthorPub(d *Document) []byte {
 
 // GetEntryPageKeys returns the []id.ID page keys if the entry is multi-page. It returns nil for
 // single-page entries.
-func GetEntryPageKeys(entry *Document) ([]cid.ID, error) {
+func GetEntryPageKeys(entry *Document) ([]id.ID, error) {
 	if _, ok := entry.Contents.(*Document_Entry); !ok {
 		return nil, ErrUnexpectedDocumentType
 	}
 	switch x := entry.Contents.(*Document_Entry).Entry.Contents.(type) {
 	case *Entry_PageKeys:
-		pageKeys := make([]cid.ID, len(x.PageKeys.Keys))
+		pageKeys := make([]id.ID, len(x.PageKeys.Keys))
 		for i, keyBytes := range x.PageKeys.Keys {
-			pageKeys[i] = cid.FromBytes(keyBytes)
+			pageKeys[i] = id.FromBytes(keyBytes)
 		}
 		return pageKeys, nil
 	case *Entry_Page:
@@ -107,7 +106,7 @@ func GetEntryPageKeys(entry *Document) ([]cid.ID, error) {
 }
 
 // GetPageDocument wraps a Page into a Document, returning it and its key.
-func GetPageDocument(page *Page) (*Document, cid.ID, error) {
+func GetPageDocument(page *Page) (*Document, id.ID, error) {
 	pageDoc := &Document{
 		Contents: &Document_Page{
 			Page: page,

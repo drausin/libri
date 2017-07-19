@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
@@ -35,7 +35,7 @@ func NewIntroducer(s client.Signer, c client.IntroducerCreator, rp ResponseProce
 
 // NewDefaultIntroducer creates a new Introducer with the given signer and default querier and
 // response processor.
-func NewDefaultIntroducer(s client.Signer, selfID cid.ID) Introducer {
+func NewDefaultIntroducer(s client.Signer, selfID id.ID) Introducer {
 	return NewIntroducer(
 		s,
 		client.NewIntroducerCreator(),
@@ -103,7 +103,7 @@ func (i *introducer) introduceWork(intro *Introduction, wg *sync.WaitGroup) {
 	}
 }
 
-func (i *introducer) query(pConn api.Connector, intro *Introduction) (*api.IntroduceResponse,
+func (i *introducer) query(pConn peer.Connector, intro *Introduction) (*api.IntroduceResponse,
 	error) {
 	introClient, err := i.introducerCreator.Create(pConn)
 	if err != nil {
@@ -143,11 +143,11 @@ type ResponseProcessor interface {
 
 type responseProcessor struct {
 	fromer peer.Fromer
-	selfID cid.ID
+	selfID id.ID
 }
 
 // NewResponseProcessor creates a new ResponseProcessor with a given peer.Fromer.
-func NewResponseProcessor(f peer.Fromer, selfID cid.ID) ResponseProcessor {
+func NewResponseProcessor(f peer.Fromer, selfID id.ID) ResponseProcessor {
 	return &responseProcessor{
 		fromer: f,
 		selfID: selfID,
@@ -157,14 +157,14 @@ func NewResponseProcessor(f peer.Fromer, selfID cid.ID) ResponseProcessor {
 func (irp *responseProcessor) Process(rp *api.IntroduceResponse, result *Result) error {
 
 	// add newly introduced peer to responded map
-	idStr := cid.FromBytes(rp.Self.PeerId).String()
+	idStr := id.FromBytes(rp.Self.PeerId).String()
 	newPeer := irp.fromer.FromAPI(rp.Self)
 	result.Responded[idStr] = newPeer
 
 	// add newly discovered peers to list of peers to query if they're not already there
 	selfIDStr := irp.selfID.String()
 	for _, pa := range rp.Peers {
-		newIDStr := cid.FromBytes(pa.PeerId).String()
+		newIDStr := id.FromBytes(pa.PeerId).String()
 		_, inResponded := result.Responded[newIDStr]
 		_, inUnqueried := result.Unqueried[newIDStr]
 		if !inResponded && !inUnqueried && newIDStr != selfIDStr {

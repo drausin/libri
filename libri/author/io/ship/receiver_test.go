@@ -3,9 +3,9 @@ package ship
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"errors"
 	"math/rand"
 	"testing"
-	"errors"
 
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/pack"
@@ -13,6 +13,7 @@ import (
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -253,7 +254,7 @@ type fixedMultiStoreAcquirer struct {
 }
 
 func (f *fixedMultiStoreAcquirer) Acquire(
-	docKeys []id.ID, authorPub []byte, cb api.GetterBalancer,
+	docKeys []id.ID, authorPub []byte, cb client.GetterBalancer,
 ) error {
 	f.docKeys, f.authorPub = docKeys, authorPub
 	return f.err

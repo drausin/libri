@@ -7,7 +7,6 @@ import (
 	"errors"
 
 	"github.com/drausin/libri/libri/common/ecid"
-	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/server/routing"
@@ -57,9 +56,9 @@ func TestLoadOrCreateRoutingTable_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 
 	// load stored RT
-	selfID1 := id.NewPseudoRandom(rng)
+	selfID1 := ecid.NewPseudoRandom(rng)
 	srt1 := &storage.RoutingTable{
-		SelfId: selfID1.Bytes(),
+		SelfId: selfID1.ID().Bytes(),
 	}
 	bytes, err := proto.Marshal(srt1)
 	assert.Nil(t, err)
@@ -69,20 +68,20 @@ func TestLoadOrCreateRoutingTable_ok(t *testing.T) {
 	}
 	rt1, err := loadOrCreateRoutingTable(clogging.NewDevInfoLogger(), fullLoader, selfID1,
 		routing.NewDefaultParameters())
-	assert.Equal(t, selfID1, rt1.SelfID())
+	assert.Equal(t, selfID1.ID(), rt1.SelfID())
 	assert.Nil(t, err)
 
 	// create new RT
-	selfID2 := id.NewPseudoRandom(rng)
+	selfID2 := ecid.NewPseudoRandom(rng)
 	rt2, err := loadOrCreateRoutingTable(clogging.NewDevInfoLogger(), &fixedStorerLoader{}, selfID2,
 		routing.NewDefaultParameters())
-	assert.Equal(t, selfID2, rt2.SelfID())
+	assert.Equal(t, selfID2.ID(), rt2.SelfID())
 	assert.Nil(t, err)
 }
 
 func TestLoadOrCreateRoutingTable_loadErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	selfID := id.NewPseudoRandom(rng)
+	selfID := ecid.NewPseudoRandom(rng)
 
 	errLoader := &fixedStorerLoader{
 		loadErr: errors.New("some error during load"),
@@ -97,7 +96,7 @@ func TestLoadOrCreateRoutingTable_loadErr(t *testing.T) {
 func TestLoadOrCreateRoutingTable_selfIDErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 
-	selfID1 := id.NewPseudoRandom(rng)
+	selfID1 := ecid.NewPseudoRandom(rng)
 	srt1 := &storage.RoutingTable{
 		SelfId: selfID1.Bytes(),
 	}
@@ -109,7 +108,7 @@ func TestLoadOrCreateRoutingTable_selfIDErr(t *testing.T) {
 	}
 
 	// error with conflicting/different selfID
-	selfID2 := id.NewPseudoRandom(rng)
+	selfID2 := ecid.NewPseudoRandom(rng)
 	rt1, err := loadOrCreateRoutingTable(clogging.NewDevInfoLogger(), fullLoader, selfID2,
 		routing.NewDefaultParameters())
 	assert.Nil(t, rt1)

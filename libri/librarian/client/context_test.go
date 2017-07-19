@@ -8,7 +8,7 @@ import (
 	"context"
 
 	"github.com/drausin/libri/libri/common/ecid"
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/metadata"
 )
@@ -50,7 +50,7 @@ func TestNewSignedTimeoutContext_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	ctx, cancel, err := NewSignedTimeoutContext(
 		&TestNoOpSigner{},
-		NewFindRequest(ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng), 20),
+		NewFindRequest(ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng), 20),
 		5*time.Second,
 	)
 	assert.NotNil(t, ctx)
@@ -66,7 +66,7 @@ func TestNewSignedTimeoutContext_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	ctx, cancel, err := NewSignedTimeoutContext(
 		&TestErrSigner{},
-		NewFindRequest(ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng), 20),
+		NewFindRequest(ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng), 20),
 		5*time.Second,
 	)
 	assert.Nil(t, ctx)

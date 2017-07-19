@@ -8,7 +8,7 @@ import (
 	"sync"
 	"testing"
 
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/stretchr/testify/assert"
 )
@@ -26,7 +26,7 @@ func TestTable_NewWithPeers_concurrent(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	concurrency := 4
 	for n := concurrency; n <= 256; n *= 2 {
-		rt := NewEmpty(cid.NewPseudoRandom(rng), NewDefaultParameters())
+		rt := NewEmpty(id.NewPseudoRandom(rng), NewDefaultParameters())
 		var wg sync.WaitGroup
 		for i := 0; i < concurrency; i++ {
 			wg.Add(1)
@@ -113,7 +113,7 @@ func TestTable_Push_existing(t *testing.T) {
 		rt, _, _ := NewTestWithPeers(rng, 128)
 
 		// pop off a random peer
-		ps := rt.Pop(cid.NewPseudoRandom(rng), 1)
+		ps := rt.Pop(id.NewPseudoRandom(rng), 1)
 		p1 := ps[0]
 		qOutcomes1 := p1.Recorder().ToStored()
 
@@ -153,7 +153,7 @@ func TestTable_Pop(t *testing.T) {
 	// make sure we support poppping 0 peers
 	rng := rand.New(rand.NewSource(0))
 	rt, _, _ := NewTestWithPeers(rng, 8)
-	ps := rt.Pop(cid.NewPseudoRandom(rng), 0)
+	ps := rt.Pop(id.NewPseudoRandom(rng), 0)
 	assert.Equal(t, 0, len(ps))
 
 	for n := 8; n <= 128; n *= 2 {
@@ -163,7 +163,7 @@ func TestTable_Pop(t *testing.T) {
 			// for different selfIDs
 			rng := rand.New(rand.NewSource(int64(s)))
 			rt, _, _ := NewTestWithPeers(rng, n)
-			target := cid.NewPseudoRandom(rng)
+			target := id.NewPseudoRandom(rng)
 
 			for k := uint(2); k <= 32; k *= 2 {
 				// for different numbers of peers to get
@@ -192,7 +192,7 @@ func TestTable_Peak(t *testing.T) {
 	// make sure we support poppping 0 peers
 	rng := rand.New(rand.NewSource(0))
 	rt, _, _ := NewTestWithPeers(rng, 8)
-	ps := rt.Peak(cid.NewPseudoRandom(rng), 0)
+	ps := rt.Peak(id.NewPseudoRandom(rng), 0)
 	assert.Equal(t, 0, len(ps))
 
 	for n := 8; n <= 16; n *= 2 {
@@ -202,7 +202,7 @@ func TestTable_Peak(t *testing.T) {
 			// for different selfIDs
 			rng := rand.New(rand.NewSource(int64(s)))
 			rt, _, _ := NewTestWithPeers(rng, n)
-			target := cid.NewPseudoRandom(rng)
+			target := id.NewPseudoRandom(rng)
 
 			for k := uint(2); k <= 32; k *= 2 {
 				// for different numbers of peers to get
@@ -230,7 +230,7 @@ func TestTable_Peak(t *testing.T) {
 func TestTable_Peak_concurrent(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	rt, _, _ := NewTestWithPeers(rng, 256)
-	target := cid.NewPseudoRandom(rng)
+	target := id.NewPseudoRandom(rng)
 	concurrency := uint(4)
 
 	for k := concurrency; k <= 32; k *= 2 {
@@ -299,7 +299,7 @@ func TestTable_Sort(t *testing.T) {
 func TestTable_chooseBucketIndex(t *testing.T) {
 	rt := newSimpleTable()
 
-	target := cid.FromInt64(150)
+	target := id.FromInt64(150)
 
 	// bucket 2 should be next since it contains target
 	i := rt.chooseBucketIndex(target, 2, 1)
@@ -330,7 +330,7 @@ func TestTable_chooseBucketIndex(t *testing.T) {
 		rt.chooseBucketIndex(target, 4, -1)
 	})
 
-	target = cid.FromInt64(100)
+	target = id.FromInt64(100)
 
 	// bucket 1 should be next since it contains target
 	i = rt.chooseBucketIndex(target, 1, 0)
@@ -348,7 +348,7 @@ func TestTable_chooseBucketIndex(t *testing.T) {
 	i = rt.chooseBucketIndex(target, 2, 0)
 	assert.Equal(t, 0, i)
 
-	target = cid.FromInt64(50)
+	target = id.FromInt64(50)
 
 	// bucket 0 should be next since it contains target
 	i = rt.chooseBucketIndex(target, 0, -1)
@@ -371,7 +371,7 @@ func TestTable_chooseBucketIndex(t *testing.T) {
 		rt.chooseBucketIndex(target, 4, -1)
 	})
 
-	target = cid.FromInt64(200)
+	target = id.FromInt64(200)
 
 	// bucket 3 should be next since it contains target
 	i = rt.chooseBucketIndex(target, 3, 2)
@@ -464,12 +464,12 @@ func TestTable_splitBucket(t *testing.T) {
 }
 
 func TestSplitLowerBound_Ok(t *testing.T) {
-	check := func(lowerBound cid.ID, depth uint, expected cid.ID) {
+	check := func(lowerBound id.ID, depth uint, expected id.ID) {
 		actual := splitLowerBound(lowerBound, depth)
 		assert.Equal(t, expected, actual)
 	}
 
-	check(cid.FromInt64(0), 0, newIDLsh(1, 255))                   // no prefix
+	check(id.FromInt64(0), 0, newIDLsh(1, 255))                    // no prefix
 	check(newIDLsh(128, 248), 1, newIDLsh(192, 248))               // prefix 1
 	check(newIDLsh(1, 254), 2, newIDLsh(3, 253))                   // prefix 01
 	check(newIDLsh(3, 254), 2, newIDLsh(7, 253))                   // prefix 11
@@ -489,26 +489,26 @@ func newSimpleTable() *table {
 	return &table{
 		buckets: []*bucket{
 			{
-				lowerBound: cid.FromInt64(0),
-				upperBound: cid.FromInt64(64),
+				lowerBound: id.FromInt64(0),
+				upperBound: id.FromInt64(64),
 				idMass:     0.25,
 				idCumMass:  0.25,
 			},
 			{
-				lowerBound: cid.FromInt64(64),
-				upperBound: cid.FromInt64(128),
+				lowerBound: id.FromInt64(64),
+				upperBound: id.FromInt64(128),
 				idMass:     0.25,
 				idCumMass:  0.50,
 			},
 			{
-				lowerBound: cid.FromInt64(128),
-				upperBound: cid.FromInt64(192),
+				lowerBound: id.FromInt64(128),
+				upperBound: id.FromInt64(192),
 				idMass:     0.25,
 				idCumMass:  0.75,
 			},
 			{
-				lowerBound: cid.FromInt64(192),
-				upperBound: cid.FromInt64(255),
+				lowerBound: id.FromInt64(192),
+				upperBound: id.FromInt64(255),
 				idMass:     0.25,
 				idCumMass:  1.0,
 			},
@@ -545,7 +545,7 @@ func checkTableConsistent(t *testing.T, rt Table, nExpectedPeers int) {
 	assert.Equal(t, 1, nContainSelf)
 }
 
-func checkBucketConsistent(t *testing.T, b *bucket, selfID cid.ID) {
+func checkBucketConsistent(t *testing.T, b *bucket, selfID id.ID) {
 	assert.Equal(t, b.containsSelf, b.Contains(selfID))
 	for p := range b.activePeers {
 		pID := b.activePeers[p].ID()
@@ -554,8 +554,8 @@ func checkBucketConsistent(t *testing.T, b *bucket, selfID cid.ID) {
 	}
 }
 
-func newIDLsh(x int64, n uint) cid.ID {
-	return cid.FromInt(new(big.Int).Lsh(big.NewInt(x), n))
+func newIDLsh(x int64, n uint) id.ID {
+	return id.FromInt(new(big.Int).Lsh(big.NewInt(x), n))
 }
 
 func checkPoppedPeers(t *testing.T, k uint, numActivePeers int, ps []peer.Peer, info string) {

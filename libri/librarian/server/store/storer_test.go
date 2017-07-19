@@ -6,6 +6,8 @@ import (
 
 	"errors"
 
+	"fmt"
+
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -15,7 +17,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"fmt"
 )
 
 func TestNewDefaultStorer(t *testing.T) {
@@ -115,7 +116,7 @@ func TestStorer_Store_err(t *testing.T) {
 
 func TestStorer_query_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	clientConn := api.NewConnector(nil) // won't actually be used since we're mocking the storer
+	clientConn := peer.NewConnector(nil) // won't actually be used since we're mocking the storer
 	value, key := api.NewTestDocument(rng)
 	selfID := ecid.NewPseudoRandom(rng)
 	searchParams := &ssearch.Parameters{Timeout: DefaultQueryTimeout}
@@ -198,7 +199,7 @@ type fixedStorerCreator struct {
 	err    error
 }
 
-func (c *fixedStorerCreator) Create(pConn api.Connector) (api.Storer, error) {
+func (c *fixedStorerCreator) Create(pConn peer.Connector) (api.Storer, error) {
 	if c.err != nil {
 		return nil, c.err
 	}

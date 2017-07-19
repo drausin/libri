@@ -8,6 +8,7 @@ import (
 
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 )
 
@@ -24,9 +25,9 @@ var (
 	sampleBatchSize      = uint(8)
 )
 
-// NewClientBalancer returns a new api.ClientBalancer that uses the routing tables's Sample()
+// NewClientBalancer returns a new client.Balancer that uses the routing tables's Sample()
 // method and returns a unique client on every Next() call.
-func NewClientBalancer(rt Table) api.ClientSetBalancer {
+func NewClientBalancer(rt Table) client.SetBalancer {
 	return &tableSetBalancer{
 		rt:    rt,
 		rng:   rand.New(rand.NewSource(0)),

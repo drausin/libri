@@ -13,7 +13,9 @@ import (
 	"github.com/drausin/libri/libri/author/io/common"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/client"
 	lclient "github.com/drausin/libri/libri/librarian/client"
+	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/store"
 	"github.com/stretchr/testify/assert"
@@ -106,7 +108,7 @@ func testIntroduce(t *testing.T, params *params, state *state) {
 
 		// issue Introduce query to random peer
 		i := state.rng.Int31n(int32(nPeers))
-		conn := api.NewConnector(state.peerConfigs[i].PublicAddr)
+		conn := peer.NewConnector(state.peerConfigs[i].PublicAddr)
 		rq := lclient.NewIntroduceRequest(state.client.selfID, state.client.selfAPI, 8)
 		ctx, cancel, err := lclient.NewSignedTimeoutContext(state.client.signer, rq,
 			search.DefaultQueryTimeout)
@@ -147,9 +149,9 @@ func testPut(t *testing.T, params *params, state *state) {
 	for i, peerConfig := range state.peerConfigs {
 		librarianAddrs[i] = peerConfig.PublicAddr
 	}
-	librarians, err := api.NewUniformClientBalancer(librarianAddrs)
+	librarians, err := client.NewUniformBalancer(librarianAddrs)
 	assert.Nil(t, err)
-	putters := api.NewUniformPutterBalancer(librarians)
+	putters := client.NewUniformPutterBalancer(librarians)
 	rlc := lclient.NewRetryPutter(putters, store.DefaultQueryTimeout)
 
 	// create a bunch of random putDocs to put
@@ -196,9 +198,9 @@ func testGet(t *testing.T, params *params, state *state) {
 	for i, peerConfig := range state.peerConfigs {
 		librarianAddrs[i] = peerConfig.PublicAddr
 	}
-	librarians, err := api.NewUniformClientBalancer(librarianAddrs)
+	librarians, err := client.NewUniformBalancer(librarianAddrs)
 	assert.Nil(t, err)
-	getters := api.NewUniformGetterBalancer(librarians)
+	getters := client.NewUniformGetterBalancer(librarians)
 	rlc := lclient.NewRetryGetter(getters, search.DefaultQueryTimeout)
 
 	// create a bunch of random values to put

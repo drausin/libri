@@ -76,13 +76,13 @@ func (r *retryStorer) Store(ctx context.Context, rq *api.StoreRequest, opts ...g
 }
 
 type retryGetter struct {
-	cb      api.GetterBalancer
+	cb      GetterBalancer
 	timeout time.Duration
 }
 
 // NewRetryGetter wraps a client balancer with an exponential backoff, returning an api.Getter. Each
 // backoff attempt samples a (possibly) different api.Getter to use for the query.
-func NewRetryGetter(cb api.GetterBalancer, timeout time.Duration) api.Getter {
+func NewRetryGetter(cb GetterBalancer, timeout time.Duration) api.Getter {
 	return &retryGetter{
 		cb:      cb,
 		timeout: timeout,
@@ -109,12 +109,12 @@ func (r *retryGetter) Get(ctx context.Context, in *api.GetRequest, opts ...grpc.
 }
 
 type retryPutter struct {
-	cb      api.PutterBalancer
+	cb      PutterBalancer
 	timeout time.Duration
 }
 
 // NewRetryPutter wraps a client balancer with an exponential backoff, returning an api.Putter.
-func NewRetryPutter(cb api.PutterBalancer, timeout time.Duration) api.Putter {
+func NewRetryPutter(cb PutterBalancer, timeout time.Duration) api.Putter {
 	return &retryPutter{
 		cb:      cb,
 		timeout: timeout,

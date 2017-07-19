@@ -2,15 +2,17 @@ package server
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"net"
+	"net/http"
+	"os"
 	"testing"
 	"time"
 
-	"fmt"
 	"github.com/drausin/libri/libri/common/ecid"
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
@@ -21,8 +23,6 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
-	"net/http"
-	"os"
 )
 
 func TestStart_ok(t *testing.T) {
@@ -116,7 +116,7 @@ func TestLibrarian_bootstrapPeers_ok(t *testing.T) {
 		introducer: &fixedIntroducer{
 			result: fixedResult,
 		},
-		rt:     routing.NewEmpty(cid.NewPseudoRandom(rng), routing.NewDefaultParameters()),
+		rt:     routing.NewEmpty(id.NewPseudoRandom(rng), routing.NewDefaultParameters()),
 		logger: clogging.NewDevInfoLogger(),
 	}
 
@@ -148,7 +148,7 @@ func TestLibrarian_bootstrapPeers_introduceErr(t *testing.T) {
 		introducer: &fixedIntroducer{
 			err: errors.New("some fatal introduce error"),
 		},
-		rt:     routing.NewEmpty(cid.NewPseudoRandom(rng), routing.NewDefaultParameters()),
+		rt:     routing.NewEmpty(id.NewPseudoRandom(rng), routing.NewDefaultParameters()),
 		logger: clogging.NewDevInfoLogger(),
 	}
 
@@ -179,7 +179,7 @@ func TestLibrarian_bootstrapPeers_noResponsesErr(t *testing.T) {
 		introducer: &fixedIntroducer{
 			result: fixedResult,
 		},
-		rt:     routing.NewEmpty(cid.NewPseudoRandom(rng), routing.NewDefaultParameters()),
+		rt:     routing.NewEmpty(id.NewPseudoRandom(rng), routing.NewDefaultParameters()),
 		logger: clogging.NewDevInfoLogger(),
 	}
 

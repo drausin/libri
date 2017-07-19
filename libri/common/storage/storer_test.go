@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/drausin/libri/libri/common/db"
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -17,10 +17,10 @@ func TestKvdbSLD_StoreLoadDelete(t *testing.T) {
 		key   []byte
 		value []byte
 	}{
-		{[]byte("ns"), bytes.Repeat([]byte{0}, cid.Length), []byte{0}},
-		{[]byte("ns"), bytes.Repeat([]byte{0}, cid.Length),
+		{[]byte("ns"), bytes.Repeat([]byte{0}, id.Length), []byte{0}},
+		{[]byte("ns"), bytes.Repeat([]byte{0}, id.Length),
 			bytes.Repeat([]byte{255}, 1024)},
-		{[]byte("test namespace"), cid.NewPseudoRandom(rng).Bytes(), []byte("test value")},
+		{[]byte("test namespace"), id.NewPseudoRandom(rng).Bytes(), []byte("test value")},
 	}
 
 	kvdb, cleanup, err := db.NewTempDirRocksDB()

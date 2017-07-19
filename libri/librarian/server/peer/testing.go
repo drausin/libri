@@ -1,15 +1,14 @@
 package peer
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"net"
 	"testing"
 	"time"
 
-	"errors"
-
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
@@ -26,7 +25,7 @@ func NewTestPeer(rng *rand.Rand, idx int) Peer {
 	recorder.responses.earliest = now
 
 	return New(
-		cid.NewPseudoRandom(rng),
+		id.NewPseudoRandom(rng),
 		fmt.Sprintf("test-peer-%d", idx+1),
 		NewTestConnector(idx),
 	).(*peer).WithQueryRecorder(recorder)
@@ -42,8 +41,8 @@ func NewTestPublicAddr(idx int) *net.TCPAddr {
 }
 
 // NewTestConnector creates a new Connector instance for a particular peer index.
-func NewTestConnector(idx int) api.Connector {
-	return api.NewConnector(NewTestPublicAddr(idx))
+func NewTestConnector(idx int) Connector {
+	return NewConnector(NewTestPublicAddr(idx))
 }
 
 // NewTestPeers generates n new peers suitable for testing use with random IDs and incrementing
@@ -61,7 +60,7 @@ func NewTestPeers(rng *rand.Rand, n int) []Peer {
 func NewTestStoredPeer(rng *rand.Rand, idx int) *storage.Peer {
 	now := time.Unix(int64(idx), 0).UTC()
 	return &storage.Peer{
-		Id:   cid.NewPseudoRandom(rng).Bytes(),
+		Id:   id.NewPseudoRandom(rng).Bytes(),
 		Name: fmt.Sprintf("peer-%d", idx+1),
 		PublicAddress: &storage.Address{
 			Ip:   "192.168.1.1",

@@ -10,7 +10,7 @@ import (
 	"sync"
 
 	"github.com/drausin/libri/libri/common/ecid"
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 )
@@ -45,21 +45,21 @@ func (p PushStatus) String() string {
 type Table interface {
 
 	// SelfID returns the table's selfID.
-	SelfID() cid.ID
+	SelfID() id.ID
 
 	// Push adds the peer into the appropriate bucket and returns an AddStatus result.
 	Push(new peer.Peer) PushStatus
 
 	// Pop removes and returns the k peers in the bucket(s) closest to the given target.
-	Pop(target cid.ID, k uint) []peer.Peer
+	Pop(target id.ID, k uint) []peer.Peer
 
 	// Peak returns the k peers in the bucket(s) closest to the given target by popping and then
 	// pushing them back into the table.
-	Peak(target cid.ID, k uint) []peer.Peer
+	Peak(target id.ID, k uint) []peer.Peer
 
 	// Get returns the peer with the given ID or nil (if it doesn't exist) with a boolean
 	// indicator for whether the peer existed.
-	Get(peerID cid.ID) (peer.Peer, bool)
+	Get(peerID id.ID) (peer.Peer, bool)
 
 	// Sample returns k peers in the table sampled (approximately) uniformly from the ID space.
 	// Peers are sampled from buckets with probability proportional to the amount of ID
@@ -94,7 +94,7 @@ func NewDefaultParameters() *Parameters {
 
 type table struct {
 	// this peer's node ID
-	selfID cid.ID
+	selfID id.ID
 
 	// all known peers, keyed by string encoding of the ID
 	peers map[string]peer.Peer
@@ -110,7 +110,7 @@ type table struct {
 }
 
 // NewEmpty creates a new routing table without peers.
-func NewEmpty(selfID cid.ID, params *Parameters) Table {
+func NewEmpty(selfID id.ID, params *Parameters) Table {
 	firstBucket := newFirstBucket(params.MaxBucketPeers)
 	return &table{
 		selfID:  selfID,
@@ -121,7 +121,7 @@ func NewEmpty(selfID cid.ID, params *Parameters) Table {
 }
 
 // NewWithPeers creates a new routing table with peers, returning it and the number of peers added.
-func NewWithPeers(selfID cid.ID, params *Parameters, peers []peer.Peer) (Table, int) {
+func NewWithPeers(selfID id.ID, params *Parameters, peers []peer.Peer) (Table, int) {
 	rt := NewEmpty(selfID, params)
 	nAdded := 0
 	for _, p := range peers {
@@ -136,12 +136,12 @@ func NewWithPeers(selfID cid.ID, params *Parameters, peers []peer.Peer) (Table, 
 func NewTestWithPeers(rng *rand.Rand, n int) (Table, ecid.ID, int) {
 	peerID := ecid.NewPseudoRandom(rng)
 	params := NewDefaultParameters()
-	rt, nAdded := NewWithPeers(peerID, params, peer.NewTestPeers(rng, n))
+	rt, nAdded := NewWithPeers(peerID.ID(), params, peer.NewTestPeers(rng, n))
 	return rt, peerID, nAdded
 }
 
 // SelfID returns the table's selfID.
-func (rt *table) SelfID() cid.ID {
+func (rt *table) SelfID() id.ID {
 	return rt.selfID
 }
 
@@ -215,7 +215,7 @@ func (rt *table) Push(new peer.Peer) PushStatus {
 
 // Pop removes and returns the k peers in the bucket(s) closest to the given target. This method
 // is concurrency safe.
-func (rt *table) Pop(target cid.ID, k uint) []peer.Peer {
+func (rt *table) Pop(target id.ID, k uint) []peer.Peer {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 	if np := rt.NumPeers(); k > uint(np) {
@@ -250,7 +250,7 @@ func (rt *table) Pop(target cid.ID, k uint) []peer.Peer {
 
 // Peak returns the k peers in the bucket(s) closest to the given target by popping and then
 // pushing them back into the table. This method is concurrency safe.
-func (rt *table) Peak(target cid.ID, k uint) []peer.Peer {
+func (rt *table) Peak(target id.ID, k uint) []peer.Peer {
 	popped := rt.Pop(target, k)
 
 	// add the peers back
@@ -261,7 +261,7 @@ func (rt *table) Peak(target cid.ID, k uint) []peer.Peer {
 }
 
 // Get returns the peer (if it exists) in the table with the given ID.
-func (rt *table) Get(peerID cid.ID) (peer.Peer, bool) {
+func (rt *table) Get(peerID id.ID) (peer.Peer, bool) {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 	if p, exists := rt.peers[peerID.String()]; exists {
@@ -326,7 +326,7 @@ func (rt *table) Swap(i, j int) {
 
 // chooseBucketIndex returns either the forward or backward bucket index from which to draw peers
 // for a target.
-func (rt *table) chooseBucketIndex(target cid.ID, fwdIdx int, bkwdIdx int) int {
+func (rt *table) chooseBucketIndex(target id.ID, fwdIdx int, bkwdIdx int) int {
 	hasFwd := fwdIdx < len(rt.buckets)
 	hasBkwd := bkwdIdx >= 0
 
@@ -364,7 +364,7 @@ func (rt *table) chooseBucketIndex(target cid.ID, fwdIdx int, bkwdIdx int) int {
 }
 
 // bucketIndex searches for the bucket containing the given target
-func (rt *table) bucketIndex(target cid.ID) int {
+func (rt *table) bucketIndex(target id.ID) int {
 	return sort.Search(len(rt.buckets), func(i int) bool {
 		return target.Cmp(rt.buckets[i].upperBound) < 0
 	})
@@ -433,6 +433,6 @@ func (rt *table) splitBucket(bucketIdx int) {
 // 	extendLowerBound(10000000, 1) -> 20100000
 //	...
 // 	extendLowerBound(20100000, 4) -> 11001000
-func splitLowerBound(lowerBound cid.ID, depth uint) cid.ID {
-	return cid.FromInt(new(big.Int).SetBit(lowerBound.Int(), int(cid.Length*8-depth-1), 1))
+func splitLowerBound(lowerBound id.ID, depth uint) id.ID {
+	return id.FromInt(new(big.Int).SetBit(lowerBound.Int(), int(id.Length*8-depth-1), 1))
 }

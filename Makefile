@@ -49,6 +49,10 @@ get-deps:
 	@go get -u -v $(GOTOOLS)
 	@gometalinter --install
 
+install-git-hooks:
+	@echo "--> Installing git-hooks"
+	@./scripts/install-git-hooks.sh
+
 lint:
 	@echo "--> Running gometalinter"
 	@gometalinter $(LIBRI_PKG_SUBDIRS) --config=.gometalinter.json --deadline=10m

@@ -2,8 +2,9 @@ package errors
 
 import (
 	"testing"
-	"github.com/stretchr/testify/assert"
+
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMaybePanic(t *testing.T) {

@@ -9,7 +9,9 @@ import (
 	"math/big"
 	mrand "math/rand"
 
-	cid "github.com/drausin/libri/libri/common/id"
+	"fmt"
+
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 )
 
@@ -27,14 +29,27 @@ var ErrKeyPointOffCurve = errors.New("key point is off the expected curve")
 // point on the curve. When coupled with the private key, this allows something (e.g., a libri
 // peer) to sign messages that a receiver can verify.
 type ID interface {
-	cid.ID
+	fmt.Stringer
 
-	// ECDSA private key (which includes public key as well)
+	// Bytes returns the byte representation
+	Bytes() []byte
+
+	// Int returns the big.Int representation
+	Int() *big.Int
+
+	// Cmp compares the ID to another
+	Cmp(ID) int
+
+	// Distance computes the XOR distance between two IDs
+	Distance(ID) *big.Int
+
+	// Key returns the ECDSA private key (which includes public key as well)
 	Key() *ecdsa.PrivateKey
 
-	// underlying ID object
-	ID() cid.ID
+	// ID returns the underlying ID object
+	ID() id.ID
 
+	// PublicKeyBytes returns a byte slice of the encoded public key
 	PublicKeyBytes() []byte
 }
 
@@ -44,7 +59,7 @@ type ecid struct {
 
 	// redundant ID instance (from the public key x-value) to take advantage of existing ID
 	// methods
-	id cid.ID
+	id id.ID
 }
 
 // NewRandom creates a new ID instance using a crypto.Reader source of entropy.
@@ -81,19 +96,19 @@ func (x *ecid) Int() *big.Int {
 	return x.id.Int()
 }
 
-func (x *ecid) Cmp(other cid.ID) int {
-	return x.id.Cmp(other)
+func (x *ecid) Cmp(other ID) int {
+	return x.id.Cmp(other.ID())
 }
 
-func (x *ecid) Distance(other cid.ID) *big.Int {
-	return x.id.Distance(other)
+func (x *ecid) Distance(other ID) *big.Int {
+	return x.id.Distance(other.ID())
 }
 
 func (x *ecid) Key() *ecdsa.PrivateKey {
 	return x.key
 }
 
-func (x *ecid) ID() cid.ID {
+func (x *ecid) ID() id.ID {
 	return x.id
 }
 
@@ -101,7 +116,7 @@ func (x *ecid) ID() cid.ID {
 func FromPrivateKey(priv *ecdsa.PrivateKey) ID {
 	return &ecid{
 		key: priv,
-		id:  cid.FromInt(priv.X),
+		id:  id.FromInt(priv.X),
 	}
 }
 

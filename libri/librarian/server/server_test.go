@@ -11,7 +11,7 @@ import (
 
 	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/common/ecid"
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/common/subscribe"
@@ -93,7 +93,7 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 			PublicName: peerName,
 			LocalAddr:  publicAddr,
 		},
-		apiSelf: api.FromAddress(serverID.ID(), peerName, publicAddr),
+		apiSelf: peer.FromAddress(serverID.ID(), peerName, publicAddr),
 		fromer:  peer.NewFromer(),
 		selfID:  serverID,
 		rt:      rt,
@@ -199,7 +199,7 @@ func TestLibrarian_Find(t *testing.T) {
 			numClosest := uint32(routing.DefaultMaxActivePeers)
 			rq := &api.FindRequest{
 				Metadata: newTestRequestMetadata(rng, l.selfID),
-				Key:      cid.NewPseudoRandom(rng).Bytes(),
+				Key:      id.NewPseudoRandom(rng).Bytes(),
 				NumPeers: numClosest,
 			}
 
@@ -297,7 +297,7 @@ func TestLibrarian_Find_missing(t *testing.T) {
 	numClosest := uint32(routing.DefaultMaxActivePeers)
 	rq := &api.FindRequest{
 		Metadata: newTestRequestMetadata(rng, l.selfID),
-		Key:      cid.NewPseudoRandom(rng).Bytes(),
+		Key:      id.NewPseudoRandom(rng).Bytes(),
 		NumPeers: numClosest,
 	}
 
@@ -313,7 +313,7 @@ func TestLibrarian_Find_checkRequestError(t *testing.T) {
 	l := &Librarian{
 		logger: clogging.NewDevInfoLogger(),
 	}
-	rq := client.NewFindRequest(ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng), uint(8))
+	rq := client.NewFindRequest(ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng), uint(8))
 	rq.Metadata.PubKey = []byte("corrupted pub key")
 
 	rp, err := l.Find(nil, rq)
@@ -363,7 +363,7 @@ func TestLibrarian_Store_ok(t *testing.T) {
 
 func newTestRequestMetadata(rng *rand.Rand, peerID ecid.ID) *api.RequestMetadata {
 	return &api.RequestMetadata{
-		RequestId: cid.NewPseudoRandom(rng).Bytes(),
+		RequestId: id.NewPseudoRandom(rng).Bytes(),
 		PubKey:    peerID.PublicKeyBytes(),
 	}
 }
@@ -384,11 +384,11 @@ func TestLibrarian_Store_checkRequestError(t *testing.T) {
 
 type errDocStorerLoader struct{}
 
-func (*errDocStorerLoader) Store(key cid.ID, value *api.Document) error {
+func (*errDocStorerLoader) Store(key id.ID, value *api.Document) error {
 	return errors.New("some store error")
 }
 
-func (*errDocStorerLoader) Load(key cid.ID) (*api.Document, error) {
+func (*errDocStorerLoader) Load(key id.ID) (*api.Document, error) {
 	return nil, errors.New("some load error")
 }
 
@@ -448,7 +448,7 @@ func TestLibrarian_Get_FoundValue(t *testing.T) {
 
 func TestLibrarian_Get_FoundClosestPeers(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	key, peerID := cid.NewPseudoRandom(rng), ecid.NewPseudoRandom(rng)
+	key, peerID := id.NewPseudoRandom(rng), ecid.NewPseudoRandom(rng)
 
 	// create mock search result to return FoundClosestPeers() == true
 	searchParams := search.NewDefaultParameters()
@@ -471,7 +471,7 @@ func TestLibrarian_Get_FoundClosestPeers(t *testing.T) {
 
 func TestLibrarian_Get_Errored(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	key, peerID := cid.NewPseudoRandom(rng), ecid.NewPseudoRandom(rng)
+	key, peerID := id.NewPseudoRandom(rng), ecid.NewPseudoRandom(rng)
 
 	// create mock search result with fatal error, making Errored() true
 	searchParams := search.NewDefaultParameters()
@@ -490,7 +490,7 @@ func TestLibrarian_Get_Errored(t *testing.T) {
 
 func TestLibrarian_Get_Exhausted(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	key, peerID := cid.NewPseudoRandom(rng), ecid.NewPseudoRandom(rng)
+	key, peerID := id.NewPseudoRandom(rng), ecid.NewPseudoRandom(rng)
 
 	// create mock search result with Exhausted() true
 	searchParams := search.NewDefaultParameters()
@@ -508,7 +508,7 @@ func TestLibrarian_Get_Exhausted(t *testing.T) {
 
 func TestLibrarian_Get_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	key, peerID := cid.NewPseudoRandom(rng), ecid.NewPseudoRandom(rng)
+	key, peerID := id.NewPseudoRandom(rng), ecid.NewPseudoRandom(rng)
 
 	// create librarian and request
 	l := newGetLibrarian(rng, nil, errors.New("some unexpected search error"))
@@ -525,7 +525,7 @@ func TestLibrarian_Get_checkRequestError(t *testing.T) {
 	l := &Librarian{
 		logger: clogging.NewDevInfoLogger(),
 	}
-	rq := client.NewGetRequest(ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng))
+	rq := client.NewGetRequest(ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng))
 	rq.Metadata.PubKey = []byte("corrupted pub key")
 
 	rp, err := l.Get(nil, rq)
@@ -703,7 +703,7 @@ func TestLibrarian_Subscribe_ok(t *testing.T) {
 		defer wg.Done()
 		sentPubs := 0
 		for sentPub := range from.sent {
-			key := cid.FromBytes(sentPub.Key)
+			key := id.FromBytes(sentPub.Key)
 			value, in := newPubsMap[key.String()]
 			assert.True(t, in)
 			assert.Equal(t, value, sentPub.Value)
@@ -742,7 +742,7 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 	// check request error bubbles up
 	l1 := &Librarian{
 		rqv:    &neverRequestVerifier{},
-		rt:     routing.NewEmpty(selfID, routing.NewDefaultParameters()),
+		rt:     routing.NewEmpty(selfID.ID(), routing.NewDefaultParameters()),
 		logger: clogging.NewDevInfoLogger(),
 	}
 	err = l1.Subscribe(rq, from)

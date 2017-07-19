@@ -6,7 +6,7 @@ import (
 	"net"
 
 	"github.com/drausin/libri/libri/common/ecid"
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
@@ -16,14 +16,14 @@ import (
 
 // TestFinderCreator mocks the FindQuerier interface. The Query() method returns a fixed
 // api.FindPeersResponse, derived from a list of addresses in the client.
-type TestFinderCreator struct{
+type TestFinderCreator struct {
 	finder api.Finder
-	err error
+	err    error
 }
 
 // Create creates an api.Finder that mocks a real query to a peer and returns a fixed list of
 // addresses stored in the TestConnector mock of the pConn api.Connector.
-func (c *TestFinderCreator) Create(pConn api.Connector) (api.Finder, error) {
+func (c *TestFinderCreator) Create(pConn peer.Connector) (api.Finder, error) {
 	if c.err != nil {
 		return nil, c.err
 	}
@@ -36,7 +36,7 @@ func (c *TestFinderCreator) Create(pConn api.Connector) (api.Finder, error) {
 type fixedFinder struct {
 	addresses []*api.PeerAddress
 	requestID []byte
-	err error
+	err       error
 }
 
 func (f *fixedFinder) Find(ctx context.Context, rq *api.FindRequest, opts ...grpc.CallOption) (
@@ -50,7 +50,7 @@ func (f *fixedFinder) Find(ctx context.Context, rq *api.FindRequest, opts ...grp
 	}
 	return &api.FindResponse{
 		Metadata: &api.ResponseMetadata{RequestId: requestID},
-		Peers: f.addresses,
+		Peers:    f.addresses,
 	}, nil
 }
 
@@ -64,7 +64,7 @@ type TestFromer struct {
 // FromAPI mocks creating a new peer.Peer instance, instead looking up an existing peer stored
 // in the TestFromer instance.
 func (f *TestFromer) FromAPI(apiAddress *api.PeerAddress) peer.Peer {
-	return f.Peers[cid.FromBytes(apiAddress.PeerId).String()]
+	return f.Peers[id.FromBytes(apiAddress.PeerId).String()]
 }
 
 // NewTestSearcher creates a new Searcher instance with a FindQuerier and FindResponseProcessor that
@@ -84,7 +84,7 @@ func NewTestSearcher(peersMap map[string]peer.Peer) Searcher {
 // that peer 0 has in its routing table.
 func NewTestPeers(rng *rand.Rand, n int) ([]peer.Peer, map[string]peer.Peer, []int, ecid.ID) {
 	addresses := make([]*net.TCPAddr, n)
-	ids := make([]cid.ID, n)
+	ids := make([]id.ID, n)
 	names := make([]string, n)
 
 	// create the addresses and IDs
@@ -94,7 +94,7 @@ func NewTestPeers(rng *rand.Rand, n int) ([]peer.Peer, map[string]peer.Peer, []i
 			selfID = ecid.NewPseudoRandom(rng)
 			ids[0] = selfID.ID()
 		} else {
-			ids[i] = cid.NewPseudoRandom(rng)
+			ids[i] = id.NewPseudoRandom(rng)
 		}
 		names[i] = fmt.Sprintf("peer-%03d", i)
 		address, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("localhost:%v", 20100+i))
@@ -113,7 +113,7 @@ func NewTestPeers(rng *rand.Rand, n int) ([]peer.Peer, map[string]peer.Peer, []i
 		connectedAddresses := make([]*api.PeerAddress, nConnectedPeers)
 		for j := int32(0); j < nConnectedPeers; j++ {
 			k := rng.Int31n(int32(n)) // sample a random peer to connect to
-			connectedAddresses[j] = api.FromAddress(ids[k], names[k], addresses[k])
+			connectedAddresses[j] = peer.FromAddress(ids[k], names[k], addresses[k])
 			if i == 0 {
 				selfPeerIdxs = append(selfPeerIdxs, int(k))
 			}
@@ -122,7 +122,7 @@ func NewTestPeers(rng *rand.Rand, n int) ([]peer.Peer, map[string]peer.Peer, []i
 		// create test connector with a test client that returns pre-determined set of
 		// addresses
 		conn := peer.TestConnector{
-			APISelf:   api.FromAddress(ids[i], names[i], addresses[i]),
+			APISelf:   peer.FromAddress(ids[i], names[i], addresses[i]),
 			Addresses: connectedAddresses,
 		}
 		peers[i] = peer.New(ids[i], names[i], &conn)

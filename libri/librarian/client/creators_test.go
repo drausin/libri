@@ -3,9 +3,9 @@ package client
 import (
 	"testing"
 
+	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/stretchr/testify/assert"
-	"github.com/drausin/libri/libri/librarian/api"
 )
 
 func TestIntroducerCreator_Create_ok(t *testing.T) {

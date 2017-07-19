@@ -1,8 +1,9 @@
-package api
+package peer
 
 import (
 	"net"
 
+	"github.com/drausin/libri/libri/librarian/api"
 	"google.golang.org/grpc"
 )
 
@@ -10,7 +11,7 @@ import (
 type Connector interface {
 	// Connect establishes the TCP connection with the peer if it doesn't already exist
 	// and returns an api.LibrarianClient.
-	Connect() (LibrarianClient, error)
+	Connect() (api.LibrarianClient, error)
 
 	// Disconnect closes the connection with the peer.
 	Disconnect() error
@@ -25,7 +26,7 @@ type connector struct {
 	publicAddress *net.TCPAddr
 
 	// Librarian client to peer
-	client LibrarianClient
+	client api.LibrarianClient
 
 	// client connection to the peer
 	clientConn *grpc.ClientConn
@@ -44,13 +45,13 @@ func NewConnector(address *net.TCPAddr) Connector {
 
 // Connect establishes the TCP connection with the peer and establishes the Librarian client with
 // it.
-func (c *connector) Connect() (LibrarianClient, error) {
+func (c *connector) Connect() (api.LibrarianClient, error) {
 	if c.client == nil {
 		conn, err := c.dialer.Dial(c.publicAddress)
 		if err != nil {
 			return nil, err
 		}
-		c.client = NewLibrarianClient(conn)
+		c.client = api.NewLibrarianClient(conn)
 		c.clientConn = conn
 	}
 	return c.client, nil

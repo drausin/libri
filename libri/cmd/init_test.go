@@ -22,7 +22,7 @@ func TestNewKeychainCreator(t *testing.T) {
 
 func TestKeychainCreator_create_ok(t *testing.T) {
 	keychainDir, err := ioutil.TempDir("", "test-keychains")
-	defer func() {err = os.RemoveAll(keychainDir)}()
+	defer func() { err = os.RemoveAll(keychainDir) }()
 	assert.Nil(t, err)
 	passphrase := "some test passphrase"
 	viper.Set(keychainDirFlag, keychainDir)
@@ -38,7 +38,7 @@ func TestKeychainCreator_create_ok(t *testing.T) {
 
 func TestKeychainCreator_create_err(t *testing.T) {
 	keychainDir, err := ioutil.TempDir("", "test-keychains")
-	defer func() {err = os.RemoveAll(keychainDir)}()
+	defer func() { err = os.RemoveAll(keychainDir) }()
 	logger := server.NewDevInfoLogger()
 	setPassphrase := "some passphrase"
 	assert.Nil(t, err)

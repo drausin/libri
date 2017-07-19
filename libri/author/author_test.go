@@ -12,6 +12,8 @@ import (
 	"sync"
 	"testing"
 
+	"os"
+
 	"github.com/drausin/libri/libri/author/io/common"
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/page"
@@ -19,8 +21,8 @@ import (
 	"github.com/drausin/libri/libri/author/io/ship"
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/ecid"
-	"github.com/drausin/libri/libri/common/id"
 	cerrors "github.com/drausin/libri/libri/common/errors"
+	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
@@ -28,7 +30,6 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
-	"os"
 )
 
 const (

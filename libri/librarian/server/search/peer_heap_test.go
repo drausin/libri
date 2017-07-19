@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"testing"
 
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/stretchr/testify/assert"
 )
@@ -20,18 +20,18 @@ func TestFarthestPeers_Heap(t *testing.T) {
 
 func TestPeerDistanceHeap_ToAPI(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	target := cid.NewPseudoRandom(rng)
+	target := id.NewPseudoRandom(rng)
 	cp := newClosestPeers(target, 8)
 	addresses := cp.ToAPI()
 	assert.Equal(t, cp.Len(), len(addresses))
 	for _, a := range addresses {
-		assert.True(t, cp.In(cid.FromBytes(a.PeerId)))
+		assert.True(t, cp.In(id.FromBytes(a.PeerId)))
 	}
 }
 
 func TestPeerDistanceHeap_Distance(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	target := cid.NewPseudoRandom(rng)
+	target := id.NewPseudoRandom(rng)
 	cp := newClosestPeers(target, 8)
 	for _, p := range peer.NewTestPeers(rng, 8) {
 		assert.True(t, target.Distance(p.ID()).Cmp(cp.Distance(p)) == 0)
@@ -40,7 +40,7 @@ func TestPeerDistanceHeap_Distance(t *testing.T) {
 
 func TestPeerDistanceHeap_In(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	target := cid.NewPseudoRandom(rng)
+	target := id.NewPseudoRandom(rng)
 	cp := newClosestPeers(target, 8)
 	for _, p := range peer.NewTestPeers(rng, 8) {
 		assert.False(t, cp.In(p.ID()))
@@ -51,7 +51,7 @@ func TestPeerDistanceHeap_In(t *testing.T) {
 
 func TestPeerDistanceHeap_SafePush_exists(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	target := cid.NewPseudoRandom(rng)
+	target := id.NewPseudoRandom(rng)
 	cp := newClosestPeers(target, 8)
 	p := peer.NewTestPeer(rng, 0)
 	assert.Nil(t, cp.SafePush(p))
@@ -61,7 +61,7 @@ func TestPeerDistanceHeap_SafePush_exists(t *testing.T) {
 
 func testPeerDistanceHeap(t *testing.T, minHeap bool) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	target := cid.NewPseudoRandom(rng)
+	target := id.NewPseudoRandom(rng)
 	var cp PeerDistanceHeap
 	if minHeap {
 		cp = newClosestPeers(target, 20)
@@ -92,14 +92,14 @@ func testPeerDistanceHeap(t *testing.T, minHeap bool) {
 
 func TestClosestPeers_SafePush_capacity(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	target := cid.NewPseudoRandom(rng)
+	target := id.NewPseudoRandom(rng)
 	n := 8
 	testPeerDistanceHeapSafePushCapacity(t, rng, newClosestPeers(target, uint(n)))
 }
 
 func TestFarthestPeers_SafePush_capacity(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	target := cid.NewPseudoRandom(rng)
+	target := id.NewPseudoRandom(rng)
 	n := 8
 	testPeerDistanceHeapSafePushCapacity(t, rng, newFarthestPeers(target, uint(n)))
 }

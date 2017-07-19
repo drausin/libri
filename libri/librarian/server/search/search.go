@@ -5,12 +5,12 @@ import (
 	"time"
 
 	"github.com/drausin/libri/libri/common/ecid"
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/errors"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"go.uber.org/zap/zapcore"
-	"github.com/drausin/libri/libri/common/errors"
 )
 
 const (
@@ -103,7 +103,7 @@ type Result struct {
 }
 
 // NewInitialResult creates a new Result object for the beginning of a search.
-func NewInitialResult(key cid.ID, params *Parameters) *Result {
+func NewInitialResult(key id.ID, params *Parameters) *Result {
 	return &Result{
 		Value:     nil,
 		Closest:   newFarthestPeers(key, params.NClosestResponses),
@@ -143,7 +143,7 @@ func (errs errArray) MarshalLogArray(arr zapcore.ArrayEncoder) error {
 // Search contains things involved in a search for a particular target.
 type Search struct {
 	// ID search is looking for or close to
-	Key cid.ID
+	Key id.ID
 
 	// request used when querying peers
 	Request *api.FindRequest
@@ -159,7 +159,7 @@ type Search struct {
 }
 
 // NewSearch creates a new Search instance for a given target, search type, and search parameters.
-func NewSearch(selfID ecid.ID, key cid.ID, params *Parameters) *Search {
+func NewSearch(selfID ecid.ID, key id.ID, params *Parameters) *Search {
 	return &Search{
 		Key:     key,
 		Request: client.NewFindRequest(selfID, key, params.NClosestResponses),
@@ -170,7 +170,7 @@ func NewSearch(selfID ecid.ID, key cid.ID, params *Parameters) *Search {
 
 // MarshalLogObject converts the Search into an object (which will become json) for logging.
 func (s *Search) MarshalLogObject(oe zapcore.ObjectEncoder) error {
-	oe.AddString(logKey, cid.Hex(s.Key.Bytes()))
+	oe.AddString(logKey, id.Hex(s.Key.Bytes()))
 	errors.MaybePanic(oe.AddObject(logParams, s.Params))
 	errors.MaybePanic(oe.AddObject(logResult, s.Result))
 	oe.AddBool(logFinished, s.Finished())

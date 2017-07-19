@@ -2,15 +2,13 @@ package ecid
 
 import (
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/sha256"
+	"errors"
 	"math/rand"
 	"testing"
 
-	"crypto/elliptic"
-
-	"errors"
-
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -39,8 +37,8 @@ func TestEcid_NewPsuedoRandom(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	for c := 0; c < 10; c++ {
 		val := NewPseudoRandom(rng)
-		assert.True(t, val.Cmp(cid.LowerBound) >= 0)
-		assert.True(t, val.Cmp(cid.UpperBound) <= 0)
+		assert.True(t, val.ID().Cmp(id.LowerBound) >= 0)
+		assert.True(t, val.ID().Cmp(id.UpperBound) <= 0)
 	}
 }
 
@@ -48,7 +46,7 @@ func TestEcid_String(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	for c := 0; c < 10; c++ {
 		val := NewPseudoRandom(rng)
-		assert.Equal(t, cid.Length*2, len(val.String())) // 32 hex-enc bytes = 64 chars
+		assert.Equal(t, id.Length*2, len(val.String())) // 32 hex-enc bytes = 64 chars
 	}
 }
 
@@ -56,7 +54,7 @@ func TestEcid_Bytes(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	for c := 0; c < 10; c++ {
 		val := NewPseudoRandom(rng)
-		assert.Equal(t, cid.Length, len(val.Bytes())) // should always be exactly 32 bytes
+		assert.Equal(t, id.Length, len(val.Bytes())) // should always be exactly 32 bytes
 	}
 }
 
@@ -69,16 +67,16 @@ func TestEcid_Int(t *testing.T) {
 func TestEcid_Distance(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	i, j, k := NewPseudoRandom(rng), NewPseudoRandom(rng), NewPseudoRandom(rng)
-	assert.Equal(t, i.(*ecid).id.Distance(j), i.Distance(j))
-	assert.Equal(t, i.(*ecid).id.Distance(k), i.Distance(k))
+	assert.Equal(t, i.(*ecid).id.Distance(j.ID()), i.Distance(j))
+	assert.Equal(t, i.(*ecid).id.Distance(k.ID()), i.Distance(k))
 }
 
 func TestEcid_Cmp(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	for c := 0; c < 10; c++ {
 		val := NewPseudoRandom(rng)
-		assert.True(t, val.Cmp(cid.LowerBound) >= 0)
-		assert.True(t, val.Cmp(cid.UpperBound) <= 0)
+		assert.True(t, val.ID().Cmp(id.LowerBound) >= 0)
+		assert.True(t, val.ID().Cmp(id.UpperBound) <= 0)
 	}
 }
 

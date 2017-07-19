@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 )
 
@@ -32,7 +32,7 @@ func FromStored(stored *ECDSAPrivateKey) (ID, error) {
 
 	return &ecid{
 		key: key,
-		id:  cid.FromInt(key.X),
+		id:  id.FromInt(key.X),
 	}, nil
 }
 

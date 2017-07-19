@@ -152,7 +152,7 @@ func TestID_Bytes(t *testing.T) {
 }
 
 func TestShortHex(t *testing.T) {
-	cases := [][]byte {
+	cases := [][]byte{
 		bytes.Repeat([]byte{1}, 8),
 		bytes.Repeat([]byte{1}, 16),
 	}

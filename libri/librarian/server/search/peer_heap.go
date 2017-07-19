@@ -4,7 +4,7 @@ import (
 	"container/heap"
 	"math/big"
 
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 )
@@ -34,7 +34,7 @@ type PeerDistanceHeap interface {
 	Peers() []peer.Peer
 
 	// In returns whether a peer ID is in the heap
-	In(cid.ID) bool
+	In(id.ID) bool
 
 	// Distance returns the distance from a peer to the target.
 	Distance(peer.Peer) *big.Int
@@ -56,7 +56,7 @@ type FarthestPeers interface {
 // closePeers represents a heap of peers sorted by closest distance to a given target.
 type peerDistanceHeap struct {
 	// target to compute distance to
-	target cid.ID
+	target id.ID
 
 	// peers we know about, sorted in a heap with farthest from the target at the root
 	peers []peer.Peer
@@ -75,7 +75,7 @@ type peerDistanceHeap struct {
 	capacity int
 }
 
-func newClosestPeers(target cid.ID, capacity uint) ClosestPeers {
+func newClosestPeers(target id.ID, capacity uint) ClosestPeers {
 	return &peerDistanceHeap{
 		target:    target,
 		peers:     make([]peer.Peer, 0, int(capacity)+1),
@@ -86,7 +86,7 @@ func newClosestPeers(target cid.ID, capacity uint) ClosestPeers {
 	}
 }
 
-func newFarthestPeers(target cid.ID, capacity uint) FarthestPeers {
+func newFarthestPeers(target id.ID, capacity uint) FarthestPeers {
 	return &peerDistanceHeap{
 		target:    target,
 		peers:     make([]peer.Peer, 0, int(capacity)+1),
@@ -117,7 +117,7 @@ func (pdh *peerDistanceHeap) Peers() []peer.Peer {
 	return pdh.peers
 }
 
-func (pdh *peerDistanceHeap) In(id cid.ID) bool {
+func (pdh *peerDistanceHeap) In(id id.ID) bool {
 	_, in := pdh.ids[id.String()]
 	return in
 }

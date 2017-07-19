@@ -6,16 +6,16 @@ import (
 	"testing"
 	"time"
 
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNew(t *testing.T) {
-	id, name := cid.FromInt64(1), "test name"
+	peerID, name := id.FromInt64(1), "test name"
 	addr := &net.TCPAddr{IP: net.ParseIP("192.168.1.1"), Port: 1000}
-	p := New(id, name, api.NewConnector(addr))
-	assert.Equal(t, 0, id.Cmp(p.ID()))
+	p := New(peerID, name, NewConnector(addr))
+	assert.Equal(t, 0, peerID.Cmp(p.ID()))
 	assert.Equal(t, name, p.(*peer).name)
 	assert.Equal(t, addr, addr)
 
@@ -27,7 +27,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestNewStub(t *testing.T) {
-	peerID := cid.FromInt64(1)
+	peerID := id.FromInt64(1)
 	name := "some name"
 	p := NewStub(peerID, name)
 	assert.Equal(t, peerID, p.ID())
@@ -87,8 +87,8 @@ func TestPeer_Merge_ok(t *testing.T) {
 	var p1, p2 Peer
 
 	// p2's name should replace p1's, and response counts should sum
-	p1ID := cid.NewPseudoRandom(rng)
-	p1 = New(p1ID, "p1", api.NewConnector(&net.TCPAddr{
+	p1ID := id.NewPseudoRandom(rng)
+	p1 = New(p1ID, "p1", NewConnector(&net.TCPAddr{
 		IP:   net.ParseIP("192.168.1.1"),
 		Port: 20100,
 	}))
@@ -97,7 +97,7 @@ func TestPeer_Merge_ok(t *testing.T) {
 	assert.Equal(t, uint64(0), p1.Recorder().(*queryRecorder).responses.nQueries)
 
 	p2Name := "p2"
-	p2 = New(p1.ID(), p2Name, api.NewConnector(&net.TCPAddr{
+	p2 = New(p1.ID(), p2Name, NewConnector(&net.TCPAddr{
 		IP:   net.ParseIP("192.168.1.1"),
 		Port: 20100,
 	}))
@@ -129,12 +129,12 @@ func TestPeer_Merge_ok(t *testing.T) {
 	assert.Equal(t, p1Conn, p1.(*peer).conn)
 
 	// p2's connector should replace p1's
-	p1ID = cid.NewPseudoRandom(rng)
-	p1 = New(p1ID, "p1", api.NewConnector(&net.TCPAddr{
+	p1ID = id.NewPseudoRandom(rng)
+	p1 = New(p1ID, "p1", NewConnector(&net.TCPAddr{
 		IP:   net.ParseIP("192.168.1.1"),
 		Port: 20100,
 	}))
-	p2Conn := api.NewConnector(&net.TCPAddr{
+	p2Conn := NewConnector(&net.TCPAddr{
 		IP:   net.ParseIP("192.168.1.1"),
 		Port: 11001,
 	})
@@ -180,5 +180,42 @@ func TestToAPIs(t *testing.T) {
 	ns := []int{0, 1, 2, 4}
 	for i := 0; i < len(ns); i++ {
 		assert.Equal(t, ns[i], len(ToAPIs(NewTestPeers(rng, ns[i]))))
+	}
+}
+
+func TestToAddress(t *testing.T) {
+	cases := []struct {
+		ip   string
+		port int
+	}{
+		{ip: "192.168.1.1", port: 1234},
+		{ip: "10.11.12.13", port: 100000},
+		{ip: "10.11.12.13", port: 1100},
+	}
+	for _, c := range cases {
+		from := &api.PeerAddress{Ip: c.ip, Port: uint32(c.port)}
+		to := ToAddress(from)
+		assert.Equal(t, c.ip, to.IP.String())
+		assert.Equal(t, c.port, to.Port)
+	}
+}
+
+func TestFromAddress(t *testing.T) {
+	cases := []struct {
+		id   id.ID
+		name string
+		ip   string
+		port int
+	}{
+		{id: id.FromInt64(0), name: "peer-0", ip: "192.168.1.1", port: 1234},
+		{id: id.FromInt64(1), name: "peer-1", ip: "10.11.12.13", port: 100000},
+		{id: id.FromInt64(2), name: "", ip: "10.11.12.13", port: 1100},
+	}
+	for _, c := range cases {
+		to := &net.TCPAddr{IP: net.ParseIP(c.ip), Port: c.port}
+		from := FromAddress(c.id, c.name, to)
+		assert.Equal(t, c.ip, from.Ip)
+		assert.Equal(t, c.name, from.PeerName)
+		assert.Equal(t, c.port, int(from.Port))
 	}
 }

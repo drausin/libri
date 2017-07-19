@@ -1,13 +1,12 @@
 package server
 
 import (
+	"errors"
 	"math/rand"
 	"testing"
 
-	"errors"
-
 	"github.com/drausin/libri/libri/common/ecid"
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
@@ -36,7 +35,7 @@ func TestCheckRequest_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	l := &Librarian{rqv: &alwaysRequestVerifier{}}
 	selfID := ecid.NewPseudoRandom(rng)
-	rq := client.NewGetRequest(selfID, cid.NewPseudoRandom(rng))
+	rq := client.NewGetRequest(selfID, id.NewPseudoRandom(rng))
 	requesterID, err := l.checkRequest(nil, rq, rq.Metadata)
 
 	assert.Nil(t, err)
@@ -53,7 +52,7 @@ func (rv *neverRequestVerifier) Verify(ctx context.Context, msg proto.Message,
 func TestCheckRequest_newIDErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	selfID := ecid.NewPseudoRandom(rng)
-	rq := client.NewGetRequest(selfID, cid.NewPseudoRandom(rng))
+	rq := client.NewGetRequest(selfID, id.NewPseudoRandom(rng))
 	rq.Metadata.PubKey = []byte("bad pub key")
 	l := &Librarian{}
 	requesterID, err := l.checkRequest(nil, rq, rq.Metadata)
@@ -65,10 +64,10 @@ func TestCheckRequest_newIDErr(t *testing.T) {
 func TestCheckRequest_verifyErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	selfID := ecid.NewPseudoRandom(rng)
-	rq := client.NewGetRequest(selfID, cid.NewPseudoRandom(rng))
+	rq := client.NewGetRequest(selfID, id.NewPseudoRandom(rng))
 	l := &Librarian{
 		rqv: &neverRequestVerifier{},
-		rt:  routing.NewEmpty(selfID, routing.NewDefaultParameters()),
+		rt:  routing.NewEmpty(selfID.ID(), routing.NewDefaultParameters()),
 	}
 	requesterID, err := l.checkRequest(nil, rq, rq.Metadata)
 
@@ -78,11 +77,11 @@ func TestCheckRequest_verifyErr(t *testing.T) {
 
 func TestCheckRequestAndKey_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	selfID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
+	selfID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
 	l := &Librarian{
 		rqv: &alwaysRequestVerifier{},
 		kc:  storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		rt:  routing.NewEmpty(selfID, routing.NewDefaultParameters()),
+		rt:  routing.NewEmpty(selfID.ID(), routing.NewDefaultParameters()),
 	}
 	rq := client.NewGetRequest(selfID, key)
 	requesterID, err := l.checkRequestAndKey(nil, rq, rq.Metadata, key.Bytes())
@@ -93,7 +92,7 @@ func TestCheckRequestAndKey_ok(t *testing.T) {
 
 func TestCheckRequestAndKey_checkRequestErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	selfID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
+	selfID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
 	rq := client.NewGetRequest(selfID, key)
 	rq.Metadata.PubKey = []byte("bad pub key")
 	l := &Librarian{}
@@ -105,12 +104,12 @@ func TestCheckRequestAndKey_checkRequestErr(t *testing.T) {
 
 func TestCheckRequestAndKey_checkErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	selfID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
+	selfID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
 	rq := client.NewGetRequest(selfID, key)
 	l := &Librarian{
 		rqv: &alwaysRequestVerifier{},
 		kc:  storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		rt:  routing.NewEmpty(selfID, routing.NewDefaultParameters()),
+		rt:  routing.NewEmpty(selfID.ID(), routing.NewDefaultParameters()),
 	}
 	requesterID, err := l.checkRequestAndKey(nil, rq, rq.Metadata, []byte("bad key"))
 
@@ -123,7 +122,7 @@ func TestCheckRequestAndKeyValue_ok(t *testing.T) {
 	selfID := ecid.NewPseudoRandom(rng)
 	value, key := api.NewTestDocument(rng)
 	l := &Librarian{
-		rt:  routing.NewEmpty(selfID, routing.NewDefaultParameters()),
+		rt:  routing.NewEmpty(selfID.ID(), routing.NewDefaultParameters()),
 		rqv: &alwaysRequestVerifier{},
 		kc:  storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		kvc: storage.NewHashKeyValueChecker(),
@@ -152,10 +151,10 @@ func TestCheckRequestAndKeyValue_checkErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	selfID := ecid.NewPseudoRandom(rng)
 	value, _ := api.NewTestDocument(rng)
-	key := cid.NewPseudoRandom(rng) // bad key, not hash of value
+	key := id.NewPseudoRandom(rng) // bad key, not hash of value
 	rq := client.NewGetRequest(selfID, key)
 	l := &Librarian{
-		rt:  routing.NewEmpty(selfID, routing.NewDefaultParameters()),
+		rt:  routing.NewEmpty(selfID.ID(), routing.NewDefaultParameters()),
 		rqv: &alwaysRequestVerifier{},
 		kc:  storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		kvc: storage.NewHashKeyValueChecker(),

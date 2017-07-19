@@ -2,8 +2,9 @@ package peer
 
 import (
 	"fmt"
+	"net"
 
-	cid "github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 )
@@ -17,10 +18,10 @@ const (
 type Peer interface {
 
 	// ID returns the peer ID.
-	ID() cid.ID
+	ID() id.ID
 
 	// Connector returns the Connector instance for connecting to the peer.
-	Connector() api.Connector
+	Connector() Connector
 
 	// Recorder returns the Recorder instance for recording query outcomes.
 	Recorder() Recorder
@@ -42,20 +43,20 @@ type Peer interface {
 
 type peer struct {
 	// 256-bit ID
-	id cid.ID
+	id id.ID
 
 	// self-reported name
 	name string
 
 	// Connector instance for the peer
-	conn api.Connector
+	conn Connector
 
 	// tracks query outcomes from the peer
 	recorder Recorder
 }
 
 // New creates a new Peer instance with empty response stats.
-func New(id cid.ID, name string, conn api.Connector) Peer {
+func New(id id.ID, name string, conn Connector) Peer {
 	return &peer{
 		id:       id,
 		name:     name,
@@ -65,7 +66,7 @@ func New(id cid.ID, name string, conn api.Connector) Peer {
 }
 
 // NewStub creates a new peer without a name or connector.
-func NewStub(id cid.ID, name string) Peer {
+func NewStub(id id.ID, name string) Peer {
 	return New(id, name, nil)
 }
 
@@ -74,7 +75,7 @@ func (p *peer) WithQueryRecorder(rec Recorder) *peer {
 	return p
 }
 
-func (p *peer) ID() cid.ID {
+func (p *peer) ID() id.ID {
 	return p.id
 }
 
@@ -98,7 +99,7 @@ func (p *peer) Merge(other Peer) error {
 	return nil
 }
 
-func (p *peer) Connector() api.Connector {
+func (p *peer) Connector() Connector {
 	return p.conn
 }
 
@@ -135,7 +136,7 @@ func ToAPIs(peers []Peer) []*api.PeerAddress {
 
 // Fromer creates new Peer instances from api.PeerAddresses.
 type Fromer interface {
-	// New creates a new Peer instance.
+	// FromAPI creates a new Peer instance.
 	FromAPI(address *api.PeerAddress) Peer
 }
 
@@ -148,8 +149,26 @@ func NewFromer() Fromer {
 
 func (f *fromer) FromAPI(apiAddress *api.PeerAddress) Peer {
 	return New(
-		cid.FromBytes(apiAddress.PeerId),
+		id.FromBytes(apiAddress.PeerId),
 		apiAddress.PeerName,
-		api.NewConnector(api.ToAddress(apiAddress)),
+		NewConnector(ToAddress(apiAddress)),
 	)
+}
+
+// ToAddress creates a net.TCPAddr from an api.PeerAddress.
+func ToAddress(addr *api.PeerAddress) *net.TCPAddr {
+	return &net.TCPAddr{
+		IP:   net.ParseIP(addr.Ip),
+		Port: int(addr.Port),
+	}
+}
+
+// FromAddress creates an api.PeerAddress from a net.TCPAddr.
+func FromAddress(id id.ID, name string, addr *net.TCPAddr) *api.PeerAddress {
+	return &api.PeerAddress{
+		PeerId:   id.Bytes(),
+		PeerName: name,
+		Ip:       addr.IP.String(),
+		Port:     uint32(addr.Port),
+	}
 }

@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+set -eou pipefail
+
+# check no outstanding formatting issues
+make fix
+if [[ $(git status --porcelain | wc -l) -ne 0 ]]; then
+    echo 'Found and resolved formatting issues. Please examine and commit.'
+    exit 1
+fi

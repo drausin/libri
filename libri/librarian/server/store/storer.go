@@ -3,12 +3,13 @@ package store
 import (
 	"bytes"
 	"sync"
+	"time"
+
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
-	"time"
 )
 
 const storerStoreRetryTimeout = 100 * time.Millisecond
@@ -102,7 +103,7 @@ func (s *storer) storeWork(store *Store, wg *sync.WaitGroup) {
 	}
 }
 
-func (s *storer) query(pConn api.Connector, store *Store) (*api.StoreResponse, error) {
+func (s *storer) query(pConn peer.Connector, store *Store) (*api.StoreResponse, error) {
 	storeClient, err := s.storerCreator.Create(pConn)
 	if err != nil {
 		return nil, err

@@ -113,7 +113,7 @@ type to struct {
 	params   *ToParameters
 	logger   *zap.Logger
 	clientID ecid.ID
-	csb      api.ClientSetBalancer
+	csb      client.SetBalancer
 	sb       subscriptionBeginner
 	recent   RecentPublications
 	received chan *pubValueReceipt
@@ -127,7 +127,7 @@ func NewTo(
 	params *ToParameters,
 	logger *zap.Logger,
 	clientID ecid.ID,
-	csb api.ClientSetBalancer,
+	csb client.SetBalancer,
 	signer client.Signer,
 	recent RecentPublications,
 	new chan *KeyedPub,

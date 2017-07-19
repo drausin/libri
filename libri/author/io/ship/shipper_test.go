@@ -11,6 +11,7 @@ import (
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -243,7 +244,7 @@ type fixedMultiLoadPublisher struct {
 }
 
 func (f *fixedMultiLoadPublisher) Publish(
-	docKeys []id.ID, authorPub []byte, cb api.PutterBalancer, delete bool,
+	docKeys []id.ID, authorPub []byte, cb client.PutterBalancer, delete bool,
 ) error {
 	f.deleted = delete
 	return f.err
@@ -284,7 +285,6 @@ type fixedPutterBalancer struct {
 func (f *fixedPutterBalancer) Next() (api.Putter, error) {
 	return f.client, f.err
 }
-
 
 type fixedDocSLD struct {
 	docs        map[string]*api.Document
