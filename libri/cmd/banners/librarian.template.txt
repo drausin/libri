@@ -1,0 +1,16 @@
+
+   ██╗       ██╗   ██████╗    ██████╗    ██╗
+   ██║       ██║   ██╔══██╗   ██╔══██╗   ██║
+   ██║       ██║   ██████╔╝   ██████╔╝   ██║
+   ██║       ██║   ██╔══██╗   ██╔══██╗   ██║
+   ███████╗  ██║   ██████╔╝   ██║  ██║   ██║
+   ╚══════╝  ╚═╝   ╚═════╝    ╚═╝  ╚═╝   ╚═╝
+
+Libri Librarian Server v{{ .LibriVersion }}
+
+Now:            {{ .Now }}
+Go version:     {{ .GoVersion }}
+GOOS:           {{ .GoOS }}
+GOARCH:         {{ .GoArch }}
+NumCPU:         {{ .NumCPU }}
+GOMAXPROCS:     {{ .GoMaxProcs }}
