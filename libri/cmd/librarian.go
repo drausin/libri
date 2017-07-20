@@ -11,6 +11,17 @@ var librarianCmd = &cobra.Command{
 	Long:  `TODO (drausin) add longer description and examples here`,
 }
 
+type LibrarianBanner struct {
+	Now string
+	GoVersion string
+	GoOS string
+	GoArch string
+	NumCPU int
+	GoMaxProcs int
+}
+
 func init() {
 	RootCmd.AddCommand(librarianCmd)
 }
+
+
