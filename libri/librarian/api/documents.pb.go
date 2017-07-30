@@ -18,8 +18,6 @@ It has these top-level messages:
 	Page
 	RequestMetadata
 	ResponseMetadata
-	PingRequest
-	PingResponse
 	IntroduceRequest
 	IntroduceResponse
 	FindRequest

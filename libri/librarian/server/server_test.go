@@ -74,14 +74,6 @@ func (av *alwaysRequestVerifier) Verify(ctx context.Context, msg proto.Message,
 	return nil
 }
 
-// TestLibrarian_Ping verifies that we receive the expected response ("pong") to a ping request.
-func TestLibrarian_Ping(t *testing.T) {
-	lib := &Librarian{}
-	r, err := lib.Ping(nil, &api.PingRequest{})
-	assert.Nil(t, err)
-	assert.Equal(t, r.Message, "pong")
-}
-
 func TestLibrarian_Introduce_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	peerName, serverPeerIdx := "server", 0

@@ -174,11 +174,6 @@ var (
 	errStoreUnexpectedResult  = errors.New("unexpected store result")
 )
 
-// Ping confirms simple request/response connectivity.
-func (l *Librarian) Ping(ctx context.Context, rq *api.PingRequest) (*api.PingResponse, error) {
-	return &api.PingResponse{Message: "pong"}, nil
-}
-
 // Introduce receives and gives identifying information about the peer in the network.
 func (l *Librarian) Introduce(ctx context.Context, rq *api.IntroduceRequest) (
 	*api.IntroduceResponse, error) {
