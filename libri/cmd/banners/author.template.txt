@@ -1,1 +1,2 @@
 Libri Author Client v{{ .LibriVersion }}
+

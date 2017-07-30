@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"fmt"
-
 	"github.com/drausin/libri/libri/common/errors"
+	"os"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/common/subscribe"
 	"github.com/drausin/libri/libri/librarian/server"
@@ -121,6 +121,7 @@ func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
 	}
 	config.WithBootstrapAddrs(bootstrapNetAddrs)
 
+	WriteLibrarianBanner(os.Stdout)
 	logger.Info("librarian configuration",
 		zap.Stringer(logLocalAddr, config.LocalAddr),
 		zap.Stringer(logLocalMetricsAddr, config.LocalMetricsAddr),

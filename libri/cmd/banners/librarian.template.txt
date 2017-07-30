@@ -6,11 +6,11 @@
    ███████╗  ██║   ██████╔╝   ██║  ██║   ██║
    ╚══════╝  ╚═╝   ╚═════╝    ╚═╝  ╚═╝   ╚═╝
 
-Libri Librarian Server v{{ .LibriVersion }}
+Libri Librarian Server
 
-Now:            {{ .Now }}
+Libri version   {{ .LibriVersion }}
 Go version:     {{ .GoVersion }}
 GOOS:           {{ .GoOS }}
 GOARCH:         {{ .GoArch }}
 NumCPU:         {{ .NumCPU }}
-GOMAXPROCS:     {{ .GoMaxProcs }}
+

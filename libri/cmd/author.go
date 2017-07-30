@@ -2,11 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"io"
-	"time"
-
-	"log"
-
 	"github.com/drausin/libri/libri/author"
 	lauthor "github.com/drausin/libri/libri/author"
 	"github.com/drausin/libri/libri/author/keychain"
@@ -18,6 +13,9 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/ssh/terminal"
+	"io"
+	"os"
+	"time"
 )
 
 const (
@@ -84,7 +82,6 @@ type authorConfigGetter interface {
 type authorConfigGetterImpl struct{}
 
 func (*authorConfigGetterImpl) get(librariansFlag string) (*author.Config, *zap.Logger, error) {
-	log.Printf("dataDir: %s", viper.GetString(dataDirFlag))
 	config := author.NewDefaultConfig().
 		WithDataDir(viper.GetString(dataDirFlag)).
 		WithDefaultDBDir(). // depends on DataDir
@@ -101,6 +98,7 @@ func (*authorConfigGetterImpl) get(librariansFlag string) (*author.Config, *zap.
 	}
 	config.WithLibrarianAddrs(librarianNetAddrs)
 
+	WriteAuthorBanner(os.Stdout)
 	logger.Info("author configuration",
 		zap.String(librariansFlag, fmt.Sprintf("%v", config.LibrarianAddrs)),
 		zap.String(dataDirFlag, config.DataDir),
