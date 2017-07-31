@@ -31,7 +31,6 @@ NumCPU:         {{ .NumCPU }}
 
 const authorTemplate = `Libri Author Client v{{ .LibriVersion }}`
 
-
 type librarianConfig struct {
 	LibriVersion string
 	Now          string
