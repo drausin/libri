@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"io"
-	"path"
 	"runtime"
 	"text/template"
 	"time"
@@ -11,11 +10,27 @@ import (
 	"github.com/drausin/libri/version"
 )
 
-const (
-	librarianTemplateFilename = "librarian.template.txt"
-	authorTemplateFilename    = "author.template.txt"
-	bannersDir                = "banners"
-)
+const librarianTemplate = `
+
+   ██╗       ██╗   ██████╗    ██████╗    ██╗
+   ██║       ██║   ██╔══██╗   ██╔══██╗   ██║
+   ██║       ██║   ██████╔╝   ██████╔╝   ██║
+   ██║       ██║   ██╔══██╗   ██╔══██╗   ██║
+   ███████╗  ██║   ██████╔╝   ██║  ██║   ██║
+   ╚══════╝  ╚═╝   ╚═════╝    ╚═╝  ╚═╝   ╚═╝
+
+Libri Librarian Server
+
+Libri version   {{ .LibriVersion }}
+Go version:     {{ .GoVersion }}
+GOOS:           {{ .GoOS }}
+GOARCH:         {{ .GoArch }}
+NumCPU:         {{ .NumCPU }}
+
+`
+
+const authorTemplate = `Libri Author Client v{{ .LibriVersion }}`
+
 
 type librarianConfig struct {
 	LibriVersion string
@@ -39,8 +54,7 @@ func WriteLibrarianBanner(w io.Writer) {
 		GoArch:       runtime.GOARCH,
 		NumCPU:       runtime.NumCPU(),
 	}
-	relPath := path.Join(bannersDir, librarianTemplateFilename)
-	tmpl, err := template.New(librarianTemplateFilename).ParseFiles(relPath)
+	tmpl, err := template.New("librarian-banner").Parse(librarianTemplate)
 	errors.MaybePanic(err)
 	err = tmpl.Execute(w, config)
 	errors.MaybePanic(err)
@@ -50,8 +64,7 @@ func WriteAuthorBanner(w io.Writer) {
 	config := &authorConfig{
 		LibriVersion: version.Version.String(),
 	}
-	relPath := path.Join(bannersDir, authorTemplateFilename)
-	tmpl, err := template.New(authorTemplateFilename).ParseFiles(relPath)
+	tmpl, err := template.New("author-banner").Parse(authorTemplate)
 	errors.MaybePanic(err)
 	err = tmpl.Execute(w, config)
 	errors.MaybePanic(err)
