@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package api;
 
-import "libri/librarian/api/documents.proto";
+import "librarian/api/documents.proto";
 
 // The Librarian service handles all of the main Libri functionality.
 service Librarian {
@@ -12,6 +12,10 @@ service Librarian {
 
     // Find returns the value for a key or the closest peers to it.
     rpc Find (FindRequest) returns (FindResponse) {}
+
+    // Verify checks that a peer has the value for a given key or returns the closest peers to
+    // that value.
+    rpc Verify (VerifyRequest) returns (VerifyResponse) {}
 
     // Store stores a value in a given key.
     rpc Store (StoreRequest) returns (StoreResponse) {}
@@ -83,6 +87,32 @@ message FindResponse {
     Document value = 3;
 }
 
+message VerifyRequest {
+    RequestMetadata metadata = 1;
+
+    // 32-byte key of document to verify
+    bytes key = 2;
+
+    // 32-byte key to use in HMAC-256 verification
+    bytes mac_key = 3;
+
+    // the number of closests peers to return
+    uint32 num_peers = 4;
+}
+
+message VerifyResponse {
+    ResponseMetadata metadata = 1;
+
+    // whether the peer has the the document with the given key
+    bool have = 2;
+
+    // the HMAC-256 of the document's serialized bytes given the MAC key in the request
+    bytes mac = 3;
+
+    // list of peers closest to target
+    repeated PeerAddress peers = 4;
+}
+
 message PeerAddress {
     // 32-byte peer ID
     bytes peer_id = 1;
@@ -114,7 +144,7 @@ message StoreResponse {
 message GetRequest {
     RequestMetadata metadata = 1;
 
-    // 32-byte
+    // 32-byte key of document to get
     bytes key = 2;
 }
 

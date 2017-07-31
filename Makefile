@@ -70,7 +70,7 @@ proto:
 	@echo "--> Running protoc"
 	@protoc ./libri/author/keychain/*.proto --go_out=plugins=grpc:.
 	@protoc ./libri/common/ecid/*.proto --go_out=plugins=grpc:.
-	@protoc ./libri/librarian/api/*.proto --go_out=plugins=grpc:.
+	@pushd libri && protoc ./librarian/api/*.proto --go_out=plugins=grpc:. && popd
 	@protoc ./libri/common/storage/*.proto --go_out=plugins=grpc:.
 
 test-cover:

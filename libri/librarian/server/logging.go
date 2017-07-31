@@ -15,6 +15,7 @@ const (
 	logFromPubKeyShort = "from_pub_key_short"
 	logNPeers          = "n_peers"
 	logKey             = "key"
+	logMac = "mac"
 	logOperation       = "operation"
 	logNReplicas       = "n_replicas"
 	logSearch          = "search"
@@ -54,6 +55,27 @@ func findValueResponseFields(rq *api.FindRequest, _ *api.FindResponse) []zapcore
 }
 
 func findPeersResponseFields(rq *api.FindRequest, rp *api.FindResponse) []zapcore.Field {
+	return []zapcore.Field{
+		zap.String(logKey, id.Hex(rq.Key)),
+		zap.Int(logNPeers, len(rp.Peers)),
+	}
+}
+
+func verifyRequestFields(rq *api.VerifyRequest) []zapcore.Field {
+	return []zapcore.Field{
+		zap.String(logKey, id.Hex(rq.Key)),
+		zap.Uint32(logNPeers, rq.NumPeers),
+	}
+}
+
+func verifyMacResponseFields(rq *api.VerifyRequest, rp *api.VerifyResponse) []zapcore.Field {
+	return []zapcore.Field{
+		zap.String(logKey, id.Hex(rq.Key)),
+		zap.String(logMac, id.Hex(rp.Mac)),
+	}
+}
+
+func verifyPeersResponseFields(rq *api.VerifyRequest, rp *api.VerifyResponse) []zapcore.Field {
 	return []zapcore.Field{
 		zap.String(logKey, id.Hex(rq.Key)),
 		zap.Int(logNPeers, len(rp.Peers)),

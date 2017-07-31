@@ -5,6 +5,8 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/golang/protobuf/proto"
+	"crypto/hmac"
+	"crypto/sha256"
 )
 
 const (
@@ -117,6 +119,9 @@ type DocumentStorer interface {
 type DocumentLoader interface {
 	// Load an api.Document value with the given key.
 	Load(key id.ID) (*api.Document, error)
+
+	// Mac an api.Document value with the given key and mac key.
+	Mac(key id.ID, macKey []byte) ([]byte, error)
 }
 
 // DocumentDeleter deletes api.Document values.
@@ -181,6 +186,35 @@ func (dsld *documentSLD) Store(key id.ID, value *api.Document) error {
 }
 
 func (dsld *documentSLD) Load(key id.ID) (*api.Document, error) {
+	valueBytes, err := dsld.loadCheckBytes(key)
+	if err != nil  || valueBytes == nil {
+		return nil, err
+	}
+	doc := &api.Document{}
+	if err := proto.Unmarshal(valueBytes, doc); err != nil {
+		return nil, err
+	}
+	if err := api.ValidateDocument(doc); err != nil {
+		// should never happen b/c we check on Store, but being defensive just in case
+		return nil, err
+	}
+	return doc, nil
+}
+
+func (dsld *documentSLD) Mac(key id.ID, macKey []byte) ([]byte, error) {
+	valueBytes, err := dsld.loadCheckBytes(key)
+	if err != nil  || valueBytes == nil {
+		return nil, err
+	}
+	macer := hmac.New(sha256.New, macKey)
+	if _, err := macer.Write(valueBytes); err != nil {
+		// should never happen b/c sha256.Write always returns nil error
+		panic(err)
+	}
+	return macer.Sum(nil), nil
+}
+
+func (dsld *documentSLD) loadCheckBytes(key id.ID) ([]byte, error) {
 	keyBytes := key.Bytes()
 	valueBytes, err := dsld.sld.Load(keyBytes)
 	if err != nil {
@@ -193,15 +227,7 @@ func (dsld *documentSLD) Load(key id.ID) (*api.Document, error) {
 		// should never happen b/c we check on Store, but being defensive just in case
 		return nil, err
 	}
-	doc := &api.Document{}
-	if err := proto.Unmarshal(valueBytes, doc); err != nil {
-		return nil, err
-	}
-	if err := api.ValidateDocument(doc); err != nil {
-		// should never happen b/c we check on Store, but being defensive just in case
-		return nil, err
-	}
-	return doc, nil
+	return valueBytes,nil
 }
 
 func (dsld *documentSLD) Delete(key id.ID) error {

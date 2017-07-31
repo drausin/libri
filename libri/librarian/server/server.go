@@ -245,6 +245,46 @@ func (l *Librarian) Find(ctx context.Context, rq *api.FindRequest) (*api.FindRes
 	return rp, nil
 }
 
+func (l *Librarian) Verify(ctx context.Context, rq *api.VerifyRequest) (
+	*api.VerifyResponse, error) {
+
+	logger := l.logger.With(rqMetadataFields(rq.Metadata)...)
+	logger.Debug("received verify request", verifyRequestFields(rq)...)
+
+	requesterID, err := l.checkRequestAndKey(ctx, rq, rq.Metadata, rq.Key)
+	if err != nil {
+		return nil, logAndReturnErr(logger, "check request error", err)
+	}
+	l.record(requesterID, peer.Request, peer.Success)
+
+	mac, err := l.documentSL.Mac(id.FromBytes(rq.Key), rq.MacKey)
+	if err != nil {
+		// something went wrong during load
+		return nil, logAndReturnErr(logger, "error loading document", err)
+	}
+
+	// we have the value, so return it
+	if mac != nil {
+		rp := &api.VerifyResponse{
+			Metadata: l.NewResponseMetadata(rq.Metadata),
+			Have:     true,
+			Mac:      mac,
+		}
+		logger.Info("verified value", verifyMacResponseFields(rq, rp)...)
+		return rp, nil
+	}
+
+	// otherwise, return the peers closest to the key
+	key := id.FromBytes(rq.Key)
+	closest := l.rt.Peak(key, uint(rq.NumPeers))
+	rp := &api.VerifyResponse{
+		Metadata: l.NewResponseMetadata(rq.Metadata),
+		Peers:    peer.ToAPIs(closest),
+	}
+	logger.Info("found closest peers", verifyPeersResponseFields(rq, rp)...)
+	return rp, nil
+}
+
 // Store stores the value.
 func (l *Librarian) Store(ctx context.Context, rq *api.StoreRequest) (
 	*api.StoreResponse, error) {
