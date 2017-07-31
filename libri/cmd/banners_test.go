@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"testing"
 	"os"
+	"testing"
 )
 
 // these test basically just ensure there are no panics, usually b/c of mismatched tempalate and

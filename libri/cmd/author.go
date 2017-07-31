@@ -2,6 +2,10 @@ package cmd
 
 import (
 	"fmt"
+	"io"
+	"os"
+	"time"
+
 	"github.com/drausin/libri/libri/author"
 	lauthor "github.com/drausin/libri/libri/author"
 	"github.com/drausin/libri/libri/author/keychain"
@@ -13,9 +17,6 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/ssh/terminal"
-	"io"
-	"os"
-	"time"
 )
 
 const (

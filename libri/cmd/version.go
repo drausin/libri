@@ -1,9 +1,10 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
-	"github.com/drausin/libri/version"
 	"os"
+
+	"github.com/drausin/libri/version"
+	"github.com/spf13/cobra"
 )
 
 // versionCmd represents the librarian command

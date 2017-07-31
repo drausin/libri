@@ -1,13 +1,14 @@
 package cmd
 
 import (
-	"time"
-	"runtime"
-	"text/template"
-	"github.com/drausin/libri/libri/common/errors"
-	"github.com/drausin/libri/version"
 	"io"
 	"path"
+	"runtime"
+	"text/template"
+	"time"
+
+	"github.com/drausin/libri/libri/common/errors"
+	"github.com/drausin/libri/version"
 )
 
 const (
@@ -55,4 +56,3 @@ func WriteAuthorBanner(w io.Writer) {
 	err = tmpl.Execute(w, config)
 	errors.MaybePanic(err)
 }
-
