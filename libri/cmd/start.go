@@ -5,9 +5,6 @@ import (
 	"os"
 
 	"github.com/drausin/libri/libri/common/errors"
-	"os"
-
-	"github.com/drausin/libri/libri/common/errors"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/common/subscribe"
 	"github.com/drausin/libri/libri/librarian/server"
