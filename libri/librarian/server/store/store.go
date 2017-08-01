@@ -147,7 +147,7 @@ type Store struct {
 	// Result of the store
 	Result *Result
 
-	// Search first part of store operation
+	// Search defines the first part of store operation
 	Search *search.Search
 
 	// Params defining the store part of the operation

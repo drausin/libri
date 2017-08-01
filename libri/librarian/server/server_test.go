@@ -442,7 +442,7 @@ func TestLibrarian_Get_FoundClosestPeers(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	key, peerID := id.NewPseudoRandom(rng), ecid.NewPseudoRandom(rng)
 
-	// create mock search result to return FoundClosestPeers() == true
+	// create mock search result to return PartiallyReplicated() == true
 	searchParams := search.NewDefaultParameters()
 	foundClosestPeersResult := search.NewInitialResult(key, searchParams)
 	dummyClosest := peer.NewTestPeers(rng, int(searchParams.NClosestResponses))
@@ -453,7 +453,7 @@ func TestLibrarian_Get_FoundClosestPeers(t *testing.T) {
 	l := newGetLibrarian(rng, foundClosestPeersResult, nil)
 	rq := client.NewGetRequest(peerID, key)
 
-	// since fixedSearcher returns a Search value where FoundClosestPeers() is true, shouldn't
+	// since fixedSearcher returns a Search value where PartiallyReplicated() is true, shouldn't
 	// have any Value
 	rp, err := l.Get(nil, rq)
 	assert.Nil(t, err)

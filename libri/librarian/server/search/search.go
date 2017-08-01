@@ -49,16 +49,17 @@ const (
 
 // Parameters defines the parameters of the search.
 type Parameters struct {
-	// required number of peers closest to the key we need to receive responses from
+	// NClosestResponses is the required number of peers closest to the key we need to receive
+	// responses from
 	NClosestResponses uint
 
-	// maximum number of errors tolerated when querying peers during the search
+	// NMaxErrors is the maximum number of errors tolerated when querying peers during the search
 	NMaxErrors uint
 
-	// number of concurrent queries to use in search
+	// Concurrency is the number of concurrent queries to use in search
 	Concurrency uint
 
-	// timeout for queries to individual peers
+	// Timeout for queries to individual peers
 	Timeout time.Duration
 }
 
@@ -83,22 +84,22 @@ func (p *Parameters) MarshalLogObject(oe zapcore.ObjectEncoder) error {
 
 // Result holds search's (intermediate) result: collections of peers and possibly the value.
 type Result struct {
-	// found value when looking for one, otherwise nil
+	// Value found when looking for one, otherwise nil
 	Value *api.Document
 
-	// heap of the responding peers found closest to the target
+	// Closest is a heap of the responding peers found closest to the target
 	Closest FarthestPeers
 
-	// heap of peers that were not yet queried before search ended
+	// Unqueried is a heap of peers that were not yet queried
 	Unqueried ClosestPeers
 
-	// map of all peers that responded during search
+	// Responded is a map of all peers that responded during search
 	Responded map[string]peer.Peer
 
 	// Errored contains the errors received by each peer (via string representation of peer ID)
 	Errored map[string]error
 
-	// fatal error that occurred during the search
+	// FatalErr is a fatal error that occurred during the search
 	FatalErr error
 }
 
@@ -146,7 +147,7 @@ type Search struct {
 	Key id.ID
 
 	// request used when querying peers
-	Request *api.FindRequest
+	Request *api.FindRequest  // TODO (drausin) change to request-returning func
 
 	// result of the search
 	Result *Result
