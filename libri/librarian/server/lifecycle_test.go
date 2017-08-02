@@ -14,7 +14,6 @@ import (
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
-	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
@@ -44,7 +43,6 @@ func TestStart_ok(t *testing.T) {
 	conn, err := grpc.Dial(config.LocalAddr.String(), grpc.WithInsecure())
 	assert.NotNil(t, conn)
 	assert.Nil(t, err)
-	client := api.NewLibrarianClient(conn)
 	clientHealth := healthpb.NewHealthClient(conn)
 
 	// confirm ok health check
@@ -59,12 +57,6 @@ func TestStart_ok(t *testing.T) {
 	resp, err := http.Get(metricsAddr)
 	assert.Nil(t, err)
 	assert.Equal(t, "200 OK", resp.Status)
-
-	// confirm server is up and responds to ping
-	rq2 := &api.PingRequest{}
-	rp1, err := client.Ping(context.Background(), rq2)
-	assert.Nil(t, err)
-	assert.Equal(t, "pong", rp1.Message)
 
 	assert.Nil(t, librarian.CloseAndRemove())
 }

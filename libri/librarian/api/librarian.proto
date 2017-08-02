@@ -7,9 +7,6 @@ import "libri/librarian/api/documents.proto";
 // The Librarian service handles all of the main Libri functionality.
 service Librarian {
 
-    // Ping confirms simple request/response connectivity.
-    rpc Ping (PingRequest) returns (PingResponse) {}
-
     // Introduce identifies the node by name and ID.
     rpc Introduce (IntroduceRequest) returns (IntroduceResponse) {}
 
@@ -44,12 +41,6 @@ message ResponseMetadata {
 
     // peer's ECDSA public key
     bytes pub_key = 2;
-}
-
-message PingRequest {}
-
-message PingResponse {
-    string message = 1;
 }
 
 message IntroduceRequest {

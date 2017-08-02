@@ -8,12 +8,6 @@ import (
 // These interfaces split up the methods of LibrarianClient, mostly to allow for narrow interface
 // usage and testing.
 
-// Pinger issues Ping queries.
-type Pinger interface {
-	// Ping confirms simple request/response connectivity.
-	Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error)
-}
-
 // Introducer issues Introduce queries.
 type Introducer interface {
 	// Introduce identifies the node by name and ID.
