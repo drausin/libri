@@ -261,10 +261,10 @@ func (l *Librarian) Verify(ctx context.Context, rq *api.VerifyRequest) (
 	mac, err := l.documentSL.Mac(id.FromBytes(rq.Key), rq.MacKey)
 	if err != nil {
 		// something went wrong during load
-		return nil, logAndReturnErr(logger, "error loading document", err)
+		return nil, logAndReturnErr(logger, "error MACing document", err)
 	}
 
-	// we have the value, so return it
+	// we have the mac, so return it
 	if mac != nil {
 		rp := &api.VerifyResponse{
 			Metadata: l.NewResponseMetadata(rq.Metadata),
