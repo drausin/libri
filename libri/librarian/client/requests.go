@@ -40,6 +40,16 @@ func NewFindRequest(peerID ecid.ID, key id.ID, nPeers uint) *api.FindRequest {
 	}
 }
 
+// NewVerifyRequest creates a VerifyRequest object.
+func NewVerifyRequest(peerID ecid.ID, key id.ID, macKey []byte, nPeers uint) *api.VerifyRequest {
+	return &api.VerifyRequest{
+		Metadata: NewRequestMetadata(peerID),
+		Key:      key.Bytes(),
+		MacKey:   macKey,
+		NumPeers: uint32(nPeers),
+	}
+}
+
 // NewStoreRequest creates a StoreRequest object.
 func NewStoreRequest(peerID ecid.ID, key id.ID, value *api.Document) *api.StoreRequest {
 	return &api.StoreRequest{

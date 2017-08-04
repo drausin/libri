@@ -103,14 +103,12 @@ message VerifyRequest {
 message VerifyResponse {
     ResponseMetadata metadata = 1;
 
-    // whether the peer has the the document with the given key
-    bool have = 2;
-
-    // the HMAC-256 of the document's serialized bytes given the MAC key in the request
-    bytes mac = 3;
+    // nil if the peer does not have the document, otherwise the HMAC-256 of the document's
+    // serialized bytes given the MAC key in the request
+    bytes mac = 2;
 
     // list of peers closest to target
-    repeated PeerAddress peers = 4;
+    repeated PeerAddress peers = 3;
 }
 
 message PeerAddress {

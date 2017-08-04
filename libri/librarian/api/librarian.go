@@ -28,6 +28,12 @@ type Storer interface {
 		error)
 }
 
+// Verifier issues Verify queries.
+type Verifier interface {
+	// Verify verifies that a peer has a given value.
+	Verify(ctx context.Context, in *VerifyRequest, opts ...grpc.CallOption) (*VerifyResponse, error)
+}
+
 // Getter issues Get queries.
 type Getter interface {
 	// Get retrieves a value, if it exists.

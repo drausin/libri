@@ -55,6 +55,7 @@ func TestSearch_FoundClosestPeers(t *testing.T) {
 
 	search := NewSearch(selfID, target, &Parameters{
 		NClosestResponses: nClosestResponses,
+		Concurrency: DefaultConcurrency,
 	})
 
 	// add closest peers to half the heap's capacity

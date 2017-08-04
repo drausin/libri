@@ -7,6 +7,7 @@ import (
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
+	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
@@ -107,8 +108,8 @@ type Result struct {
 func NewInitialResult(key id.ID, params *Parameters) *Result {
 	return &Result{
 		Value:     nil,
-		Closest:   newFarthestPeers(key, params.NClosestResponses),
-		Unqueried: newClosestPeers(key, params.NClosestResponses*params.Concurrency),
+		Closest:   NewFarthestPeers(key, params.NClosestResponses),
+		Unqueried: NewClosestPeers(key, params.NClosestResponses*params.Concurrency),
 		Responded: make(map[string]peer.Peer),
 		Errored:   make(map[string]error),
 	}
@@ -116,27 +117,12 @@ func NewInitialResult(key id.ID, params *Parameters) *Result {
 
 // MarshalLogObject converts the Result into an object (which will become json) for logging.
 func (r *Result) MarshalLogObject(oe zapcore.ObjectEncoder) error {
-	errs := make([]error, len(r.Errored))
-	i := 0
-	for _, err := range r.Errored {
-		errs[i] = err
-		i++
-	}
 	oe.AddInt(logNClosest, r.Closest.Len())
 	oe.AddInt(logNUnqueried, r.Unqueried.Len())
 	oe.AddInt(logNResponded, len(r.Responded))
-	errors.MaybePanic(oe.AddArray(logErrors, errArray(errs)))
+	errors.MaybePanic(oe.AddArray(logErrors, clogging.ToErrArray(r.Errored)))
 	if r.FatalErr != nil {
 		oe.AddString(logFatalError, r.FatalErr.Error())
-	}
-	return nil
-}
-
-type errArray []error
-
-func (errs errArray) MarshalLogArray(arr zapcore.ArrayEncoder) error {
-	for _, err := range errs {
-		arr.AppendString(err.Error())
 	}
 	return nil
 }
@@ -219,4 +205,10 @@ func (s *Search) Finished() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.FoundValue() || s.FoundClosestPeers() || s.Errored() || s.Exhausted()
+}
+
+func (s *Search) wrapLock(operation func()) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	operation()
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/errors"
+	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
@@ -123,18 +124,9 @@ func (r *Result) MarshalLogObject(oe zapcore.ObjectEncoder) error {
 	}
 	oe.AddInt(logNUnqueried, len(r.Unqueried))
 	oe.AddInt(logNResponded, len(r.Responded))
-	errors.MaybePanic(oe.AddArray(logErrors, errArray(r.Errors)))
+	errors.MaybePanic(oe.AddArray(logErrors, clogging.ErrArray(r.Errors)))
 	if r.FatalErr != nil {
 		oe.AddString(logFatalError, r.FatalErr.Error())
-	}
-	return nil
-}
-
-type errArray []error
-
-func (errs errArray) MarshalLogArray(arr zapcore.ArrayEncoder) error {
-	for _, err := range errs {
-		arr.AppendString(err.Error())
 	}
 	return nil
 }

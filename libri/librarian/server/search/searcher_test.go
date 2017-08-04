@@ -98,7 +98,7 @@ func TestSearcher_Search_queryErr(t *testing.T) {
 	assert.False(t, search.Exhausted()) // since NMaxErrors < len(Unqueried)
 	assert.True(t, search.Finished())
 	assert.False(t, search.FoundClosestPeers())
-	assert.Equal(t, int(search.Params.NMaxErrors), len(search.Result.Errored)-1)
+	assert.Equal(t, int(search.Params.NMaxErrors + 1), len(search.Result.Errored))
 	assert.Equal(t, 0, search.Result.Closest.Len())
 	assert.True(t, 0 < search.Result.Unqueried.Len())
 	assert.Equal(t, 0, len(search.Result.Responded))
@@ -107,7 +107,7 @@ func TestSearcher_Search_queryErr(t *testing.T) {
 type errResponseProcessor struct{}
 
 func (erp *errResponseProcessor) Process(rp *api.FindResponse, result *Result) error {
-	return errors.New("some fatal processing error")
+	return errors.New("some processing error")
 }
 
 func TestSearcher_Search_rpErr(t *testing.T) {
@@ -123,11 +123,11 @@ func TestSearcher_Search_rpErr(t *testing.T) {
 	// checks
 	assert.NotNil(t, err)
 	assert.NotNil(t, search.Result.FatalErr)
-	assert.True(t, search.Errored()) // since we got a fatal error while processing responses
+	assert.True(t, search.Errored()) // since we hit max number of allowable errors
 	assert.False(t, search.Exhausted())
 	assert.True(t, search.Finished())
 	assert.False(t, search.FoundClosestPeers())
-	assert.Equal(t, 0, len(search.Result.Errored))
+	assert.Equal(t, int(search.Params.NMaxErrors + 1), len(search.Result.Errored))
 	assert.Equal(t, 0, search.Result.Closest.Len())
 	assert.True(t, 0 < search.Result.Unqueried.Len())
 	assert.Equal(t, 0, len(search.Result.Responded))
@@ -237,49 +237,23 @@ func TestResponseProcessor_Process_Addresses(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 
 	// create placeholder api.PeerAddresses for our mocked api.FindPeers response
-	nAddresses1 := 6
-	peerAddresses1 := newPeerAddresses(rng, nAddresses1)
+	nAddresses := 6
+	peerAddresses := newPeerAddresses(rng, nAddresses)
 
 	key := id.NewPseudoRandom(rng)
 	rp := NewResponseProcessor(peer.NewFromer())
 	params := NewDefaultParameters()
 	result := NewInitialResult(key, params)
-	result.Unqueried = newClosestPeers(key, 9)
+	result.Unqueried = NewClosestPeers(key, 9)
 
 	// create response or nAddresses and process it
-	response1 := &api.FindResponse{
-		Peers: peerAddresses1,
+	response := &api.FindResponse{
+		Peers: peerAddresses,
 		Value: nil,
 	}
-	err := rp.Process(response1, result)
+	err := rp.Process(response, result)
 	assert.Nil(t, err)
-
-	// check that all responses have gone into the unqueried heap
-	assert.Equal(t, nAddresses1, result.Unqueried.Len())
-
-	// process same response as before and check that the length of unqueried hasn't changed
-	err = rp.Process(response1, result)
-	assert.Nil(t, err)
-	assert.Equal(t, nAddresses1, result.Unqueried.Len())
-
-	// create new peers and add them to the closest heap (as if we'd already heard from them)
-	nAddresses2 := 3
-	peerAddresses2 := newPeerAddresses(rng, nAddresses2)
-	peerFromer := peer.NewFromer()
-	for _, pa := range peerAddresses2 {
-		err = result.Closest.SafePush(peerFromer.FromAPI(pa))
-		assert.Nil(t, err)
-	}
-
-	// check that a response with these peers has no effect
-	response2 := &api.FindResponse{
-		Peers: peerAddresses2,
-		Value: nil,
-	}
-	err = rp.Process(response2, result)
-	assert.Nil(t, err)
-	assert.Equal(t, nAddresses1, result.Unqueried.Len())
-	assert.Equal(t, nAddresses2, result.Closest.Len())
+	assert.Equal(t, nAddresses, result.Unqueried.Len())
 }
 
 func TestResponseProcessor_Process_err(t *testing.T) {
@@ -297,15 +271,44 @@ func TestResponseProcessor_Process_err(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func TestAddPeers(t *testing.T) {
+	rng := rand.New(rand.NewSource(int64(0)))
+
+	// create placeholder api.PeerAddresses for our mocked api.FindPeers response
+	nAddresses1 := 6
+	peerAddresses1 := newPeerAddresses(rng, nAddresses1)
+
+	key := id.NewPseudoRandom(rng)
+	fromer := peer.NewFromer()
+	closest := NewFarthestPeers(key, 3)
+	unqueried := NewClosestPeers(key, 9)
+
+	// check that all peers go into the unqueried heap
+	AddPeers(closest, unqueried, peerAddresses1, fromer)
+	assert.Equal(t, nAddresses1, unqueried.Len())
+
+	// add same peers and check that the length of unqueried hasn't changed
+	AddPeers(closest, unqueried, peerAddresses1, fromer)
+	assert.Equal(t, nAddresses1, unqueried.Len())
+
+	// create new peers and add them to the closest heap (as if we'd already heard from them)
+	nAddresses2 := 3
+	peerAddresses2 := newPeerAddresses(rng, nAddresses2)
+	for _, pa := range peerAddresses2 {
+		err := closest.SafePush(fromer.FromAPI(pa))
+		assert.Nil(t, err)
+	}
+
+	// check that adding these peers again has no effect
+	AddPeers(closest, unqueried, peerAddresses2, fromer)
+	assert.Equal(t, nAddresses1, unqueried.Len())
+	assert.Equal(t, nAddresses2, closest.Len())
+}
+
 func newPeerAddresses(rng *rand.Rand, n int) []*api.PeerAddress {
 	peerAddresses := make([]*api.PeerAddress, n)
-	for i := 0; i < n; i++ {
-		peerAddresses[i] = &api.PeerAddress{
-			PeerId:   id.NewPseudoRandom(rng).Bytes(),
-			PeerName: fmt.Sprintf("peer-%03d", i),
-			Ip:       "localhost",
-			Port:     uint32(20100 + i),
-		}
+	for i, p := range peer.NewTestPeers(rng, n) {
+		peerAddresses[i] = p.ToAPI()
 	}
 	return peerAddresses
 }

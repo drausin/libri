@@ -45,6 +45,37 @@ func (r *retryFinder) Find(ctx context.Context, rq *api.FindRequest, opts ...grp
 	return rp, nil
 }
 
+type retryVerifier struct {
+	inner   api.Verifier
+	timeout time.Duration
+}
+
+// NewRetryVerifier creates a new api.Finder with exponential backoff retries.
+func NewRetryVerifier(inner api.Verifier, timeout time.Duration) api.Verifier {
+	return &retryVerifier{
+		inner:   inner,
+		timeout: timeout,
+	}
+}
+
+func (r *retryVerifier) Verify(
+	ctx context.Context, rq *api.VerifyRequest, opts ...grpc.CallOption,
+) (*api.VerifyResponse, error) {
+
+	var rp *api.VerifyResponse
+	operation := func() error {
+		var err error
+		rp, err = r.inner.Verify(ctx, rq, opts...)
+		return err
+	}
+
+	backoff := newExpBackoff(r.timeout)
+	if err := cbackoff.Retry(operation, backoff); err != nil {
+		return nil, err
+	}
+	return rp, nil
+}
+
 type retryStorer struct {
 	inner   api.Storer
 	timeout time.Duration

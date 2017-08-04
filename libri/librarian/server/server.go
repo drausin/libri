@@ -245,6 +245,7 @@ func (l *Librarian) Find(ctx context.Context, rq *api.FindRequest) (*api.FindRes
 	return rp, nil
 }
 
+// Verify returns either the MAC of a value (if the peer has it) or the peers closest to it.
 func (l *Librarian) Verify(ctx context.Context, rq *api.VerifyRequest) (
 	*api.VerifyResponse, error) {
 
@@ -267,7 +268,6 @@ func (l *Librarian) Verify(ctx context.Context, rq *api.VerifyRequest) (
 	if mac != nil {
 		rp := &api.VerifyResponse{
 			Metadata: l.NewResponseMetadata(rq.Metadata),
-			Have:     true,
 			Mac:      mac,
 		}
 		logger.Info("verified value", verifyMacResponseFields(rq, rp)...)

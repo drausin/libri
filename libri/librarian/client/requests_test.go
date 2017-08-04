@@ -41,6 +41,17 @@ func TestNewFindRequest(t *testing.T) {
 	assert.Equal(t, uint32(nPeers), rq.NumPeers)
 }
 
+func TestNewVerifyRequest(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	peerID, key, nPeers := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng), uint(8)
+	macKey := api.RandBytes(rng, 32)
+	rq := NewVerifyRequest(peerID, key, macKey, nPeers)
+	assert.NotNil(t, rq.Metadata)
+	assert.Equal(t, key.Bytes(), rq.Key)
+	assert.Equal(t, macKey, rq.MacKey)
+	assert.Equal(t, uint32(nPeers), rq.NumPeers)
+}
+
 func TestNewStoreRequest(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	peerID := ecid.NewPseudoRandom(rng)

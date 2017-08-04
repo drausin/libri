@@ -377,11 +377,15 @@ func TestLibrarian_Store_checkRequestError(t *testing.T) {
 type errDocStorerLoader struct{}
 
 func (*errDocStorerLoader) Store(key id.ID, value *api.Document) error {
-	return errors.New("some store error")
+	return errors.New("some Store error")
 }
 
 func (*errDocStorerLoader) Load(key id.ID) (*api.Document, error) {
-	return nil, errors.New("some load error")
+	return nil, errors.New("some Load error")
+}
+
+func (*errDocStorerLoader) Mac(key id.ID, macKey []byte) ([]byte, error) {
+	return nil, errors.New("some Mac error")
 }
 
 func TestLibrarian_Store_storeError(t *testing.T) {

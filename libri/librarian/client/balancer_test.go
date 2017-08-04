@@ -47,8 +47,9 @@ func TestUniformRandBalancer_CloseAll(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, b)
 
+	var lc api.LibrarianClient
 	for c := 0; c < 16; c++ { // should be enough trials to hit each addr at least once
-		lc, err := b.Next()
+		lc, err = b.Next()
 		assert.Nil(t, err)
 		assert.NotNil(t, lc)
 	}

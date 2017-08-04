@@ -32,3 +32,25 @@ func NewProdLogger(logLevel zapcore.Level) *zap.Logger {
 	errors.MaybePanic(err)
 	return logger
 }
+
+// ErrArray is an array of errors
+type ErrArray []error
+
+// ToErrArray concerts a map of errors to an array of errors.
+func ToErrArray(errMap map[string]error) ErrArray {
+	errArray := make([]error, len(errMap))
+	i := 0
+	for _, err := range errMap {
+		errArray[i] = err
+		i++
+	}
+	return errArray
+}
+
+// MarshalLogArray marshals the array of errors.
+func (errs ErrArray) MarshalLogArray(arr zapcore.ArrayEncoder) error {
+	for _, err := range errs {
+		arr.AppendString(err.Error())
+	}
+	return nil
+}
