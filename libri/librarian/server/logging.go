@@ -15,7 +15,7 @@ const (
 	logFromPubKeyShort = "from_pub_key_short"
 	logNPeers          = "n_peers"
 	logKey             = "key"
-	logMac = "mac"
+	logMac             = "mac"
 	logOperation       = "operation"
 	logNReplicas       = "n_replicas"
 	logSearch          = "search"

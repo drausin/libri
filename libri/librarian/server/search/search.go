@@ -133,7 +133,7 @@ type Search struct {
 	Key id.ID
 
 	// request used when querying peers
-	Request *api.FindRequest  // TODO (drausin) change to request-returning func
+	Request *api.FindRequest // TODO (drausin) change to request-returning func
 
 	// result of the search
 	Result *Result

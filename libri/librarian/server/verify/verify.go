@@ -1,18 +1,19 @@
 package verify
 
 import (
+	"sync"
+	"time"
+
+	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/drausin/libri/libri/common/errors"
+	"github.com/drausin/libri/libri/common/id"
+	clogging "github.com/drausin/libri/libri/common/logging"
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
-	"github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/librarian/api"
-	clogging "github.com/drausin/libri/libri/common/logging"
-	"sync"
-	"github.com/drausin/libri/libri/common/ecid"
-	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/store"
-	"time"
 	"go.uber.org/zap/zapcore"
-	"github.com/drausin/libri/libri/common/errors"
 )
 
 const (
@@ -58,7 +59,7 @@ type Parameters struct {
 
 // NewDefaultParameters returns a default Verify parameters instance.
 func NewDefaultParameters() *Parameters {
-	nReplicas := store.DefaultNReplicas - 1  // since self already has a replica
+	nReplicas := store.DefaultNReplicas - 1 // since self already has a replica
 	return &Parameters{
 		NReplicas:         nReplicas,
 		NClosestResponses: nReplicas + store.DefaultNMaxErrors,

@@ -1,15 +1,16 @@
 package verify
 
 import (
-	"github.com/stretchr/testify/assert"
-	"testing"
-	"go.uber.org/zap/zapcore"
-	"go.uber.org/zap"
-	"github.com/drausin/libri/libri/common/id"
-	"math/rand"
 	"errors"
+	"math/rand"
+	"testing"
+
 	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/server/peer"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 func TestNewDefaultParameters(t *testing.T) {
@@ -59,9 +60,9 @@ func TestVerify_PartiallyReplicated(t *testing.T) {
 	macKey, mac := []byte{1, 2, 3}, []byte{4, 5, 6}
 
 	v := NewVerify(selfID, target, macKey, mac, &Parameters{
-		NReplicas: 3,
+		NReplicas:         3,
 		NClosestResponses: 6,
-		Concurrency: 3,
+		Concurrency:       3,
 	})
 
 	// add closest peers to half the heap's capacity

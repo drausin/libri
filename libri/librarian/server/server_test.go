@@ -9,6 +9,9 @@ import (
 	"sync"
 	"testing"
 
+	"crypto/hmac"
+	"crypto/sha256"
+
 	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
@@ -25,8 +28,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/metadata"
-	"crypto/hmac"
-	"crypto/sha256"
 )
 
 // TestNewLibrarian checks that we can create a new instance, close it, and create it again as

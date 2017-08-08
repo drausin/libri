@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
+	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
-	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 )
@@ -83,14 +83,14 @@ func (s *searcher) searchWork(search *Search, wg *sync.WaitGroup) {
 		response, err := s.query(next.Connector(), search)
 		if err != nil {
 			// if we had an issue querying, skip to next peer
-			search.wrapLock(func() {recordError(nextIDStr, next, err, search)})
+			search.wrapLock(func() { recordError(nextIDStr, next, err, search) })
 			continue
 		}
 
 		// process the response
 		search.wrapLock(func() { err = s.rp.Process(response, result) })
 		if err != nil {
-			search.wrapLock(func() {recordError(nextIDStr, next, err, search)})
+			search.wrapLock(func() { recordError(nextIDStr, next, err, search) })
 			continue
 		}
 

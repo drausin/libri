@@ -1,12 +1,13 @@
 package storage
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+
 	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/golang/protobuf/proto"
-	"crypto/hmac"
-	"crypto/sha256"
 )
 
 const (
@@ -187,7 +188,7 @@ func (dsld *documentSLD) Store(key id.ID, value *api.Document) error {
 
 func (dsld *documentSLD) Load(key id.ID) (*api.Document, error) {
 	valueBytes, err := dsld.loadCheckBytes(key)
-	if err != nil  || valueBytes == nil {
+	if err != nil || valueBytes == nil {
 		return nil, err
 	}
 	doc := &api.Document{}
@@ -203,7 +204,7 @@ func (dsld *documentSLD) Load(key id.ID) (*api.Document, error) {
 
 func (dsld *documentSLD) Mac(key id.ID, macKey []byte) ([]byte, error) {
 	valueBytes, err := dsld.loadCheckBytes(key)
-	if err != nil  || valueBytes == nil {
+	if err != nil || valueBytes == nil {
 		return nil, err
 	}
 	macer := hmac.New(sha256.New, macKey)
@@ -227,7 +228,7 @@ func (dsld *documentSLD) loadCheckBytes(key id.ID) ([]byte, error) {
 		// should never happen b/c we check on Store, but being defensive just in case
 		return nil, err
 	}
-	return valueBytes,nil
+	return valueBytes, nil
 }
 
 func (dsld *documentSLD) Delete(key id.ID) error {
