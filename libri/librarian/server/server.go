@@ -63,7 +63,7 @@ type Librarian struct {
 	db db.KVDB
 
 	// SL for server data
-	serverSL storage.NamespaceSL
+	serverSL storage.StorerLoader
 
 	// SL for p2p stored documents
 	documentSL storage.DocumentSL

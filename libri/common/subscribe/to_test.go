@@ -17,6 +17,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+	cerrors "github.com/drausin/libri/libri/common/errors"
 )
 
 func TestTo_BeginEnd(t *testing.T) {
@@ -174,7 +175,7 @@ func TestTo_Begin_err(t *testing.T) {
 		}
 	}()
 	err = toImpl3.Begin()
-	assert.Equal(t, ErrTooManySubscriptionErrs, err)
+	assert.Equal(t, cerrors.ErrTooManyErrs, err)
 }
 
 func TestFrom_Send(t *testing.T) {
@@ -410,40 +411,6 @@ func TestDedup(t *testing.T) {
 	assert.Equal(t, pvr3in.pub, pv3out)
 }
 
-func TestMonitorRunningErrorCount(t *testing.T) {
-	errs := make(chan error, 8)
-	fatal := make(chan error)
-	maxRunningErrRate := float32(0.1)
-	maxRunningErrCount := int(float32(maxRunningErrRate) * errQueueSize)
-	lg := clogging.NewDevInfoLogger()
-
-	go monitorRunningErrorCount(errs, fatal, maxRunningErrRate, lg)
-
-	// check get fatal error when go over threshold
-	for c := 0; c < maxRunningErrCount; c++ {
-		errs <- errors.New("some To error")
-	}
-	fataErr := <-fatal
-	assert.Equal(t, ErrTooManySubscriptionErrs, fataErr)
-
-	go monitorRunningErrorCount(errs, fatal, maxRunningErrRate, lg)
-
-	// check don't get fatal error when below threshold
-	for c := 0; c < 200; c++ {
-		var err error
-		if c%25 == 0 {
-			err = errors.New("some To error")
-		}
-		errs <- err
-	}
-
-	var fatalErr error
-	select {
-	case fatalErr = <-fatal:
-	default:
-	}
-	assert.Nil(t, fatalErr)
-}
 
 type fixedSubscriptionBeginner struct {
 	received     chan *pubValueReceipt

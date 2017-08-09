@@ -535,6 +535,10 @@ func (*errDocStorerLoader) Store(key id.ID, value *api.Document) error {
 	return errors.New("some Store error")
 }
 
+func (*errDocStorerLoader) Iterate(done chan struct{}, callback func(key id.ID, value []byte)) error {
+	return errors.New("some Iterate error")
+}
+
 func (*errDocStorerLoader) Load(key id.ID) (*api.Document, error) {
 	return nil, errors.New("some Load error")
 }
@@ -601,7 +605,7 @@ func TestLibrarian_Get_FoundClosestPeers(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	key, peerID := id.NewPseudoRandom(rng), ecid.NewPseudoRandom(rng)
 
-	// create mock search result to return PartiallyReplicated() == true
+	// create mock search result to return UnderReplicated() == true
 	searchParams := search.NewDefaultParameters()
 	foundClosestPeersResult := search.NewInitialResult(key, searchParams)
 	dummyClosest := peer.NewTestPeers(rng, int(searchParams.NClosestResponses))
@@ -612,7 +616,7 @@ func TestLibrarian_Get_FoundClosestPeers(t *testing.T) {
 	l := newGetLibrarian(rng, foundClosestPeersResult, nil)
 	rq := client.NewGetRequest(peerID, key)
 
-	// since fixedSearcher returns a Search value where PartiallyReplicated() is true, shouldn't
+	// since fixedSearcher returns a Search value where UnderReplicated() is true, shouldn't
 	// have any Value
 	rp, err := l.Get(nil, rq)
 	assert.Nil(t, err)

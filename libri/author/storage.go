@@ -53,7 +53,7 @@ var (
 	clientIDKey = []byte("ClientID")
 )
 
-func loadOrCreateClientID(logger *zap.Logger, nsl storage.NamespaceSL) (ecid.ID, error) {
+func loadOrCreateClientID(logger *zap.Logger, nsl storage.StorerLoader) (ecid.ID, error) {
 	bytes, err := nsl.Load(clientIDKey)
 	if err != nil {
 		logger.Error("error loading client ID", zap.Error(err))
@@ -83,7 +83,7 @@ func loadOrCreateClientID(logger *zap.Logger, nsl storage.NamespaceSL) (ecid.ID,
 	return clientID, saveClientID(nsl, clientID)
 }
 
-func saveClientID(ns storage.NamespaceStorer, clientID ecid.ID) error {
+func saveClientID(ns storage.Storer, clientID ecid.ID) error {
 	bytes, err := proto.Marshal(ecid.ToStored(clientID))
 	if err != nil {
 		return err

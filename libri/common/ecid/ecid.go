@@ -8,11 +8,11 @@ import (
 	"io"
 	"math/big"
 	mrand "math/rand"
-
 	"fmt"
 
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
+	cerrors "github.com/drausin/libri/libri/common/errors"
 )
 
 // Curve defines the elliptic curve public & private keys use. Curve S256 implies 32-byte private
@@ -74,9 +74,7 @@ func NewPseudoRandom(rng *mrand.Rand) ID {
 
 func newRandom(reader io.Reader) ID {
 	key, err := ecdsa.GenerateKey(Curve, reader)
-	if err != nil {
-		panic(err)
-	}
+	cerrors.MaybePanic(err)  // should never happen
 	return FromPrivateKey(key)
 }
 

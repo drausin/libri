@@ -289,7 +289,9 @@ func (f *fixedPutterBalancer) Next() (api.Putter, error) {
 type fixedDocSLD struct {
 	docs        map[string]*api.Document
 	mu          sync.Mutex
+	iterateErr  error
 	loadError   error
+	macErr      error
 	storeError  error
 	deleteError error
 }
@@ -301,11 +303,19 @@ func (f *fixedDocSLD) Load(key id.ID) (*api.Document, error) {
 	return value, f.loadError
 }
 
+func (f *fixedDocSLD) Iterate(done chan struct{}, callback func(key id.ID, value []byte)) error {
+	return f.iterateErr
+}
+
 func (f *fixedDocSLD) Store(key id.ID, value *api.Document) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.docs[key.String()] = value
 	return f.storeError
+}
+
+func (f *fixedDocSLD) Mac(key id.ID, macKey []byte) ([]byte, error) {
+	return nil, f.macErr
 }
 
 func (f *fixedDocSLD) Delete(key id.ID) error {

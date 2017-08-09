@@ -53,7 +53,7 @@ type Author struct {
 	db db.KVDB
 
 	// SL for client data
-	clientSL storage.NamespaceSL
+	clientSL storage.StorerLoader
 
 	// SLD for locally stored documents
 	documentSLD storage.DocumentSLD

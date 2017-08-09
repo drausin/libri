@@ -25,10 +25,10 @@ var ErrNotAcceptingNewSubscriptions = errors.New("not accepting new subscription
 
 // FromParameters define how the collection of subscriptions from other peer will be managed.
 type FromParameters struct {
-	// NSubscriptions is the maximum number of concurrent subscriptions from other peers.
+	// NMaxSubscriptions is the maximum number of concurrent subscriptions from other peers.
 	NMaxSubscriptions uint32
 
-	// EndSubscriptionprob is the Bernoulli probability of ending a particular subscription.
+	// EndSubscriptionProb is the Bernoulli probability of ending a particular subscription.
 	EndSubscriptionProb float64
 }
 

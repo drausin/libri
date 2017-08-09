@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestServerClientStorerLoader_StoreLoad_ok(t *testing.T) {
+func TestServerClientSL_StoreLoad_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	cases := []struct {
 		key   []byte
@@ -46,7 +46,7 @@ func TestServerClientStorerLoader_StoreLoad_ok(t *testing.T) {
 	}
 }
 
-func TestServerClientStorerLoader_Store_err(t *testing.T) {
+func TestServerClientSL_Store_err(t *testing.T) {
 	cases := []struct {
 		key   []byte
 		value []byte
@@ -73,7 +73,7 @@ func TestServerClientStorerLoader_Store_err(t *testing.T) {
 	}
 }
 
-func TestServerClientStorerLoader_Load_err(t *testing.T) {
+func TestServerClientSL_Load_err(t *testing.T) {
 	cases := []struct {
 		key   []byte
 		value []byte
@@ -98,53 +98,85 @@ func TestServerClientStorerLoader_Load_err(t *testing.T) {
 	}
 }
 
-func TestDocumentNamespaceStorerLoader_StoreLoad_ok(t *testing.T) {
+func TestDocumentSLD_StoreLoad_ok(t *testing.T) {
 	kvdb, cleanup, err := db.NewTempDirRocksDB()
 	defer cleanup()
 	defer kvdb.Close()
 	assert.Nil(t, err)
-	dsl := NewDocumentSLD(kvdb)
+	dsld := NewDocumentSLD(kvdb)
 
 	rng := rand.New(rand.NewSource(0))
 	value1, key := api.NewTestDocument(rng)
 
-	err = dsl.Store(key, value1)
+	err = dsld.Store(key, value1)
 	assert.Nil(t, err)
 
-	value2, err := dsl.Load(key)
+	value2, err := dsld.Load(key)
 	assert.Nil(t, err)
 	assert.Equal(t, value1, value2)
 }
 
-func TestDocumentNamespaceStorerLoader_Store_err(t *testing.T) {
+func TestDocumentSLD_Store_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 
 	kvdb, cleanup, err := db.NewTempDirRocksDB()
 	defer cleanup()
 	defer kvdb.Close()
 	assert.Nil(t, err)
-	dsl := NewDocumentSLD(kvdb)
+	dsld := NewDocumentSLD(kvdb)
 
 	// check invalid document returns error
 	value1, _ := api.NewTestDocument(rng)
 	value1.Contents.(*api.Document_Entry).Entry.AuthorPublicKey = nil
 	key1, err := api.GetKey(value1)
 	assert.Nil(t, err)
-	err = dsl.Store(key1, value1)
+	err = dsld.Store(key1, value1)
 	assert.NotNil(t, err)
 
 	// check bad key returns error
 	value2, _ := api.NewTestDocument(rng)
 	key2 := id.NewPseudoRandom(rng)
-	err = dsl.Store(key2, value2)
+	err = dsld.Store(key2, value2)
 	assert.NotNil(t, err)
 }
 
-func TestDocumentStorerLoader_Load_empty(t *testing.T) {
+func TestDocumentSLD_Iterate(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+
+	kvdb, cleanup, err := db.NewTempDirRocksDB()
+	defer cleanup()
+	defer kvdb.Close()
+	assert.Nil(t, err)
+	dsld := NewDocumentSLD(kvdb)
+
+	nDocs := 3
+	vals := make(map[string]*api.Document)
+	for c := 0; c < nDocs; c++ {
+		val, key := api.NewTestDocument(rng)
+		vals[key.String()] = val
+		err := dsld.Store(key, val)
+		assert.Nil(t, err)
+	}
+
+	nIters := 0
+	callback := func(key id.ID, value []byte) {
+		nIters++
+		expected, in := vals[key.String()]
+		assert.True(t, in)
+		expectedBytes, err := proto.Marshal(expected)
+		assert.Nil(t, err)
+		assert.Equal(t, expectedBytes, value)
+	}
+	err = dsld.Iterate(make(chan struct{}), callback)
+	assert.Nil(t, err)
+	assert.Equal(t, len(vals), nIters)
+}
+
+func TestDocumentSLD_Load_empty(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	key := id.NewPseudoRandom(rng)
 	dsl1 := &documentSLD{
-		sld: &fixedNamespaceSLD{
+		sld: &fixedSLD{
 			loadValue: nil, // simulates missing/empty value
 		},
 	}
@@ -155,11 +187,11 @@ func TestDocumentStorerLoader_Load_empty(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestDocumentStorerLoader_Load_loadErr(t *testing.T) {
+func TestDocumentSLD_Load_loadErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	key := id.NewPseudoRandom(rng)
 	dsl1 := &documentSLD{
-		sld: &fixedNamespaceSLD{
+		sld: &fixedSLD{
 			loadErr: errors.New("some load error"),
 		},
 	}
@@ -169,7 +201,7 @@ func TestDocumentStorerLoader_Load_loadErr(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestDocumentStorerLoader_Load_checkErr(t *testing.T) {
+func TestDocumentSLD_Load_checkErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	value, _ := api.NewTestDocument(rng)
 	key := id.NewPseudoRandom(rng)
@@ -190,7 +222,7 @@ func TestDocumentStorerLoader_Load_checkErr(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestDocumentStorerLoader_Load_validateDocumentErr(t *testing.T) {
+func TestDocumentSLD_Load_validateDocumentErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	value, _ := api.NewTestDocument(rng)
 	value.Contents.(*api.Document_Entry).Entry.AuthorPublicKey = nil
@@ -212,22 +244,29 @@ func TestDocumentStorerLoader_Load_validateDocumentErr(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-type fixedNamespaceSLD struct {
+type fixedSLD struct {
 	loadValue []byte
 	storeErr  error
+	iterateErr error
 	loadErr   error
 	deleteErr error
 }
 
-func (f *fixedNamespaceSLD) Store(key []byte, value []byte) error {
+func (f *fixedSLD) Store(key []byte, value []byte) error {
 	return f.storeErr
 }
 
-func (f *fixedNamespaceSLD) Load(key []byte) ([]byte, error) {
+func (f *fixedSLD) Iterate(
+	keyLB, keyUB []byte, done chan struct{}, callback func(key, value []byte),
+) error {
+	return f.iterateErr
+}
+
+func (f *fixedSLD) Load(key []byte) ([]byte, error) {
 	return f.loadValue, f.loadErr
 
 }
 
-func (f *fixedNamespaceSLD) Delete(key []byte) error {
+func (f *fixedSLD) Delete(key []byte) error {
 	return f.deleteErr
 }

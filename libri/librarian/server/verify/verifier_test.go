@@ -54,7 +54,7 @@ func TestVerifier_Verify_ok(t *testing.T) {
 		// checks
 		assert.Nil(t, err)
 		assert.True(t, v.Finished())
-		assert.True(t, v.PartiallyReplicated())
+		assert.True(t, v.UnderReplicated())
 		assert.False(t, v.Errored())
 		assert.False(t, v.Exhausted())
 		assert.Equal(t, 0, len(v.Result.Errored))
@@ -100,7 +100,7 @@ func TestVerifier_Verify_queryErr(t *testing.T) {
 	assert.True(t, verify.Errored())    // since all of the queries return errors
 	assert.False(t, verify.Exhausted()) // since NMaxErrors < len(Unqueried)
 	assert.True(t, verify.Finished())
-	assert.False(t, verify.PartiallyReplicated())
+	assert.False(t, verify.UnderReplicated())
 	assert.Equal(t, int(verify.Params.NMaxErrors+1), len(verify.Result.Errored))
 	assert.Equal(t, 0, len(verify.Result.Replicas))
 	assert.Equal(t, 0, verify.Result.Closest.Len())
@@ -124,7 +124,7 @@ func TestVerifier_Verify_rpErr(t *testing.T) {
 	assert.True(t, verify.Errored()) // since we hit max number of allowable errors
 	assert.False(t, verify.Exhausted())
 	assert.True(t, verify.Finished())
-	assert.False(t, verify.PartiallyReplicated())
+	assert.False(t, verify.UnderReplicated())
 	assert.Equal(t, int(verify.Params.NMaxErrors+1), len(verify.Result.Errored))
 	assert.Equal(t, 0, verify.Result.Closest.Len())
 	assert.True(t, 0 < verify.Result.Unqueried.Len())

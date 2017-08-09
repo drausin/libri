@@ -169,7 +169,7 @@ func TestPrintScan(t *testing.T) {
 	authorPub := api.RandBytes(rng, api.ECPubKeyLength)
 	keys := enc.NewPseudoRandomEEK(rng)
 	pageSL := page.NewStorerLoader(
-		&fixedDocumentSLD{
+		&fixedDocSLD{
 			stored: make(map[string]*api.Document),
 		},
 	)
@@ -362,23 +362,33 @@ func (f *fixedMAC) Write(p []byte) (int, error) {
 	return int(f.messageSize), nil
 }
 
-type fixedDocumentSLD struct {
+type fixedDocSLD struct {
 	stored    map[string]*api.Document
 	storeErr  error
+	iterateErr error
 	loadErr   error
 	deleteErr error
+	macErr     error
 }
 
-func (f *fixedDocumentSLD) Store(key id.ID, value *api.Document) error {
+func (f *fixedDocSLD) Iterate(done chan struct{}, callback func(key id.ID, value []byte)) error {
+	return f.iterateErr
+}
+
+func (f *fixedDocSLD) Store(key id.ID, value *api.Document) error {
 	f.stored[key.String()] = value
 	return f.storeErr
 }
 
-func (f *fixedDocumentSLD) Load(key id.ID) (*api.Document, error) {
+func (f *fixedDocSLD) Load(key id.ID) (*api.Document, error) {
 	return f.stored[key.String()], f.loadErr
 }
 
-func (f *fixedDocumentSLD) Delete(key id.ID) error {
+func (f *fixedDocSLD) Mac(key id.ID, macKey []byte) ([]byte, error) {
+	return nil, f.macErr
+}
+
+func (f *fixedDocSLD) Delete(key id.ID) error {
 	return f.deleteErr
 }
 

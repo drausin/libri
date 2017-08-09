@@ -204,13 +204,20 @@ func rmDir(dir string) {
 }
 
 type fixedStorerLoader struct {
-	loadBytes []byte
-	loadErr   error
-	storeErr  error
+	loadBytes  []byte
+	loadErr    error
+	storeErr   error
+	iterateErr error
 }
 
 func (l *fixedStorerLoader) Load(key []byte) ([]byte, error) {
 	return l.loadBytes, l.loadErr
+}
+
+func (l *fixedStorerLoader) Iterate(
+	lb, ub []byte, done chan struct{}, callback func(key, value []byte),
+) error {
+	return l.iterateErr
 }
 
 func (l *fixedStorerLoader) Store(key []byte, value []byte) error {

@@ -6,17 +6,14 @@ import (
 	"math/rand"
 	"sync"
 	"time"
-
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	cerrors "github.com/drausin/libri/libri/common/errors"
+	"errors"
 )
-
-// ErrTooManySubscriptionErrs indicates when too many subscription errors have occurred.
-var ErrTooManySubscriptionErrs = errors.New("too many subscription errors")
 
 const (
 	/*
@@ -163,7 +160,7 @@ func (t *to) Begin() error {
 	}(wg)
 
 	// monitor non-fatal errors, sending fatal err if too many
-	go monitorRunningErrorCount(errs, fatal, t.params.MaxErrRate, t.logger)
+	go cerrors.MonitorRunningErrors(errs, fatal, errQueueSize, t.params.MaxErrRate, t.logger)
 
 	// subscription threads writing to received & errs channels
 	for c := uint32(0); c < t.params.NSubscriptions; c++ {
@@ -329,34 +326,5 @@ func (sb *subscriptionBeginnerImpl) begin(
 		case received <- pvr:
 			errs <- nil
 		}
-	}
-}
-
-func monitorRunningErrorCount(
-	errs chan error, fatal chan error, maxRunningErrRate float32, logger *zap.Logger,
-) {
-	maxRunningErrCount := int(maxRunningErrRate * errQueueSize)
-
-	// fill error queue with non-errors
-	runningErrs := make(chan error, errQueueSize)
-	for c := 0; c < errQueueSize; c++ {
-		runningErrs <- nil
-	}
-
-	// consume from errs and keep running error count; send fatal error if ever above threshold
-	runningNErrs := 0
-	for latestErr := range errs {
-		if latestErr != nil {
-			runningNErrs++
-			logger.Debug("received non-fatal subscribeTo error", zap.Error(latestErr))
-			if runningNErrs >= maxRunningErrCount {
-				fatal <- ErrTooManySubscriptionErrs
-				return
-			}
-		}
-		if earliestErr := <-runningErrs; earliestErr != nil {
-			runningNErrs--
-		}
-		runningErrs <- latestErr
 	}
 }

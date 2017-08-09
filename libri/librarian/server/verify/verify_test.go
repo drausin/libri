@@ -73,7 +73,7 @@ func TestVerify_PartiallyReplicated(t *testing.T) {
 	assert.Nil(t, err)
 
 	// not partially replicated b/c closest heap not at capacity
-	assert.False(t, v.PartiallyReplicated())
+	assert.False(t, v.UnderReplicated())
 
 	// add an unqueried peer farther than the farthest closest peer
 	err = v.Result.Unqueried.SafePush(peer.New(id.FromInt64(7), "", nil))
@@ -81,7 +81,7 @@ func TestVerify_PartiallyReplicated(t *testing.T) {
 	assert.Equal(t, 1, v.Result.Unqueried.Len())
 
 	// still not partially replicated b/c closest heap not at capacity
-	assert.False(t, v.PartiallyReplicated())
+	assert.False(t, v.UnderReplicated())
 
 	// add two replicated & two close peers, bringing total replicas + closest above number of
 	// closest responses
@@ -97,12 +97,12 @@ func TestVerify_PartiallyReplicated(t *testing.T) {
 
 	// now that closest peers is at capacity, and it's max distance is less than the min
 	// unqueried peers distance, verify is now partially replicated
-	assert.True(t, v.PartiallyReplicated())
+	assert.True(t, v.UnderReplicated())
 
 	// add another replica, making it fully (and no longer partially) replicated
 	v.Result.Replicas = append(v.Result.Replicas, peer.New(id.FromInt64(8), "", nil))
 	assert.True(t, v.FullyReplicated())
-	assert.False(t, v.PartiallyReplicated())
+	assert.False(t, v.UnderReplicated())
 }
 
 func TestVerify_FullyReplicated(t *testing.T) {

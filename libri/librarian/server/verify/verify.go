@@ -1,9 +1,8 @@
 package verify
 
 import (
-	"sync"
-	"time"
-
+	"crypto/hmac"
+	"crypto/sha256"
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
@@ -14,27 +13,29 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/store"
 	"go.uber.org/zap/zapcore"
+	"sync"
+	"time"
 )
 
 const (
-	logKey                 = "key"
-	logNReplicas           = "n_replicas"
-	logNClosestResponses   = "n_closest_responses"
-	logNMaxErrors          = "n_max_errors"
-	logConcurrency         = "concurrency"
-	logTimeout             = "timeout"
-	logNClosest            = "n_closest"
-	logNUnqueried          = "n_unqueried"
-	logNResponded          = "n_responded"
-	logErrors              = "errors"
-	logFatalError          = "fatal_error"
-	logResult              = "result"
-	logParams              = "params"
-	logPartiallyReplicated = "partially_replicated"
-	logFullyReplicated     = "fully_replicated"
-	logErrored             = "errored"
-	logExhausted           = "exhausted"
-	logFinished            = "finished"
+	logKey               = "key"
+	logNReplicas         = "n_replicas"
+	logNClosestResponses = "n_closest_responses"
+	logNMaxErrors        = "n_max_errors"
+	logConcurrency       = "concurrency"
+	logTimeout           = "timeout"
+	logNClosest          = "n_closest"
+	logNUnqueried        = "n_unqueried"
+	logNResponded        = "n_responded"
+	logErrors            = "errors"
+	logFatalError        = "fatal_error"
+	logResult            = "result"
+	logParams            = "params"
+	logUnderReplicated   = "under_replicated"
+	logFullyReplicated   = "fully_replicated"
+	logErrored           = "errored"
+	logExhausted         = "exhausted"
+	logFinished          = "finished"
 )
 
 // Parameters defines the parameters of the verify.
@@ -128,6 +129,8 @@ type Verify struct {
 	// Key of document to verify
 	Key id.ID
 
+	Value []byte
+
 	ExpectedMAC []byte
 
 	// RequestCreator creates new Verify requests
@@ -145,12 +148,20 @@ type Verify struct {
 
 // NewVerify creates a new Verify instance for the given key with the given macKey, expected mac
 // value, and params.
-func NewVerify(selfID ecid.ID, key id.ID, macKey []byte, mac []byte, params *Parameters) *Verify {
+func NewVerify(selfID ecid.ID, key id.ID, value, macKey []byte, params *Parameters) *Verify {
 	rqCreator := func() *api.VerifyRequest {
 		return client.NewVerifyRequest(selfID, key, macKey, params.NClosestResponses)
 	}
+
+	// get the expected mac
+	macer := hmac.New(sha256.New, macKey)
+	_, err := macer.Write(value)
+	errors.MaybePanic(err) // should never happen b/c sha256.Write always returns nil error
+	mac := macer.Sum(nil)
+
 	return &Verify{
 		Key:            key,
+		Value:          value,
 		ExpectedMAC:    mac,
 		RequestCreator: rqCreator,
 		Result:         NewInitialResult(key, params),
@@ -164,15 +175,15 @@ func (v *Verify) MarshalLogObject(oe zapcore.ObjectEncoder) error {
 	errors.MaybePanic(oe.AddObject(logParams, v.Params))
 	errors.MaybePanic(oe.AddObject(logResult, v.Result))
 	oe.AddBool(logFinished, v.Finished())
-	oe.AddBool(logPartiallyReplicated, v.PartiallyReplicated())
+	oe.AddBool(logUnderReplicated, v.UnderReplicated())
 	oe.AddBool(logFullyReplicated, v.FullyReplicated())
 	oe.AddBool(logErrored, v.Errored())
 	oe.AddBool(logExhausted, v.Exhausted())
 	return nil
 }
 
-// PartiallyReplicated returns whether some (or no) replicas but all the closest peers were found.
-func (v *Verify) PartiallyReplicated() bool {
+// UnderReplicated returns whether some (or no) replicas but all the closest peers were found.
+func (v *Verify) UnderReplicated() bool {
 	if v.FullyReplicated() {
 		// if we've found all the replicas, no need to return that we've also found the closest
 		// peers
@@ -212,7 +223,7 @@ func (v *Verify) Exhausted() bool {
 func (v *Verify) Finished() bool {
 	v.mu.Lock()
 	defer v.mu.Unlock()
-	return v.FullyReplicated() || v.PartiallyReplicated() || v.Errored() || v.Exhausted()
+	return v.FullyReplicated() || v.UnderReplicated() || v.Errored() || v.Exhausted()
 }
 
 func (v *Verify) wrapLock(operation func()) {

@@ -213,10 +213,12 @@ func TestEntryPackUnpack(t *testing.T) {
 }
 
 type fixedDocSLD struct {
-	storeErr  error
-	stored    map[string]*api.Document
-	loadErr   error
-	deleteErr error
+	storeErr   error
+	stored     map[string]*api.Document
+	iterateErr error
+	loadErr    error
+	macErr     error
+	deleteErr  error
 }
 
 func (f *fixedDocSLD) Store(key id.ID, value *api.Document) error {
@@ -224,9 +226,17 @@ func (f *fixedDocSLD) Store(key id.ID, value *api.Document) error {
 	return f.storeErr
 }
 
+func (f *fixedDocSLD) Iterate(done chan struct{}, callback func(key id.ID, value []byte)) error {
+	return f.iterateErr
+}
+
 func (f *fixedDocSLD) Load(key id.ID) (*api.Document, error) {
 	value := f.stored[key.String()]
 	return value, f.loadErr
+}
+
+func (f *fixedDocSLD) Mac(key id.ID, macKey []byte) ([]byte, error) {
+	return nil, f.macErr
 }
 
 func (f *fixedDocSLD) Delete(key id.ID) error {

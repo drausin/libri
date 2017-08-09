@@ -190,7 +190,7 @@ func TestReceiver_GetEEK_err(t *testing.T) {
 	assert.Nil(t, eek)
 
 	// check ecid.FromPublicKeyButes error bubbles up
-	readerKeys2 := &fixedKeychain{in: true} // allows us to not err on readerKeys.Get()
+	readerKeys2 := &fixedKeychain{in: true} // allows us to not storeErr on readerKeys.Get()
 	r2 := NewReceiver(cb, readerKeys2, acq, msAcq, docS).(*receiver)
 	env2 := &api.Envelope{
 		AuthorPublicKey: api.RandBytes(rng, 16), // bad authorPubBytes
@@ -261,14 +261,19 @@ func (f *fixedMultiStoreAcquirer) Acquire(
 }
 
 type fixedStorer struct {
-	err         error
+	storeErr    error
+	iterateErr  error
 	storedKey   id.ID
 	storedValue *api.Document
 }
 
 func (f *fixedStorer) Store(key id.ID, value *api.Document) error {
 	f.storedKey, f.storedValue = key, value
-	return f.err
+	return f.storeErr
+}
+
+func (f *fixedStorer) Iterate(done chan struct{}, callback func(key id.ID, value []byte)) error {
+	return f.iterateErr
 }
 
 type fixedKeychain struct {

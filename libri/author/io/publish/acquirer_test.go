@@ -105,7 +105,7 @@ func TestSingleStoreAcquirer_Acquire_err(t *testing.T) {
 	// check store error bubbles up
 	acq2 := NewSingleStoreAcquirer(
 		&fixedAcquirer{},
-		&fixedStorer{err: errors.New("some Store error")},
+		&fixedStorer{storeErr: errors.New("some Store error")},
 	)
 	err = acq2.Acquire(docKey, authorPub, lc)
 	assert.NotNil(t, err)
@@ -209,14 +209,19 @@ func (f *fixedAcquirer) Acquire(docKey id.ID, authorPub []byte, lc api.Getter) (
 }
 
 type fixedStorer struct {
-	err         error
+	storeErr    error
 	storedKey   id.ID
 	storedValue *api.Document
+	iterateErr  error
 }
 
 func (f *fixedStorer) Store(key id.ID, value *api.Document) error {
 	f.storedKey, f.storedValue = key, value
-	return f.err
+	return f.storeErr
+}
+
+func (f *fixedStorer) Iterate(done chan struct{}, callback func(key id.ID, value []byte)) error {
+	return f.iterateErr
 }
 
 type fixedSingleStoreAcquirer struct {

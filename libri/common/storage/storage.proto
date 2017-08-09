@@ -54,3 +54,23 @@ message RoutingTable {
     // array of peers in table
     repeated Peer peers = 2;
 }
+
+message DocumentMetrics {
+    uint64 n_documents = 1;
+
+    uint64 total_size = 2;
+
+    ReplicationMetrics replication = 3;
+}
+
+message ReplicationMetrics {
+
+    // n_underreplicated is the number of under-repliced documents found
+    uint64 n_underreplicated = 1;
+
+    // n_replicated is the number of documents successfully replicated
+    uint64 n_replicated = 2;
+
+    // latest_pass is the epoch time (in seconds) since the last full replication
+    int64 latest_pass = 3;
+}

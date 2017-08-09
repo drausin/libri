@@ -10,7 +10,7 @@ import (
 var tableKey = []byte("RoutingTable")
 
 // Load retrieves the routing table form the KV DB.
-func Load(nl storage.NamespaceLoader, params *Parameters) (Table, error) {
+func Load(nl storage.Loader, params *Parameters) (Table, error) {
 	bytes, err := nl.Load(tableKey)
 	if bytes == nil || err != nil {
 		return nil, err
@@ -24,7 +24,7 @@ func Load(nl storage.NamespaceLoader, params *Parameters) (Table, error) {
 }
 
 // Save stores a representation of the routing table to the KV DB.
-func (rt *table) Save(ns storage.NamespaceStorer) error {
+func (rt *table) Save(ns storage.Storer) error {
 	bytes, err := proto.Marshal(toStored(rt))
 	if err != nil {
 		return err
