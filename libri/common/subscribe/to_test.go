@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/drausin/libri/libri/common/ecid"
+	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -17,7 +18,6 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
-	cerrors "github.com/drausin/libri/libri/common/errors"
 )
 
 func TestTo_BeginEnd(t *testing.T) {
@@ -410,7 +410,6 @@ func TestDedup(t *testing.T) {
 	pv3out := <-newPVRs
 	assert.Equal(t, pvr3in.pub, pv3out)
 }
-
 
 type fixedSubscriptionBeginner struct {
 	received     chan *pubValueReceipt

@@ -245,11 +245,11 @@ func TestDocumentSLD_Load_validateDocumentErr(t *testing.T) {
 }
 
 type fixedSLD struct {
-	loadValue []byte
-	storeErr  error
+	loadValue  []byte
+	storeErr   error
 	iterateErr error
-	loadErr   error
-	deleteErr error
+	loadErr    error
+	deleteErr  error
 }
 
 func (f *fixedSLD) Store(key []byte, value []byte) error {

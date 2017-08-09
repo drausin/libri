@@ -116,9 +116,9 @@ func TestLoadOrCreateRoutingTable_selfIDErr(t *testing.T) {
 }
 
 type fixedStorerLoader struct {
-	loadBytes []byte
-	loadErr   error
-	storeErr  error
+	loadBytes  []byte
+	loadErr    error
+	storeErr   error
 	iterateErr error
 }
 

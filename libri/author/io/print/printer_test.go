@@ -363,11 +363,11 @@ func (f *fixedMAC) Write(p []byte) (int, error) {
 }
 
 type fixedDocSLD struct {
-	stored    map[string]*api.Document
-	storeErr  error
+	stored     map[string]*api.Document
+	storeErr   error
 	iterateErr error
-	loadErr   error
-	deleteErr error
+	loadErr    error
+	deleteErr  error
 	macErr     error
 }
 

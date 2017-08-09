@@ -1,18 +1,19 @@
 package subscribe
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
 	"sync"
 	"time"
+
 	"github.com/drausin/libri/libri/common/ecid"
+	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	cerrors "github.com/drausin/libri/libri/common/errors"
-	"errors"
 )
 
 const (

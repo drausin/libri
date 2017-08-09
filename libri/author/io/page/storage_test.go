@@ -159,12 +159,12 @@ func TestStorerLoader_StoreLoad(t *testing.T) {
 }
 
 type fixedDocSLD struct {
-	storeErr  error
-	stored    map[string]*api.Document
+	storeErr   error
+	stored     map[string]*api.Document
 	iterateErr error
-	loadErr   error
+	loadErr    error
 	macErr     error
-	deleteErr error
+	deleteErr  error
 }
 
 func (f *fixedDocSLD) Store(key id.ID, value *api.Document) error {

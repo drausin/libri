@@ -3,6 +3,9 @@ package verify
 import (
 	"crypto/hmac"
 	"crypto/sha256"
+	"sync"
+	"time"
+
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
@@ -13,8 +16,6 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/store"
 	"go.uber.org/zap/zapcore"
-	"sync"
-	"time"
 )
 
 const (

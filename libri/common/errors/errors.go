@@ -1,8 +1,9 @@
 package errors
 
 import (
-	"go.uber.org/zap"
 	"errors"
+
+	"go.uber.org/zap"
 )
 
 // ErrTooManyErrs indicates when too many subscription errors have occurred.

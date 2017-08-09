@@ -108,7 +108,7 @@ func (db *RocksDB) Iterate(
 	iter.Seek(keyLB)
 	for ; iter.Valid(); iter.Next() {
 		select {
-		case <- done:
+		case <-done:
 			break
 		default:
 			callback(iter.Key().Data(), iter.Value().Data())

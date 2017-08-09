@@ -3,12 +3,13 @@ package storage
 import (
 	"crypto/hmac"
 	"crypto/sha256"
+	"sync"
+
 	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/golang/protobuf/proto"
-	"sync"
 )
 
 const (
@@ -103,7 +104,7 @@ type documentSLD struct {
 	sld     StorerLoaderDeleter
 	c       KeyValueChecker
 	metrics *DocumentMetrics
-	mu *sync.Mutex
+	mu      *sync.Mutex
 }
 
 // NewDocumentSLD creates a new NamespaceSL for the "entries" namespace
@@ -117,9 +118,9 @@ func NewDocumentSLD(kvdb db.KVDB) DocumentSLD {
 			NewExactLengthChecker(EntriesKeyLength),
 			NewMaxLengthChecker(MaxEntriesValueLength),
 		),
-		c: NewHashKeyValueChecker(),
+		c:       NewHashKeyValueChecker(),
 		metrics: &DocumentMetrics{},
-		mu: new(sync.Mutex),
+		mu:      new(sync.Mutex),
 	}
 }
 

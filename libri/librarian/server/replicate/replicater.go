@@ -1,22 +1,23 @@
 package replicate
 
 import (
-	"github.com/drausin/libri/libri/librarian/server/verify"
-	"time"
-	"github.com/drausin/libri/libri/common/storage"
-	"github.com/drausin/libri/libri/librarian/server/routing"
-	"github.com/drausin/libri/libri/common/id"
-	"github.com/golang/protobuf/proto"
-	"sync"
-	"github.com/drausin/libri/libri/common/ecid"
 	crand "crypto/rand"
 	"math/rand"
+	"sync"
+	"time"
+
+	"github.com/drausin/libri/libri/common/ecid"
 	cerrors "github.com/drausin/libri/libri/common/errors"
-	"github.com/pkg/errors"
-	"github.com/drausin/libri/libri/librarian/server/search"
-	"github.com/drausin/libri/libri/librarian/server/store"
+	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/peer"
+	"github.com/drausin/libri/libri/librarian/server/routing"
+	"github.com/drausin/libri/libri/librarian/server/search"
+	"github.com/drausin/libri/libri/librarian/server/store"
+	"github.com/drausin/libri/libri/librarian/server/verify"
+	"github.com/golang/protobuf/proto"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -207,8 +208,7 @@ func (r *replicater) wrapLock(operation func()) {
 	operation()
 }
 
-func newStore(selfID ecid.ID, v *verify.Verify, valueBytes []byte, storeParams store.Parameters) (
-*store.Store) {
+func newStore(selfID ecid.ID, v *verify.Verify, valueBytes []byte, storeParams store.Parameters) *store.Store {
 	var value *api.Document
 	cerrors.MaybePanic(proto.Unmarshal(valueBytes, value)) // should never happen
 	searchParams := &search.Parameters{

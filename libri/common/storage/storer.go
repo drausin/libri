@@ -39,7 +39,7 @@ type StorerLoaderDeleter interface {
 }
 
 type kvdbSLD struct {
-	ns  []byte
+	ns []byte
 	db db.KVDB
 	kc Checker
 	vc Checker
@@ -80,7 +80,7 @@ func (sld *kvdbSLD) Iterate(
 	keyLB, keyUB []byte, done chan struct{}, callback func(key, value []byte),
 ) error {
 	lb, ub := namespaceKey(sld.ns, keyLB), namespaceKey(sld.ns, keyUB)
-	return sld.db.Iterate(lb, ub, done, func (nsKey, value []byte) {
+	return sld.db.Iterate(lb, ub, done, func(nsKey, value []byte) {
 		key := nsKey[len(sld.ns):]
 		callback(key, value)
 	})

@@ -87,9 +87,9 @@ func assertRoutingTablesEqual(t *testing.T, rt Table, srt *storage.RoutingTable)
 }
 
 type fixedLoader struct {
-	bytes   []byte
-	loadErr error
-	iterateErr  error
+	bytes      []byte
+	loadErr    error
+	iterateErr error
 }
 
 func (l *fixedLoader) Load(key []byte) ([]byte, error) {

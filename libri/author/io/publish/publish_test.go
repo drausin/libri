@@ -340,9 +340,9 @@ type fixedDocSLD struct {
 	docs        map[string]*api.Document
 	mu          sync.Mutex
 	loadError   error
-	iterateErr error
+	iterateErr  error
 	storeError  error
-	macErr     error
+	macErr      error
 	deleteError error
 }
 
