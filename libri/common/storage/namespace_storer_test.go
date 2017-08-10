@@ -176,8 +176,8 @@ func TestDocumentSLD_Load_empty(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	key := id.NewPseudoRandom(rng)
 	dsl1 := &documentSLD{
-		sld: &fixedSLD{
-			loadValue: nil, // simulates missing/empty value
+		sld: &TestSLD{
+			Bytes: nil, // simulates missing/empty value
 		},
 	}
 
@@ -191,8 +191,8 @@ func TestDocumentSLD_Load_loadErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	key := id.NewPseudoRandom(rng)
 	dsl1 := &documentSLD{
-		sld: &fixedSLD{
-			loadErr: errors.New("some load error"),
+		sld: &TestSLD{
+			LoadErr: errors.New("some load error"),
 		},
 	}
 
@@ -242,31 +242,4 @@ func TestDocumentSLD_Load_validateDocumentErr(t *testing.T) {
 	// check ValidateDocument error propagates up
 	_, err = dsl.Load(key)
 	assert.NotNil(t, err)
-}
-
-type fixedSLD struct {
-	loadValue  []byte
-	storeErr   error
-	iterateErr error
-	loadErr    error
-	deleteErr  error
-}
-
-func (f *fixedSLD) Store(key []byte, value []byte) error {
-	return f.storeErr
-}
-
-func (f *fixedSLD) Iterate(
-	keyLB, keyUB []byte, done chan struct{}, callback func(key, value []byte),
-) error {
-	return f.iterateErr
-}
-
-func (f *fixedSLD) Load(key []byte) ([]byte, error) {
-	return f.loadValue, f.loadErr
-
-}
-
-func (f *fixedSLD) Delete(key []byte) error {
-	return f.deleteErr
 }

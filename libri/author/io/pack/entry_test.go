@@ -15,6 +15,7 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
+	"github.com/drausin/libri/libri/common/storage"
 )
 
 func TestEntryPacker_Pack_ok(t *testing.T) {
@@ -22,8 +23,8 @@ func TestEntryPacker_Pack_ok(t *testing.T) {
 	params := print.NewDefaultParameters()
 	page.MinSize = 64 // just for testing
 	params.PageSize = 128
-	docSL := &fixedDocSLD{
-		stored: make(map[string]*api.Document),
+	docSL := &storage.TestDocSLD{
+		Stored: make(map[string]*api.Document),
 	}
 	p := NewEntryPacker(params, enc.NewMetadataEncrypterDecrypter(), docSL)
 	authorPub := api.RandBytes(rng, 65)
@@ -59,8 +60,8 @@ func TestEntryPacker_Pack_ok(t *testing.T) {
 func TestEntryPacker_Pack_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	params := print.NewDefaultParameters()
-	docSL := &fixedDocSLD{
-		stored: make(map[string]*api.Document),
+	docSL := &storage.TestDocSLD{
+		Stored: make(map[string]*api.Document),
 	}
 	p := NewEntryPacker(params, enc.NewMetadataEncrypterDecrypter(), docSL)
 	mediaType := "application/x-pdf"
@@ -80,9 +81,9 @@ func TestEntryPacker_Pack_err(t *testing.T) {
 	assert.Nil(t, doc)
 	assert.Nil(t, metadata)
 
-	errDocSL := &fixedDocSLD{
-		stored:  make(map[string]*api.Document),
-		loadErr: errors.New("some Load error"),
+	errDocSL := &storage.TestDocSLD{
+		Stored:  make(map[string]*api.Document),
+		LoadErr: errors.New("some Load error"),
 	}
 	p2 := NewEntryPacker(params, enc.NewMetadataEncrypterDecrypter(), errDocSL)
 
@@ -97,8 +98,8 @@ func TestEntryPacker_Pack_err(t *testing.T) {
 func TestEntryUnpacker_Unpack_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	params := print.NewDefaultParameters()
-	docSL := &fixedDocSLD{
-		stored: make(map[string]*api.Document),
+	docSL := &storage.TestDocSLD{
+		Stored: make(map[string]*api.Document),
 	}
 	keys := enc.NewPseudoRandomEEK(rng)
 	content := new(bytes.Buffer)
@@ -125,8 +126,8 @@ func TestEntryUnpacker_Unpack_ok(t *testing.T) {
 func TestEntryUnpacker_Unpack_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	params := print.NewDefaultParameters()
-	docSL := &fixedDocSLD{
-		stored: make(map[string]*api.Document),
+	docSL := &storage.TestDocSLD{
+		Stored: make(map[string]*api.Document),
 	}
 	content := new(bytes.Buffer)
 	doc, _ := api.NewTestDocument(rng)
@@ -183,8 +184,8 @@ func TestEntryPackUnpack(t *testing.T) {
 	for _, c := range cases {
 		content1 := common.NewCompressableBytes(rng, c.uncompressedSize)
 		content1Bytes := content1.Bytes()
-		docSL := &fixedDocSLD{
-			stored: make(map[string]*api.Document),
+		docSL := &storage.TestDocSLD{
+			Stored: make(map[string]*api.Document),
 		}
 		packParams, err := print.NewParameters(comp.MinBufferSize, c.pageSize,
 			c.packParallelism)
@@ -210,37 +211,6 @@ func TestEntryPackUnpack(t *testing.T) {
 		assert.True(t, in)
 		assert.Equal(t, c.uncompressedSize, int(uncompressedSize2))
 	}
-}
-
-type fixedDocSLD struct {
-	storeErr   error
-	stored     map[string]*api.Document
-	iterateErr error
-	loadErr    error
-	macErr     error
-	deleteErr  error
-}
-
-func (f *fixedDocSLD) Store(key id.ID, value *api.Document) error {
-	f.stored[key.String()] = value
-	return f.storeErr
-}
-
-func (f *fixedDocSLD) Iterate(done chan struct{}, callback func(key id.ID, value []byte)) error {
-	return f.iterateErr
-}
-
-func (f *fixedDocSLD) Load(key id.ID) (*api.Document, error) {
-	value := f.stored[key.String()]
-	return value, f.loadErr
-}
-
-func (f *fixedDocSLD) Mac(key id.ID, macKey []byte) ([]byte, error) {
-	return nil, f.macErr
-}
-
-func (f *fixedDocSLD) Delete(key id.ID) error {
-	return f.deleteErr
 }
 
 type fixedMetadataDecrypter struct {

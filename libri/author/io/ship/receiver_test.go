@@ -15,6 +15,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/stretchr/testify/assert"
+	"github.com/drausin/libri/libri/common/storage"
 )
 
 func TestReceiver_ReceiveEntry_ok(t *testing.T) {
@@ -63,7 +64,7 @@ func TestReceiver_ReceiveEntry_ok(t *testing.T) {
 		acq.docs[entryKey.String()] = entry1
 		acq.docs[envelopeKey.String()] = envelope
 		msAcq := &fixedMultiStoreAcquirer{}
-		docS := &fixedStorer{}
+		docS := storage.NewTestDocSLD()
 		r := NewReceiver(cb, readerKeys, acq, msAcq, docS)
 
 		entry2, eek2, err := r.ReceiveEntry(envelopeKey)
@@ -77,11 +78,9 @@ func TestReceiver_ReceiveEntry_ok(t *testing.T) {
 		case *api.Entry_PageKeys:
 			// pages would have been stored on the MultiStoreAcquirer.Acquire(...)
 			// call
-			assert.Nil(t, docS.storedKey)
-			assert.Nil(t, docS.storedValue)
+			assert.Equal(t, 0, len(docS.Stored))
 		case *api.Entry_Page:
-			assert.NotNil(t, docS.storedKey)
-			assert.NotNil(t, docS.storedValue)
+			assert.True(t, len(docS.Stored) > 0)
 		}
 	}
 }
@@ -100,7 +99,7 @@ func TestReceiver_ReceiveEntry_err(t *testing.T) {
 		docs: make(map[string]*api.Document),
 	}
 	msAcq := &fixedMultiStoreAcquirer{}
-	docS := &fixedStorer{}
+	docS := storage.NewTestDocSLD()
 	entry, entryKey := api.NewTestDocument(rng)
 	eek1 := enc.NewPseudoRandomEEK(rng)
 	eekCiphertext, eekCiphertextMAC, err := kek.Encrypt(eek1)
@@ -179,7 +178,7 @@ func TestReceiver_GetEEK_err(t *testing.T) {
 	cb := &fixedGetterBalancer{}
 	acq := &fixedAcquirer{}
 	msAcq := &fixedMultiStoreAcquirer{}
-	docS := &fixedStorer{}
+	docS := storage.NewTestDocSLD()
 
 	// check readerKeys.Get() error bubbles up
 	readerKeys1 := &fixedKeychain{in: false}
@@ -258,22 +257,6 @@ func (f *fixedMultiStoreAcquirer) Acquire(
 ) error {
 	f.docKeys, f.authorPub = docKeys, authorPub
 	return f.err
-}
-
-type fixedStorer struct {
-	storeErr    error
-	iterateErr  error
-	storedKey   id.ID
-	storedValue *api.Document
-}
-
-func (f *fixedStorer) Store(key id.ID, value *api.Document) error {
-	f.storedKey, f.storedValue = key, value
-	return f.storeErr
-}
-
-func (f *fixedStorer) Iterate(done chan struct{}, callback func(key id.ID, value []byte)) error {
-	return f.iterateErr
 }
 
 type fixedKeychain struct {

@@ -13,6 +13,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/stretchr/testify/assert"
+	"github.com/drausin/libri/libri/common/storage"
 )
 
 func TestShipper_Ship_ok(t *testing.T) {
@@ -151,9 +152,7 @@ func TestShipReceive(t *testing.T) {
 	assert.Nil(t, err)
 
 	for _, nDocs := range []uint32{1, 2, 4, 8} {
-		docSL1 := &fixedDocSLD{
-			docs: make(map[string]*api.Document),
-		}
+		docSL1 := storage.NewTestDocSLD()
 
 		// make and store documents as if they had already been packed
 		docs := make([]*api.Document, nDocs)
@@ -210,9 +209,7 @@ func TestShipReceive(t *testing.T) {
 		}
 
 		// receive all docs
-		docSL2 := &fixedDocSLD{
-			docs: make(map[string]*api.Document),
-		}
+		docSL2 := storage.NewTestDocSLD()
 		msA := publish.NewMultiStoreAcquirer(
 			publish.NewSingleStoreAcquirer(pubAcq, docSL2),
 			params,
@@ -284,43 +281,6 @@ type fixedPutterBalancer struct {
 
 func (f *fixedPutterBalancer) Next() (api.Putter, error) {
 	return f.client, f.err
-}
-
-type fixedDocSLD struct {
-	docs        map[string]*api.Document
-	mu          sync.Mutex
-	iterateErr  error
-	loadError   error
-	macErr      error
-	storeError  error
-	deleteError error
-}
-
-func (f *fixedDocSLD) Load(key id.ID) (*api.Document, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	value := f.docs[key.String()]
-	return value, f.loadError
-}
-
-func (f *fixedDocSLD) Iterate(done chan struct{}, callback func(key id.ID, value []byte)) error {
-	return f.iterateErr
-}
-
-func (f *fixedDocSLD) Store(key id.ID, value *api.Document) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.docs[key.String()] = value
-	return f.storeError
-}
-
-func (f *fixedDocSLD) Mac(key id.ID, macKey []byte) ([]byte, error) {
-	return nil, f.macErr
-}
-
-func (f *fixedDocSLD) Delete(key id.ID) error {
-	delete(f.docs, key.String())
-	return f.deleteError
 }
 
 type memPublisherAcquirer struct {

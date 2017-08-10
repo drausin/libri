@@ -13,13 +13,13 @@ import (
 )
 
 const (
-	// MaxKeyLength is the max key length (in bytes) for an SL.
+	// MaxKeyLength is the max key length (in Bytes) for an SL.
 	MaxKeyLength = 32
 
 	// MaxValueLength is the max value length for an SL.
 	MaxValueLength = 2 * 1024 * 1024 // 2 MB
 
-	// EntriesKeyLength is the fixed length (in bytes) of all entry keys.
+	// EntriesKeyLength is the fixed length (in Bytes) of all entry keys.
 	EntriesKeyLength = 32
 
 	// MaxEntriesValueLength is the maximum length of all entry values. We add a little buffer
@@ -35,7 +35,7 @@ var (
 	// Client namespace contains values relevant to a client.
 	Client = []byte("client")
 
-	// Documents namespace contains all libri p2p stored values.
+	// Documents namespace contains all libri p2p Stored values.
 	Documents = []byte("documents")
 )
 

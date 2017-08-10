@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"github.com/drausin/libri/libri/common/storage"
 )
 
 func TestAcquirer_Acquire_ok(t *testing.T) {
@@ -77,15 +78,16 @@ func TestSingleStoreAcquirer_Acquire_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	doc, docKey := api.NewTestDocument(rng)
 	authorPub := api.GetAuthorPub(doc)
-	storer := &fixedStorer{}
+	storer := storage.NewTestDocSLD()
 	acq := NewSingleStoreAcquirer(
 		&fixedAcquirer{doc: doc},
 		storer,
 	)
 	err := acq.Acquire(docKey, authorPub, &fixedGetter{})
 	assert.Nil(t, err)
-	assert.Equal(t, docKey, storer.storedKey)
-	assert.Equal(t, doc, storer.storedValue)
+	storedValue, in := storer.Stored[docKey.String()]
+	assert.True(t, in)
+	assert.Equal(t, doc, storedValue)
 }
 
 func TestSingleStoreAcquirer_Acquire_err(t *testing.T) {
@@ -97,15 +99,17 @@ func TestSingleStoreAcquirer_Acquire_err(t *testing.T) {
 	// check inner acquire error bubbles up
 	acq1 := NewSingleStoreAcquirer(
 		&fixedAcquirer{err: errors.New("some Acquire error")},
-		&fixedStorer{},
+		storage.NewTestDocSLD(),
 	)
 	err := acq1.Acquire(docKey, authorPub, lc)
 	assert.NotNil(t, err)
 
 	// check store error bubbles up
+	storer := storage.NewTestDocSLD()
+	storer.StoreErr = errors.New("some Store error")
 	acq2 := NewSingleStoreAcquirer(
 		&fixedAcquirer{},
-		&fixedStorer{storeErr: errors.New("some Store error")},
+		storer,
 	)
 	err = acq2.Acquire(docKey, authorPub, lc)
 	assert.NotNil(t, err)
@@ -206,22 +210,6 @@ type fixedAcquirer struct {
 func (f *fixedAcquirer) Acquire(docKey id.ID, authorPub []byte, lc api.Getter) (
 	*api.Document, error) {
 	return f.doc, f.err
-}
-
-type fixedStorer struct {
-	storeErr    error
-	storedKey   id.ID
-	storedValue *api.Document
-	iterateErr  error
-}
-
-func (f *fixedStorer) Store(key id.ID, value *api.Document) error {
-	f.storedKey, f.storedValue = key, value
-	return f.storeErr
-}
-
-func (f *fixedStorer) Iterate(done chan struct{}, callback func(key id.ID, value []byte)) error {
-	return f.iterateErr
 }
 
 type fixedSingleStoreAcquirer struct {

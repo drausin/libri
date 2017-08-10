@@ -297,7 +297,7 @@ func TestLibrarian_Find_err(t *testing.T) {
 				logger:     clogging.NewDevInfoLogger(),
 				rqv:        &alwaysRequestVerifier{},
 				kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
-				documentSL: &errDocStorerLoader{},
+				documentSL: &storage.TestDocSLD{LoadErr: errors.New("some Load error")},
 				rt:         rt,
 			},
 			rqCreator: func() *api.FindRequest {
@@ -451,7 +451,7 @@ func TestLibrarian_Verify_err(t *testing.T) {
 				logger:     clogging.NewDevInfoLogger(),
 				rqv:        &alwaysRequestVerifier{},
 				kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
-				documentSL: &errDocStorerLoader{},
+				documentSL: &storage.TestDocSLD{MacErr: errors.New("some Mac error")},
 				rt:         rt,
 			},
 			rqCreator: func() *api.VerifyRequest {
@@ -529,24 +529,6 @@ func TestLibrarian_Store_checkRequestError(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-type errDocStorerLoader struct{}
-
-func (*errDocStorerLoader) Store(key id.ID, value *api.Document) error {
-	return errors.New("some Store error")
-}
-
-func (*errDocStorerLoader) Iterate(done chan struct{}, callback func(key id.ID, value []byte)) error {
-	return errors.New("some Iterate error")
-}
-
-func (*errDocStorerLoader) Load(key id.ID) (*api.Document, error) {
-	return nil, errors.New("some Load error")
-}
-
-func (*errDocStorerLoader) Mac(key id.ID, macKey []byte) ([]byte, error) {
-	return nil, errors.New("some Mac error")
-}
-
 func TestLibrarian_Store_storeError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	rt, peerID, _ := routing.NewTestWithPeers(rng, 64)
@@ -556,7 +538,10 @@ func TestLibrarian_Store_storeError(t *testing.T) {
 		kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		kvc:        storage.NewHashKeyValueChecker(),
 		rqv:        &alwaysRequestVerifier{},
-		documentSL: &errDocStorerLoader{},
+		documentSL: &storage.TestDocSLD{
+			StoreErr: errors.New("some Store error"),
+			Stored: make(map[string]*api.Document),
+		},
 		logger:     clogging.NewDevInfoLogger(),
 	}
 	value, key := api.NewTestDocument(rng)

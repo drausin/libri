@@ -17,6 +17,7 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
+	"github.com/drausin/libri/libri/common/storage"
 )
 
 func TestNewDefaultParameters(t *testing.T) {
@@ -169,8 +170,8 @@ func TestPrintScan(t *testing.T) {
 	authorPub := api.RandBytes(rng, api.ECPubKeyLength)
 	keys := enc.NewPseudoRandomEEK(rng)
 	pageSL := page.NewStorerLoader(
-		&fixedDocSLD{
-			stored: make(map[string]*api.Document),
+		&storage.TestDocSLD{
+			Stored: make(map[string]*api.Document),
 		},
 	)
 	page.MinSize = 64 // just for testing
@@ -360,36 +361,6 @@ func (f *fixedMAC) Reset() {}
 
 func (f *fixedMAC) Write(p []byte) (int, error) {
 	return int(f.messageSize), nil
-}
-
-type fixedDocSLD struct {
-	stored     map[string]*api.Document
-	storeErr   error
-	iterateErr error
-	loadErr    error
-	deleteErr  error
-	macErr     error
-}
-
-func (f *fixedDocSLD) Iterate(done chan struct{}, callback func(key id.ID, value []byte)) error {
-	return f.iterateErr
-}
-
-func (f *fixedDocSLD) Store(key id.ID, value *api.Document) error {
-	f.stored[key.String()] = value
-	return f.storeErr
-}
-
-func (f *fixedDocSLD) Load(key id.ID) (*api.Document, error) {
-	return f.stored[key.String()], f.loadErr
-}
-
-func (f *fixedDocSLD) Mac(key id.ID, macKey []byte) ([]byte, error) {
-	return nil, f.macErr
-}
-
-func (f *fixedDocSLD) Delete(key id.ID) error {
-	return f.deleteErr
 }
 
 func randPages(t *testing.T, rng *rand.Rand, n int) ([]id.ID, []*api.Page) {

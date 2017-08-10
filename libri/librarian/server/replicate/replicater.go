@@ -61,6 +61,14 @@ type Metrics struct {
 	LatestPass       int64
 }
 
+func (m *Metrics) clone() *Metrics {
+	return &Metrics{
+		NReplicated:      m.NReplicated,
+		NUnderreplicated: m.NUnderreplicated,
+		LatestPass:       m.LatestPass,
+	}
+}
+
 type Replicator interface {
 	Start() error
 	Stop()
@@ -76,8 +84,8 @@ type replicater struct {
 	storer           store.Storer
 	rt               routing.Table
 	docS             storage.DocumentStorer
-	metricsSL        storage.StorerLoader
 	metrics          *Metrics
+	metricsSL        metricsSL
 	toReplicate      chan *verify.Verify
 	done             chan struct{}
 	errs             chan error
@@ -127,7 +135,9 @@ func (r *replicater) Stop() {
 }
 
 func (r *replicater) Metrics() *Metrics {
-	return r.metrics
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.metrics.clone()
 }
 
 func (r *replicater) verify() {
@@ -137,7 +147,7 @@ func (r *replicater) verify() {
 		}
 		r.wrapLock(func() {
 			r.metrics.LatestPass = time.Now().Unix()
-			if err := r.saveMetrics(); err != nil {
+			if err := r.metricsSL.Store(r.metrics); err != nil {
 				r.fatal <- err
 			}
 		})
@@ -189,26 +199,15 @@ func (r *replicater) replicate(wg *sync.WaitGroup) {
 	}
 }
 
-func (r *replicater) saveMetrics() error {
-	storageMetrics := &storage.ReplicationMetrics{
-		NReplicated:      r.metrics.NReplicated,
-		NUnderreplicated: r.metrics.NUnderreplicated,
-		LatestPass:       r.metrics.LatestPass,
-	}
-	metricsBytes, err := proto.Marshal(storageMetrics)
-	if err != nil {
-		return err
-	}
-	return r.metricsSL.Store(metricsKey, metricsBytes)
-}
-
 func (r *replicater) wrapLock(operation func()) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	operation()
 }
 
-func newStore(selfID ecid.ID, v *verify.Verify, valueBytes []byte, storeParams store.Parameters) *store.Store {
+func newStore(
+	selfID ecid.ID, v *verify.Verify, valueBytes []byte, storeParams store.Parameters,
+) *store.Store {
 	var value *api.Document
 	cerrors.MaybePanic(proto.Unmarshal(valueBytes, value)) // should never happen
 	searchParams := &search.Parameters{
@@ -230,4 +229,41 @@ func newStore(selfID ecid.ID, v *verify.Verify, valueBytes []byte, storeParams s
 	// s.Search.FoundClosestPeers() == true
 
 	return s
+}
+
+type metricsStorerLoader interface {
+	Store(m *Metrics) error
+}
+
+type metricsSL struct {
+	inner storage.StorerLoader
+}
+
+func (sl *metricsSL) Store(m *Metrics) error {
+	storageMetrics := &storage.ReplicationMetrics{
+		NReplicated:      m.NReplicated,
+		NUnderreplicated: m.NUnderreplicated,
+		LatestPass:       m.LatestPass,
+	}
+	metricsBytes, err := proto.Marshal(storageMetrics)
+	if err != nil {
+		return err
+	}
+	return sl.inner.Store(metricsKey, metricsBytes)
+}
+
+func (sl *metricsSL) Load() (*Metrics, error) {
+	storageMetricsBytes, err := sl.inner.Load(metricsKey)
+	if err != nil {
+		return nil, err
+	}
+	var stored *storage.ReplicationMetrics
+	if err := proto.Unmarshal(storageMetricsBytes, stored); err != nil {
+		return nil, err
+	}
+	return &Metrics{
+		NReplicated:      stored.NReplicated,
+		NUnderreplicated: stored.NUnderreplicated,
+		LatestPass:       stored.LatestPass,
+	}, nil
 }
