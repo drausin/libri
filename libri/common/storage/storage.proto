@@ -65,12 +65,15 @@ message DocumentMetrics {
 
 message ReplicationMetrics {
 
+    // n_verified is the total number of verified documents (fully or partial)
+    uint64 n_verified = 1;
+
     // n_underreplicated is the number of under-repliced documents found
-    uint64 n_underreplicated = 1;
+    uint64 n_underreplicated = 2;
 
     // n_replicated is the number of documents successfully replicated
-    uint64 n_replicated = 2;
+    uint64 n_replicated = 3;
 
     // latest_pass is the epoch time (in seconds) since the last full replication
-    int64 latest_pass = 3;
+    int64 latest_pass = 4;
 }

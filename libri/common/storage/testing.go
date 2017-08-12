@@ -4,6 +4,8 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"sync"
+	"github.com/drausin/libri/libri/common/errors"
+	"github.com/golang/protobuf/proto"
 )
 
 type TestSLD struct {
@@ -57,6 +59,17 @@ func (f *TestDocSLD) Store(key id.ID, value *api.Document) error {
 }
 
 func (f *TestDocSLD) Iterate(done chan struct{}, callback func(key id.ID, value []byte)) error {
+	for keyStr, value := range f.Stored {
+		key, err := id.FromString(keyStr)
+		errors.MaybePanic(err)
+		valueBytes, err := proto.Marshal(value)
+		select {
+		case <-done:
+			break
+		default:
+			callback(key, valueBytes)
+		}
+	}
 	return f.IterateErr
 }
 

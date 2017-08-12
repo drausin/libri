@@ -37,6 +37,8 @@ var (
 
 	// Documents namespace contains all libri p2p Stored values.
 	Documents = []byte("documents")
+
+
 )
 
 // NewServerSL creates a new NamespaceSL for the "server" namespace backed by a db.KVDB instance.

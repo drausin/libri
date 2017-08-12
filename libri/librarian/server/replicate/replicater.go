@@ -34,11 +34,14 @@ const (
 
 	// errQueueSize is the size of the error queue used to calculate the running error rate.
 	errQueueSize = 100
+
+	underreplicatedQueueSize = 32
 )
 
 var (
-	metricsKey         = []byte("replicationMetrics")
-	errVerifyExhausted = errors.New("verification failed because exhausted peers to query")
+	metricsKey              = []byte("replicationMetrics")
+	errVerifyExhausted      = errors.New("verification failed because exhausted peers to query")
+	errMissingStoredMetrics = errors.New("missing stored metrics")
 )
 
 type Parameters struct {
@@ -56,6 +59,7 @@ func NewDefaultParameters() *Parameters {
 }
 
 type Metrics struct {
+	NVerified        uint64
 	NUnderreplicated uint64
 	NReplicated      uint64
 	LatestPass       int64
@@ -63,6 +67,7 @@ type Metrics struct {
 
 func (m *Metrics) clone() *Metrics {
 	return &Metrics{
+		NVerified:        m.NVerified,
 		NReplicated:      m.NReplicated,
 		NUnderreplicated: m.NUnderreplicated,
 		LatestPass:       m.LatestPass,
@@ -72,21 +77,21 @@ func (m *Metrics) clone() *Metrics {
 type Replicator interface {
 	Start() error
 	Stop()
-	Metrics() *storage.ReplicationMetrics
+	Metrics() *Metrics
 }
 
-type replicater struct {
+type replicator struct {
 	selfID           ecid.ID
+	rt               routing.Table
+	metrics          *Metrics
+	docS             storage.DocumentStorer
+	metricsSL        metricsStorerLoader
+	verifier         verify.Verifier
+	storer           store.Storer
 	replicatorParams *Parameters
 	verifyParams     *verify.Parameters
 	storeParams      *store.Parameters
-	verifier         verify.Verifier
-	storer           store.Storer
-	rt               routing.Table
-	docS             storage.DocumentStorer
-	metrics          *Metrics
-	metricsSL        metricsSL
-	toReplicate      chan *verify.Verify
+	underreplicated  chan *verify.Verify
 	done             chan struct{}
 	errs             chan error
 	fatal            chan error
@@ -95,7 +100,47 @@ type replicater struct {
 	mu               sync.Mutex
 }
 
-func (r *replicater) Start() error {
+func NewReplicator(
+	selfID ecid.ID,
+	rt routing.Table,
+	docS storage.DocumentStorer,
+	serverSL storage.StorerLoader,
+	verifier verify.Verifier,
+	storer store.Storer,
+	replicatorParams *Parameters,
+	verifyParams *verify.Parameters,
+	storeParams *store.Parameters,
+	rng *rand.Rand,
+	logger *zap.Logger,
+) Replicator {
+	return &replicator{
+		selfID:           selfID,
+		rt:               rt,
+		metrics:          &Metrics{},
+		docS:             docS,
+		metricsSL:        &metricsSLImpl{serverSL},
+		verifier:         verifier,
+		storer:           storer,
+		replicatorParams: replicatorParams,
+		verifyParams:     verifyParams,
+		storeParams:      storeParams,
+		underreplicated:  make(chan *verify.Verify, underreplicatedQueueSize),
+		errs:             make(chan error, errQueueSize),
+		done:             make(chan struct{}),
+		fatal:            make(chan error, 1),
+		rng:              rng,
+		logger:           logger,
+	}
+}
+
+func (r *replicator) Start() error {
+
+	// listen for fatal error
+	var err error
+	go func() {
+		err = <- r.fatal
+		r.Stop()
+	}()
 
 	// monitor non-fatal errors, sending fatal error if too many
 	maxErrRate := r.replicatorParams.MaxErrRate
@@ -112,16 +157,11 @@ func (r *replicater) Start() error {
 	}
 	wg.Wait()
 
-	select {
-	case err := <-r.fatal:
-		return err
-	case <-r.done:
-		return nil
-	}
+	return err
 }
 
-func (r *replicater) Stop() {
-	close(r.toReplicate)
+func (r *replicator) Stop() {
+	close(r.underreplicated)
 	select {
 	case <-r.errs: // already closed
 	default:
@@ -134,13 +174,13 @@ func (r *replicater) Stop() {
 	}
 }
 
-func (r *replicater) Metrics() *Metrics {
+func (r *replicator) Metrics() *Metrics {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.metrics.clone()
 }
 
-func (r *replicater) verify() {
+func (r *replicator) verify() {
 	for {
 		if err := r.docS.Iterate(r.done, r.verifyValue); err != nil {
 			r.fatal <- err
@@ -162,54 +202,59 @@ func (r *replicater) verify() {
 	}
 }
 
-func (r *replicater) verifyValue(key id.ID, value []byte) {
+func (r *replicator) verifyValue(key id.ID, value []byte) {
+	defer time.Sleep(r.replicatorParams.VerifyInterval)
 	macKey := make([]byte, macKeySize)
 	_, err := crand.Read(macKey)
 	cerrors.MaybePanic(err) // should never happen
 
 	v := verify.NewVerify(r.selfID, key, value, macKey, r.verifyParams)
 	seeds := r.rt.Peak(key, r.verifyParams.Concurrency)
-	err = r.verifier.Verify(v, seeds)
-
-	if err != nil {
+	if err := r.verifier.Verify(v, seeds); err != nil {
 		r.errs <- err
-	} else if v.Exhausted() {
+		return
+	}
+	if v.Exhausted() {
 		r.errs <- errVerifyExhausted
-	} else if v.UnderReplicated() {
+		return
+	}
+	if v.UnderReplicated() {
 		// if we're under-replicated, add to replication queue
-		r.toReplicate <- v
+		r.underreplicated <- v
 		r.wrapLock(func() { r.metrics.NUnderreplicated++ })
 	}
-
-	time.Sleep(r.replicatorParams.VerifyInterval)
+	r.wrapLock(func() { r.metrics.NVerified++ })
+	r.errs <- nil
 }
 
-func (r *replicater) replicate(wg *sync.WaitGroup) {
+func (r *replicator) replicate(wg *sync.WaitGroup) {
 	defer wg.Done()
-	for v := range r.toReplicate {
-		s := newStore(r.selfID, v, v.Value, *r.storeParams)
+	for v := range r.underreplicated {
+		s := newStore(r.selfID, v, *r.storeParams)
 		// empty seeds b/c verification has already, in effect, replaced the search component of
 		// the store operation
-		r.errs <- r.storer.Store(s, []peer.Peer{})
+		if err := r.storer.Store(s, []peer.Peer{}); err != nil {
+			r.errs <- err
+			continue
+		}
 		if s.Stored() {
 			r.wrapLock(func() { r.metrics.NReplicated++ })
 		}
 		// for all other non-Stored outcomes for the store, we basically give up and hope to
 		// replicate on next pass
+		r.errs <- nil
 	}
 }
 
-func (r *replicater) wrapLock(operation func()) {
+func (r *replicator) wrapLock(operation func()) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	operation()
 }
 
-func newStore(
-	selfID ecid.ID, v *verify.Verify, valueBytes []byte, storeParams store.Parameters,
-) *store.Store {
-	var value *api.Document
-	cerrors.MaybePanic(proto.Unmarshal(valueBytes, value)) // should never happen
+func newStore(selfID ecid.ID, v *verify.Verify, storeParams store.Parameters) *store.Store {
+	value := &api.Document{}
+	cerrors.MaybePanic(proto.Unmarshal(v.Value, value)) // should never happen
 	searchParams := &search.Parameters{
 		NClosestResponses: uint(v.Result.Closest.Len()),
 	}
@@ -233,35 +278,37 @@ func newStore(
 
 type metricsStorerLoader interface {
 	Store(m *Metrics) error
+	Load() (*Metrics, error)
 }
 
-type metricsSL struct {
+type metricsSLImpl struct {
 	inner storage.StorerLoader
 }
 
-func (sl *metricsSL) Store(m *Metrics) error {
+func (sl *metricsSLImpl) Store(m *Metrics) error {
 	storageMetrics := &storage.ReplicationMetrics{
+		NVerified:        m.NVerified,
 		NReplicated:      m.NReplicated,
 		NUnderreplicated: m.NUnderreplicated,
 		LatestPass:       m.LatestPass,
 	}
 	metricsBytes, err := proto.Marshal(storageMetrics)
-	if err != nil {
-		return err
-	}
+	cerrors.MaybePanic(err) // should never happen
 	return sl.inner.Store(metricsKey, metricsBytes)
 }
 
-func (sl *metricsSL) Load() (*Metrics, error) {
+func (sl *metricsSLImpl) Load() (*Metrics, error) {
 	storageMetricsBytes, err := sl.inner.Load(metricsKey)
 	if err != nil {
 		return nil, err
 	}
-	var stored *storage.ReplicationMetrics
-	if err := proto.Unmarshal(storageMetricsBytes, stored); err != nil {
-		return nil, err
+	if storageMetricsBytes == nil {
+		return nil, errMissingStoredMetrics
 	}
+	stored := &storage.ReplicationMetrics{}
+	cerrors.MaybePanic(proto.Unmarshal(storageMetricsBytes, stored)) // should never happen
 	return &Metrics{
+		NVerified:        stored.NVerified,
 		NReplicated:      stored.NReplicated,
 		NUnderreplicated: stored.NUnderreplicated,
 		LatestPass:       stored.LatestPass,

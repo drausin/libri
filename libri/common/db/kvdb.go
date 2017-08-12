@@ -3,9 +3,7 @@ package db
 import (
 	"io/ioutil"
 	"os"
-
 	"errors"
-
 	"github.com/tecbot/gorocksdb"
 )
 
@@ -102,8 +100,10 @@ func (db *RocksDB) Iterate(
 ) error {
 	opts := gorocksdb.NewDefaultReadOptions()
 	opts.SetIterateUpperBound(keyUB)
+	opts.SetFillCache(false)
 	iter := db.rdb.NewIterator(opts)
 	defer iter.Close()
+	defer opts.Destroy()
 
 	iter.Seek(keyLB)
 	for ; iter.Valid(); iter.Next() {
@@ -122,3 +122,4 @@ func (db *RocksDB) Iterate(
 func (db *RocksDB) Close() {
 	db.rdb.Close()
 }
+
