@@ -54,7 +54,7 @@ func TestReplicator_StartStop(t *testing.T) {
 	verifyParams := verify.NewDefaultParameters()
 	replicatorParams := &Parameters{
 		VerifyInterval:       10 * time.Millisecond,
-		ReplicateConcurrency: DefaultReplicateConcurrency,
+		ReplicateConcurrency: 3,
 		MaxErrRate:           DefaultMaxErrRate,
 	}
 	storeParams := store.NewDefaultParameters()

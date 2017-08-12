@@ -178,17 +178,15 @@ func (r *replicator) Start() error {
 }
 
 func (r *replicator) Stop() {
-	close(r.underreplicated)
-	select {
-	case <-r.errs: // already closed
-	default:
-		close(r.errs)
-	}
 	select {
 	case <-r.done: // already closed
 	default:
 		close(r.done)
 	}
+	r.wrapLock(func() {
+		close(r.errs)
+		close(r.underreplicated)
+	})
 }
 
 func (r *replicator) Metrics() *Metrics {
@@ -204,7 +202,7 @@ func (r *replicator) verify() {
 		}
 		r.wrapLock(func() {
 			r.metrics.LatestPass = time.Now().Unix()
-			if err := r.metricsSL.Store(r.metrics); err != nil {
+			if err := r.metricsSL.Store(r.metrics.clone()); err != nil {
 				r.fatal <- err
 			}
 		})
@@ -227,21 +225,26 @@ func (r *replicator) verifyValue(key id.ID, value []byte) {
 
 	v := verify.NewVerify(r.selfID, key, value, macKey, r.verifyParams)
 	seeds := r.rt.Peak(key, r.verifyParams.Concurrency)
-	if err := r.verifier.Verify(v, seeds); err != nil {
-		r.errs <- err
+	err = r.verifier.Verify(v, seeds)
+	if err != nil {
+		r.wrapLock(func() {r.errs <- err})
 		return
 	}
 	if v.Exhausted() {
-		r.errs <- errVerifyExhausted
+		r.wrapLock(func() {r.errs <- errVerifyExhausted})
 		return
 	}
 	if v.UnderReplicated() {
 		// if we're under-replicated, add to replication queue
-		r.underreplicated <- v
-		r.wrapLock(func() { r.metrics.NUnderreplicated++ })
+		r.wrapLock(func() {
+			r.underreplicated <- v
+			r.metrics.NUnderreplicated++
+		})
 	}
-	r.wrapLock(func() { r.metrics.NVerified++ })
-	r.errs <- nil
+	r.wrapLock(func() {
+		r.metrics.NVerified++
+		r.errs <- nil
+	})
 }
 
 func (r *replicator) replicate(wg *sync.WaitGroup) {
@@ -259,7 +262,7 @@ func (r *replicator) replicate(wg *sync.WaitGroup) {
 		}
 		// for all other non-Stored outcomes for the store, we basically give up and hope to
 		// replicate on next pass
-		r.errs <- nil
+		r.wrapLock(func() { r.errs <- nil })
 	}
 }
 

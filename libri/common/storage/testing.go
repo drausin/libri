@@ -16,10 +16,13 @@ type TestSLD struct {
 	IterateErr error
 	StoreErr   error
 	DeleteErr  error
+	mu         sync.Mutex
 }
 
 // Load mocks StorerLoaderDeleter.Load().
 func (l *TestSLD) Load(key []byte) ([]byte, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	return l.Bytes, l.LoadErr
 }
 
@@ -33,12 +36,16 @@ func (l *TestSLD) Iterate(
 
 // Store mocks StorerLoaderDeleter.Store().
 func (l *TestSLD) Store(key []byte, value []byte) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	l.Bytes = value
 	return l.StoreErr
 }
 
 // Delete mocks StorerLoaderDeleter.Delete().
 func (l *TestSLD) Delete(key []byte) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	l.Bytes = nil
 	return l.DeleteErr
 }

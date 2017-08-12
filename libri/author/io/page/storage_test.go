@@ -33,7 +33,9 @@ func TestStorerLoader_Store_ok(t *testing.T) {
 }
 
 func TestStorerLoader_Store_err(t *testing.T) {
-	sl := NewStorerLoader(&storage.TestDocSLD{StoreErr: errors.New("some Store error")})
+	dsld := storage.NewTestDocSLD()
+	dsld.StoreErr = errors.New("some Store error")
+	sl := NewStorerLoader(dsld)
 	rng := rand.New(rand.NewSource(0))
 	pages := make(chan *api.Page, 1)
 	pages <- api.NewTestPage(rng)
