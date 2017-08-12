@@ -227,11 +227,11 @@ func (r *replicator) verifyValue(key id.ID, value []byte) {
 	seeds := r.rt.Peak(key, r.verifyParams.Concurrency)
 	err = r.verifier.Verify(v, seeds)
 	if err != nil {
-		r.wrapLock(func() {r.errs <- err})
+		r.wrapLock(func() { r.errs <- err })
 		return
 	}
 	if v.Exhausted() {
-		r.wrapLock(func() {r.errs <- errVerifyExhausted})
+		r.wrapLock(func() { r.errs <- errVerifyExhausted })
 		return
 	}
 	if v.UnderReplicated() {
