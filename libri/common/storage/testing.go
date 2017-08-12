@@ -1,10 +1,11 @@
 package storage
 
 import (
+	"sync"
+
+	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
-	"sync"
-	"github.com/drausin/libri/libri/common/errors"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -14,7 +15,7 @@ type TestSLD struct {
 	LoadErr    error
 	IterateErr error
 	StoreErr   error
-	DeleteErr error
+	DeleteErr  error
 }
 
 // Load mocks StorerLoaderDeleter.Load().
@@ -74,7 +75,7 @@ func (f *TestDocSLD) Iterate(done chan struct{}, callback func(key id.ID, value 
 		key, err := id.FromString(keyStr)
 		errors.MaybePanic(err)
 		valueBytes, err := proto.Marshal(value)
-		errors.MaybePanic(err)  // should never happen b/c only docs can be stored
+		errors.MaybePanic(err) // should never happen b/c only docs can be stored
 		select {
 		case <-done:
 			break

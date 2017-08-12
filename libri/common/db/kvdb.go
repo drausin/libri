@@ -1,9 +1,10 @@
 package db
 
 import (
+	"errors"
 	"io/ioutil"
 	"os"
-	"errors"
+
 	"github.com/tecbot/gorocksdb"
 )
 
@@ -122,4 +123,3 @@ func (db *RocksDB) Iterate(
 func (db *RocksDB) Close() {
 	db.rdb.Close()
 }
-

@@ -8,12 +8,12 @@ import (
 
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"github.com/drausin/libri/libri/common/storage"
 )
 
 func TestAcquirer_Acquire_ok(t *testing.T) {

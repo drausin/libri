@@ -15,9 +15,9 @@ import (
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/page"
 	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
-	"github.com/drausin/libri/libri/common/storage"
 )
 
 func TestNewDefaultParameters(t *testing.T) {

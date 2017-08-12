@@ -10,10 +10,10 @@ import (
 	"github.com/drausin/libri/libri/author/io/publish"
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/stretchr/testify/assert"
-	"github.com/drausin/libri/libri/common/storage"
 )
 
 func TestShipper_Ship_ok(t *testing.T) {

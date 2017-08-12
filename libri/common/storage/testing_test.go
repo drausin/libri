@@ -1,12 +1,13 @@
 package storage
 
 import (
-	"testing"
-	"github.com/stretchr/testify/assert"
-	"github.com/pkg/errors"
-	"github.com/drausin/libri/libri/librarian/api"
 	"math/rand"
+	"testing"
+
 	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestTestSLD(t *testing.T) {

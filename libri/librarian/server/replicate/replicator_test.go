@@ -1,24 +1,25 @@
 package replicate
 
 import (
+	"container/heap"
+	"math/rand"
+	"sync"
 	"testing"
 	"time"
-	"github.com/stretchr/testify/assert"
-	"github.com/drausin/libri/libri/common/storage"
-	"github.com/pkg/errors"
-	"github.com/drausin/libri/libri/common/ecid"
-	"math/rand"
-	"github.com/drausin/libri/libri/librarian/server/verify"
-	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/golang/protobuf/proto"
-	"github.com/drausin/libri/libri/librarian/server/store"
-	"github.com/drausin/libri/libri/librarian/server/peer"
-	"sync"
-	"github.com/drausin/libri/libri/librarian/server/search"
-	"github.com/drausin/libri/libri/librarian/server/routing"
-	"container/heap"
-	"github.com/drausin/libri/libri/common/id"
+
 	"github.com/drausin/libri/libri/common/db"
+	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/storage"
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/server/peer"
+	"github.com/drausin/libri/libri/librarian/server/routing"
+	"github.com/drausin/libri/libri/librarian/server/search"
+	"github.com/drausin/libri/libri/librarian/server/store"
+	"github.com/drausin/libri/libri/librarian/server/verify"
+	"github.com/golang/protobuf/proto"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )
 
@@ -52,9 +53,9 @@ func TestReplicator_StartStop(t *testing.T) {
 	serverSL := storage.NewServerSL(kvdb)
 	verifyParams := verify.NewDefaultParameters()
 	replicatorParams := &Parameters{
-		VerifyInterval: 10 * time.Millisecond,
+		VerifyInterval:       10 * time.Millisecond,
 		ReplicateConcurrency: DefaultReplicateConcurrency,
-		MaxErrRate: DefaultMaxErrRate,
+		MaxErrRate:           DefaultMaxErrRate,
 	}
 	storeParams := store.NewDefaultParameters()
 

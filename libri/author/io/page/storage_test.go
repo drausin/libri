@@ -7,9 +7,9 @@ import (
 	"errors"
 
 	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
-	"github.com/drausin/libri/libri/common/storage"
 )
 
 func TestStorerLoader_Store_ok(t *testing.T) {

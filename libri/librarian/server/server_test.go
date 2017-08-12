@@ -533,16 +533,16 @@ func TestLibrarian_Store_storeError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	rt, peerID, _ := routing.NewTestWithPeers(rng, 64)
 	l := &Librarian{
-		selfID:     peerID,
-		rt:         rt,
-		kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		kvc:        storage.NewHashKeyValueChecker(),
-		rqv:        &alwaysRequestVerifier{},
+		selfID: peerID,
+		rt:     rt,
+		kc:     storage.NewExactLengthChecker(storage.EntriesKeyLength),
+		kvc:    storage.NewHashKeyValueChecker(),
+		rqv:    &alwaysRequestVerifier{},
 		documentSL: &storage.TestDocSLD{
 			StoreErr: errors.New("some Store error"),
-			Stored: make(map[string]*api.Document),
+			Stored:   make(map[string]*api.Document),
 		},
-		logger:     clogging.NewDevInfoLogger(),
+		logger: clogging.NewDevInfoLogger(),
 	}
 	value, key := api.NewTestDocument(rng)
 	rq := client.NewStoreRequest(ecid.NewPseudoRandom(rng), key, value)

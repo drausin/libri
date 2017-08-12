@@ -10,9 +10,9 @@ import (
 
 	"github.com/drausin/libri/libri/common/ecid"
 	clogging "github.com/drausin/libri/libri/common/logging"
+	"github.com/drausin/libri/libri/common/storage"
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
-	"github.com/drausin/libri/libri/common/storage"
 )
 
 const (

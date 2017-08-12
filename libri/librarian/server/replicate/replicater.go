@@ -155,7 +155,7 @@ func (r *replicator) Start() error {
 	// listen for fatal error
 	var err error
 	go func() {
-		err = <- r.fatal
+		err = <-r.fatal
 		r.Stop()
 	}()
 

@@ -3,9 +3,9 @@ package cmd
 import (
 	"os"
 
+	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/version"
 	"github.com/spf13/cobra"
-	"github.com/drausin/libri/libri/common/errors"
 )
 
 // versionCmd represents the librarian command
