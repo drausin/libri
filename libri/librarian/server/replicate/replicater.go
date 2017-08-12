@@ -22,19 +22,24 @@ import (
 )
 
 const (
-	macKeySize = 32
-
+	// DefaultVerifyInterval is the default amount of time between verify operations.
 	DefaultVerifyInterval = 250 * time.Millisecond
 
+	// DefaultReplicateConcurrency is the default number of replicator routines.
 	DefaultReplicateConcurrency = uint(1)
 
 	// DefaultMaxErrRate is the default maximum allowed error rate for verify & store requests
 	// before a fatal error is thrown.
 	DefaultMaxErrRate = 0.1
 
+	// macKeySize is the size of the MAC key used for verify operations.
+	macKeySize = 32
+
 	// errQueueSize is the size of the error queue used to calculate the running error rate.
 	errQueueSize = 100
 
+	// underreplicatedQueueSize is the size of the queue of under-replicated documents to be
+	// replicated
 	underreplicatedQueueSize = 32
 )
 
@@ -44,12 +49,14 @@ var (
 	errMissingStoredMetrics = errors.New("missing stored metrics")
 )
 
+// Parameters is the replicator parameters.
 type Parameters struct {
 	VerifyInterval       time.Duration
 	ReplicateConcurrency uint
 	MaxErrRate           float32
 }
 
+// NewDefaultParameters returns the default replicator parameters.
 func NewDefaultParameters() *Parameters {
 	return &Parameters{
 		VerifyInterval:       DefaultVerifyInterval,
@@ -58,6 +65,7 @@ func NewDefaultParameters() *Parameters {
 	}
 }
 
+// Metrics contains (monotonically increasing) counters for different replication events.
 type Metrics struct {
 	NVerified        uint64
 	NUnderreplicated uint64
@@ -74,9 +82,17 @@ func (m *Metrics) clone() *Metrics {
 	}
 }
 
+// Replicator is a long-running routine that iterates through stored documents and verified that
+// they are fully replicated. When they are not, it issues Store requests to close peers to
+// bring their replication up to the desired level.
 type Replicator interface {
+	// Start starts the replicator routines.
 	Start() error
+
+	// Stop gracefully stops the replicator routines.
 	Stop()
+
+	// Metrics returns a copy of the current metrics.
 	Metrics() *Metrics
 }
 
@@ -100,6 +116,7 @@ type replicator struct {
 	mu               sync.Mutex
 }
 
+// NewReplicator returns a new Replicator.
 func NewReplicator(
 	selfID ecid.ID,
 	rt routing.Table,

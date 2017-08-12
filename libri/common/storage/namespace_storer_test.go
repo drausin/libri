@@ -163,8 +163,8 @@ func TestDocumentSLD_Iterate(t *testing.T) {
 		nIters++
 		expected, in := vals[key.String()]
 		assert.True(t, in)
-		expectedBytes, err := proto.Marshal(expected)
-		assert.Nil(t, err)
+		expectedBytes, err2 := proto.Marshal(expected)
+		assert.Nil(t, err2)
 		assert.Equal(t, expectedBytes, value)
 	}
 	err = dsld.Iterate(make(chan struct{}), callback)

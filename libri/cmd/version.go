@@ -5,6 +5,7 @@ import (
 
 	"github.com/drausin/libri/version"
 	"github.com/spf13/cobra"
+	"github.com/drausin/libri/libri/common/errors"
 )
 
 // versionCmd represents the librarian command
@@ -13,7 +14,8 @@ var versionCmd = &cobra.Command{
 	Short: "print the libri version",
 	Long:  `TODO (drausin) add longer description and examples here`,
 	Run: func(cmd *cobra.Command, args []string) {
-		os.Stdout.WriteString(version.Version.String() + "\n")
+		_, err := os.Stdout.WriteString(version.Version.String() + "\n")
+		errors.MaybePanic(err)
 	},
 }
 

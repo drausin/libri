@@ -144,7 +144,7 @@ func (dsld *documentSLD) Store(key id.ID, value *api.Document) error {
 	}
 	dsld.mu.Lock()
 	defer dsld.mu.Unlock()
-	dsld.metrics.NDocuments += 1
+	dsld.metrics.NDocuments++
 	dsld.metrics.TotalSize += uint64(len(valueBytes))
 	return nil
 }

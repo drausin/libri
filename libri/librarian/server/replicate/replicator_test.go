@@ -62,7 +62,8 @@ func TestReplicator_StartStop(t *testing.T) {
 	nDocs := 3
 	for c := 0; c < nDocs; c++ {
 		value, key := api.NewTestDocument(rng)
-		docS.Store(key, value)
+		err = docS.Store(key, value)
+		assert.Nil(t, err)
 	}
 
 	// create some dummy unqueried and closest heaps for our fixed result to use
@@ -171,7 +172,8 @@ func TestReplicator_verify(t *testing.T) {
 	nDocs := 3
 	for c := 0; c < nDocs; c++ {
 		value, key := api.NewTestDocument(rng)
-		r.docS.Store(key, value)
+		err := r.docS.Store(key, value)
+		assert.Nil(t, err)
 	}
 
 	// verifier always returns results where FullyReplicated() == true
@@ -410,7 +412,8 @@ func TestNewStore(t *testing.T) {
 	v := verify.NewVerify(selfID, key, value, macKey, verifyParams)
 
 	// under-replicated by one
-	v.Result.Closest.SafePushMany(peer.NewTestPeers(rng, int(verifyParams.NClosestResponses)))
+	err = v.Result.Closest.SafePushMany(peer.NewTestPeers(rng, int(verifyParams.NClosestResponses)))
+	assert.Nil(t, err)
 	v.Result.Replicas = v.Result.Closest.Peers()[:int(verifyParams.NReplicas)-1]
 	assert.True(t, v.UnderReplicated())
 

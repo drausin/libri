@@ -8,6 +8,7 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
+// TestSLD mocks StorerLoaderDeleter interface.
 type TestSLD struct {
 	Bytes      []byte
 	LoadErr    error
@@ -16,31 +17,39 @@ type TestSLD struct {
 	DeleteErr error
 }
 
+// Load mocks StorerLoaderDeleter.Load().
 func (l *TestSLD) Load(key []byte) ([]byte, error) {
 	return l.Bytes, l.LoadErr
 }
 
+// Iterate mocks StorerLoaderDeleter.Iterate().
 func (l *TestSLD) Iterate(
 	keyLB, keyUB []byte, done chan struct{}, callback func(key, value []byte),
 ) error {
+	// "happy path" doesn't really exist ATM, implement if needed
 	return l.IterateErr
 }
 
+// Store mocks StorerLoaderDeleter.Store().
 func (l *TestSLD) Store(key []byte, value []byte) error {
 	l.Bytes = value
 	return l.StoreErr
 }
 
+// Delete mocks StorerLoaderDeleter.Delete().
 func (l *TestSLD) Delete(key []byte) error {
+	l.Bytes = nil
 	return l.DeleteErr
 }
 
+// NewTestDocSLD creates a new TestDocSLD.
 func NewTestDocSLD() *TestDocSLD {
 	return &TestDocSLD{
 		Stored: make(map[string]*api.Document),
 	}
 }
 
+// TestDocSLD mocks DocumentSLD.
 type TestDocSLD struct {
 	StoreErr   error
 	Stored     map[string]*api.Document
@@ -51,6 +60,7 @@ type TestDocSLD struct {
 	mu         sync.Mutex
 }
 
+// Store mocks DocumentSLD.Store().
 func (f *TestDocSLD) Store(key id.ID, value *api.Document) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -58,11 +68,13 @@ func (f *TestDocSLD) Store(key id.ID, value *api.Document) error {
 	return f.StoreErr
 }
 
+// Iterate mocks DocumentSLD.Iterate().
 func (f *TestDocSLD) Iterate(done chan struct{}, callback func(key id.ID, value []byte)) error {
 	for keyStr, value := range f.Stored {
 		key, err := id.FromString(keyStr)
 		errors.MaybePanic(err)
 		valueBytes, err := proto.Marshal(value)
+		errors.MaybePanic(err)  // should never happen b/c only docs can be stored
 		select {
 		case <-done:
 			break
@@ -73,6 +85,7 @@ func (f *TestDocSLD) Iterate(done chan struct{}, callback func(key id.ID, value 
 	return f.IterateErr
 }
 
+// Load mocks DocumentSLD.Load().
 func (f *TestDocSLD) Load(key id.ID) (*api.Document, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -80,10 +93,12 @@ func (f *TestDocSLD) Load(key id.ID) (*api.Document, error) {
 	return value, f.LoadErr
 }
 
+// Mac mocks DocumentSLD.Mac().
 func (f *TestDocSLD) Mac(key id.ID, macKey []byte) ([]byte, error) {
 	return nil, f.MacErr
 }
 
+// Delete mocks DocumentSLD.Delete().
 func (f *TestDocSLD) Delete(key id.ID) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()

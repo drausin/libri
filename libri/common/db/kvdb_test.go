@@ -86,7 +86,8 @@ func TestRocksDB_Iterate(t *testing.T) {
 		"key3": []byte("val3"),
 	}
 	for key, val := range vals {
-		db.Put([]byte(key), val)
+		err = db.Put([]byte(key), val)
+		assert.Nil(t, err)
 	}
 
 	// iterate through everything
