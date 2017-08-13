@@ -130,9 +130,7 @@ func (dsld *documentSLD) Store(key id.ID, value *api.Document) error {
 		return err
 	}
 	valueBytes, err := proto.Marshal(value)
-	if err != nil {
-		return err
-	}
+	errors.MaybePanic(err) // should never happen
 	keyBytes := key.Bytes()
 	if err := dsld.c.Check(keyBytes, valueBytes); err != nil {
 		return err

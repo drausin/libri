@@ -186,6 +186,14 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 		}
 	}()
 
+	// long-running goroutine replicating documents
+	go func() {
+		if err := l.replicator.Start(); err != nil {
+			l.logger.Error("fatal replicator error", zap.Error(err))
+			cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
+		}
+	}()
+
 	// notify up channel shortly after starting to serve requests
 	go func() {
 		time.Sleep(postListenNotifyWait)
@@ -220,6 +228,8 @@ func (l *Librarian) EndSubscriptions() {
 
 // Close handles cleanup involved in closing down the server.
 func (l *Librarian) Close() error {
+
+	l.replicator.Stop()
 
 	l.EndSubscriptions()
 

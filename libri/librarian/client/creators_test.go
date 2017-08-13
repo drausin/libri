@@ -31,6 +31,18 @@ func TestFinderCreator_Create_err(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func TestVerifyCreator_Create_ok(t *testing.T) {
+	fc := NewVerifierCreator()
+	_, err := fc.Create(&peer.TestConnector{Client: api.NewLibrarianClient(nil)})
+	assert.Nil(t, err)
+}
+
+func TestVerifierCreator_Create_err(t *testing.T) {
+	fc := NewVerifierCreator()
+	_, err := fc.Create(&peer.TestErrConnector{})
+	assert.NotNil(t, err)
+}
+
 func TestStorerCreator_Create_ok(t *testing.T) {
 	sc := NewStorerCreator()
 	_, err := sc.Create(&peer.TestConnector{Client: api.NewLibrarianClient(nil)})

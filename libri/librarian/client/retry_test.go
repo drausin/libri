@@ -92,6 +92,85 @@ func TestRetryFinder_Find_err(t *testing.T) {
 	}
 }
 
+func TestRetryVerifier_Verify_ok(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	timeout := 100 * time.Millisecond
+	mac := api.RandBytes(rng, 32)
+	err := errors.New("some Verify error")
+
+	// check each case ultimately succeeds despite possible initial failures
+	cases := []api.Verifier{
+
+		// case 0
+		&fixedVerifier{ // first call succeeds
+			responses: []*api.VerifyResponse{{Mac: mac}},
+			errs:      []error{nil},
+		},
+
+		// case 1
+		&fixedVerifier{ // first call fails; second call succeeds
+			responses: []*api.VerifyResponse{nil, {Mac: mac}},
+			errs:      []error{err, nil},
+		},
+
+		// case 2
+		&fixedVerifier{ // first & second calls fail; third call succeeds
+			responses: []*api.VerifyResponse{nil, nil, {Mac: mac}},
+			errs:      []error{err, err, nil},
+		},
+	}
+	for i, c := range cases {
+		info := fmt.Sprintf("case %d", i)
+		rg := NewRetryVerifier(c, timeout)
+		rp, err := rg.Verify(nil, nil) // since Verify() is mocked, inputs don't matter
+		assert.Nil(t, err, info)
+		assert.Equal(t, mac, rp.Mac, info)
+	}
+}
+
+func TestRetryVerifier_Verify_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	timeout := 100 * time.Millisecond
+	mac := api.RandBytes(rng, 32)
+	err := errors.New("some Find error")
+
+	// check each case ultimately succeeds despite possible initial failures
+	cases := []api.Verifier{
+
+		// case 0
+		&fixedVerifier{
+			responses: []*api.VerifyResponse{nil},
+			errs:      []error{err},
+		},
+
+		// case 1
+		&fixedVerifier{
+			responses: []*api.VerifyResponse{nil, nil},
+			errs:      []error{err, err},
+		},
+
+		// case 2
+		&fixedVerifier{
+			responses: []*api.VerifyResponse{nil, nil, nil},
+			errs:      []error{err, err, err},
+		},
+
+		// case 3
+		&fixedVerifier{
+			responses: []*api.VerifyResponse{nil, {Mac: mac}},
+			errs:      []error{err, nil},
+			sleep:     200 * time.Millisecond, // will trigger timeout before next Find
+		},
+	}
+	for i, c := range cases {
+		info := fmt.Sprintf("case %d", i)
+		rg := NewRetryVerifier(c, timeout)
+		rp, err := rg.Verify(nil, nil) // since Verify() is mocked, inputs don't matter
+		assert.NotNil(t, err, info)
+		assert.Nil(t, rp, info)
+	}
+}
+
 func TestRetryStorer_Store_ok(t *testing.T) {
 	timeout := 100 * time.Millisecond
 	err := errors.New("some Store error")
@@ -371,6 +450,26 @@ type fixedFinder struct {
 
 func (f *fixedFinder) Find(ctx context.Context, rq *api.FindRequest, opts ...grpc.CallOption) (
 	*api.FindResponse, error) {
+	if len(f.responses) == 0 {
+		return nil, errors.New("no more responses")
+	}
+	nextRP := f.responses[0]
+	nextErr := f.errs[0]
+	f.responses = f.responses[1:]
+	f.errs = f.errs[1:]
+	time.Sleep(f.sleep)
+	return nextRP, nextErr
+}
+
+type fixedVerifier struct {
+	responses []*api.VerifyResponse
+	sleep     time.Duration
+	errs      []error
+}
+
+func (f *fixedVerifier) Verify(
+	ctx context.Context, in *api.VerifyRequest, opts ...grpc.CallOption,
+) (*api.VerifyResponse, error) {
 	if len(f.responses) == 0 {
 		return nil, errors.New("no more responses")
 	}

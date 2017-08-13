@@ -16,9 +16,11 @@ import (
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
+	"github.com/drausin/libri/libri/librarian/server/replicate"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/store"
+	"github.com/drausin/libri/libri/librarian/server/verify"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/willf/bloom"
 	"go.uber.org/zap"
@@ -46,6 +48,9 @@ type Librarian struct {
 
 	// executes stores for key/value
 	storer store.Storer
+
+	// replicates documents as needed
+	replicator replicate.Replicator
 
 	// manages subscriptions from other peers
 	subscribeFrom subscribe.From
@@ -111,19 +116,21 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 	documentSL := storage.NewDocumentSLD(rdb)
 
 	// get peer ID and immediately save it so subsequent restarts have it
-	peerID, err := loadOrCreatePeerID(logger, serverSL)
+	selfID, err := loadOrCreatePeerID(logger, serverSL)
 	if err != nil {
 		return nil, err
 	}
-	selfLogger := logger.With(zap.String(logSelfIDShort, id.ShortHex(peerID.Bytes())))
+	rng := rand.New(rand.NewSource(selfID.Int().Int64()))
+	selfLogger := logger.With(zap.String(logSelfIDShort, id.ShortHex(selfID.Bytes())))
 
-	rt, err := loadOrCreateRoutingTable(selfLogger, serverSL, peerID, config.Routing)
+	rt, err := loadOrCreateRoutingTable(selfLogger, serverSL, selfID, config.Routing)
 	if err != nil {
 		return nil, err
 	}
 
-	signer := client.NewSigner(peerID.Key())
+	signer := client.NewSigner(selfID.Key())
 	searcher := search.NewDefaultSearcher(signer)
+	storer := store.NewStorer(signer, searcher, client.NewStorerCreator())
 	newPubs := make(chan *subscribe.KeyedPub, newPublicationsSlack)
 
 	recentPubs, err := subscribe.NewRecentPublications(config.SubscribeTo.RecentCacheSize)
@@ -131,20 +138,36 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		return nil, err
 	}
 	clientBalancer := routing.NewClientBalancer(rt)
-	subscribeTo := subscribe.NewTo(config.SubscribeTo, selfLogger, peerID, clientBalancer, signer,
+	subscribeTo := subscribe.NewTo(config.SubscribeTo, selfLogger, selfID, clientBalancer, signer,
 		recentPubs, newPubs)
 
 	metricsSM := http.NewServeMux()
 	metricsSM.Handle("/metrics", promhttp.Handler())
 	metrics := &http.Server{Addr: config.LocalMetricsAddr.String(), Handler: metricsSM}
 
+	verifier := verify.NewDefaultVerifier(signer)
+	replicator := replicate.NewReplicator(
+		selfID,
+		rt,
+		documentSL,
+		serverSL,
+		verifier,
+		storer,
+		replicate.NewDefaultParameters(),
+		verify.NewDefaultParameters(),
+		config.Store,
+		rng,
+		logger,
+	)
+
 	return &Librarian{
-		selfID:        peerID,
+		selfID:        selfID,
 		config:        config,
-		apiSelf:       peer.FromAddress(peerID.ID(), config.PublicName, config.PublicAddr),
-		introducer:    introduce.NewDefaultIntroducer(signer, peerID.ID()),
+		apiSelf:       peer.FromAddress(selfID.ID(), config.PublicName, config.PublicAddr),
+		introducer:    introduce.NewDefaultIntroducer(signer, selfID.ID()),
 		searcher:      searcher,
-		storer:        store.NewStorer(signer, searcher, client.NewStorerCreator()),
+		replicator:    replicator,
+		storer:        storer,
 		subscribeFrom: subscribe.NewFrom(config.SubscribeFrom, logger, newPubs),
 		subscribeTo:   subscribeTo,
 		RecentPubs:    recentPubs,
