@@ -182,7 +182,7 @@ func TestEntryPackUnpack(t *testing.T) {
 	for _, c := range cases {
 		content1 := common.NewCompressableBytes(rng, c.uncompressedSize)
 		content1Bytes := content1.Bytes()
-		docSL := &storage.NewTestDocSLD()
+		docSL := storage.NewTestDocSLD()
 		packParams, err := print.NewParameters(comp.MinBufferSize, c.pageSize,
 			c.packParallelism)
 		assert.Nil(t, err)
