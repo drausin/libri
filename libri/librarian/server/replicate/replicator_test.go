@@ -267,13 +267,9 @@ func TestReplicator_verifyValue(t *testing.T) {
 
 	// check that when a verify operation has FullyReplicated() == true, only a nil error is
 	// sent to errs
-	replicas := make(map[string]peer.Peer)
-	for _, p := range peer.NewTestPeers(rng, int(r.verifyParams.NReplicas)) {
-		replicas[p.ID().String()] = p
-	}
 	r.verifier = &fixedVerifier{
 		result: &verify.Result{
-			Replicas:  replicas,
+			Replicas:  peerMap(peer.NewTestPeers(rng, int(r.verifyParams.NReplicas))),
 			Unqueried: unqueried,
 			Closest:   search.NewFarthestPeers(key, r.verifyParams.NClosestResponses),
 		},
@@ -295,13 +291,9 @@ func TestReplicator_verifyValue(t *testing.T) {
 	for c := uint(0); c < r.verifyParams.NClosestResponses; c++ {
 		heap.Push(closest, heap.Pop(unqueried).(peer.Peer))
 	}
-	replicas = make(map[string]peer.Peer)
-	for _, p := range peer.NewTestPeers(rng, int(r.verifyParams.NReplicas-1)) {
-		replicas[p.ID().String()] = p
-	}
 	r.verifier = &fixedVerifier{
 		result: &verify.Result{
-			Replicas:  replicas,
+			Replicas:  peerMap(peer.NewTestPeers(rng, int(r.verifyParams.NReplicas-1))),
 			Unqueried: unqueried,
 			Closest:   closest,
 		},
@@ -351,6 +343,14 @@ func TestReplicator_verifyValue(t *testing.T) {
 		assert.True(t, false) // should't get message in underreplicated
 	default:
 	}
+}
+
+func peerMap(peerArr []peer.Peer) map[string]peer.Peer {
+	peerMap := make(map[string]peer.Peer)
+	for _, p := range peerArr {
+		peerMap[p.ID().String()] = p
+	}
+	return peerMap
 }
 
 type fixedVerifier struct {
@@ -442,7 +442,8 @@ func TestNewStore(t *testing.T) {
 	for _, p := range responded[:verifyParams.NReplicas-1] {
 		v.Result.Replicas[p.ID().String()] = p
 	}
-	v.Result.Closest.SafePushMany(responded[verifyParams.NReplicas-1:])
+	err = v.Result.Closest.SafePushMany(responded[verifyParams.NReplicas-1:])
+	assert.Nil(t, err)
 	assert.True(t, v.UnderReplicated())
 	assert.False(t, v.FullyReplicated())
 
