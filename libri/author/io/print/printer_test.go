@@ -169,11 +169,7 @@ func TestPrintScan(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	authorPub := api.RandBytes(rng, api.ECPubKeyLength)
 	keys := enc.NewPseudoRandomEEK(rng)
-	pageSL := page.NewStorerLoader(
-		&storage.TestDocSLD{
-			Stored: make(map[string]*api.Document),
-		},
-	)
+	pageSL := page.NewStorerLoader(storage.NewTestDocSLD())
 	page.MinSize = 64 // just for testing
 
 	uncompressedSizes := []int{128, 192, 256, 384, 512, 768, 1024, 2048, 4096, 8192}

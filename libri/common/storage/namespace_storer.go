@@ -65,6 +65,8 @@ type DocumentStorer interface {
 	Store(key id.ID, value *api.Document) error
 
 	Iterate(done chan struct{}, callback func(key id.ID, value []byte)) error
+
+	Metrics() *DocumentMetrics
 }
 
 // DocumentLoader loads api.Document values.
@@ -152,6 +154,12 @@ func (dsld *documentSLD) Iterate(done chan struct{}, callback func(key id.ID, va
 	})
 }
 
+func (dsld *documentSLD) Metrics() *DocumentMetrics {
+	dsld.mu.Lock()
+	defer dsld.mu.Unlock()
+	return dsld.metrics.clone()
+}
+
 func (dsld *documentSLD) Load(key id.ID) (*api.Document, error) {
 	valueBytes, err := dsld.loadCheckBytes(key)
 	if err != nil || valueBytes == nil {
@@ -196,5 +204,23 @@ func (dsld *documentSLD) loadCheckBytes(key id.ID) ([]byte, error) {
 }
 
 func (dsld *documentSLD) Delete(key id.ID) error {
-	return dsld.sld.Delete(key.Bytes())
+	valueBytes, err := dsld.sld.Load(key.Bytes())
+	if err != nil {
+		return err
+	}
+	if err := dsld.sld.Delete(key.Bytes()); err != nil {
+		return err
+	}
+	dsld.mu.Lock()
+	defer dsld.mu.Unlock()
+	dsld.metrics.NDocuments--
+	dsld.metrics.TotalSize -= uint64(len(valueBytes))
+	return nil
+}
+
+func (dm *DocumentMetrics) clone() *DocumentMetrics {
+	return &DocumentMetrics{
+		NDocuments: dm.NDocuments,
+		TotalSize:  dm.TotalSize,
+	}
 }

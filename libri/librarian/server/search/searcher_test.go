@@ -280,29 +280,29 @@ func TestAddPeers(t *testing.T) {
 
 	key := id.NewPseudoRandom(rng)
 	fromer := peer.NewFromer()
-	closest := NewFarthestPeers(key, 3)
+	responded := make(map[string]peer.Peer)
 	unqueried := NewClosestPeers(key, 9)
 
 	// check that all peers go into the unqueried heap
-	AddPeers(closest, unqueried, peerAddresses1, fromer)
+	AddPeers(responded, unqueried, peerAddresses1, fromer)
 	assert.Equal(t, nAddresses1, unqueried.Len())
 
 	// add same peers and check that the length of unqueried hasn't changed
-	AddPeers(closest, unqueried, peerAddresses1, fromer)
+	AddPeers(responded, unqueried, peerAddresses1, fromer)
 	assert.Equal(t, nAddresses1, unqueried.Len())
 
-	// create new peers and add them to the closest heap (as if we'd already heard from them)
+	// create new peers and add them to the responded map (as if we'd already heard from them)
 	nAddresses2 := 3
 	peerAddresses2 := newPeerAddresses(rng, nAddresses2)
 	for _, pa := range peerAddresses2 {
-		err := closest.SafePush(fromer.FromAPI(pa))
-		assert.Nil(t, err)
+		p := fromer.FromAPI(pa)
+		responded[p.ID().String()] = p
 	}
 
 	// check that adding these peers again has no effect
-	AddPeers(closest, unqueried, peerAddresses2, fromer)
+	AddPeers(responded, unqueried, peerAddresses2, fromer)
 	assert.Equal(t, nAddresses1, unqueried.Len())
-	assert.Equal(t, nAddresses2, closest.Len())
+	assert.Equal(t, nAddresses2, len(responded))
 }
 
 func newPeerAddresses(rng *rand.Rand, n int) []*api.PeerAddress {

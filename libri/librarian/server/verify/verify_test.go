@@ -85,9 +85,9 @@ func TestVerify_PartiallyReplicated(t *testing.T) {
 
 	// add two replicated & two close peers, bringing total replicas + closest above number of
 	// closest responses
-	v.Result.Replicas = []peer.Peer{
-		peer.New(id.FromInt64(3), "", nil),
-		peer.New(id.FromInt64(4), "", nil),
+	v.Result.Replicas = map[string]peer.Peer{
+		"3": peer.New(id.FromInt64(3), "", nil),
+		"4": peer.New(id.FromInt64(4), "", nil),
 	}
 	err = v.Result.Closest.SafePushMany([]peer.Peer{
 		peer.New(id.FromInt64(5), "", nil),
@@ -98,11 +98,13 @@ func TestVerify_PartiallyReplicated(t *testing.T) {
 	// now that closest peers is at capacity, and it's max distance is less than the min
 	// unqueried peers distance, verify is now partially replicated
 	assert.True(t, v.UnderReplicated())
+	assert.False(t, v.Exhausted())
 
 	// add another replica, making it fully (and no longer partially) replicated
-	v.Result.Replicas = append(v.Result.Replicas, peer.New(id.FromInt64(8), "", nil))
+	v.Result.Replicas["8"] = peer.New(id.FromInt64(8), "", nil)
 	assert.True(t, v.FullyReplicated())
 	assert.False(t, v.UnderReplicated())
+	assert.False(t, v.Exhausted())
 }
 
 func TestVerify_FullyReplicated(t *testing.T) {
@@ -118,15 +120,16 @@ func TestVerify_FullyReplicated(t *testing.T) {
 	})
 
 	// add some replicas (but not enough for full replication)
-	v.Result.Replicas = []peer.Peer{
-		peer.New(id.FromInt64(1), "", nil),
-		peer.New(id.FromInt64(2), "", nil),
+	v.Result.Replicas = map[string]peer.Peer{
+		"1": peer.New(id.FromInt64(1), "", nil),
+		"2": peer.New(id.FromInt64(2), "", nil),
 	}
 	assert.False(t, v.FullyReplicated())
 
 	// add another replica, bringing us up to full replication
-	v.Result.Replicas = append(v.Result.Replicas, peer.New(id.FromInt64(3), "", nil))
+	v.Result.Replicas["3"] = peer.New(id.FromInt64(3), "", nil)
 	assert.True(t, v.FullyReplicated())
+	assert.False(t, v.Exhausted())
 }
 
 func TestVerify_Errored(t *testing.T) {

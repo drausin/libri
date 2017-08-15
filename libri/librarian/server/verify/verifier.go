@@ -103,7 +103,6 @@ func (v *verifier) verifyWork(verify *Verify, wg *sync.WaitGroup) {
 		// bookkeep ok response
 		verify.wrapLock(func() {
 			next.Recorder().Record(peer.Response, peer.Success)
-			cerrors.MaybePanic(result.Closest.SafePush(next))
 			result.Responded[nextIDStr] = next
 		})
 
@@ -165,7 +164,7 @@ func (vrp *responseProcessor) Process(
 		// peer claims to have the value
 		if bytes.Equal(expectedMAC, rp.Mac) {
 			// they do!
-			result.Replicas = append(result.Replicas, from)
+			result.Replicas[from.ID().String()] = from
 			return nil
 		}
 		// they don't
@@ -174,7 +173,8 @@ func (vrp *responseProcessor) Process(
 
 	if rp.Peers != nil {
 		// response has peer addresses close to key
-		search.AddPeers(result.Closest, result.Unqueried, rp.Peers, vrp.fromer)
+		search.AddPeers(result.Responded, result.Unqueried, rp.Peers, vrp.fromer)
+		cerrors.MaybePanic(result.Closest.SafePush(from))
 		return nil
 	}
 

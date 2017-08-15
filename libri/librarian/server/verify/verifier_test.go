@@ -241,6 +241,8 @@ func TestResponseProcessor_Process_Addresses(t *testing.T) {
 	err := rp.Process(response, from, expectedMAC, result)
 	assert.Nil(t, err)
 	assert.Equal(t, nAddresses, result.Unqueried.Len())
+	assert.True(t, result.Closest.In(from.ID()))
+	assert.Equal(t, 1, result.Closest.Len())
 }
 
 func newTestVerify() (Verifier, *Verify, []int, []peer.Peer) {

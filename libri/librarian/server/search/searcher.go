@@ -19,6 +19,8 @@ const searcherFindRetryTimeout = 100 * time.Millisecond
 var (
 	// ErrTooManyFindErrors indicates when a search has encountered too many Find request errors.
 	ErrTooManyFindErrors = errors.New("too many Find errors")
+
+	errInvalidResponse = errors.New("FindResponse contains neither value nor peer addresses")
 )
 
 // Searcher executes searches for particular keys.
@@ -176,26 +178,28 @@ func (frp *responseProcessor) Process(rp *api.FindResponse, result *Result) erro
 
 	if rp.Peers != nil {
 		// response has peer addresses close to key
-		AddPeers(result.Closest, result.Unqueried, rp.Peers, frp.fromer)
+		AddPeers(result.Responded, result.Unqueried, rp.Peers, frp.fromer)
 		return nil
 	}
 
 	// invalid response
-	return errors.New("FindResponse contains neither value nor peer addresses")
+	return errInvalidResponse
 }
 
 // AddPeers adds a list of peer address to the unqueried heap.
 func AddPeers(
-	closest FarthestPeers, unqueried ClosestPeers, peers []*api.PeerAddress, fromer peer.Fromer,
+	responded map[string]peer.Peer,
+	unqueried ClosestPeers,
+	peers []*api.PeerAddress,
+	fromer peer.Fromer,
 ) {
 	for _, pa := range peers {
 		newID := id.FromBytes(pa.PeerId)
-		if !closest.In(newID) && !unqueried.In(newID) {
+		_, inResponded := responded[newID.String()]
+		if !inResponded && !unqueried.In(newID) {
 			// only add discovered peers that we haven't already seen
 			newPeer := fromer.FromAPI(pa)
-			if err := unqueried.SafePush(newPeer); err != nil {
-				panic(err) // should never happen
-			}
+			cerrors.MaybePanic(unqueried.SafePush(newPeer)) // should never happen
 		}
 	}
 }

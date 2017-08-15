@@ -5,10 +5,11 @@ package acceptance
 import (
 	"bytes"
 	"fmt"
-	"net"
 	"runtime"
 	"testing"
 	"time"
+
+	"crypto/rand"
 
 	"github.com/drausin/libri/libri/author/io/common"
 	"github.com/drausin/libri/libri/common/id"
@@ -18,6 +19,8 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/store"
+	"github.com/drausin/libri/libri/librarian/server/verify"
+	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -89,6 +92,8 @@ func TestLibrarianCluster(t *testing.T) {
 	// share the uploaded docs with other author and download
 	testShare(t, params, state)
 
+	//testReplicate(t, params, state)
+
 	tearDown(state)
 
 	writeBenchmarkResults(t, state.benchResults)
@@ -100,6 +105,7 @@ func testIntroduce(t *testing.T, params *params, state *state) {
 	nPeers := len(state.peers)
 	ic := lclient.NewIntroducerCreator()
 	benchResults := make([]testing.BenchmarkResult, params.nIntroductions)
+	fromer := peer.NewFromer()
 
 	// introduce oneself to a number of peers and ensure that each returns the requisite
 	// number of new peers
@@ -124,14 +130,21 @@ func testIntroduce(t *testing.T, params *params, state *state) {
 		// check everything went fine
 		assert.Nil(t, err)
 		assert.Equal(t, int(rq.NumPeers), len(rp.Peers))
-		state.client.logger.Debug("received Introduce response",
-			zap.String("from_peer", conn.Address().String()),
-			zap.Int("num_peers", len(rp.Peers)),
-		)
+		if rp != nil {
+			state.client.logger.Debug("received Introduce response",
+				zap.String("from_peer", conn.Address().String()),
+				zap.Int("num_peers", len(rp.Peers)),
+			)
+		}
 
 		benchResults[c] = testing.BenchmarkResult{
 			N: 1,
 			T: time.Now().Sub(start),
+		}
+
+		// add peers to self RT
+		for _, p := range rp.Peers {
+			state.client.rt.Push(fromer.FromAPI(p))
 		}
 	}
 
@@ -145,11 +158,7 @@ func testIntroduce(t *testing.T, params *params, state *state) {
 func testPut(t *testing.T, params *params, state *state) {
 	putDocs := make([]*api.Document, params.nPuts)
 	benchResults := make([]testing.BenchmarkResult, params.nPuts)
-	librarianAddrs := make([]*net.TCPAddr, len(state.peerConfigs))
-	for i, peerConfig := range state.peerConfigs {
-		librarianAddrs[i] = peerConfig.PublicAddr
-	}
-	librarians, err := client.NewUniformBalancer(librarianAddrs)
+	librarians, err := getLibrarians(state.peerConfigs)
 	assert.Nil(t, err)
 	putters := client.NewUniformPutterBalancer(librarians)
 	rlc := lclient.NewRetryPutter(putters, store.DefaultQueryTimeout)
@@ -178,10 +187,12 @@ func testPut(t *testing.T, params *params, state *state) {
 		// check everything went fine
 		assert.Nil(t, err)
 		assert.Equal(t, api.PutOperation_STORED, rp.Operation)
-		state.client.logger.Debug("received Put response",
-			zap.String("operation", rp.Operation.String()),
-			zap.Int("n_replicas", int(rp.NReplicas)),
-		)
+		if rp != nil {
+			state.client.logger.Debug("received Put response",
+				zap.String("operation", rp.Operation.String()),
+				zap.Int("n_replicas", int(rp.NReplicas)),
+			)
+		}
 	}
 
 	state.benchResults = append(state.benchResults, &benchmarkObs{
@@ -194,11 +205,7 @@ func testPut(t *testing.T, params *params, state *state) {
 
 func testGet(t *testing.T, params *params, state *state) {
 	benchResults := make([]testing.BenchmarkResult, params.nPuts)
-	librarianAddrs := make([]*net.TCPAddr, len(state.peerConfigs))
-	for i, peerConfig := range state.peerConfigs {
-		librarianAddrs[i] = peerConfig.PublicAddr
-	}
-	librarians, err := client.NewUniformBalancer(librarianAddrs)
+	librarians, err := getLibrarians(state.peerConfigs)
 	assert.Nil(t, err)
 	getters := client.NewUniformGetterBalancer(librarians)
 	rlc := lclient.NewRetryGetter(getters, search.DefaultQueryTimeout)
@@ -304,4 +311,38 @@ func testShare(t *testing.T, _ *params, state *state) {
 		assert.Equal(t, len(state.uploadedDocContents[i]), downloaded.Len())
 		assert.Equal(t, state.uploadedDocContents[i], downloaded.Bytes())
 	}
+}
+
+func testReplicate(t *testing.T, params *params, state *state) {
+
+	// take n peers out of the network
+	// verify each doc, seeing which are under-replicated
+	// wait a bit
+	// verify each doc again, confirming all fully-replicated
+	// verify that NReplcated on librarians also increased
+}
+
+func countDocReplicas(t *testing.T, state *state) map[string]int {
+	verifier := verify.NewDefaultVerifier(client.NewSigner(state.client.selfID.Key()))
+	verifyParams := verify.NewDefaultParameters()
+	verifyParams.NReplicas++         // since not accounting for self
+	verifyParams.NClosestResponses++ // same
+
+	nReplicas := make(map[string]int)
+	for _, doc := range state.putDocs {
+		key, err := api.GetKey(doc)
+		assert.Nil(t, err)
+		macKey := make([]byte, 32)
+		_, err = rand.Read(macKey)
+		assert.Nil(t, err)
+		docBytes, err := proto.Marshal(doc)
+		assert.Nil(t, err)
+
+		seeds := state.client.rt.Peak(key, verifyParams.Concurrency)
+		v := verify.NewVerify(state.client.selfID, key, docBytes, macKey, verifyParams)
+		err = verifier.Verify(v, seeds)
+		assert.Nil(t, err)
+		nReplicas[key.String()] = len(v.Result.Replicas)
+	}
+	return nReplicas
 }

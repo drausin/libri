@@ -26,6 +26,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/store"
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/metadata"
 )
@@ -93,7 +94,7 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 		selfID:  serverID,
 		rt:      rt,
 		rqv:     &alwaysRequestVerifier{},
-		logger:  clogging.NewDevInfoLogger(),
+		logger:  zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 
 	clientID, clientPeerIdx := ecid.NewPseudoRandom(rng), 1
@@ -330,7 +331,7 @@ func TestLibrarian_Verify_value(t *testing.T) {
 		rt:         rt,
 		kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		rqv:        &alwaysRequestVerifier{},
-		logger:     clogging.NewDevInfoLogger(),
+		logger:     zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 
 	// create key-value and store
@@ -383,7 +384,7 @@ func TestLibrarian_Verify_peers(t *testing.T) {
 				kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 				rt:         rt,
 				rqv:        &alwaysRequestVerifier{},
-				logger:     clogging.NewDevInfoLogger(),
+				logger:     zap.NewNop(), // clogging.NewDevInfoLogger(),
 			}
 
 			numClosest := uint32(routing.DefaultMaxActivePeers)
@@ -434,7 +435,7 @@ func TestLibrarian_Verify_err(t *testing.T) {
 		// case 0
 		{
 			l: &Librarian{
-				logger: clogging.NewDevInfoLogger(),
+				logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 				rqv:    NewRequestVerifier(),
 				kc:     storage.NewExactLengthChecker(storage.EntriesKeyLength),
 			},
@@ -448,7 +449,7 @@ func TestLibrarian_Verify_err(t *testing.T) {
 		// case 1
 		{
 			l: &Librarian{
-				logger:     clogging.NewDevInfoLogger(),
+				logger:     zap.NewNop(), // clogging.NewDevInfoLogger(),
 				rqv:        &alwaysRequestVerifier{},
 				kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 				documentSL: &storage.TestDocSLD{MacErr: errors.New("some Mac error")},
@@ -486,7 +487,7 @@ func TestLibrarian_Store_ok(t *testing.T) {
 		kc:          storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		kvc:         storage.NewHashKeyValueChecker(),
 		rqv:         &alwaysRequestVerifier{},
-		logger:      clogging.NewDevInfoLogger(),
+		logger:      zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 
 	// create key-value
@@ -518,7 +519,7 @@ func newTestRequestMetadata(rng *rand.Rand, peerID ecid.ID) *api.RequestMetadata
 func TestLibrarian_Store_checkRequestError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	l := &Librarian{
-		logger: clogging.NewDevInfoLogger(),
+		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	value, key := api.NewTestDocument(rng)
 	rq := client.NewStoreRequest(ecid.NewPseudoRandom(rng), key, value)
@@ -532,17 +533,16 @@ func TestLibrarian_Store_checkRequestError(t *testing.T) {
 func TestLibrarian_Store_storeError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	rt, peerID, _ := routing.NewTestWithPeers(rng, 64)
+	sld := storage.NewTestDocSLD()
+	sld.StoreErr = errors.New("some Store error")
 	l := &Librarian{
-		selfID: peerID,
-		rt:     rt,
-		kc:     storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		kvc:    storage.NewHashKeyValueChecker(),
-		rqv:    &alwaysRequestVerifier{},
-		documentSL: &storage.TestDocSLD{
-			StoreErr: errors.New("some Store error"),
-			Stored:   make(map[string]*api.Document),
-		},
-		logger: clogging.NewDevInfoLogger(),
+		selfID:     peerID,
+		rt:         rt,
+		kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
+		kvc:        storage.NewHashKeyValueChecker(),
+		rqv:        &alwaysRequestVerifier{},
+		documentSL: sld,
+		logger:     zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	value, key := api.NewTestDocument(rng)
 	rq := client.NewStoreRequest(ecid.NewPseudoRandom(rng), key, value)
@@ -663,7 +663,7 @@ func TestLibrarian_Get_err(t *testing.T) {
 func TestLibrarian_Get_checkRequestError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	l := &Librarian{
-		logger: clogging.NewDevInfoLogger(),
+		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	rq := client.NewGetRequest(ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng))
 	rq.Metadata.PubKey = []byte("corrupted pub key")
@@ -686,7 +686,7 @@ func newGetLibrarian(rng *rand.Rand, searchResult *search.Result, searchErr erro
 			err:    searchErr,
 		},
 		rqv:    &alwaysRequestVerifier{},
-		logger: clogging.NewDevInfoLogger(),
+		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 }
 
@@ -786,7 +786,7 @@ func TestLibrarian_Put_err(t *testing.T) {
 func TestLibrarian_Put_checkRequestError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	l := &Librarian{
-		logger: clogging.NewDevInfoLogger(),
+		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	value, key := api.NewTestDocument(rng)
 	rq := client.NewPutRequest(ecid.NewPseudoRandom(rng), key, value)
@@ -809,7 +809,7 @@ func TestLibrarian_Subscribe_ok(t *testing.T) {
 			done: done,
 		},
 		rqv:    &alwaysRequestVerifier{},
-		logger: clogging.NewDevInfoLogger(),
+		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 
 	// create subscription that should cover both the author and reader filter code branches
@@ -883,7 +883,7 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 	l1 := &Librarian{
 		rqv:    &neverRequestVerifier{},
 		rt:     routing.NewEmpty(selfID.ID(), routing.NewDefaultParameters()),
-		logger: clogging.NewDevInfoLogger(),
+		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	err = l1.Subscribe(rq, from)
 	assert.NotNil(t, err)
@@ -895,7 +895,7 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 	rq2 := client.NewSubscribeRequest(ecid.NewPseudoRandom(rng), sub2)
 	l2 := &Librarian{
 		rqv:    &alwaysRequestVerifier{},
-		logger: clogging.NewDevInfoLogger(),
+		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	err = l2.Subscribe(rq2, from)
 	assert.NotNil(t, err)
@@ -907,7 +907,7 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 	rq3 := client.NewSubscribeRequest(ecid.NewPseudoRandom(rng), sub3)
 	l3 := &Librarian{
 		rqv:    &alwaysRequestVerifier{},
-		logger: clogging.NewDevInfoLogger(),
+		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	err = l3.Subscribe(rq3, from)
 	assert.NotNil(t, err)
@@ -922,7 +922,7 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 			err: subscribe.ErrNotAcceptingNewSubscriptions,
 		},
 		rqv:    &alwaysRequestVerifier{},
-		logger: clogging.NewDevInfoLogger(),
+		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	err = l4.Subscribe(rq4, from)
 	assert.Equal(t, subscribe.ErrNotAcceptingNewSubscriptions, err)
@@ -939,7 +939,7 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 			done: make(chan struct{}),
 		},
 		rqv:    &alwaysRequestVerifier{},
-		logger: clogging.NewDevInfoLogger(),
+		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	from5 := &fixedLibrarianSubscribeServer{
 		err: errors.New("some Subscribe error"),

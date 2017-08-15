@@ -23,14 +23,14 @@ import (
 
 const (
 	// DefaultVerifyInterval is the default amount of time between verify operations.
-	DefaultVerifyInterval = 250 * time.Millisecond
+	DefaultVerifyInterval = 10 * time.Second
 
 	// DefaultReplicateConcurrency is the default number of replicator routines.
 	DefaultReplicateConcurrency = uint(1)
 
 	// DefaultMaxErrRate is the default maximum allowed error rate for verify & store requests
 	// before a fatal error is thrown.
-	DefaultMaxErrRate = 0.1
+	DefaultMaxErrRate = 0.25
 
 	// macKeySize is the size of the MAC key used for verify operations.
 	macKeySize = 32
@@ -41,6 +41,14 @@ const (
 	// underreplicatedQueueSize is the size of the queue of under-replicated documents to be
 	// replicated
 	underreplicatedQueueSize = 32
+
+	// stopCleanupWaitTime is the amount of time to wait after closing the done channel for
+	// the DB iterator to finish
+	stopCleanupWaitTime = 1 * time.Second
+
+	// logger keys
+	logVerify = "verify"
+	logStore  = "store"
 )
 
 var (
@@ -130,12 +138,20 @@ func NewReplicator(
 	rng *rand.Rand,
 	logger *zap.Logger,
 ) Replicator {
+	metricsSL := &metricsSLImpl{serverSL}
+
+	// init metrics from stored value, if it exists
+	metrics, err := metricsSL.Load()
+	if err != nil {
+		// if missing or other error, init new metrics
+		metrics = &Metrics{}
+	}
 	return &replicator{
 		selfID:           selfID,
 		rt:               rt,
-		metrics:          &Metrics{},
+		metrics:          metrics,
 		docS:             docS,
-		metricsSL:        &metricsSLImpl{serverSL},
+		metricsSL:        metricsSL,
 		verifier:         verifier,
 		storer:           storer,
 		replicatorParams: replicatorParams,
@@ -182,6 +198,7 @@ func (r *replicator) Stop() {
 	case <-r.done: // already closed
 	default:
 		close(r.done)
+		time.Sleep(stopCleanupWaitTime)
 	}
 	r.wrapLock(func() {
 		close(r.errs)
@@ -197,6 +214,10 @@ func (r *replicator) Metrics() *Metrics {
 
 func (r *replicator) verify() {
 	for {
+		if r.docS.Metrics().NDocuments == 0 {
+			time.Sleep(r.replicatorParams.VerifyInterval)
+			continue
+		}
 		if err := r.docS.Iterate(r.done, r.verifyValue); err != nil {
 			r.fatal <- err
 		}
@@ -224,27 +245,36 @@ func (r *replicator) verifyValue(key id.ID, value []byte) {
 	cerrors.MaybePanic(err) // should never happen
 
 	v := verify.NewVerify(r.selfID, key, value, macKey, r.verifyParams)
-	seeds := r.rt.Peak(key, r.verifyParams.Concurrency)
+	seeds := r.rt.Peak(key, r.verifyParams.NClosestResponses)
 	err = r.verifier.Verify(v, seeds)
-	if err != nil {
+
+	if err != nil { // implies v.Errored()
+		r.logger.Debug("document verification errored", zap.Object(logVerify, v))
 		r.wrapLock(func() { r.errs <- err })
 		return
 	}
 	if v.Exhausted() {
+		r.logger.Debug("verify exhausted peers", zap.Object(logVerify, v))
 		r.wrapLock(func() { r.errs <- errVerifyExhausted })
 		return
 	}
-	if v.UnderReplicated() {
-		// if we're under-replicated, add to replication queue
+
+	if v.FullyReplicated() {
+		r.logger.Debug("document fully-replicated", zap.Object(logVerify, v))
+	} else if v.UnderReplicated() {
 		r.wrapLock(func() {
-			r.underreplicated <- v
 			r.metrics.NUnderreplicated++
+			r.underreplicated <- v
 		})
+		r.logger.Info("document under-replicated", zap.Object(logVerify, v))
 	}
 	r.wrapLock(func() {
 		r.metrics.NVerified++
 		r.errs <- nil
 	})
+	for _, p := range v.Result.Closest.Peers() {
+		r.rt.Push(p)
+	}
 }
 
 func (r *replicator) replicate(wg *sync.WaitGroup) {
@@ -259,6 +289,7 @@ func (r *replicator) replicate(wg *sync.WaitGroup) {
 		}
 		if s.Stored() {
 			r.wrapLock(func() { r.metrics.NReplicated++ })
+			r.logger.Info("stored additional document replicas", zap.Object(logStore, s))
 		}
 		// for all other non-Stored outcomes for the store, we basically give up and hope to
 		// replicate on next pass
@@ -282,6 +313,8 @@ func newStore(selfID ecid.ID, v *verify.Verify, storeParams store.Parameters) *s
 
 	// update number of replicas to store to be just enough to get back to full replication
 	storeParams.NReplicas = v.Params.NReplicas - uint(len(v.Result.Replicas))
+	s.Search.Params.NMaxErrors = v.Params.NMaxErrors
+	s.Search.Params.NClosestResponses = storeParams.NReplicas + s.Search.Params.NMaxErrors
 
 	// construct minimal search result from verify
 	s.Search.Params.NMaxErrors = v.Params.NMaxErrors

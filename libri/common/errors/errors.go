@@ -6,8 +6,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// ErrTooManyErrs indicates when too many subscription errors have occurred.
-var ErrTooManyErrs = errors.New("too many subscription errors")
+// ErrTooManyErrs indicates when too many errors have occurred.
+var ErrTooManyErrs = errors.New("too many errors")
 
 // MaybePanic panics if the argument is not nil. It is useful for wrapping error-only return
 // functions known to only return nil values.

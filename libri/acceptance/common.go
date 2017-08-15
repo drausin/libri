@@ -21,6 +21,7 @@ import (
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/common/subscribe"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/client"
 	lclient "github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
@@ -79,6 +80,7 @@ type testClient struct {
 	selfID  ecid.ID
 	selfAPI *api.PeerAddress
 	signer  lclient.Signer
+	rt      routing.Table
 	logger  *zap.Logger
 }
 
@@ -139,9 +141,10 @@ func setUp(params *params) *state {
 	publicAddr := peer.NewTestPublicAddr(params.nSeeds + params.nPeers + 1)
 	selfPeer := peer.New(selfID.ID(), "test client", peer.NewConnector(publicAddr))
 	signer := lclient.NewSigner(selfID.Key())
-	client := &testClient{
+	clientImpl := &testClient{
 		selfID:  selfID,
 		selfAPI: selfPeer.ToAPI(),
+		rt:      routing.NewEmpty(selfID.ID(), routing.NewDefaultParameters()),
 		signer:  signer,
 		logger:  logger,
 	}
@@ -175,7 +178,7 @@ func setUp(params *params) *state {
 
 	return &state{
 		rng:          rng,
-		client:       client,
+		client:       clientImpl,
 		seedConfigs:  seedConfigs,
 		peerConfigs:  peerConfigs,
 		seeds:        seeds,
@@ -401,4 +404,12 @@ func benchmarkName(name string, n int) string {
 		return fmt.Sprintf("Benchmark%s-%d", name, n)
 	}
 	return name
+}
+
+func getLibrarians(peerConfigs []*server.Config) (client.Balancer, error) {
+	librarianAddrs := make([]*net.TCPAddr, len(peerConfigs))
+	for i, peerConfig := range peerConfigs {
+		librarianAddrs[i] = peerConfig.PublicAddr
+	}
+	return client.NewUniformBalancer(librarianAddrs)
 }

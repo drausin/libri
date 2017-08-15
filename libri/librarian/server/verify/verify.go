@@ -84,7 +84,7 @@ func (p *Parameters) MarshalLogObject(oe zapcore.ObjectEncoder) error {
 // Result holds verify's (intermediate) result during and after execution.
 type Result struct {
 	// Replicas gives the peers with verified replicas.
-	Replicas []peer.Peer
+	Replicas map[string]peer.Peer
 
 	// Closest is a heap of the responding peers without a replica found closest to the key
 	Closest search.FarthestPeers
@@ -105,7 +105,7 @@ type Result struct {
 // NewInitialResult creates a new Result object for the beginning of a search.
 func NewInitialResult(key id.ID, params *Parameters) *Result {
 	return &Result{
-		Replicas:  make([]peer.Peer, 0),
+		Replicas:  make(map[string]peer.Peer),
 		Closest:   search.NewFarthestPeers(key, params.NClosestResponses),
 		Unqueried: search.NewClosestPeers(key, params.NClosestResponses*params.Concurrency),
 		Responded: make(map[string]peer.Peer),
@@ -115,6 +115,7 @@ func NewInitialResult(key id.ID, params *Parameters) *Result {
 
 // MarshalLogObject converts the Result into an object (which will become json) for logging.
 func (r *Result) MarshalLogObject(oe zapcore.ObjectEncoder) error {
+	oe.AddInt(logNReplicas, len(r.Replicas))
 	oe.AddInt(logNClosest, r.Closest.Len())
 	oe.AddInt(logNUnqueried, r.Unqueried.Len())
 	oe.AddInt(logNResponded, len(r.Responded))
@@ -183,6 +184,11 @@ func (v *Verify) MarshalLogObject(oe zapcore.ObjectEncoder) error {
 	return nil
 }
 
+// FullyReplicated returns whether sufficient replicas were found.
+func (v *Verify) FullyReplicated() bool {
+	return uint(len(v.Result.Replicas)) >= v.Params.NReplicas
+}
+
 // UnderReplicated returns whether some (or no) replicas but all the closest peers were found.
 func (v *Verify) UnderReplicated() bool {
 	if v.FullyReplicated() {
@@ -191,21 +197,18 @@ func (v *Verify) UnderReplicated() bool {
 		return false
 	}
 
+	nResponses := uint(len(v.Result.Replicas) + v.Result.Closest.Len())
 	if v.Result.Unqueried.Len() == 0 {
-		// if we have no unqueried peers, just make sure closest peers heap is full
-		return uint(v.Result.Closest.Len()) >= v.Params.NClosestResponses
+		// if we have no unqueried peers, just make sure replicas + closest peers should be
+		// greater or equal to desired number of closest responses
+		return nResponses >= v.Params.NClosestResponses
 	}
 
 	// number of replicas + closest peers should be greater or equal to desired number of closest
 	// responses, and the max closest peers distance should be smaller than the min unqueried peers
 	// distance
-	return uint(len(v.Result.Replicas)+v.Result.Closest.Len()) >= v.Params.NClosestResponses &&
+	return nResponses >= v.Params.NClosestResponses &&
 		v.Result.Closest.PeakDistance().Cmp(v.Result.Unqueried.PeakDistance()) <= 0
-}
-
-// FullyReplicated returns whether sufficient replicas were found.
-func (v *Verify) FullyReplicated() bool {
-	return uint(len(v.Result.Replicas)) >= v.Params.NReplicas
 }
 
 // Errored returns whether the verify has encountered too many errors when querying the peers.
@@ -215,7 +218,7 @@ func (v *Verify) Errored() bool {
 
 // Exhausted returns whether the verify has exhausted all unqueried peers close to the key.
 func (v *Verify) Exhausted() bool {
-	return v.Result.Unqueried.Len() == 0
+	return !v.FullyReplicated() && !v.UnderReplicated() && v.Result.Unqueried.Len() == 0
 }
 
 // Finished returns whether the search has finished, either because it has found the target or

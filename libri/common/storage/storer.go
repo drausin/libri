@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"bytes"
+
 	"github.com/drausin/libri/libri/common/db"
 )
 
@@ -81,6 +83,11 @@ func (sld *kvdbSLD) Iterate(
 ) error {
 	lb, ub := namespaceKey(sld.ns, keyLB), namespaceKey(sld.ns, keyUB)
 	return sld.db.Iterate(lb, ub, done, func(nsKey, value []byte) {
+		if !bytes.HasPrefix(nsKey, sld.ns) {
+			// sometimes this occasionally happens when the DB is basically empty; not totally
+			// sure why
+			return
+		}
 		key := nsKey[len(sld.ns):]
 		callback(key, value)
 	})

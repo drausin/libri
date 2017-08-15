@@ -179,7 +179,11 @@ func (s *Store) MarshalLogObject(oe zapcore.ObjectEncoder) error {
 	if s.Result != nil {
 		oe.AddBool(logFinished, s.Finished())
 		oe.AddBool(logStored, s.Stored())
-		oe.AddBool(logExists, s.Exists())
+		if s.Result.Search != nil {
+			// very occasionally Search is nil for some reason can't yet determine; this prevents
+			// nil panic
+			oe.AddBool(logExists, s.Exists())
+		}
 		oe.AddBool(logErrored, s.Errored())
 		oe.AddBool(logExhausted, s.Exhausted())
 	}

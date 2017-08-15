@@ -108,7 +108,7 @@ func TestSingleStoreAcquirer_Acquire_err(t *testing.T) {
 	storer := storage.NewTestDocSLD()
 	storer.StoreErr = errors.New("some Store error")
 	acq2 := NewSingleStoreAcquirer(
-		&fixedAcquirer{},
+		&fixedAcquirer{doc: doc},
 		storer,
 	)
 	err = acq2.Acquire(docKey, authorPub, lc)

@@ -23,9 +23,7 @@ func TestEntryPacker_Pack_ok(t *testing.T) {
 	params := print.NewDefaultParameters()
 	page.MinSize = 64 // just for testing
 	params.PageSize = 128
-	docSL := &storage.TestDocSLD{
-		Stored: make(map[string]*api.Document),
-	}
+	docSL := storage.NewTestDocSLD()
 	p := NewEntryPacker(params, enc.NewMetadataEncrypterDecrypter(), docSL)
 	authorPub := api.RandBytes(rng, 65)
 	keys := enc.NewPseudoRandomEEK(rng)
@@ -184,9 +182,7 @@ func TestEntryPackUnpack(t *testing.T) {
 	for _, c := range cases {
 		content1 := common.NewCompressableBytes(rng, c.uncompressedSize)
 		content1Bytes := content1.Bytes()
-		docSL := &storage.TestDocSLD{
-			Stored: make(map[string]*api.Document),
-		}
+		docSL := &storage.NewTestDocSLD()
 		packParams, err := print.NewParameters(comp.MinBufferSize, c.pageSize,
 			c.packParallelism)
 		assert.Nil(t, err)

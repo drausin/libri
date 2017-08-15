@@ -121,9 +121,7 @@ func TestPublisher_Publish_err(t *testing.T) {
 func TestSingleLoadPublisher_Publish_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	pub := &fixedPublisher{}
-	docLD := &storage.TestDocSLD{
-		Stored: make(map[string]*api.Document),
-	}
+	docLD := storage.NewTestDocSLD()
 	lc := &fixedPutter{}
 	slPub := NewSingleLoadPublisher(pub, docLD)
 	doc1, docKey := api.NewTestDocument(rng)
@@ -261,16 +259,12 @@ func TestMultiAcquirePublish(t *testing.T) {
 		pubAcq := &memPublisherAcquirer{
 			docs: make(map[string]*api.Document),
 		}
-		docSL1 := &storage.TestDocSLD{
-			Stored: make(map[string]*api.Document),
-		}
+		docSL1 := storage.NewTestDocSLD()
 		mlP := NewMultiLoadPublisher(
 			NewSingleLoadPublisher(pubAcq, docSL1),
 			params,
 		)
-		docSL2 := &storage.TestDocSLD{
-			Stored: make(map[string]*api.Document),
-		}
+		docSL2 := storage.NewTestDocSLD()
 		msA := NewMultiStoreAcquirer(
 			NewSingleStoreAcquirer(pubAcq, docSL2),
 			params,

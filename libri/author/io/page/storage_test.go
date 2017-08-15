@@ -13,11 +13,7 @@ import (
 )
 
 func TestStorerLoader_Store_ok(t *testing.T) {
-	sl := NewStorerLoader(
-		&storage.TestDocSLD{
-			Stored: make(map[string]*api.Document),
-		},
-	)
+	sl := NewStorerLoader(storage.NewTestDocSLD())
 	rng := rand.New(rand.NewSource(0))
 	nPages := 4
 	pages := make(chan *api.Page, nPages)
@@ -128,11 +124,7 @@ func TestStorerLoader_Load_err(t *testing.T) {
 }
 
 func TestStorerLoader_StoreLoad(t *testing.T) {
-	sl := NewStorerLoader(
-		&storage.TestDocSLD{
-			Stored: make(map[string]*api.Document),
-		},
-	)
+	sl := NewStorerLoader(storage.NewTestDocSLD())
 	rng := rand.New(rand.NewSource(0))
 	nPages := 4
 	originalPages := make([]*api.Page, nPages)

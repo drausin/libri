@@ -76,11 +76,15 @@ func TestReplicator_StartStop(t *testing.T) {
 	for c := uint(0); c < verifyParams.NClosestResponses; c++ {
 		heap.Push(closest, heap.Pop(unqueried).(peer.Peer))
 	}
+	replicas := make(map[string]peer.Peer)
+	for _, p := range peer.NewTestPeers(rng, int(verifyParams.NReplicas-1)) {
+		replicas[p.ID().String()] = p
+	}
 
 	// verifier result is always under-replicated
 	verifier := &fixedVerifier{
 		result: &verify.Result{
-			Replicas:  peer.NewTestPeers(rng, int(verifyParams.NReplicas-1)),
+			Replicas:  replicas,
 			Unqueried: unqueried,
 			Closest:   closest,
 		},
@@ -167,6 +171,7 @@ func TestReplicator_verify(t *testing.T) {
 		done:             make(chan struct{}),
 		fatal:            make(chan error, 1),
 		rt:               rt,
+		logger:           zap.NewNop(), // server.NewDevLogger(zap.DebugLevel),
 	}
 
 	// add some docs
@@ -176,16 +181,22 @@ func TestReplicator_verify(t *testing.T) {
 		err := r.docS.Store(key, value)
 		assert.Nil(t, err)
 	}
+	assert.Equal(t, uint64(nDocs), r.docS.Metrics().NDocuments)
 
 	// verifier always returns results where FullyReplicated() == true
 	key := id.NewPseudoRandom(rng) // arbitrary, but just need something
 	unqueried := search.NewClosestPeers(key, 10)
 	err := unqueried.SafePushMany(peer.NewTestPeers(rng, 10))
 	assert.Nil(t, err)
+	replicas := make(map[string]peer.Peer)
+	for _, p := range peer.NewTestPeers(rng, int(r.verifyParams.NReplicas)) {
+		replicas[p.ID().String()] = p
+	}
 	r.verifier = &fixedVerifier{
 		result: &verify.Result{
 			Unqueried: unqueried,
-			Replicas:  peer.NewTestPeers(rng, int(r.verifyParams.NReplicas)),
+			Replicas:  replicas,
+			Closest:   search.NewFarthestPeers(key, r.verifyParams.NClosestResponses),
 		},
 	}
 
@@ -248,6 +259,7 @@ func TestReplicator_verifyValue(t *testing.T) {
 		underreplicated:  make(chan *verify.Verify, 1),
 		errs:             make(chan error, 1),
 		rt:               rt,
+		logger:           zap.NewNop(), // server.NewDevLogger(zap.DebugLevel),
 	}
 	unqueried := search.NewClosestPeers(key, 10)
 	err = unqueried.SafePushMany(peer.NewTestPeers(rng, 10))
@@ -255,10 +267,15 @@ func TestReplicator_verifyValue(t *testing.T) {
 
 	// check that when a verify operation has FullyReplicated() == true, only a nil error is
 	// sent to errs
+	replicas := make(map[string]peer.Peer)
+	for _, p := range peer.NewTestPeers(rng, int(r.verifyParams.NReplicas)) {
+		replicas[p.ID().String()] = p
+	}
 	r.verifier = &fixedVerifier{
 		result: &verify.Result{
-			Replicas:  peer.NewTestPeers(rng, int(r.verifyParams.NReplicas)),
+			Replicas:  replicas,
 			Unqueried: unqueried,
+			Closest:   search.NewFarthestPeers(key, r.verifyParams.NClosestResponses),
 		},
 	}
 	r.verifyValue(key, valueBytes)
@@ -278,9 +295,13 @@ func TestReplicator_verifyValue(t *testing.T) {
 	for c := uint(0); c < r.verifyParams.NClosestResponses; c++ {
 		heap.Push(closest, heap.Pop(unqueried).(peer.Peer))
 	}
+	replicas = make(map[string]peer.Peer)
+	for _, p := range peer.NewTestPeers(rng, int(r.verifyParams.NReplicas-1)) {
+		replicas[p.ID().String()] = p
+	}
 	r.verifier = &fixedVerifier{
 		result: &verify.Result{
-			Replicas:  peer.NewTestPeers(rng, int(r.verifyParams.NReplicas-1)),
+			Replicas:  replicas,
 			Unqueried: unqueried,
 			Closest:   closest,
 		},
@@ -299,9 +320,9 @@ func TestReplicator_verifyValue(t *testing.T) {
 	}
 	r.verifier = &fixedVerifier{
 		result: &verify.Result{
-			Replicas:  peer.NewTestPeers(rng, int(r.verifyParams.NReplicas-1)),
+			Replicas:  make(map[string]peer.Peer),
 			Unqueried: unqueried,
-			Closest:   closest,
+			Closest:   search.NewFarthestPeers(key, r.verifyParams.NClosestResponses),
 		},
 	}
 	r.verifyValue(key, valueBytes)
@@ -316,7 +337,10 @@ func TestReplicator_verifyValue(t *testing.T) {
 	}
 
 	// check that when verify errors, we can an error
-	r.verifier = &fixedVerifier{err: errors.New("some Verify error")}
+	r.verifier = &fixedVerifier{
+		err:    errors.New("some Verify error"),
+		result: verify.NewInitialResult(key, verify.NewDefaultParameters()),
+	}
 	r.verifyValue(key, valueBytes)
 	err = <-r.errs
 	assert.NotNil(t, err)
@@ -353,6 +377,7 @@ func TestReplicator_replicate(t *testing.T) {
 		storeParams:     store.NewDefaultParameters(),
 		underreplicated: make(chan *verify.Verify, 1),
 		errs:            make(chan error, 1),
+		logger:          zap.NewNop(), // server.NewDevLogger(zap.DebugLevel),
 	}
 
 	// start verification routine
@@ -413,14 +438,18 @@ func TestNewStore(t *testing.T) {
 	v := verify.NewVerify(selfID, key, value, macKey, verifyParams)
 
 	// under-replicated by one
-	err = v.Result.Closest.SafePushMany(peer.NewTestPeers(rng, int(verifyParams.NClosestResponses)))
-	assert.Nil(t, err)
-	v.Result.Replicas = v.Result.Closest.Peers()[:int(verifyParams.NReplicas)-1]
+	responded := peer.NewTestPeers(rng, int(verifyParams.NClosestResponses))
+	for _, p := range responded[:verifyParams.NReplicas-1] {
+		v.Result.Replicas[p.ID().String()] = p
+	}
+	v.Result.Closest.SafePushMany(responded[verifyParams.NReplicas-1:])
 	assert.True(t, v.UnderReplicated())
+	assert.False(t, v.FullyReplicated())
 
 	s := newStore(selfID, v, *store.NewDefaultParameters())
 	assert.Equal(t, verifyParams.NMaxErrors, s.Search.Params.NMaxErrors)
 	assert.Equal(t, uint(1), s.Params.NReplicas)
+	assert.Equal(t, uint(4), s.Search.Params.NClosestResponses)
 	assert.Equal(t, v.Result.Closest, s.Search.Result.Closest)
 	assert.Equal(t, v.Result.Unqueried, s.Search.Result.Unqueried)
 	assert.Equal(t, v.Result.Responded, s.Search.Result.Responded)
