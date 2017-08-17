@@ -162,9 +162,9 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 	// handle stop signal
 	go func() {
 		<-l.stop
-		l.logger.Info("gracefully stopping server", zap.Int(LoggerPortKey,
-			l.config.LocalAddr.Port))
+		l.logger.Info("gracefully stopping server", zap.Int(LoggerPortKey, l.config.LocalAddr.Port))
 		s.GracefulStop()
+		close(l.stopped)
 	}()
 
 	// handle stop stopSignals from outside world
@@ -221,17 +221,15 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 	return nil
 }
 
-// EndSubscriptions ends subscriptions to other peers.
-func (l *Librarian) EndSubscriptions() {
+// StopAuxRoutines ends the replicator and subscriptions auxiliary routines.
+func (l *Librarian) StopAuxRoutines() {
+	l.replicator.Stop()
 	l.subscribeTo.End()
 }
 
 // Close handles cleanup involved in closing down the server.
 func (l *Librarian) Close() error {
-
-	l.replicator.Stop()
-
-	l.EndSubscriptions()
+	l.StopAuxRoutines()
 
 	// send stop signal to listener
 	select {
@@ -260,6 +258,9 @@ func (l *Librarian) Close() error {
 	if err := l.rt.Save(l.serverSL); err != nil {
 		return err
 	}
+
+	// wait for server to stop
+	<- l.stopped
 
 	// close the DB
 	l.db.Close()

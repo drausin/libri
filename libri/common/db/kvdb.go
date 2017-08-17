@@ -108,14 +108,14 @@ func (db *RocksDB) Iterate(
 
 	iter.Seek(keyLB)
 	for ; iter.Valid(); iter.Next() {
+		callback(iter.Key().Data(), iter.Value().Data())
 		select {
 		case <-done:
-			break
+			return iter.Err()
 		default:
-			callback(iter.Key().Data(), iter.Value().Data())
+			// continue
 		}
 	}
-
 	return iter.Err()
 }
 

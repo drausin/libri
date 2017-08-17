@@ -110,12 +110,18 @@ func TestRocksDB_Iterate(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 2, nIters)
 
-	// iterate through none
+	// iterate through single value and send done signal
 	nIters = 0
-	lb, ub = []byte("key0"), []byte("key9")
 	done := make(chan struct{})
-	close(done)
+	callback = func(key, value []byte) {
+		nIters++
+		expected, in := vals[string(key)]
+		assert.True(t, in)
+		assert.Equal(t, expected, value)
+		close(done)
+	}
+	lb, ub = []byte("key0"), []byte("key9")
 	err = db.Iterate(lb, ub, done, callback)
 	assert.Nil(t, err)
-	assert.Equal(t, 0, nIters)
+	assert.Equal(t, 1, nIters)
 }

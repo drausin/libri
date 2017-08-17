@@ -19,18 +19,23 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"github.com/cenkalti/backoff"
+	"github.com/drausin/libri/libri/librarian/client"
 )
 
 const (
 	// DefaultVerifyInterval is the default amount of time between verify operations.
-	DefaultVerifyInterval = 10 * time.Second
+	DefaultVerifyInterval = 30 * time.Second
 
 	// DefaultReplicateConcurrency is the default number of replicator routines.
 	DefaultReplicateConcurrency = uint(1)
 
+	// DefaultVerifyTimeout is the default timeout for the replicator's verify retries.
+	DefaultVerifyTimeout = 10 * time.Second
+
 	// DefaultMaxErrRate is the default maximum allowed error rate for verify & store requests
 	// before a fatal error is thrown.
-	DefaultMaxErrRate = 0.25
+	DefaultMaxErrRate = 0.5
 
 	// macKeySize is the size of the MAC key used for verify operations.
 	macKeySize = 32
@@ -41,10 +46,6 @@ const (
 	// underreplicatedQueueSize is the size of the queue of under-replicated documents to be
 	// replicated
 	underreplicatedQueueSize = 32
-
-	// stopCleanupWaitTime is the amount of time to wait after closing the done channel for
-	// the DB iterator to finish
-	stopCleanupWaitTime = 1 * time.Second
 
 	// logger keys
 	logVerify = "verify"
@@ -61,6 +62,7 @@ var (
 type Parameters struct {
 	VerifyInterval       time.Duration
 	ReplicateConcurrency uint
+	VerifyTimeout        time.Duration
 	MaxErrRate           float32
 }
 
@@ -69,6 +71,7 @@ func NewDefaultParameters() *Parameters {
 	return &Parameters{
 		VerifyInterval:       DefaultVerifyInterval,
 		ReplicateConcurrency: DefaultReplicateConcurrency,
+		VerifyTimeout:        DefaultVerifyTimeout,
 		MaxErrRate:           DefaultMaxErrRate,
 	}
 }
@@ -116,7 +119,8 @@ type replicator struct {
 	verifyParams     *verify.Parameters
 	storeParams      *store.Parameters
 	underreplicated  chan *verify.Verify
-	done             chan struct{}
+	stop             chan struct{}
+	stopped          chan struct{}
 	errs             chan error
 	fatal            chan error
 	logger           *zap.Logger
@@ -159,7 +163,8 @@ func NewReplicator(
 		storeParams:      storeParams,
 		underreplicated:  make(chan *verify.Verify, underreplicatedQueueSize),
 		errs:             make(chan error, errQueueSize),
-		done:             make(chan struct{}),
+		stop:             make(chan struct{}),
+		stopped:          make(chan struct{}),
 		fatal:            make(chan error, 1),
 		rng:              rng,
 		logger:           logger,
@@ -194,16 +199,14 @@ func (r *replicator) Start() error {
 }
 
 func (r *replicator) Stop() {
-	select {
-	case <-r.done: // already closed
-	default:
-		close(r.done)
-		time.Sleep(stopCleanupWaitTime)
-	}
+	r.logger.Info("ending replicator")
+	safeClose(r.stop)
 	r.wrapLock(func() {
-		close(r.errs)
-		close(r.underreplicated)
+		safeCloseErrChan(r.errs)
+		safeCloseVerifyChan(r.underreplicated)
 	})
+	<-r.stopped
+	r.logger.Debug("ended replicator")
 }
 
 func (r *replicator) Metrics() *Metrics {
@@ -215,23 +218,32 @@ func (r *replicator) Metrics() *Metrics {
 func (r *replicator) verify() {
 	for {
 		if r.docS.Metrics().NDocuments == 0 {
-			time.Sleep(r.replicatorParams.VerifyInterval)
-			continue
-		}
-		if err := r.docS.Iterate(r.done, r.verifyValue); err != nil {
-			r.fatal <- err
-		}
-		r.wrapLock(func() {
-			r.metrics.LatestPass = time.Now().Unix()
-			if err := r.metricsSL.Store(r.metrics.clone()); err != nil {
+			pause := make(chan struct{})
+			go func() {
+				intervalMaxMs := int32(r.replicatorParams.VerifyInterval / time.Millisecond)
+				waitMs := time.Duration(r.rng.Int31n(intervalMaxMs))
+				time.Sleep(waitMs * time.Millisecond)
+				close(pause)
+			}()
+			select {
+			case <-r.stop:
+			case <-pause:
+			}
+		} else {
+			if err := r.docS.Iterate(r.stop, r.verifyValue); err != nil {
 				r.fatal <- err
 			}
-		})
+			r.wrapLock(func() {
+				r.metrics.LatestPass = time.Now().Unix()
+				if err := r.metricsSL.Store(r.metrics.clone()); err != nil {
+					r.fatal <- err
+				}
+			})
+		}
 		select {
-		case <-r.fatal:
-			return // exit if we've received a fatal error
-		case <-r.done:
-			return // exit if we're done
+		case <-r.stop: // exit if we've received stop signal
+			close(r.stopped)
+			return
 		default:
 			// otherwise, do another pass
 		}
@@ -239,23 +251,32 @@ func (r *replicator) verify() {
 }
 
 func (r *replicator) verifyValue(key id.ID, value []byte) {
-	defer time.Sleep(r.replicatorParams.VerifyInterval)
+	pause := make(chan struct{})
+	go func() {
+		time.Sleep(r.replicatorParams.VerifyInterval)
+		close(pause)
+	}()
 	macKey := make([]byte, macKeySize)
 	_, err := crand.Read(macKey)
 	cerrors.MaybePanic(err) // should never happen
 
 	v := verify.NewVerify(r.selfID, key, value, macKey, r.verifyParams)
 	seeds := r.rt.Peak(key, r.verifyParams.NClosestResponses)
-	err = r.verifier.Verify(v, seeds)
+
+	operation := func() error {
+		v.Result = verify.NewInitialResult(key, r.verifyParams)
+		return r.verifier.Verify(v, seeds)
+	}
+	err = backoff.Retry(operation, client.NewExpBackoff(r.replicatorParams.VerifyTimeout))
 
 	if err != nil { // implies v.Errored()
 		r.logger.Debug("document verification errored", zap.Object(logVerify, v))
-		r.wrapLock(func() { r.errs <- err })
+		r.wrapLock(func() { maybeSendErrChan(r.errs, err) })
 		return
 	}
 	if v.Exhausted() {
 		r.logger.Debug("verify exhausted peers", zap.Object(logVerify, v))
-		r.wrapLock(func() { r.errs <- errVerifyExhausted })
+		r.wrapLock(func() { maybeSendErrChan(r.errs, errVerifyExhausted) })
 		return
 	}
 
@@ -264,16 +285,20 @@ func (r *replicator) verifyValue(key id.ID, value []byte) {
 	} else if v.UnderReplicated() {
 		r.wrapLock(func() {
 			r.metrics.NUnderreplicated++
-			r.underreplicated <- v
+			maybeSendVerifyChan(r.underreplicated, v)
 		})
 		r.logger.Info("document under-replicated", zap.Object(logVerify, v))
 	}
 	r.wrapLock(func() {
 		r.metrics.NVerified++
-		r.errs <- nil
+		maybeSendErrChan(r.errs, nil)
 	})
 	for _, p := range v.Result.Closest.Peers() {
 		r.rt.Push(p)
+	}
+	select {
+	case <-r.stop:
+	case <-pause:
 	}
 }
 
@@ -366,4 +391,44 @@ func (sl *metricsSLImpl) Load() (*Metrics, error) {
 		NUnderreplicated: stored.NUnderreplicated,
 		LatestPass:       stored.LatestPass,
 	}, nil
+}
+
+func safeClose(ch chan struct{}) {
+	select {
+	case <-ch: // already closed
+	default:
+		close(ch)
+	}
+}
+
+func safeCloseErrChan(ch chan error) {
+	select {
+	case <-ch: // already closed
+	default:
+		close(ch)
+	}
+}
+
+func maybeSendErrChan(ch chan error, err error) {
+	select {
+	case <-ch: // already closed
+	default:
+		ch <- err
+	}
+}
+
+func maybeSendVerifyChan(ch chan *verify.Verify, v *verify.Verify) {
+	select {
+	case <-ch: // already closed
+	default:
+		ch <- v
+	}
+}
+
+func safeCloseVerifyChan(ch chan *verify.Verify) {
+	select {
+	case <-ch: // already closed
+	default:
+		close(ch)
+	}
 }

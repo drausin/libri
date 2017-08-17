@@ -23,7 +23,7 @@ const (
 	DefaultNMaxErrors = uint(3)
 
 	// DefaultConcurrency is the number of parallel store workers.
-	DefaultConcurrency = uint(3)
+	DefaultConcurrency = uint(1)
 
 	// DefaultQueryTimeout is the timeout for each query to a peer.
 	DefaultQueryTimeout = 10 * time.Second

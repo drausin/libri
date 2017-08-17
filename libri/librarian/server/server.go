@@ -99,6 +99,9 @@ type Librarian struct {
 
 	// receives graceful stop signal
 	stop chan struct{}
+
+	// closed when server is stopped
+	stopped chan struct{}
 }
 
 const (
@@ -157,7 +160,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		verify.NewDefaultParameters(),
 		config.Store,
 		rng,
-		logger,
+		selfLogger,
 	)
 
 	return &Librarian{
@@ -184,6 +187,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		health:        health.NewServer(),
 		metrics:       metrics,
 		stop:          make(chan struct{}),
+		stopped:       make(chan struct{}),
 	}, nil
 }
 

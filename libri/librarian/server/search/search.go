@@ -16,7 +16,7 @@ import (
 
 const (
 	// DefaultNClosestResponses is the default number of peers to find closest to the key.
-	DefaultNClosestResponses = uint(3)
+	DefaultNClosestResponses = uint(6)
 
 	// DefaultNMaxErrors is the default maximum number of errors tolerated during a search.
 	DefaultNMaxErrors = uint(3)

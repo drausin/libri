@@ -8,7 +8,6 @@ import (
 	"runtime"
 	"testing"
 	"time"
-
 	"crypto/rand"
 
 	"github.com/drausin/libri/libri/author/io/common"
@@ -24,6 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"github.com/drausin/libri/libri/librarian/server"
 )
 
 const (
@@ -33,6 +33,7 @@ const (
 	introduceName = "Introduce"
 	putName       = "Put"
 	getName       = "Get"
+	verifyName    = "Verify"
 )
 
 var grpcLogNoise = []string{
@@ -92,7 +93,7 @@ func TestLibrarianCluster(t *testing.T) {
 	// share the uploaded docs with other author and download
 	testShare(t, params, state)
 
-	//testReplicate(t, params, state)
+	testReplicate(t, params, state)
 
 	tearDown(state)
 
@@ -313,23 +314,60 @@ func testShare(t *testing.T, _ *params, state *state) {
 	}
 }
 
-func testReplicate(t *testing.T, params *params, state *state) {
+func testReplicate(t *testing.T, _ *params, state *state) {
 
 	// take n peers out of the network
+	toRemove := state.peers[:8]
+	state.peers = state.peers[8:]
+	for _, p1 := range toRemove {
+		go func(p2 *server.Librarian) {
+			// explicitly end subscriptions first and then sleep so that later librarians
+			// don't crash b/c of flurry of ended subscriptions from earlier librarians
+			p2.StopAuxRoutines()
+			time.Sleep(3 * time.Second)
+			err := p2.Close()
+			assert.Nil(t, err)
+		}(p1)
+	}
+
 	// verify each doc, seeing which are under-replicated
-	// wait a bit
-	// verify each doc again, confirming all fully-replicated
-	// verify that NReplcated on librarians also increased
+	nReplicas2 := countDocReplicas(t, state)
+	nUnderReplicated2 := 0
+	for _, keyNReplicas := range nReplicas2 {
+		if keyNReplicas < int(store.DefaultNReplicas) {
+			nUnderReplicated2++
+		}
+	}
+	assert.True(t, nUnderReplicated2 > 0)
+	state.logger.Info("finished replica audit 1", zap.Int("n_under_replicated", nUnderReplicated2))
+
+	rereplicateWaitSecs := 10
+	state.logger.Info("waiting for re-replication to happen",
+		zap.Int("n_secs", rereplicateWaitSecs),
+	)
+	time.Sleep(time.Duration(rereplicateWaitSecs) * time.Second)
+
+	nReplicas3 := countDocReplicas(t, state)
+	nUnderReplicated3 := 0
+	for _, keyNReplicas := range nReplicas3 {
+		if keyNReplicas < int(store.DefaultNReplicas) {
+			nUnderReplicated3++
+			break
+		}
+	}
+	assert.True(t, nUnderReplicated3 < nUnderReplicated2)
+	state.logger.Info("finished replica audit 2", zap.Int("n_under_replicated", nUnderReplicated3))
 }
 
 func countDocReplicas(t *testing.T, state *state) map[string]int {
+	benchResults := make([]testing.BenchmarkResult, len(state.putDocs))
 	verifier := verify.NewDefaultVerifier(client.NewSigner(state.client.selfID.Key()))
 	verifyParams := verify.NewDefaultParameters()
 	verifyParams.NReplicas++         // since not accounting for self
 	verifyParams.NClosestResponses++ // same
 
 	nReplicas := make(map[string]int)
-	for _, doc := range state.putDocs {
+	for i, doc := range state.putDocs {
 		key, err := api.GetKey(doc)
 		assert.Nil(t, err)
 		macKey := make([]byte, 32)
@@ -338,11 +376,23 @@ func countDocReplicas(t *testing.T, state *state) map[string]int {
 		docBytes, err := proto.Marshal(doc)
 		assert.Nil(t, err)
 
-		seeds := state.client.rt.Peak(key, verifyParams.Concurrency)
+		start := time.Now()
+		seeds := state.client.rt.Peak(key, verifyParams.NClosestResponses)
 		v := verify.NewVerify(state.client.selfID, key, docBytes, macKey, verifyParams)
 		err = verifier.Verify(v, seeds)
-		assert.Nil(t, err)
-		nReplicas[key.String()] = len(v.Result.Replicas)
+		if err == nil {
+			// don't fail if a verification occasionally errors
+			nReplicas[key.String()] = len(v.Result.Replicas)
+		}
+		benchResults[i] = testing.BenchmarkResult{
+			N:     1,
+			T:     time.Now().Sub(start),
+		}
 	}
+	state.benchResults = append(state.benchResults, &benchmarkObs{
+		name:    verifyName,
+		procs:   runtime.NumCPU(),
+		results: benchResults,
+	})
 	return nReplicas
 }

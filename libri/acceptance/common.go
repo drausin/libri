@@ -231,19 +231,16 @@ func tearDown(state *state) {
 	}
 
 	// gracefully shut down peers and seeds
-	for _, p1 := range state.peers {
+	all := append(state.peers, state.seeds...)
+	for _, p1 := range all {
 		go func(p2 *server.Librarian) {
 			// explicitly end subscriptions first and then sleep so that later librarians
 			// don't crash b/c of flurry of ended subscriptions from earlier librarians
-			p2.EndSubscriptions()
+			p2.StopAuxRoutines()
 			time.Sleep(3 * time.Second)
 			err := p2.Close()
 			errors.MaybePanic(err)
 		}(p1)
-	}
-	for _, s := range state.seeds {
-		err := s.Close()
-		errors.MaybePanic(err)
 	}
 
 	// remove data dir shared by all

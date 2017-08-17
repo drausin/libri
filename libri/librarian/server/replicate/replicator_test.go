@@ -168,7 +168,8 @@ func TestReplicator_verify(t *testing.T) {
 		metricsSL:        &metricsSLImpl{inner: innerMetricsSL},
 		underreplicated:  make(chan *verify.Verify, 1),
 		errs:             make(chan error, 8),
-		done:             make(chan struct{}),
+		stop:             make(chan struct{}),
+		stopped:          make(chan struct{}),
 		fatal:            make(chan error, 1),
 		rt:               rt,
 		logger:           zap.NewNop(), // server.NewDevLogger(zap.DebugLevel),
@@ -238,7 +239,7 @@ func TestReplicator_verify(t *testing.T) {
 	assert.Zero(t, m2.NUnderreplicated)
 	assert.Zero(t, m2.NReplicated)
 
-	close(r.done)
+	close(r.stop)
 
 	// wait for verify loop to finish
 	wg.Wait()

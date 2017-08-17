@@ -38,7 +38,7 @@ func (r *retryFinder) Find(ctx context.Context, rq *api.FindRequest, opts ...grp
 		return err
 	}
 
-	backoff := newExpBackoff(r.timeout)
+	backoff := NewExpBackoff(r.timeout)
 	if err := cbackoff.Retry(operation, backoff); err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func (r *retryVerifier) Verify(
 		return err
 	}
 
-	backoff := newExpBackoff(r.timeout)
+	backoff := NewExpBackoff(r.timeout)
 	if err := cbackoff.Retry(operation, backoff); err != nil {
 		return nil, err
 	}
@@ -99,7 +99,7 @@ func (r *retryStorer) Store(ctx context.Context, rq *api.StoreRequest, opts ...g
 		return err
 	}
 
-	backoff := newExpBackoff(r.timeout)
+	backoff := NewExpBackoff(r.timeout)
 	if err := cbackoff.Retry(operation, backoff); err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func (r *retryGetter) Get(ctx context.Context, in *api.GetRequest, opts ...grpc.
 		rp, err = lc.Get(ctx, in, opts...)
 		return err
 	}
-	if err := cbackoff.Retry(operation, newExpBackoff(r.timeout)); err != nil {
+	if err := cbackoff.Retry(operation, NewExpBackoff(r.timeout)); err != nil {
 		return nil, err
 	}
 	return rp, nil
@@ -165,13 +165,13 @@ func (r *retryPutter) Put(ctx context.Context, in *api.PutRequest, opts ...grpc.
 		rp, err = lc.Put(ctx, in, opts...)
 		return err
 	}
-	if err := cbackoff.Retry(operation, newExpBackoff(r.timeout)); err != nil {
+	if err := cbackoff.Retry(operation, NewExpBackoff(r.timeout)); err != nil {
 		return nil, err
 	}
 	return rp, nil
 }
 
-func newExpBackoff(timeout time.Duration) *cbackoff.ExponentialBackOff {
+func NewExpBackoff(timeout time.Duration) *cbackoff.ExponentialBackOff {
 	b := &cbackoff.ExponentialBackOff{
 		InitialInterval:     defaultExpBackoffInitialInterval,
 		RandomizationFactor: defaultExpBackoffRandomizationFactor,

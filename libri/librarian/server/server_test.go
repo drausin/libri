@@ -29,20 +29,29 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/metadata"
+	cerrors "github.com/drausin/libri/libri/common/errors"
 )
 
 // TestNewLibrarian checks that we can create a new instance, close it, and create it again as
 // expected.
 func TestNewLibrarian(t *testing.T) {
 	l1 := newTestLibrarian()
-	go func() { <-l1.stop }() // dummy stop signal acceptor
+	go l1.replicator.Start()
+	go func() {  // dummy stop signal acceptor
+		<-l1.stop
+		close(l1.stopped)
+	}()
 
 	nodeID1 := l1.selfID // should have been generated
 	err := l1.Close()
 	assert.Nil(t, err)
 
-	l2, err := NewLibrarian(l1.config, clogging.NewDevInfoLogger())
-	go func() { <-l2.stop }() // dummy stop signal acceptor
+	l2, err := NewLibrarian(l1.config, zap.NewNop())
+	go l2.replicator.Start()
+	go func() {  // dummy stop signal acceptor
+		<-l2.stop
+		close(l2.stopped)
+	}()
 
 	assert.Nil(t, err)
 	assert.Equal(t, nodeID1, l2.selfID)
@@ -52,10 +61,8 @@ func TestNewLibrarian(t *testing.T) {
 
 func newTestLibrarian() *Librarian {
 	config := newTestConfig()
-	l, err := NewLibrarian(config, clogging.NewDevInfoLogger())
-	if err != nil {
-		panic(err)
-	}
+	l, err := NewLibrarian(config, zap.NewNop())
+	cerrors.MaybePanic(err)
 	return l
 }
 
@@ -126,7 +133,7 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 func TestLibrarian_Introduce_checkRequestErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	l := &Librarian{
-		logger: clogging.NewDevInfoLogger(),
+		logger: zap.NewNop(),  // clogging.NewDevInfoLogger()
 	}
 	rq := &api.IntroduceRequest{
 		Metadata: client.NewRequestMetadata(ecid.NewPseudoRandom(rng)),
@@ -146,7 +153,7 @@ func TestLibrarian_Introduce_peerIDErr(t *testing.T) {
 		fromer: peer.NewFromer(),
 		rt:     rt,
 		rqv:    &alwaysRequestVerifier{},
-		logger: clogging.NewDevInfoLogger(),
+		logger: zap.NewNop(),  // clogging.NewDevInfoLogger()
 	}
 
 	clientID, clientPeerIdx := ecid.NewPseudoRandom(rng), 1
@@ -189,7 +196,7 @@ func TestLibrarian_Find_peers(t *testing.T) {
 				kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 				rt:         rt,
 				rqv:        &alwaysRequestVerifier{},
-				logger:     clogging.NewDevInfoLogger(),
+				logger:     zap.NewNop(),  // clogging.NewDevInfoLogger()
 			}
 
 			numClosest := uint32(routing.DefaultMaxActivePeers)
@@ -245,7 +252,7 @@ func TestLibrarian_Find_value(t *testing.T) {
 		rt:         rt,
 		kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		rqv:        &alwaysRequestVerifier{},
-		logger:     clogging.NewDevInfoLogger(),
+		logger:     zap.NewNop(),  // clogging.NewDevInfoLogger()
 	}
 
 	// create key-value and store
@@ -281,7 +288,7 @@ func TestLibrarian_Find_err(t *testing.T) {
 		// case 0
 		{
 			l: &Librarian{
-				logger: clogging.NewDevInfoLogger(),
+				logger: zap.NewNop(),  // clogging.NewDevInfoLogger()
 				rqv:    NewRequestVerifier(),
 				kc:     storage.NewExactLengthChecker(storage.EntriesKeyLength),
 			},
@@ -295,7 +302,7 @@ func TestLibrarian_Find_err(t *testing.T) {
 		// case 1
 		{
 			l: &Librarian{
-				logger:     clogging.NewDevInfoLogger(),
+				logger:     zap.NewNop(),  // clogging.NewDevInfoLogger()
 				rqv:        &alwaysRequestVerifier{},
 				kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 				documentSL: &storage.TestDocSLD{LoadErr: errors.New("some Load error")},
