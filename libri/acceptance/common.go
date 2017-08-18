@@ -39,8 +39,9 @@ const (
 	veryLightScryptN = 2
 	veryLightScryptP = 1
 
-	benchmarksDir  = "../../artifacts/bench"
-	benchmarksFile = "librarian.bench"
+	artifactsDir     = "../../artifacts"
+	benchmarksSubDir = "bench"
+	benchmarksFile   = "librarian.bench"
 )
 
 type state struct {
@@ -249,9 +250,12 @@ func tearDown(state *state) {
 }
 
 func writeBenchmarkResults(t *testing.T, benchmarks []*benchmarkObs) {
+	if _, err := os.Stat(artifactsDir); os.IsNotExist(err) {
+		errors.MaybePanic(os.Mkdir(artifactsDir, 0755))
+	}
+	benchmarksDir := path.Join(artifactsDir, benchmarksSubDir)
 	if _, err := os.Stat(benchmarksDir); os.IsNotExist(err) {
-		err = os.Mkdir(benchmarksDir, 0755)
-		errors.MaybePanic(err)
+		errors.MaybePanic(os.Mkdir(benchmarksDir, 0755))
 	}
 	f, err := os.Create(path.Join(benchmarksDir, benchmarksFile))
 	defer func() {
