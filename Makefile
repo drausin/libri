@@ -13,6 +13,7 @@ GIT_DIFF_PKG_SUBDIRS=$(shell echo $(LIBRI_PKG_SUBDIRS) $(GIT_DIFF_SUBDIRS) | tr 
 
 acceptance:
 	@echo "--> Running acceptance tests"
+	@mkdir -p artifacts
 	@go test -tags acceptance -v github.com/drausin/libri/libri/acceptance 2>&1 | tee artifacts/acceptance.log
 
 bench:
