@@ -10,6 +10,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestNewKVDBStorerLoader(t *testing.T) {
+	// just test that this doesn't panic
+	NewKVDBStorerLoader(nil, nil, nil, nil)
+}
+
 func TestKvdbSLD_StoreLoadDelete(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	cases := []struct {
@@ -27,7 +32,6 @@ func TestKvdbSLD_StoreLoadDelete(t *testing.T) {
 	defer cleanup()
 	defer kvdb.Close()
 	assert.Nil(t, err)
-
 	for _, c := range cases {
 		sld := NewKVDBStorerLoaderDeleter(
 			c.ns,
@@ -45,6 +49,19 @@ func TestKvdbSLD_StoreLoadDelete(t *testing.T) {
 		err = sld.Delete(c.key)
 		assert.Nil(t, err)
 	}
+}
+
+func TestKvdbSLD_Load_err(t *testing.T) {
+	sld := &kvdbSLD{kc: NewMaxLengthChecker(1)}
+	value, err := sld.Load([]byte("some long key"))
+	assert.NotNil(t, err)
+	assert.Nil(t, value)
+}
+
+func TestKvdbSLD_Delete_err(t *testing.T) {
+	sld := &kvdbSLD{kc: NewMaxLengthChecker(1)}
+	err := sld.Delete([]byte("some long key"))
+	assert.NotNil(t, err)
 }
 
 func TestKvdbSLD_Iterate(t *testing.T) {

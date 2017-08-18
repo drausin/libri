@@ -187,6 +187,21 @@ func (dsld *documentSLD) Mac(key id.ID, macKey []byte) ([]byte, error) {
 	return macer.Sum(nil), nil
 }
 
+func (dsld *documentSLD) Delete(key id.ID) error {
+	valueBytes, err := dsld.sld.Load(key.Bytes())
+	if err != nil {
+		return err
+	}
+	if err := dsld.sld.Delete(key.Bytes()); err != nil {
+		return err
+	}
+	dsld.mu.Lock()
+	defer dsld.mu.Unlock()
+	dsld.metrics.NDocuments--
+	dsld.metrics.TotalSize -= uint64(len(valueBytes))
+	return nil
+}
+
 func (dsld *documentSLD) loadCheckBytes(key id.ID) ([]byte, error) {
 	keyBytes := key.Bytes()
 	valueBytes, err := dsld.sld.Load(keyBytes)
@@ -201,21 +216,6 @@ func (dsld *documentSLD) loadCheckBytes(key id.ID) ([]byte, error) {
 		return nil, err
 	}
 	return valueBytes, nil
-}
-
-func (dsld *documentSLD) Delete(key id.ID) error {
-	valueBytes, err := dsld.sld.Load(key.Bytes())
-	if err != nil {
-		return err
-	}
-	if err := dsld.sld.Delete(key.Bytes()); err != nil {
-		return err
-	}
-	dsld.mu.Lock()
-	defer dsld.mu.Unlock()
-	dsld.metrics.NDocuments--
-	dsld.metrics.TotalSize -= uint64(len(valueBytes))
-	return nil
 }
 
 func (dm *DocumentMetrics) clone() *DocumentMetrics {

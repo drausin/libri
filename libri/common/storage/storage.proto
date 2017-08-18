@@ -59,8 +59,6 @@ message DocumentMetrics {
     uint64 n_documents = 1;
 
     uint64 total_size = 2;
-
-    ReplicationMetrics replication = 3;
 }
 
 message ReplicationMetrics {
