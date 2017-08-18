@@ -92,17 +92,6 @@ func TestShipper_Ship_err(t *testing.T) {
 	assert.Nil(t, envelope)
 	assert.Nil(t, entryKey)
 
-	// check getting next librarian error bubbles up
-	s = NewShipper(
-		&fixedPutterBalancer{err: errors.New("some Next error")},
-		&fixedPublisher{},
-		&fixedMultiLoadPublisher{},
-	)
-	envelope, entryKey, err = s.ShipEntry(entry, authorPub, readerPub, kek, eek)
-	assert.NotNil(t, err)
-	assert.Nil(t, envelope)
-	assert.Nil(t, entryKey)
-
 	// check entry publish error bubbles up
 	s = NewShipper(
 		&fixedPutterBalancer{},
@@ -238,6 +227,7 @@ func TestShipReceive(t *testing.T) {
 type fixedMultiLoadPublisher struct {
 	err     error
 	deleted bool
+	putter  api.Putter
 }
 
 func (f *fixedMultiLoadPublisher) Publish(
@@ -245,6 +235,10 @@ func (f *fixedMultiLoadPublisher) Publish(
 ) error {
 	f.deleted = delete
 	return f.err
+}
+
+func (f *fixedMultiLoadPublisher) GetRetryPutter(cb client.PutterBalancer) api.Putter {
+	return f.putter
 }
 
 type fixedPublisher struct {

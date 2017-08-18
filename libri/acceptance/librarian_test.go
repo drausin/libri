@@ -4,17 +4,18 @@ package acceptance
 
 import (
 	"bytes"
+	"crypto/rand"
 	"fmt"
 	"runtime"
 	"testing"
 	"time"
-	"crypto/rand"
 
 	"github.com/drausin/libri/libri/author/io/common"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	lclient "github.com/drausin/libri/libri/librarian/client"
+	"github.com/drausin/libri/libri/librarian/server"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/store"
@@ -23,7 +24,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"github.com/drausin/libri/libri/librarian/server"
 )
 
 const (
@@ -385,8 +385,8 @@ func countDocReplicas(t *testing.T, state *state) map[string]int {
 			nReplicas[key.String()] = len(v.Result.Replicas)
 		}
 		benchResults[i] = testing.BenchmarkResult{
-			N:     1,
-			T:     time.Now().Sub(start),
+			N: 1,
+			T: time.Now().Sub(start),
 		}
 	}
 	state.benchResults = append(state.benchResults, &benchmarkObs{

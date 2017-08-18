@@ -251,16 +251,20 @@ func TestReplicator_verifyValue(t *testing.T) {
 	valueBytes, err := proto.Marshal(value)
 	assert.Nil(t, err)
 	rt, selfID, _ := routing.NewTestWithPeers(rng, 10)
+	replicatorParams := &Parameters{
+		VerifyInterval: 10 * time.Millisecond,
+		VerifyTimeout:  10 * time.Millisecond,
+	}
 	r := replicator{
 		selfID:           selfID,
 		verifyParams:     verify.NewDefaultParameters(),
-		replicatorParams: &Parameters{VerifyInterval: 10 * time.Millisecond},
+		replicatorParams: replicatorParams,
 		storeParams:      store.NewDefaultParameters(),
 		metrics:          &Metrics{},
 		underreplicated:  make(chan *verify.Verify, 1),
 		errs:             make(chan error, 1),
 		rt:               rt,
-		logger:           zap.NewNop(), // server.NewDevLogger(zap.DebugLevel),
+		logger:           zap.NewNop(),
 	}
 	unqueried := search.NewClosestPeers(key, 10)
 	err = unqueried.SafePushMany(peer.NewTestPeers(rng, 10))
@@ -329,7 +333,7 @@ func TestReplicator_verifyValue(t *testing.T) {
 	default:
 	}
 
-	// check that when verify errors, we can an error
+	// check that when verify errors, we get an error
 	r.verifier = &fixedVerifier{
 		err:    errors.New("some Verify error"),
 		result: verify.NewInitialResult(key, verify.NewDefaultParameters()),

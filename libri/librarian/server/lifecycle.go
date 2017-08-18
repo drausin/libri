@@ -260,7 +260,7 @@ func (l *Librarian) Close() error {
 	}
 
 	// wait for server to stop
-	<- l.stopped
+	<-l.stopped
 
 	// close the DB
 	l.db.Close()

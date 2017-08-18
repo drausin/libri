@@ -250,6 +250,7 @@ type fixedMultiStoreAcquirer struct {
 	err       error
 	docKeys   []id.ID
 	authorPub []byte
+	getter    api.Getter
 }
 
 func (f *fixedMultiStoreAcquirer) Acquire(
@@ -257,6 +258,10 @@ func (f *fixedMultiStoreAcquirer) Acquire(
 ) error {
 	f.docKeys, f.authorPub = docKeys, authorPub
 	return f.err
+}
+
+func (f *fixedMultiStoreAcquirer) GetRetryGetter(cb client.GetterBalancer) api.Getter {
+	return f.getter
 }
 
 type fixedKeychain struct {
