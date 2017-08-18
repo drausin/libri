@@ -16,6 +16,7 @@ import (
 func TestNewDefaultParameters(t *testing.T) {
 	p := NewDefaultParameters()
 	assert.NotZero(t, p.NReplicas)
+	assert.True(t, p.ExcludeSelf)
 	assert.NotZero(t, p.NClosestResponses)
 	assert.NotZero(t, p.NMaxErrors)
 	assert.NotZero(t, p.Concurrency)

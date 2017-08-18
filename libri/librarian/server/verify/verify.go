@@ -21,6 +21,7 @@ import (
 const (
 	logKey               = "key"
 	logNReplicas         = "n_replicas"
+	logExcludeSelf       = "exclude_self"
 	logNClosestResponses = "n_closest_responses"
 	logNMaxErrors        = "n_max_errors"
 	logConcurrency       = "concurrency"
@@ -42,8 +43,11 @@ const (
 // Parameters defines the parameters of the verify.
 type Parameters struct {
 	// NReplicas is the required number of replicas (in addition to the self peer's replica) of a
-	// document to consider it full verified.
+	// document to consider it fully verified.
 	NReplicas uint
+
+	// ExcludeSelf indicates whether the verify will exclude a replica hosted by the verifier.
+	ExcludeSelf bool
 
 	// NClosestResponses is the required number of peers closest to the key we need to receive
 	// responses from
@@ -61,9 +65,10 @@ type Parameters struct {
 
 // NewDefaultParameters returns a default Verify parameters instance.
 func NewDefaultParameters() *Parameters {
-	nReplicas := store.DefaultNReplicas - 1 // since self already has a replica
+	nReplicas := store.DefaultNReplicas
 	return &Parameters{
 		NReplicas:         nReplicas,
+		ExcludeSelf:       false,
 		NClosestResponses: nReplicas + store.DefaultNMaxErrors,
 		NMaxErrors:        search.DefaultNMaxErrors,
 		Concurrency:       search.DefaultConcurrency,
@@ -74,6 +79,7 @@ func NewDefaultParameters() *Parameters {
 // MarshalLogObject converts the Parameters into an object (which will become json) for logging.
 func (p *Parameters) MarshalLogObject(oe zapcore.ObjectEncoder) error {
 	oe.AddUint(logNReplicas, p.NReplicas)
+	oe.AddBool(logExcludeSelf, p.ExcludeSelf)
 	oe.AddUint(logNClosestResponses, p.NClosestResponses)
 	oe.AddUint(logNMaxErrors, p.NMaxErrors)
 	oe.AddUint(logConcurrency, p.Concurrency)

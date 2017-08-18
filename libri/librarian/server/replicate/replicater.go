@@ -76,6 +76,16 @@ func NewDefaultParameters() *Parameters {
 	}
 }
 
+// NewVerifyDefaultParameters returns default verify parameters that exclude the replica stored by
+// the replicator.
+func NewVerifyDefaultParameters() *verify.Parameters {
+	p := verify.NewDefaultParameters()
+	p.NReplicas--
+	p.NClosestResponses--
+	p.ExcludeSelf = true
+	return p
+}
+
 // Metrics contains (monotonically increasing) counters for different replication events.
 type Metrics struct {
 	NVerified        uint64

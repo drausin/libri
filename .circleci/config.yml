@@ -33,6 +33,7 @@ jobs:
           command: |
             case ${CIRCLE_NODE_INDEX} in
               0)
+                make acceptance
                 make demo
                 ;;
               1)
@@ -41,7 +42,6 @@ jobs:
                 else
                   make test-cover
                   bash <(curl -s https://codecov.io/bash) -f artifacts/cover/test-coverage-merged.cov
-                  make acceptance
                 fi
                 ;;
             esac
