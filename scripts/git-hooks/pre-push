@@ -5,6 +5,8 @@ set -eou pipefail
 # check no outstanding formatting issues
 make fix
 if [[ $(git status --porcelain | wc -l) -ne 0 ]]; then
-    echo 'Found and resolved formatting issues. Please examine and commit.'
+    echo 'Found and resolved formatting issues. Please examine and commit, perhaps via'
+    echo
+    echo '  git commit -a --amend'
     exit 1
 fi
