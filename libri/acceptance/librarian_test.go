@@ -85,7 +85,9 @@ func TestLibrarianCluster(t *testing.T) {
 
 	// upload a bunch of random documents
 	testUpload(t, params, state)
-	//checkPublications(t, params, state)  // TODO (drausin) figure out why can be flakey
+
+	// check that every peer received the publications of those documents
+	checkPublications(t, params, state)
 
 	// down the same ones
 	testDownload(t, params, state)
@@ -93,6 +95,7 @@ func TestLibrarianCluster(t *testing.T) {
 	// share the uploaded docs with other author and download
 	testShare(t, params, state)
 
+	// delete some peers and confirm that their docs get replicated
 	testReplicate(t, params, state)
 
 	tearDown(state)
@@ -283,7 +286,7 @@ func testDownload(t *testing.T, _ *params, state *state) {
 
 func checkPublications(t *testing.T, params *params, state *state) {
 
-	receiveWaitTime := 10 * time.Second
+	receiveWaitTime := 3 * time.Second
 	state.logger.Info("waiting for librarians to receive publications",
 		zap.Float64("n_seconds", receiveWaitTime.Seconds()),
 	)
