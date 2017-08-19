@@ -188,7 +188,7 @@ func (t *to) Begin() error {
 					return
 				case errs <- t.sb.begin(lc, sub, t.received, errs, t.end):
 				}
-				cerrors.MaybePanic(t.csb.Remove(peerID))  // should never happen
+				cerrors.MaybePanic(t.csb.Remove(peerID)) // should never happen
 			}
 		}(c)
 	}
