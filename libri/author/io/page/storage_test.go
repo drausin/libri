@@ -7,16 +7,13 @@ import (
 	"errors"
 
 	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestStorerLoader_Store_ok(t *testing.T) {
-	sl := NewStorerLoader(
-		&fixedDocSLD{
-			stored: make(map[string]*api.Document),
-		},
-	)
+	sl := NewStorerLoader(storage.NewTestDocSLD())
 	rng := rand.New(rand.NewSource(0))
 	nPages := 4
 	pages := make(chan *api.Page, nPages)
@@ -32,7 +29,9 @@ func TestStorerLoader_Store_ok(t *testing.T) {
 }
 
 func TestStorerLoader_Store_err(t *testing.T) {
-	sl := NewStorerLoader(&fixedDocSLD{storeErr: errors.New("some Store error")})
+	dsld := storage.NewTestDocSLD()
+	dsld.StoreErr = errors.New("some Store error")
+	sl := NewStorerLoader(dsld)
 	rng := rand.New(rand.NewSource(0))
 	pages := make(chan *api.Page, 1)
 	pages <- api.NewTestPage(rng)
@@ -60,8 +59,8 @@ func TestStorerLoader_Load_ok(t *testing.T) {
 	}
 
 	sl := NewStorerLoader(
-		&fixedDocSLD{
-			stored: stored,
+		&storage.TestDocSLD{
+			Stored: stored,
 		},
 	)
 
@@ -89,7 +88,7 @@ func TestStorerLoader_Load_ok(t *testing.T) {
 }
 
 func TestStorerLoader_Load_err(t *testing.T) {
-	sl1 := NewStorerLoader(&fixedDocSLD{loadErr: errors.New("some Load error")})
+	sl1 := NewStorerLoader(&storage.TestDocSLD{LoadErr: errors.New("some Load error")})
 	rng := rand.New(rand.NewSource(0))
 	pageIDs1 := []id.ID{id.NewPseudoRandom(rng)}
 
@@ -98,8 +97,8 @@ func TestStorerLoader_Load_err(t *testing.T) {
 	assert.NotNil(t, err)
 
 	sl2 := NewStorerLoader(
-		&fixedDocSLD{
-			stored: make(map[string]*api.Document),
+		&storage.TestDocSLD{
+			Stored: make(map[string]*api.Document),
 		},
 	)
 	pageIDs2 := []id.ID{id.NewPseudoRandom(rng)}
@@ -114,8 +113,8 @@ func TestStorerLoader_Load_err(t *testing.T) {
 	pageIDs3 := []id.ID{pageID}
 
 	sl3 := NewStorerLoader(
-		&fixedDocSLD{
-			stored: stored,
+		&storage.TestDocSLD{
+			Stored: stored,
 		},
 	)
 
@@ -125,11 +124,7 @@ func TestStorerLoader_Load_err(t *testing.T) {
 }
 
 func TestStorerLoader_StoreLoad(t *testing.T) {
-	sl := NewStorerLoader(
-		&fixedDocSLD{
-			stored: make(map[string]*api.Document),
-		},
-	)
+	sl := NewStorerLoader(storage.NewTestDocSLD())
 	rng := rand.New(rand.NewSource(0))
 	nPages := 4
 	originalPages := make([]*api.Page, nPages)
@@ -156,28 +151,4 @@ func TestStorerLoader_StoreLoad(t *testing.T) {
 
 	// check original and loaded pags are in the same order and are equal
 	assert.Equal(t, originalPages, loadedPages)
-}
-
-type fixedDocSLD struct {
-	storeErr  error
-	stored    map[string]*api.Document
-	loadErr   error
-	deleteErr error
-}
-
-func (f *fixedDocSLD) Store(key id.ID, value *api.Document) error {
-	if f.storeErr != nil {
-		return f.storeErr
-	}
-	f.stored[key.String()] = value
-	return nil
-}
-
-func (f *fixedDocSLD) Load(key id.ID) (*api.Document, error) {
-	value := f.stored[key.String()]
-	return value, f.loadErr
-}
-
-func (f *fixedDocSLD) Delete(key id.ID) error {
-	return f.deleteErr
 }

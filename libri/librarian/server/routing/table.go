@@ -76,7 +76,7 @@ type Table interface {
 	Disconnect() error
 
 	// Save saves the table via the NamespaceStorer
-	Save(ns storage.NamespaceStorer) error
+	Save(ns storage.Storer) error
 }
 
 // Parameters are the parameters of the routing table.

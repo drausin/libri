@@ -10,6 +10,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestNewKVDBStorerLoader(t *testing.T) {
+	// just test that this doesn't panic
+	NewKVDBStorerLoader(nil, nil, nil, nil)
+}
+
 func TestKvdbSLD_StoreLoadDelete(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	cases := []struct {
@@ -27,17 +32,66 @@ func TestKvdbSLD_StoreLoadDelete(t *testing.T) {
 	defer cleanup()
 	defer kvdb.Close()
 	assert.Nil(t, err)
-	sld := NewKVDBStorerLoaderDeleter(kvdb, NewMaxLengthChecker(256), NewMaxLengthChecker(1024))
-
 	for _, c := range cases {
-		err := sld.Store(c.ns, c.key, c.value)
+		sld := NewKVDBStorerLoaderDeleter(
+			c.ns,
+			kvdb,
+			NewMaxLengthChecker(256),
+			NewMaxLengthChecker(1024),
+		)
+		err := sld.Store(c.key, c.value)
 		assert.Nil(t, err)
 
-		loaded, err := sld.Load(c.ns, c.key)
+		loaded, err := sld.Load(c.key)
 		assert.Nil(t, err)
 		assert.Equal(t, c.value, loaded)
 
-		err = sld.Delete(c.ns, c.key)
+		err = sld.Delete(c.key)
 		assert.Nil(t, err)
 	}
+}
+
+func TestKvdbSLD_Load_err(t *testing.T) {
+	sld := &kvdbSLD{kc: NewMaxLengthChecker(1)}
+	value, err := sld.Load([]byte("some long key"))
+	assert.NotNil(t, err)
+	assert.Nil(t, value)
+}
+
+func TestKvdbSLD_Delete_err(t *testing.T) {
+	sld := &kvdbSLD{kc: NewMaxLengthChecker(1)}
+	err := sld.Delete([]byte("some long key"))
+	assert.NotNil(t, err)
+}
+
+func TestKvdbSLD_Iterate(t *testing.T) {
+	kvdb, cleanup, err := db.NewTempDirRocksDB()
+	defer cleanup()
+	defer kvdb.Close()
+	assert.Nil(t, err)
+
+	ns := []byte("key")
+	sld := NewKVDBStorerLoaderDeleter(ns, kvdb, NewMaxLengthChecker(256), NewMaxLengthChecker(1024))
+
+	vals := map[string][]byte{
+		"1": []byte("val1"),
+		"2": []byte("val2"),
+		"3": []byte("val3"),
+	}
+	for key, val := range vals {
+		err := sld.Store([]byte(key), val)
+		assert.Nil(t, err)
+	}
+
+	nIters := 0
+	callback := func(key, value []byte) {
+		nIters++
+		expected, in := vals[string(key)]
+		assert.True(t, in)
+		assert.Equal(t, expected, value)
+	}
+	lb, ub := []byte("0"), []byte("9")
+	err = sld.Iterate(lb, ub, make(chan struct{}), callback)
+	assert.Nil(t, err)
+	assert.Equal(t, len(vals), nIters)
 }

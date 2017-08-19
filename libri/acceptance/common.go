@@ -21,6 +21,7 @@ import (
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/common/subscribe"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/client"
 	lclient "github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
@@ -38,8 +39,9 @@ const (
 	veryLightScryptN = 2
 	veryLightScryptP = 1
 
-	benchmarksDir  = "../../artifacts/bench"
-	benchmarksFile = "librarian.bench"
+	artifactsDir     = "../../artifacts"
+	benchmarksSubDir = "bench"
+	benchmarksFile   = "librarian.bench"
 )
 
 type state struct {
@@ -79,6 +81,7 @@ type testClient struct {
 	selfID  ecid.ID
 	selfAPI *api.PeerAddress
 	signer  lclient.Signer
+	rt      routing.Table
 	logger  *zap.Logger
 }
 
@@ -139,9 +142,10 @@ func setUp(params *params) *state {
 	publicAddr := peer.NewTestPublicAddr(params.nSeeds + params.nPeers + 1)
 	selfPeer := peer.New(selfID.ID(), "test client", peer.NewConnector(publicAddr))
 	signer := lclient.NewSigner(selfID.Key())
-	client := &testClient{
+	clientImpl := &testClient{
 		selfID:  selfID,
 		selfAPI: selfPeer.ToAPI(),
+		rt:      routing.NewEmpty(selfID.ID(), routing.NewDefaultParameters()),
 		signer:  signer,
 		logger:  logger,
 	}
@@ -175,7 +179,7 @@ func setUp(params *params) *state {
 
 	return &state{
 		rng:          rng,
-		client:       client,
+		client:       clientImpl,
 		seedConfigs:  seedConfigs,
 		peerConfigs:  peerConfigs,
 		seeds:        seeds,
@@ -228,19 +232,16 @@ func tearDown(state *state) {
 	}
 
 	// gracefully shut down peers and seeds
-	for _, p1 := range state.peers {
+	all := append(state.peers, state.seeds...)
+	for _, p1 := range all {
 		go func(p2 *server.Librarian) {
 			// explicitly end subscriptions first and then sleep so that later librarians
 			// don't crash b/c of flurry of ended subscriptions from earlier librarians
-			p2.EndSubscriptions()
+			p2.StopAuxRoutines()
 			time.Sleep(3 * time.Second)
 			err := p2.Close()
 			errors.MaybePanic(err)
 		}(p1)
-	}
-	for _, s := range state.seeds {
-		err := s.Close()
-		errors.MaybePanic(err)
 	}
 
 	// remove data dir shared by all
@@ -249,9 +250,12 @@ func tearDown(state *state) {
 }
 
 func writeBenchmarkResults(t *testing.T, benchmarks []*benchmarkObs) {
+	if _, err := os.Stat(artifactsDir); os.IsNotExist(err) {
+		errors.MaybePanic(os.Mkdir(artifactsDir, 0755))
+	}
+	benchmarksDir := path.Join(artifactsDir, benchmarksSubDir)
 	if _, err := os.Stat(benchmarksDir); os.IsNotExist(err) {
-		err = os.Mkdir(benchmarksDir, 0755)
-		errors.MaybePanic(err)
+		errors.MaybePanic(os.Mkdir(benchmarksDir, 0755))
 	}
 	f, err := os.Create(path.Join(benchmarksDir, benchmarksFile))
 	defer func() {
@@ -401,4 +405,12 @@ func benchmarkName(name string, n int) string {
 		return fmt.Sprintf("Benchmark%s-%d", name, n)
 	}
 	return name
+}
+
+func getLibrarians(peerConfigs []*server.Config) (client.Balancer, error) {
+	librarianAddrs := make([]*net.TCPAddr, len(peerConfigs))
+	for i, peerConfig := range peerConfigs {
+		librarianAddrs[i] = peerConfig.PublicAddr
+	}
+	return client.NewUniformBalancer(librarianAddrs)
 }

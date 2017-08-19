@@ -4,8 +4,8 @@ package acceptance
 
 import (
 	"bytes"
+	"crypto/rand"
 	"fmt"
-	"net"
 	"runtime"
 	"testing"
 	"time"
@@ -15,9 +15,12 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	lclient "github.com/drausin/libri/libri/librarian/client"
+	"github.com/drausin/libri/libri/librarian/server"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/store"
+	"github.com/drausin/libri/libri/librarian/server/verify"
+	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -30,6 +33,7 @@ const (
 	introduceName = "Introduce"
 	putName       = "Put"
 	getName       = "Get"
+	verifyName    = "Verify"
 )
 
 var grpcLogNoise = []string{
@@ -89,6 +93,8 @@ func TestLibrarianCluster(t *testing.T) {
 	// share the uploaded docs with other author and download
 	testShare(t, params, state)
 
+	testReplicate(t, params, state)
+
 	tearDown(state)
 
 	writeBenchmarkResults(t, state.benchResults)
@@ -100,6 +106,7 @@ func testIntroduce(t *testing.T, params *params, state *state) {
 	nPeers := len(state.peers)
 	ic := lclient.NewIntroducerCreator()
 	benchResults := make([]testing.BenchmarkResult, params.nIntroductions)
+	fromer := peer.NewFromer()
 
 	// introduce oneself to a number of peers and ensure that each returns the requisite
 	// number of new peers
@@ -124,14 +131,21 @@ func testIntroduce(t *testing.T, params *params, state *state) {
 		// check everything went fine
 		assert.Nil(t, err)
 		assert.Equal(t, int(rq.NumPeers), len(rp.Peers))
-		state.client.logger.Debug("received Introduce response",
-			zap.String("from_peer", conn.Address().String()),
-			zap.Int("num_peers", len(rp.Peers)),
-		)
+		if rp != nil {
+			state.client.logger.Debug("received Introduce response",
+				zap.String("from_peer", conn.Address().String()),
+				zap.Int("num_peers", len(rp.Peers)),
+			)
+		}
 
 		benchResults[c] = testing.BenchmarkResult{
 			N: 1,
 			T: time.Now().Sub(start),
+		}
+
+		// add peers to self RT
+		for _, p := range rp.Peers {
+			state.client.rt.Push(fromer.FromAPI(p))
 		}
 	}
 
@@ -145,11 +159,7 @@ func testIntroduce(t *testing.T, params *params, state *state) {
 func testPut(t *testing.T, params *params, state *state) {
 	putDocs := make([]*api.Document, params.nPuts)
 	benchResults := make([]testing.BenchmarkResult, params.nPuts)
-	librarianAddrs := make([]*net.TCPAddr, len(state.peerConfigs))
-	for i, peerConfig := range state.peerConfigs {
-		librarianAddrs[i] = peerConfig.PublicAddr
-	}
-	librarians, err := client.NewUniformBalancer(librarianAddrs)
+	librarians, err := getLibrarians(state.peerConfigs)
 	assert.Nil(t, err)
 	putters := client.NewUniformPutterBalancer(librarians)
 	rlc := lclient.NewRetryPutter(putters, store.DefaultQueryTimeout)
@@ -178,10 +188,12 @@ func testPut(t *testing.T, params *params, state *state) {
 		// check everything went fine
 		assert.Nil(t, err)
 		assert.Equal(t, api.PutOperation_STORED, rp.Operation)
-		state.client.logger.Debug("received Put response",
-			zap.String("operation", rp.Operation.String()),
-			zap.Int("n_replicas", int(rp.NReplicas)),
-		)
+		if rp != nil {
+			state.client.logger.Debug("received Put response",
+				zap.String("operation", rp.Operation.String()),
+				zap.Int("n_replicas", int(rp.NReplicas)),
+			)
+		}
 	}
 
 	state.benchResults = append(state.benchResults, &benchmarkObs{
@@ -194,11 +206,7 @@ func testPut(t *testing.T, params *params, state *state) {
 
 func testGet(t *testing.T, params *params, state *state) {
 	benchResults := make([]testing.BenchmarkResult, params.nPuts)
-	librarianAddrs := make([]*net.TCPAddr, len(state.peerConfigs))
-	for i, peerConfig := range state.peerConfigs {
-		librarianAddrs[i] = peerConfig.PublicAddr
-	}
-	librarians, err := client.NewUniformBalancer(librarianAddrs)
+	librarians, err := getLibrarians(state.peerConfigs)
 	assert.Nil(t, err)
 	getters := client.NewUniformGetterBalancer(librarians)
 	rlc := lclient.NewRetryGetter(getters, search.DefaultQueryTimeout)
@@ -304,4 +312,87 @@ func testShare(t *testing.T, _ *params, state *state) {
 		assert.Equal(t, len(state.uploadedDocContents[i]), downloaded.Len())
 		assert.Equal(t, state.uploadedDocContents[i], downloaded.Bytes())
 	}
+}
+
+func testReplicate(t *testing.T, _ *params, state *state) {
+
+	// take n peers out of the network
+	toRemove := state.peers[:8]
+	state.peers = state.peers[8:]
+	for _, p1 := range toRemove {
+		go func(p2 *server.Librarian) {
+			// explicitly end subscriptions first and then sleep so that later librarians
+			// don't crash b/c of flurry of ended subscriptions from earlier librarians
+			p2.StopAuxRoutines()
+			time.Sleep(3 * time.Second)
+			err := p2.Close()
+			assert.Nil(t, err)
+		}(p1)
+	}
+
+	// verify each doc, seeing which are under-replicated
+	nReplicas2 := countDocReplicas(t, state)
+	nUnderReplicated2 := 0
+	for _, keyNReplicas := range nReplicas2 {
+		if keyNReplicas < int(store.DefaultNReplicas) {
+			nUnderReplicated2++
+		}
+	}
+	assert.True(t, nUnderReplicated2 > 0)
+	state.logger.Info("finished replica audit 1", zap.Int("n_under_replicated", nUnderReplicated2))
+
+	rereplicateWaitSecs := 10
+	state.logger.Info("waiting for re-replication to happen",
+		zap.Int("n_secs", rereplicateWaitSecs),
+	)
+	time.Sleep(time.Duration(rereplicateWaitSecs) * time.Second)
+
+	nReplicas3 := countDocReplicas(t, state)
+	nUnderReplicated3 := 0
+	for _, keyNReplicas := range nReplicas3 {
+		if keyNReplicas < int(store.DefaultNReplicas) {
+			nUnderReplicated3++
+			break
+		}
+	}
+	assert.True(t, nUnderReplicated3 < nUnderReplicated2)
+	state.logger.Info("finished replica audit 2", zap.Int("n_under_replicated", nUnderReplicated3))
+}
+
+func countDocReplicas(t *testing.T, state *state) map[string]int {
+	benchResults := make([]testing.BenchmarkResult, len(state.putDocs))
+	verifier := verify.NewDefaultVerifier(client.NewSigner(state.client.selfID.Key()))
+	verifyParams := verify.NewDefaultParameters()
+	verifyParams.NReplicas++         // since not accounting for self
+	verifyParams.NClosestResponses++ // same
+
+	nReplicas := make(map[string]int)
+	for i, doc := range state.putDocs {
+		key, err := api.GetKey(doc)
+		assert.Nil(t, err)
+		macKey := make([]byte, 32)
+		_, err = rand.Read(macKey)
+		assert.Nil(t, err)
+		docBytes, err := proto.Marshal(doc)
+		assert.Nil(t, err)
+
+		start := time.Now()
+		seeds := state.client.rt.Peak(key, verifyParams.NClosestResponses)
+		v := verify.NewVerify(state.client.selfID, key, docBytes, macKey, verifyParams)
+		err = verifier.Verify(v, seeds)
+		if err == nil {
+			// don't fail if a verification occasionally errors
+			nReplicas[key.String()] = len(v.Result.Replicas)
+		}
+		benchResults[i] = testing.BenchmarkResult{
+			N: 1,
+			T: time.Now().Sub(start),
+		}
+	}
+	state.benchResults = append(state.benchResults, &benchmarkObs{
+		name:    verifyName,
+		procs:   runtime.NumCPU(),
+		results: benchResults,
+	})
+	return nReplicas
 }

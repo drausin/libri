@@ -204,6 +204,9 @@ type MultiLoadPublisher interface {
 	// deleting them from local storage after successful delete. It balances between librarian
 	// clients for its Put requests.
 	Publish(docKeys []id.ID, authorPub []byte, cb client.PutterBalancer, delete bool) error
+
+	// GetRetryPutter returns a new retrying api.Putter.
+	GetRetryPutter(cb client.PutterBalancer) api.Putter
 }
 
 type multiLoadPublisher struct {
@@ -223,7 +226,7 @@ func (p *multiLoadPublisher) Publish(
 	docKeys []id.ID, authorPub []byte, cb client.PutterBalancer, delete bool,
 ) error {
 
-	rlc := lclient.NewRetryPutter(cb, p.params.PutTimeout)
+	rlc := p.GetRetryPutter(cb)
 	docKeysChan := make(chan id.ID, p.params.PutParallelism)
 	go loadChan(docKeys, docKeysChan)
 	wg := new(sync.WaitGroup)
@@ -249,6 +252,10 @@ func (p *multiLoadPublisher) Publish(
 	default:
 		return nil
 	}
+}
+
+func (p *multiLoadPublisher) GetRetryPutter(cb client.PutterBalancer) api.Putter {
+	return lclient.NewRetryPutter(cb, p.params.PutTimeout)
 }
 
 func loadChan(idSlice []id.ID, idChan chan id.ID) {

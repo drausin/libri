@@ -27,7 +27,7 @@ var (
 	peerIDKey = []byte("PeerID")
 )
 
-func loadOrCreatePeerID(logger *zap.Logger, nsl storage.NamespaceSL) (ecid.ID, error) {
+func loadOrCreatePeerID(logger *zap.Logger, nsl storage.StorerLoader) (ecid.ID, error) {
 	bytes, err := nsl.Load(peerIDKey)
 	if err != nil {
 		logger.Error("error loading peer ID", zap.Error(err))
@@ -55,7 +55,7 @@ func loadOrCreatePeerID(logger *zap.Logger, nsl storage.NamespaceSL) (ecid.ID, e
 	return peerID, savePeerID(nsl, peerID)
 }
 
-func savePeerID(ns storage.NamespaceStorer, peerID ecid.ID) error {
+func savePeerID(ns storage.Storer, peerID ecid.ID) error {
 	bytes, err := proto.Marshal(ecid.ToStored(peerID))
 	if err != nil {
 		return err
@@ -63,7 +63,7 @@ func savePeerID(ns storage.NamespaceStorer, peerID ecid.ID) error {
 	return ns.Store(peerIDKey, bytes)
 }
 
-func loadOrCreateRoutingTable(logger *zap.Logger, nl storage.NamespaceLoader, selfID ecid.ID,
+func loadOrCreateRoutingTable(logger *zap.Logger, nl storage.Loader, selfID ecid.ID,
 	params *routing.Parameters) (routing.Table, error) {
 	rt, err := routing.Load(nl, params)
 	if err != nil {

@@ -5,12 +5,12 @@ import (
 	"crypto/elliptic"
 	crand "crypto/rand"
 	"errors"
+	"fmt"
 	"io"
 	"math/big"
 	mrand "math/rand"
 
-	"fmt"
-
+	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 )
@@ -74,9 +74,7 @@ func NewPseudoRandom(rng *mrand.Rand) ID {
 
 func newRandom(reader io.Reader) ID {
 	key, err := ecdsa.GenerateKey(Curve, reader)
-	if err != nil {
-		panic(err)
-	}
+	cerrors.MaybePanic(err) // should never happen
 	return FromPrivateKey(key)
 }
 

@@ -75,7 +75,8 @@ type peerDistanceHeap struct {
 	capacity int
 }
 
-func newClosestPeers(target id.ID, capacity uint) ClosestPeers {
+// NewClosestPeers returns a ClosestPeers instance for a given target with a given capacity.
+func NewClosestPeers(target id.ID, capacity uint) ClosestPeers {
 	return &peerDistanceHeap{
 		target:    target,
 		peers:     make([]peer.Peer, 0, int(capacity)+1),
@@ -86,7 +87,8 @@ func newClosestPeers(target id.ID, capacity uint) ClosestPeers {
 	}
 }
 
-func newFarthestPeers(target id.ID, capacity uint) FarthestPeers {
+// NewFarthestPeers returns a FarthestPeers instance for a given target with a given capacity.
+func NewFarthestPeers(target id.ID, capacity uint) FarthestPeers {
 	return &peerDistanceHeap{
 		target:    target,
 		peers:     make([]peer.Peer, 0, int(capacity)+1),

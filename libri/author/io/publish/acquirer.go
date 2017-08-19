@@ -90,6 +90,9 @@ type MultiStoreAcquirer interface {
 	// Acquire in parallel Gets and stores the documents with the given keys. It balances
 	// between librarian clients for its Put requests.
 	Acquire(docKeys []id.ID, authorPub []byte, cb client.GetterBalancer) error
+
+	// GetRetryGetter returns a new retrying api.Getter.
+	GetRetryGetter(cb client.GetterBalancer) api.Getter
 }
 
 type multiStoreAcquirer struct {
@@ -110,7 +113,7 @@ func (a *multiStoreAcquirer) Acquire(
 	docKeys []id.ID, authorPub []byte, cb client.GetterBalancer,
 ) error {
 
-	rlc := lclient.NewRetryGetter(cb, a.params.GetTimeout)
+	rlc := a.GetRetryGetter(cb)
 	docKeysChan := make(chan id.ID, a.params.PutParallelism)
 	go loadChan(docKeys, docKeysChan)
 	wg := new(sync.WaitGroup)
@@ -136,4 +139,8 @@ func (a *multiStoreAcquirer) Acquire(
 	default:
 		return nil
 	}
+}
+
+func (p *multiStoreAcquirer) GetRetryGetter(cb client.GetterBalancer) api.Getter {
+	return lclient.NewRetryGetter(cb, p.params.GetTimeout)
 }

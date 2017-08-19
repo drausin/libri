@@ -10,6 +10,7 @@ import (
 
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/golang/protobuf/proto"
@@ -120,15 +121,13 @@ func TestPublisher_Publish_err(t *testing.T) {
 func TestSingleLoadPublisher_Publish_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	pub := &fixedPublisher{}
-	docLD := &fixedDocSLD{
-		docs: make(map[string]*api.Document),
-	}
+	docLD := storage.NewTestDocSLD()
 	lc := &fixedPutter{}
 	slPub := NewSingleLoadPublisher(pub, docLD)
 	doc1, docKey := api.NewTestDocument(rng)
 
 	// add document to memDocLoader so that it's present for docLD.Load()
-	docLD.docs[docKey.String()] = doc1
+	docLD.Stored[docKey.String()] = doc1
 
 	// check publish without delete leaves doc
 	err := slPub.Publish(docKey, api.GetAuthorPub(doc1), lc, false)
@@ -148,14 +147,17 @@ func TestSingleLoadPublisher_Publish_ok(t *testing.T) {
 func TestSingleLoadPublisher_Publish_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	pub := &fixedPublisher{}
-	docL := &fixedDocSLD{
-		docs: make(map[string]*api.Document),
+	docL := &storage.TestDocSLD{
+		Stored: make(map[string]*api.Document),
 	}
 	lc := &fixedPutter{}
 	doc, docKey := api.NewTestDocument(rng)
 
 	// check docL.Load error bubbles up
-	slPub := NewSingleLoadPublisher(pub, &fixedDocSLD{loadError: errors.New("some Load error")})
+	slPub := NewSingleLoadPublisher(
+		pub,
+		&storage.TestDocSLD{LoadErr: errors.New("some Load error")},
+	)
 	err := slPub.Publish(docKey, api.GetAuthorPub(doc), lc, false)
 	assert.NotNil(t, err)
 
@@ -169,12 +171,15 @@ func TestSingleLoadPublisher_Publish_err(t *testing.T) {
 		publishErr: errors.New("some Publish error"),
 	}
 	slPub = NewSingleLoadPublisher(pub3, docL)
-	docL.docs[docKey.String()] = doc
+	docL.Stored[docKey.String()] = doc
 	err = slPub.Publish(docKey, api.GetAuthorPub(doc), lc, false)
 	assert.NotNil(t, err)
 
 	// check delete error bubbles up
-	slPub = NewSingleLoadPublisher(pub, &fixedDocSLD{deleteError: errors.New("some Delete error")})
+	slPub = NewSingleLoadPublisher(
+		pub,
+		&storage.TestDocSLD{DeleteErr: errors.New("some Delete error")},
+	)
 	err = slPub.Publish(docKey, api.GetAuthorPub(doc), lc, false)
 	assert.NotNil(t, err)
 }
@@ -254,16 +259,12 @@ func TestMultiAcquirePublish(t *testing.T) {
 		pubAcq := &memPublisherAcquirer{
 			docs: make(map[string]*api.Document),
 		}
-		docSL1 := &fixedDocSLD{
-			docs: make(map[string]*api.Document),
-		}
+		docSL1 := storage.NewTestDocSLD()
 		mlP := NewMultiLoadPublisher(
 			NewSingleLoadPublisher(pubAcq, docSL1),
 			params,
 		)
-		docSL2 := &fixedDocSLD{
-			docs: make(map[string]*api.Document),
-		}
+		docSL2 := storage.NewTestDocSLD()
 		msA := NewMultiStoreAcquirer(
 			NewSingleStoreAcquirer(pubAcq, docSL2),
 			params,
@@ -285,9 +286,9 @@ func TestMultiAcquirePublish(t *testing.T) {
 		assert.Nil(t, err)
 
 		// test that states of both DocumentStorerLoaders contain all the docs
-		assert.Equal(t, int(c.numDocs), len(docSL1.docs))
+		assert.Equal(t, int(c.numDocs), len(docSL1.Stored))
 		for i := uint32(0); i < c.numDocs; i++ {
-			storedDoc, in := docSL1.docs[docKeys[i].String()]
+			storedDoc, in := docSL1.Stored[docKeys[i].String()]
 			assert.True(t, in)
 			assert.Equal(t, docs[i], storedDoc)
 		}
@@ -334,33 +335,6 @@ type fixedSigner struct {
 
 func (f *fixedSigner) Sign(m proto.Message) (string, error) {
 	return f.signature, f.err
-}
-
-type fixedDocSLD struct {
-	docs        map[string]*api.Document
-	mu          sync.Mutex
-	loadError   error
-	storeError  error
-	deleteError error
-}
-
-func (f *fixedDocSLD) Load(key id.ID) (*api.Document, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	value := f.docs[key.String()]
-	return value, f.loadError
-}
-
-func (f *fixedDocSLD) Store(key id.ID, value *api.Document) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.docs[key.String()] = value
-	return f.storeError
-}
-
-func (f *fixedDocSLD) Delete(key id.ID) error {
-	delete(f.docs, key.String())
-	return f.deleteError
 }
 
 type fixedPublisher struct {

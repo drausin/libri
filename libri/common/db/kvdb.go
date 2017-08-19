@@ -1,10 +1,9 @@
 package db
 
 import (
+	"errors"
 	"io/ioutil"
 	"os"
-
-	"errors"
 
 	"github.com/tecbot/gorocksdb"
 )
@@ -19,6 +18,9 @@ type KVDB interface {
 
 	// Delete removes the value for a key.
 	Delete(key []byte) error
+
+	// Iterate iterates through a range of key-value pairs.
+	Iterate(keyLB, keyUB []byte, done chan struct{}, callback func(key, value []byte)) error
 
 	// Close gracefully shuts down the database.
 	Close()
@@ -92,6 +94,29 @@ func (db *RocksDB) Put(key []byte, value []byte) error {
 // Delete removes the value for a key.
 func (db *RocksDB) Delete(key []byte) error {
 	return db.rdb.Delete(db.wo, key)
+}
+
+func (db *RocksDB) Iterate(
+	keyLB, keyUB []byte, done chan struct{}, callback func(key, value []byte),
+) error {
+	opts := gorocksdb.NewDefaultReadOptions()
+	opts.SetIterateUpperBound(keyUB)
+	opts.SetFillCache(false)
+	iter := db.rdb.NewIterator(opts)
+	defer iter.Close()
+	defer opts.Destroy()
+
+	iter.Seek(keyLB)
+	for ; iter.Valid(); iter.Next() {
+		callback(iter.Key().Data(), iter.Value().Data())
+		select {
+		case <-done:
+			return iter.Err()
+		default:
+			// continue
+		}
+	}
+	return iter.Err()
 }
 
 // Close gracefully shuts down the database.

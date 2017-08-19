@@ -17,7 +17,7 @@ import (
 func TestLoadOrCreatePeerID_ok(t *testing.T) {
 
 	// create new peer ID
-	id1, err := loadOrCreatePeerID(clogging.NewDevInfoLogger(), &fixedStorerLoader{})
+	id1, err := loadOrCreatePeerID(clogging.NewDevInfoLogger(), &storage.TestSLD{})
 	assert.NotNil(t, id1)
 	assert.Nil(t, err)
 
@@ -27,21 +27,21 @@ func TestLoadOrCreatePeerID_ok(t *testing.T) {
 	bytes, err := proto.Marshal(ecid.ToStored(peerID2))
 	assert.Nil(t, err)
 
-	id2, err := loadOrCreatePeerID(clogging.NewDevInfoLogger(), &fixedStorerLoader{loadBytes: bytes})
+	id2, err := loadOrCreatePeerID(clogging.NewDevInfoLogger(), &storage.TestSLD{Bytes: bytes})
 
 	assert.Equal(t, peerID2, id2)
 	assert.Nil(t, err)
 }
 
 func TestLoadOrCreatePeerID_err(t *testing.T) {
-	id1, err := loadOrCreatePeerID(clogging.NewDevInfoLogger(), &fixedStorerLoader{
-		loadErr: errors.New("some load error"),
+	id1, err := loadOrCreatePeerID(clogging.NewDevInfoLogger(), &storage.TestSLD{
+		LoadErr: errors.New("some load error"),
 	})
 	assert.Nil(t, id1)
 	assert.NotNil(t, err)
 
-	id2, err := loadOrCreatePeerID(clogging.NewDevInfoLogger(), &fixedStorerLoader{
-		loadBytes: []byte("the wrong bytes"),
+	id2, err := loadOrCreatePeerID(clogging.NewDevInfoLogger(), &storage.TestSLD{
+		Bytes: []byte("the wrong bytes"),
 	})
 	assert.Nil(t, id2)
 	assert.NotNil(t, err)
@@ -49,7 +49,7 @@ func TestLoadOrCreatePeerID_err(t *testing.T) {
 
 func TestSavePeerID(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	assert.Nil(t, savePeerID(&fixedStorerLoader{}, ecid.NewPseudoRandom(rng)))
+	assert.Nil(t, savePeerID(&storage.TestSLD{}, ecid.NewPseudoRandom(rng)))
 }
 
 func TestLoadOrCreateRoutingTable_ok(t *testing.T) {
@@ -63,8 +63,8 @@ func TestLoadOrCreateRoutingTable_ok(t *testing.T) {
 	bytes, err := proto.Marshal(srt1)
 	assert.Nil(t, err)
 
-	fullLoader := &fixedStorerLoader{
-		loadBytes: bytes,
+	fullLoader := &storage.TestSLD{
+		Bytes: bytes,
 	}
 	rt1, err := loadOrCreateRoutingTable(clogging.NewDevInfoLogger(), fullLoader, selfID1,
 		routing.NewDefaultParameters())
@@ -73,7 +73,7 @@ func TestLoadOrCreateRoutingTable_ok(t *testing.T) {
 
 	// create new RT
 	selfID2 := ecid.NewPseudoRandom(rng)
-	rt2, err := loadOrCreateRoutingTable(clogging.NewDevInfoLogger(), &fixedStorerLoader{}, selfID2,
+	rt2, err := loadOrCreateRoutingTable(clogging.NewDevInfoLogger(), &storage.TestSLD{}, selfID2,
 		routing.NewDefaultParameters())
 	assert.Equal(t, selfID2.ID(), rt2.SelfID())
 	assert.Nil(t, err)
@@ -83,8 +83,8 @@ func TestLoadOrCreateRoutingTable_loadErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	selfID := ecid.NewPseudoRandom(rng)
 
-	errLoader := &fixedStorerLoader{
-		loadErr: errors.New("some error during load"),
+	errLoader := &storage.TestSLD{
+		LoadErr: errors.New("some error during load"),
 	}
 
 	rt1, err := loadOrCreateRoutingTable(clogging.NewDevInfoLogger(), errLoader, selfID,
@@ -103,8 +103,8 @@ func TestLoadOrCreateRoutingTable_selfIDErr(t *testing.T) {
 	bytes, err := proto.Marshal(srt1)
 	assert.Nil(t, err)
 
-	fullLoader := &fixedStorerLoader{
-		loadBytes: bytes,
+	fullLoader := &storage.TestSLD{
+		Bytes: bytes,
 	}
 
 	// error with conflicting/different selfID
@@ -113,18 +113,4 @@ func TestLoadOrCreateRoutingTable_selfIDErr(t *testing.T) {
 		routing.NewDefaultParameters())
 	assert.Nil(t, rt1)
 	assert.NotNil(t, err)
-}
-
-type fixedStorerLoader struct {
-	loadBytes []byte
-	loadErr   error
-	storeErr  error
-}
-
-func (l *fixedStorerLoader) Load(key []byte) ([]byte, error) {
-	return l.loadBytes, l.loadErr
-}
-
-func (l *fixedStorerLoader) Store(key []byte, value []byte) error {
-	return l.storeErr
 }

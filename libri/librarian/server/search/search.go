@@ -7,6 +7,7 @@ import (
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
+	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
@@ -15,7 +16,7 @@ import (
 
 const (
 	// DefaultNClosestResponses is the default number of peers to find closest to the key.
-	DefaultNClosestResponses = uint(3)
+	DefaultNClosestResponses = uint(6)
 
 	// DefaultNMaxErrors is the default maximum number of errors tolerated during a search.
 	DefaultNMaxErrors = uint(3)
@@ -49,16 +50,17 @@ const (
 
 // Parameters defines the parameters of the search.
 type Parameters struct {
-	// required number of peers closest to the key we need to receive responses from
+	// NClosestResponses is the required number of peers closest to the key we need to receive
+	// responses from
 	NClosestResponses uint
 
-	// maximum number of errors tolerated when querying peers during the search
+	// NMaxErrors is the maximum number of errors tolerated when querying peers during the search
 	NMaxErrors uint
 
-	// number of concurrent queries to use in search
+	// Concurrency is the number of concurrent queries to use in search
 	Concurrency uint
 
-	// timeout for queries to individual peers
+	// Timeout for queries to individual peers
 	Timeout time.Duration
 }
 
@@ -83,22 +85,22 @@ func (p *Parameters) MarshalLogObject(oe zapcore.ObjectEncoder) error {
 
 // Result holds search's (intermediate) result: collections of peers and possibly the value.
 type Result struct {
-	// found value when looking for one, otherwise nil
+	// Value found when looking for one, otherwise nil
 	Value *api.Document
 
-	// heap of the responding peers found closest to the target
+	// Closest is a heap of the responding peers found closest to the target
 	Closest FarthestPeers
 
-	// heap of peers that were not yet queried before search ended
+	// Unqueried is a heap of peers that were not yet queried
 	Unqueried ClosestPeers
 
-	// map of all peers that responded during search
+	// Responded is a map of all peers that responded during search
 	Responded map[string]peer.Peer
 
 	// Errored contains the errors received by each peer (via string representation of peer ID)
 	Errored map[string]error
 
-	// fatal error that occurred during the search
+	// FatalErr is a fatal error that occurred during the search
 	FatalErr error
 }
 
@@ -106,8 +108,8 @@ type Result struct {
 func NewInitialResult(key id.ID, params *Parameters) *Result {
 	return &Result{
 		Value:     nil,
-		Closest:   newFarthestPeers(key, params.NClosestResponses),
-		Unqueried: newClosestPeers(key, params.NClosestResponses*params.Concurrency),
+		Closest:   NewFarthestPeers(key, params.NClosestResponses),
+		Unqueried: NewClosestPeers(key, params.NClosestResponses*params.Concurrency),
 		Responded: make(map[string]peer.Peer),
 		Errored:   make(map[string]error),
 	}
@@ -115,27 +117,12 @@ func NewInitialResult(key id.ID, params *Parameters) *Result {
 
 // MarshalLogObject converts the Result into an object (which will become json) for logging.
 func (r *Result) MarshalLogObject(oe zapcore.ObjectEncoder) error {
-	errs := make([]error, len(r.Errored))
-	i := 0
-	for _, err := range r.Errored {
-		errs[i] = err
-		i++
-	}
 	oe.AddInt(logNClosest, r.Closest.Len())
 	oe.AddInt(logNUnqueried, r.Unqueried.Len())
 	oe.AddInt(logNResponded, len(r.Responded))
-	errors.MaybePanic(oe.AddArray(logErrors, errArray(errs)))
+	errors.MaybePanic(oe.AddArray(logErrors, clogging.ToErrArray(r.Errored)))
 	if r.FatalErr != nil {
 		oe.AddString(logFatalError, r.FatalErr.Error())
-	}
-	return nil
-}
-
-type errArray []error
-
-func (errs errArray) MarshalLogArray(arr zapcore.ArrayEncoder) error {
-	for _, err := range errs {
-		arr.AppendString(err.Error())
 	}
 	return nil
 }
@@ -146,7 +133,7 @@ type Search struct {
 	Key id.ID
 
 	// request used when querying peers
-	Request *api.FindRequest
+	Request *api.FindRequest // TODO (drausin) change to request-returning func
 
 	// result of the search
 	Result *Result
@@ -218,4 +205,10 @@ func (s *Search) Finished() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.FoundValue() || s.FoundClosestPeers() || s.Errored() || s.Exhausted()
+}
+
+func (s *Search) wrapLock(operation func()) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	operation()
 }

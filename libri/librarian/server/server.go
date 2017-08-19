@@ -16,9 +16,11 @@ import (
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
+	"github.com/drausin/libri/libri/librarian/server/replicate"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/store"
+	"github.com/drausin/libri/libri/librarian/server/verify"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/willf/bloom"
 	"go.uber.org/zap"
@@ -47,6 +49,9 @@ type Librarian struct {
 	// executes stores for key/value
 	storer store.Storer
 
+	// replicates documents as needed
+	replicator replicate.Replicator
+
 	// manages subscriptions from other peers
 	subscribeFrom subscribe.From
 
@@ -63,7 +68,7 @@ type Librarian struct {
 	db db.KVDB
 
 	// SL for server data
-	serverSL storage.NamespaceSL
+	serverSL storage.StorerLoader
 
 	// SL for p2p stored documents
 	documentSL storage.DocumentSL
@@ -94,6 +99,9 @@ type Librarian struct {
 
 	// receives graceful stop signal
 	stop chan struct{}
+
+	// closed when server is stopped
+	stopped chan struct{}
 }
 
 const (
@@ -111,19 +119,21 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 	documentSL := storage.NewDocumentSLD(rdb)
 
 	// get peer ID and immediately save it so subsequent restarts have it
-	peerID, err := loadOrCreatePeerID(logger, serverSL)
+	selfID, err := loadOrCreatePeerID(logger, serverSL)
 	if err != nil {
 		return nil, err
 	}
-	selfLogger := logger.With(zap.String(logSelfIDShort, id.ShortHex(peerID.Bytes())))
+	rng := rand.New(rand.NewSource(selfID.Int().Int64()))
+	selfLogger := logger.With(zap.String(logSelfIDShort, id.ShortHex(selfID.Bytes())))
 
-	rt, err := loadOrCreateRoutingTable(selfLogger, serverSL, peerID, config.Routing)
+	rt, err := loadOrCreateRoutingTable(selfLogger, serverSL, selfID, config.Routing)
 	if err != nil {
 		return nil, err
 	}
 
-	signer := client.NewSigner(peerID.Key())
+	signer := client.NewSigner(selfID.Key())
 	searcher := search.NewDefaultSearcher(signer)
+	storer := store.NewStorer(signer, searcher, client.NewStorerCreator())
 	newPubs := make(chan *subscribe.KeyedPub, newPublicationsSlack)
 
 	recentPubs, err := subscribe.NewRecentPublications(config.SubscribeTo.RecentCacheSize)
@@ -131,20 +141,36 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		return nil, err
 	}
 	clientBalancer := routing.NewClientBalancer(rt)
-	subscribeTo := subscribe.NewTo(config.SubscribeTo, selfLogger, peerID, clientBalancer, signer,
+	subscribeTo := subscribe.NewTo(config.SubscribeTo, selfLogger, selfID, clientBalancer, signer,
 		recentPubs, newPubs)
 
 	metricsSM := http.NewServeMux()
 	metricsSM.Handle("/metrics", promhttp.Handler())
 	metrics := &http.Server{Addr: config.LocalMetricsAddr.String(), Handler: metricsSM}
 
+	verifier := verify.NewDefaultVerifier(signer)
+	replicator := replicate.NewReplicator(
+		selfID,
+		rt,
+		documentSL,
+		serverSL,
+		verifier,
+		storer,
+		replicate.NewDefaultParameters(),
+		replicate.NewVerifyDefaultParameters(),
+		config.Store,
+		rng,
+		selfLogger,
+	)
+
 	return &Librarian{
-		selfID:        peerID,
+		selfID:        selfID,
 		config:        config,
-		apiSelf:       peer.FromAddress(peerID.ID(), config.PublicName, config.PublicAddr),
-		introducer:    introduce.NewDefaultIntroducer(signer, peerID.ID()),
+		apiSelf:       peer.FromAddress(selfID.ID(), config.PublicName, config.PublicAddr),
+		introducer:    introduce.NewDefaultIntroducer(signer, selfID.ID()),
 		searcher:      searcher,
-		storer:        store.NewStorer(signer, searcher, client.NewStorerCreator()),
+		replicator:    replicator,
+		storer:        storer,
 		subscribeFrom: subscribe.NewFrom(config.SubscribeFrom, logger, newPubs),
 		subscribeTo:   subscribeTo,
 		RecentPubs:    recentPubs,
@@ -161,6 +187,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		health:        health.NewServer(),
 		metrics:       metrics,
 		stop:          make(chan struct{}),
+		stopped:       make(chan struct{}),
 	}, nil
 }
 
@@ -242,6 +269,46 @@ func (l *Librarian) Find(ctx context.Context, rq *api.FindRequest) (*api.FindRes
 		Peers:    peer.ToAPIs(closest),
 	}
 	logger.Info("found closest peers", findPeersResponseFields(rq, rp)...)
+	return rp, nil
+}
+
+// Verify returns either the MAC of a value (if the peer has it) or the peers closest to it.
+func (l *Librarian) Verify(ctx context.Context, rq *api.VerifyRequest) (
+	*api.VerifyResponse, error) {
+
+	logger := l.logger.With(rqMetadataFields(rq.Metadata)...)
+	logger.Debug("received verify request", verifyRequestFields(rq)...)
+
+	requesterID, err := l.checkRequestAndKey(ctx, rq, rq.Metadata, rq.Key)
+	if err != nil {
+		return nil, logAndReturnErr(logger, "check request error", err)
+	}
+	l.record(requesterID, peer.Request, peer.Success)
+
+	mac, err := l.documentSL.Mac(id.FromBytes(rq.Key), rq.MacKey)
+	if err != nil {
+		// something went wrong during load
+		return nil, logAndReturnErr(logger, "error MACing document", err)
+	}
+
+	// we have the mac, so return it
+	if mac != nil {
+		rp := &api.VerifyResponse{
+			Metadata: l.NewResponseMetadata(rq.Metadata),
+			Mac:      mac,
+		}
+		logger.Info("verified value", verifyMacResponseFields(rq, rp)...)
+		return rp, nil
+	}
+
+	// otherwise, return the peers closest to the key
+	key := id.FromBytes(rq.Key)
+	closest := l.rt.Peak(key, uint(rq.NumPeers))
+	rp := &api.VerifyResponse{
+		Metadata: l.NewResponseMetadata(rq.Metadata),
+		Peers:    peer.ToAPIs(closest),
+	}
+	logger.Info("found closest peers", verifyPeersResponseFields(rq, rp)...)
 	return rp, nil
 }
 

@@ -12,6 +12,7 @@ import (
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/stretchr/testify/assert"
@@ -63,7 +64,7 @@ func TestReceiver_ReceiveEntry_ok(t *testing.T) {
 		acq.docs[entryKey.String()] = entry1
 		acq.docs[envelopeKey.String()] = envelope
 		msAcq := &fixedMultiStoreAcquirer{}
-		docS := &fixedStorer{}
+		docS := storage.NewTestDocSLD()
 		r := NewReceiver(cb, readerKeys, acq, msAcq, docS)
 
 		entry2, eek2, err := r.ReceiveEntry(envelopeKey)
@@ -77,11 +78,9 @@ func TestReceiver_ReceiveEntry_ok(t *testing.T) {
 		case *api.Entry_PageKeys:
 			// pages would have been stored on the MultiStoreAcquirer.Acquire(...)
 			// call
-			assert.Nil(t, docS.storedKey)
-			assert.Nil(t, docS.storedValue)
+			assert.Equal(t, 0, len(docS.Stored))
 		case *api.Entry_Page:
-			assert.NotNil(t, docS.storedKey)
-			assert.NotNil(t, docS.storedValue)
+			assert.True(t, len(docS.Stored) > 0)
 		}
 	}
 }
@@ -100,7 +99,7 @@ func TestReceiver_ReceiveEntry_err(t *testing.T) {
 		docs: make(map[string]*api.Document),
 	}
 	msAcq := &fixedMultiStoreAcquirer{}
-	docS := &fixedStorer{}
+	docS := storage.NewTestDocSLD()
 	entry, entryKey := api.NewTestDocument(rng)
 	eek1 := enc.NewPseudoRandomEEK(rng)
 	eekCiphertext, eekCiphertextMAC, err := kek.Encrypt(eek1)
@@ -179,7 +178,7 @@ func TestReceiver_GetEEK_err(t *testing.T) {
 	cb := &fixedGetterBalancer{}
 	acq := &fixedAcquirer{}
 	msAcq := &fixedMultiStoreAcquirer{}
-	docS := &fixedStorer{}
+	docS := storage.NewTestDocSLD()
 
 	// check readerKeys.Get() error bubbles up
 	readerKeys1 := &fixedKeychain{in: false}
@@ -190,7 +189,7 @@ func TestReceiver_GetEEK_err(t *testing.T) {
 	assert.Nil(t, eek)
 
 	// check ecid.FromPublicKeyButes error bubbles up
-	readerKeys2 := &fixedKeychain{in: true} // allows us to not err on readerKeys.Get()
+	readerKeys2 := &fixedKeychain{in: true} // allows us to not storeErr on readerKeys.Get()
 	r2 := NewReceiver(cb, readerKeys2, acq, msAcq, docS).(*receiver)
 	env2 := &api.Envelope{
 		AuthorPublicKey: api.RandBytes(rng, 16), // bad authorPubBytes
@@ -251,6 +250,7 @@ type fixedMultiStoreAcquirer struct {
 	err       error
 	docKeys   []id.ID
 	authorPub []byte
+	getter    api.Getter
 }
 
 func (f *fixedMultiStoreAcquirer) Acquire(
@@ -260,15 +260,8 @@ func (f *fixedMultiStoreAcquirer) Acquire(
 	return f.err
 }
 
-type fixedStorer struct {
-	err         error
-	storedKey   id.ID
-	storedValue *api.Document
-}
-
-func (f *fixedStorer) Store(key id.ID, value *api.Document) error {
-	f.storedKey, f.storedValue = key, value
-	return f.err
+func (f *fixedMultiStoreAcquirer) GetRetryGetter(cb client.GetterBalancer) api.Getter {
+	return f.getter
 }
 
 type fixedKeychain struct {

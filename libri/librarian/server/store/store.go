@@ -7,6 +7,7 @@ import (
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
+	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
@@ -22,7 +23,7 @@ const (
 	DefaultNMaxErrors = uint(3)
 
 	// DefaultConcurrency is the number of parallel store workers.
-	DefaultConcurrency = uint(3)
+	DefaultConcurrency = uint(1)
 
 	// DefaultQueryTimeout is the timeout for each query to a peer.
 	DefaultQueryTimeout = 10 * time.Second
@@ -123,18 +124,9 @@ func (r *Result) MarshalLogObject(oe zapcore.ObjectEncoder) error {
 	}
 	oe.AddInt(logNUnqueried, len(r.Unqueried))
 	oe.AddInt(logNResponded, len(r.Responded))
-	errors.MaybePanic(oe.AddArray(logErrors, errArray(r.Errors)))
+	errors.MaybePanic(oe.AddArray(logErrors, clogging.ErrArray(r.Errors)))
 	if r.FatalErr != nil {
 		oe.AddString(logFatalError, r.FatalErr.Error())
-	}
-	return nil
-}
-
-type errArray []error
-
-func (errs errArray) MarshalLogArray(arr zapcore.ArrayEncoder) error {
-	for _, err := range errs {
-		arr.AppendString(err.Error())
 	}
 	return nil
 }
@@ -147,7 +139,7 @@ type Store struct {
 	// Result of the store
 	Result *Result
 
-	// Search first part of store operation
+	// Search defines the first part of store operation
 	Search *search.Search
 
 	// Params defining the store part of the operation
@@ -187,7 +179,11 @@ func (s *Store) MarshalLogObject(oe zapcore.ObjectEncoder) error {
 	if s.Result != nil {
 		oe.AddBool(logFinished, s.Finished())
 		oe.AddBool(logStored, s.Stored())
-		oe.AddBool(logExists, s.Exists())
+		if s.Result.Search != nil {
+			// very occasionally Search is nil for some reason can't yet determine; this prevents
+			// nil panic
+			oe.AddBool(logExists, s.Exists())
+		}
 		oe.AddBool(logErrored, s.Errored())
 		oe.AddBool(logExhausted, s.Exhausted())
 	}

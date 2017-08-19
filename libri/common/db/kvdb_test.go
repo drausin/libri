@@ -6,7 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// Test creating a new RocksDB instance.
 func TestRocksDB_NewRocksDB(t *testing.T) {
 	db, cleanup, err := NewTempDirRocksDB()
 	defer cleanup()
@@ -18,7 +17,6 @@ func TestRocksDB_NewRocksDB(t *testing.T) {
 	assert.NotNil(t, db.rdb)
 }
 
-// Test putting and then getting a value works as expected.
 func TestRocksDB_PutGet(t *testing.T) {
 	db, cleanup, err := NewTempDirRocksDB()
 	defer cleanup()
@@ -39,7 +37,6 @@ func TestRocksDB_Get_err(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-// Test a second put overwrites the value of the first.
 func TestRocksDB_PutGetPutGet(t *testing.T) {
 	db, cleanup, err := NewTempDirRocksDB()
 	defer cleanup()
@@ -58,7 +55,6 @@ func TestRocksDB_PutGetPutGet(t *testing.T) {
 	assert.Equal(t, value2, getValue2)
 }
 
-// Test deleting a put value.
 func TestRocksDB_PutGetDeleteGet(t *testing.T) {
 	db, cleanup, err := NewTempDirRocksDB()
 	defer cleanup()
@@ -75,4 +71,57 @@ func TestRocksDB_PutGetDeleteGet(t *testing.T) {
 	getValue2, err := db.Get(key)
 	assert.Nil(t, err)
 	assert.Nil(t, getValue2)
+}
+
+func TestRocksDB_Iterate(t *testing.T) {
+	db, cleanup, err := NewTempDirRocksDB()
+	defer cleanup()
+	defer db.Close()
+	assert.Nil(t, err)
+
+	// add data
+	vals := map[string][]byte{
+		"key1": []byte("val1"),
+		"key2": []byte("val2"),
+		"key3": []byte("val3"),
+	}
+	for key, val := range vals {
+		err = db.Put([]byte(key), val)
+		assert.Nil(t, err)
+	}
+
+	// iterate through everything
+	nIters := 0
+	callback := func(key, value []byte) {
+		nIters++
+		expected, in := vals[string(key)]
+		assert.True(t, in)
+		assert.Equal(t, expected, value)
+	}
+	lb, ub := []byte("key0"), []byte("key9")
+	err = db.Iterate(lb, ub, make(chan struct{}), callback)
+	assert.Nil(t, err)
+	assert.Equal(t, len(vals), nIters)
+
+	// iterate through only some
+	nIters = 0
+	lb, ub = []byte("key0"), []byte("key3")
+	err = db.Iterate(lb, ub, make(chan struct{}), callback)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, nIters)
+
+	// iterate through single value and send done signal
+	nIters = 0
+	done := make(chan struct{})
+	callback = func(key, value []byte) {
+		nIters++
+		expected, in := vals[string(key)]
+		assert.True(t, in)
+		assert.Equal(t, expected, value)
+		close(done)
+	}
+	lb, ub = []byte("key0"), []byte("key9")
+	err = db.Iterate(lb, ub, done, callback)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, nIters)
 }

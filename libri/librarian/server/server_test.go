@@ -9,8 +9,12 @@ import (
 	"sync"
 	"testing"
 
+	"crypto/hmac"
+	"crypto/sha256"
+
 	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/common/ecid"
+	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/common/storage"
@@ -23,6 +27,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/store"
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/metadata"
 )
@@ -31,14 +36,22 @@ import (
 // expected.
 func TestNewLibrarian(t *testing.T) {
 	l1 := newTestLibrarian()
-	go func() { <-l1.stop }() // dummy stop signal acceptor
+	go l1.replicator.Start()
+	go func() { // dummy stop signal acceptor
+		<-l1.stop
+		close(l1.stopped)
+	}()
 
 	nodeID1 := l1.selfID // should have been generated
 	err := l1.Close()
 	assert.Nil(t, err)
 
-	l2, err := NewLibrarian(l1.config, clogging.NewDevInfoLogger())
-	go func() { <-l2.stop }() // dummy stop signal acceptor
+	l2, err := NewLibrarian(l1.config, zap.NewNop())
+	go l2.replicator.Start()
+	go func() { // dummy stop signal acceptor
+		<-l2.stop
+		close(l2.stopped)
+	}()
 
 	assert.Nil(t, err)
 	assert.Equal(t, nodeID1, l2.selfID)
@@ -48,10 +61,8 @@ func TestNewLibrarian(t *testing.T) {
 
 func newTestLibrarian() *Librarian {
 	config := newTestConfig()
-	l, err := NewLibrarian(config, clogging.NewDevInfoLogger())
-	if err != nil {
-		panic(err)
-	}
+	l, err := NewLibrarian(config, zap.NewNop())
+	cerrors.MaybePanic(err)
 	return l
 }
 
@@ -90,7 +101,7 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 		selfID:  serverID,
 		rt:      rt,
 		rqv:     &alwaysRequestVerifier{},
-		logger:  clogging.NewDevInfoLogger(),
+		logger:  zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 
 	clientID, clientPeerIdx := ecid.NewPseudoRandom(rng), 1
@@ -122,7 +133,7 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 func TestLibrarian_Introduce_checkRequestErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	l := &Librarian{
-		logger: clogging.NewDevInfoLogger(),
+		logger: zap.NewNop(), // clogging.NewDevInfoLogger()
 	}
 	rq := &api.IntroduceRequest{
 		Metadata: client.NewRequestMetadata(ecid.NewPseudoRandom(rng)),
@@ -142,7 +153,7 @@ func TestLibrarian_Introduce_peerIDErr(t *testing.T) {
 		fromer: peer.NewFromer(),
 		rt:     rt,
 		rqv:    &alwaysRequestVerifier{},
-		logger: clogging.NewDevInfoLogger(),
+		logger: zap.NewNop(), // clogging.NewDevInfoLogger()
 	}
 
 	clientID, clientPeerIdx := ecid.NewPseudoRandom(rng), 1
@@ -166,7 +177,7 @@ func TestLibrarian_Introduce_peerIDErr(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestLibrarian_Find(t *testing.T) {
+func TestLibrarian_Find_peers(t *testing.T) {
 	kvdb, cleanup, err := db.NewTempDirRocksDB()
 	defer cleanup()
 	defer kvdb.Close()
@@ -185,7 +196,7 @@ func TestLibrarian_Find(t *testing.T) {
 				kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 				rt:         rt,
 				rqv:        &alwaysRequestVerifier{},
-				logger:     clogging.NewDevInfoLogger(),
+				logger:     zap.NewNop(), // clogging.NewDevInfoLogger()
 			}
 
 			numClosest := uint32(routing.DefaultMaxActivePeers)
@@ -199,13 +210,14 @@ func TestLibrarian_Find(t *testing.T) {
 			assert.Nil(t, err)
 
 			// check
-			checkPeersResponse(t, rq, rp, nAdded, numClosest)
+			checkPeersFindResponse(t, rq, rp, nAdded, numClosest)
 		}
 	}
 }
 
-func checkPeersResponse(t *testing.T, rq *api.FindRequest, rp *api.FindResponse, nAdded int,
-	numClosest uint32) {
+func checkPeersFindResponse(
+	t *testing.T, rq *api.FindRequest, rp *api.FindResponse, nAdded int, numClosest uint32,
+) {
 
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
 
@@ -224,7 +236,7 @@ func checkPeersResponse(t *testing.T, rq *api.FindRequest, rp *api.FindResponse,
 	}
 }
 
-func TestLibrarian_Find_present(t *testing.T) {
+func TestLibrarian_Find_value(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	rt, peerID, _ := routing.NewTestWithPeers(rng, 64)
 	kvdb, cleanup, err := db.NewTempDirRocksDB()
@@ -240,12 +252,11 @@ func TestLibrarian_Find_present(t *testing.T) {
 		rt:         rt,
 		kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		rqv:        &alwaysRequestVerifier{},
-		logger:     clogging.NewDevInfoLogger(),
+		logger:     zap.NewNop(), // clogging.NewDevInfoLogger()
 	}
 
 	// create key-value and store
 	value, key := api.NewTestDocument(rng)
-
 	err = l.documentSL.Store(key, value)
 	assert.Nil(t, err)
 
@@ -266,9 +277,54 @@ func TestLibrarian_Find_present(t *testing.T) {
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
 }
 
-func TestLibrarian_Find_missing(t *testing.T) {
+func TestLibrarian_Find_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	peerID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
+	rt, _, _ := routing.NewTestWithPeers(rng, 0)
+	cases := []struct {
+		l         *Librarian
+		rqCreator func() *api.FindRequest
+	}{
+		// case 0
+		{
+			l: &Librarian{
+				logger: zap.NewNop(), // clogging.NewDevInfoLogger()
+				rqv:    NewRequestVerifier(),
+				kc:     storage.NewExactLengthChecker(storage.EntriesKeyLength),
+			},
+			rqCreator: func() *api.FindRequest {
+				rq := client.NewFindRequest(peerID, key, uint(8))
+				rq.Metadata.PubKey = []byte("corrupted pub key")
+				return rq
+			},
+		},
+
+		// case 1
+		{
+			l: &Librarian{
+				logger:     zap.NewNop(), // clogging.NewDevInfoLogger()
+				rqv:        &alwaysRequestVerifier{},
+				kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
+				documentSL: &storage.TestDocSLD{LoadErr: errors.New("some Load error")},
+				rt:         rt,
+			},
+			rqCreator: func() *api.FindRequest {
+				return client.NewFindRequest(peerID, key, uint(8))
+			},
+		},
+	}
+
+	for i, c := range cases {
+		info := fmt.Sprintf("case %d", i)
+		rp, err := c.l.Find(nil, c.rqCreator())
+		assert.Nil(t, rp, info)
+		assert.NotNil(t, err, info)
+	}
+}
+
+func TestLibrarian_Verify_value(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	rt, peerID, nAdded := routing.NewTestWithPeers(rng, 64)
+	rt, peerID, _ := routing.NewTestWithPeers(rng, 64)
 	kvdb, cleanup, err := db.NewTempDirRocksDB()
 	defer cleanup()
 	defer kvdb.Close()
@@ -276,41 +332,148 @@ func TestLibrarian_Find_missing(t *testing.T) {
 
 	l := &Librarian{
 		selfID:     peerID,
-		rt:         rt,
 		db:         kvdb,
 		serverSL:   storage.NewServerSL(kvdb),
 		documentSL: storage.NewDocumentSLD(kvdb),
+		rt:         rt,
 		kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		rqv:        &alwaysRequestVerifier{},
-		logger:     clogging.NewDevInfoLogger(),
+		logger:     zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 
-	// make request
-	numClosest := uint32(routing.DefaultMaxActivePeers)
-	rq := &api.FindRequest{
-		Metadata: newTestRequestMetadata(rng, l.selfID),
-		Key:      id.NewPseudoRandom(rng).Bytes(),
-		NumPeers: numClosest,
-	}
-
-	rp, err := l.Find(nil, rq)
+	// create key-value and store
+	value, key := api.NewTestDocument(rng)
+	err = l.documentSL.Store(key, value)
 	assert.Nil(t, err)
 
-	// should get peers since the value is missing
-	checkPeersResponse(t, rq, rp, nAdded, numClosest)
+	// MAC the value
+	macKey := api.RandBytes(rng, 32)
+	macer := hmac.New(sha256.New, macKey)
+	valueBytes, err := proto.Marshal(value)
+	assert.Nil(t, err)
+	_, err = macer.Write(valueBytes)
+	assert.Nil(t, err)
+	expectedMAC := macer.Sum(nil)
+
+	// make request for key
+	numClosest := uint32(routing.DefaultMaxActivePeers)
+	rq := &api.VerifyRequest{
+		Metadata: newTestRequestMetadata(rng, l.selfID),
+		Key:      key.Bytes(),
+		MacKey:   macKey,
+		NumPeers: numClosest,
+	}
+	rp, err := l.Verify(nil, rq)
+	assert.Nil(t, err)
+
+	// we should get back the expected mac
+	assert.Equal(t, expectedMAC, rp.Mac)
+	assert.Nil(t, rp.Peers)
+	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
 }
 
-func TestLibrarian_Find_checkRequestError(t *testing.T) {
-	rng := rand.New(rand.NewSource(0))
-	l := &Librarian{
-		logger: clogging.NewDevInfoLogger(),
-	}
-	rq := client.NewFindRequest(ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng), uint(8))
-	rq.Metadata.PubKey = []byte("corrupted pub key")
+func TestLibrarian_Verify_peers(t *testing.T) {
+	kvdb, cleanup, err := db.NewTempDirRocksDB()
+	defer cleanup()
+	defer kvdb.Close()
+	assert.Nil(t, err)
+	for n := 8; n <= 128; n *= 2 {
+		// for different numbers of total active peers
 
-	rp, err := l.Find(nil, rq)
-	assert.Nil(t, rp)
-	assert.NotNil(t, err)
+		for s := 0; s < 10; s++ {
+			// for different selfIDs
+
+			rng := rand.New(rand.NewSource(int64(s)))
+			rt, peerID, nAdded := routing.NewTestWithPeers(rng, n)
+			l := &Librarian{
+				selfID:     peerID,
+				documentSL: storage.NewDocumentSLD(kvdb),
+				kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
+				rt:         rt,
+				rqv:        &alwaysRequestVerifier{},
+				logger:     zap.NewNop(), // clogging.NewDevInfoLogger(),
+			}
+
+			numClosest := uint32(routing.DefaultMaxActivePeers)
+			rq := &api.VerifyRequest{
+				Metadata: newTestRequestMetadata(rng, l.selfID),
+				Key:      id.NewPseudoRandom(rng).Bytes(),
+				NumPeers: numClosest,
+			}
+
+			rp, err := l.Verify(nil, rq)
+			assert.Nil(t, err)
+
+			// check
+			checkPeersVerifyResponse(t, rq, rp, nAdded, numClosest)
+		}
+	}
+}
+
+func checkPeersVerifyResponse(
+	t *testing.T, rq *api.VerifyRequest, rp *api.VerifyResponse, nAdded int, numClosest uint32,
+) {
+	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
+
+	assert.Nil(t, rp.Mac)
+	assert.NotNil(t, rp.Peers)
+	if int(numClosest) > nAdded {
+		assert.Equal(t, nAdded, len(rp.Peers))
+	} else {
+		assert.Equal(t, numClosest, uint32(len(rp.Peers)))
+	}
+	for _, a := range rp.Peers {
+		assert.NotNil(t, a.PeerId)
+		assert.NotNil(t, a.PeerName)
+		assert.NotNil(t, a.Ip)
+		assert.NotNil(t, a.Port)
+	}
+}
+
+func TestLibrarian_Verify_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	peerID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
+	rt, _, _ := routing.NewTestWithPeers(rng, 0)
+	macKey := api.RandBytes(rng, 32)
+	cases := []struct {
+		l         *Librarian
+		rqCreator func() *api.VerifyRequest
+	}{
+		// case 0
+		{
+			l: &Librarian{
+				logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
+				rqv:    NewRequestVerifier(),
+				kc:     storage.NewExactLengthChecker(storage.EntriesKeyLength),
+			},
+			rqCreator: func() *api.VerifyRequest {
+				rq := client.NewVerifyRequest(peerID, key, macKey, uint(8))
+				rq.Metadata.PubKey = []byte("corrupted pub key")
+				return rq
+			},
+		},
+
+		// case 1
+		{
+			l: &Librarian{
+				logger:     zap.NewNop(), // clogging.NewDevInfoLogger(),
+				rqv:        &alwaysRequestVerifier{},
+				kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
+				documentSL: &storage.TestDocSLD{MacErr: errors.New("some Mac error")},
+				rt:         rt,
+			},
+			rqCreator: func() *api.VerifyRequest {
+				return client.NewVerifyRequest(peerID, key, macKey, uint(8))
+			},
+		},
+	}
+
+	for i, c := range cases {
+		info := fmt.Sprintf("case %d", i)
+		rp, err := c.l.Verify(nil, c.rqCreator())
+		assert.Nil(t, rp, info)
+		assert.NotNil(t, err, info)
+	}
 }
 
 func TestLibrarian_Store_ok(t *testing.T) {
@@ -331,7 +494,7 @@ func TestLibrarian_Store_ok(t *testing.T) {
 		kc:          storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		kvc:         storage.NewHashKeyValueChecker(),
 		rqv:         &alwaysRequestVerifier{},
-		logger:      clogging.NewDevInfoLogger(),
+		logger:      zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 
 	// create key-value
@@ -363,7 +526,7 @@ func newTestRequestMetadata(rng *rand.Rand, peerID ecid.ID) *api.RequestMetadata
 func TestLibrarian_Store_checkRequestError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	l := &Librarian{
-		logger: clogging.NewDevInfoLogger(),
+		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	value, key := api.NewTestDocument(rng)
 	rq := client.NewStoreRequest(ecid.NewPseudoRandom(rng), key, value)
@@ -374,27 +537,19 @@ func TestLibrarian_Store_checkRequestError(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-type errDocStorerLoader struct{}
-
-func (*errDocStorerLoader) Store(key id.ID, value *api.Document) error {
-	return errors.New("some store error")
-}
-
-func (*errDocStorerLoader) Load(key id.ID) (*api.Document, error) {
-	return nil, errors.New("some load error")
-}
-
 func TestLibrarian_Store_storeError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	rt, peerID, _ := routing.NewTestWithPeers(rng, 64)
+	sld := storage.NewTestDocSLD()
+	sld.StoreErr = errors.New("some Store error")
 	l := &Librarian{
 		selfID:     peerID,
 		rt:         rt,
 		kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		kvc:        storage.NewHashKeyValueChecker(),
 		rqv:        &alwaysRequestVerifier{},
-		documentSL: &errDocStorerLoader{},
-		logger:     clogging.NewDevInfoLogger(),
+		documentSL: sld,
+		logger:     zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	value, key := api.NewTestDocument(rng)
 	rq := client.NewStoreRequest(ecid.NewPseudoRandom(rng), key, value)
@@ -442,7 +597,7 @@ func TestLibrarian_Get_FoundClosestPeers(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	key, peerID := id.NewPseudoRandom(rng), ecid.NewPseudoRandom(rng)
 
-	// create mock search result to return FoundClosestPeers() == true
+	// create mock search result to return UnderReplicated() == true
 	searchParams := search.NewDefaultParameters()
 	foundClosestPeersResult := search.NewInitialResult(key, searchParams)
 	dummyClosest := peer.NewTestPeers(rng, int(searchParams.NClosestResponses))
@@ -453,7 +608,7 @@ func TestLibrarian_Get_FoundClosestPeers(t *testing.T) {
 	l := newGetLibrarian(rng, foundClosestPeersResult, nil)
 	rq := client.NewGetRequest(peerID, key)
 
-	// since fixedSearcher returns a Search value where FoundClosestPeers() is true, shouldn't
+	// since fixedSearcher returns a Search value where UnderReplicated() is true, shouldn't
 	// have any Value
 	rp, err := l.Get(nil, rq)
 	assert.Nil(t, err)
@@ -515,7 +670,7 @@ func TestLibrarian_Get_err(t *testing.T) {
 func TestLibrarian_Get_checkRequestError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	l := &Librarian{
-		logger: clogging.NewDevInfoLogger(),
+		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	rq := client.NewGetRequest(ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng))
 	rq.Metadata.PubKey = []byte("corrupted pub key")
@@ -538,7 +693,7 @@ func newGetLibrarian(rng *rand.Rand, searchResult *search.Result, searchErr erro
 			err:    searchErr,
 		},
 		rqv:    &alwaysRequestVerifier{},
-		logger: clogging.NewDevInfoLogger(),
+		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 }
 
@@ -638,7 +793,7 @@ func TestLibrarian_Put_err(t *testing.T) {
 func TestLibrarian_Put_checkRequestError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	l := &Librarian{
-		logger: clogging.NewDevInfoLogger(),
+		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	value, key := api.NewTestDocument(rng)
 	rq := client.NewPutRequest(ecid.NewPseudoRandom(rng), key, value)
@@ -661,7 +816,7 @@ func TestLibrarian_Subscribe_ok(t *testing.T) {
 			done: done,
 		},
 		rqv:    &alwaysRequestVerifier{},
-		logger: clogging.NewDevInfoLogger(),
+		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 
 	// create subscription that should cover both the author and reader filter code branches
@@ -735,7 +890,7 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 	l1 := &Librarian{
 		rqv:    &neverRequestVerifier{},
 		rt:     routing.NewEmpty(selfID.ID(), routing.NewDefaultParameters()),
-		logger: clogging.NewDevInfoLogger(),
+		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	err = l1.Subscribe(rq, from)
 	assert.NotNil(t, err)
@@ -747,7 +902,7 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 	rq2 := client.NewSubscribeRequest(ecid.NewPseudoRandom(rng), sub2)
 	l2 := &Librarian{
 		rqv:    &alwaysRequestVerifier{},
-		logger: clogging.NewDevInfoLogger(),
+		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	err = l2.Subscribe(rq2, from)
 	assert.NotNil(t, err)
@@ -759,7 +914,7 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 	rq3 := client.NewSubscribeRequest(ecid.NewPseudoRandom(rng), sub3)
 	l3 := &Librarian{
 		rqv:    &alwaysRequestVerifier{},
-		logger: clogging.NewDevInfoLogger(),
+		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	err = l3.Subscribe(rq3, from)
 	assert.NotNil(t, err)
@@ -774,7 +929,7 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 			err: subscribe.ErrNotAcceptingNewSubscriptions,
 		},
 		rqv:    &alwaysRequestVerifier{},
-		logger: clogging.NewDevInfoLogger(),
+		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	err = l4.Subscribe(rq4, from)
 	assert.Equal(t, subscribe.ErrNotAcceptingNewSubscriptions, err)
@@ -791,7 +946,7 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 			done: make(chan struct{}),
 		},
 		rqv:    &alwaysRequestVerifier{},
-		logger: clogging.NewDevInfoLogger(),
+		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	from5 := &fixedLibrarianSubscribeServer{
 		err: errors.New("some Subscribe error"),

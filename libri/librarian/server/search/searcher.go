@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
@@ -18,6 +19,8 @@ const searcherFindRetryTimeout = 100 * time.Millisecond
 var (
 	// ErrTooManyFindErrors indicates when a search has encountered too many Find request errors.
 	ErrTooManyFindErrors = errors.New("too many Find errors")
+
+	errInvalidResponse = errors.New("FindResponse contains neither value nor peer addresses")
 )
 
 // Searcher executes searches for particular keys.
@@ -52,9 +55,7 @@ func NewDefaultSearcher(signer client.Signer) Searcher {
 }
 
 func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
-	if err := search.Result.Unqueried.SafePushMany(seeds); err != nil {
-		panic(err) // should never happen
-	}
+	cerrors.MaybePanic(search.Result.Unqueried.SafePushMany(seeds))
 
 	var wg sync.WaitGroup
 	for c := uint(0); c < search.Params.Concurrency; c++ {
@@ -68,64 +69,47 @@ func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
 
 func (s *searcher) searchWork(search *Search, wg *sync.WaitGroup) {
 	defer wg.Done()
+	result := search.Result
 	for !search.Finished() {
 
 		// get next peer to query
 		search.mu.Lock()
-		next := heap.Pop(search.Result.Unqueried).(peer.Peer)
-		nextIDStr := next.ID().String()
-		if _, in := search.Result.Responded[nextIDStr]; in {
-			search.mu.Unlock()
-			continue
-		}
-		if _, in := search.Result.Errored[nextIDStr]; in {
-			search.mu.Unlock()
-			continue
-		}
+		next, nextIDStr := NextPeerToQuery(result.Unqueried, result.Responded, result.Errored)
 		search.mu.Unlock()
+		if next == nil {
+			// next peer has already responded or errored
+			continue
+		}
 
 		// do the query
 		response, err := s.query(next.Connector(), search)
 		if err != nil {
 			// if we had an issue querying, skip to next peer
-			search.mu.Lock()
-			search.Result.Errored[nextIDStr] = err
-			next.Recorder().Record(peer.Response, peer.Error)
-			if search.Errored() {
-				search.Result.FatalErr = ErrTooManyFindErrors
-			}
-			search.mu.Unlock()
+			search.wrapLock(func() { recordError(nextIDStr, next, err, search) })
 			continue
 		}
-		search.mu.Lock()
-		next.Recorder().Record(peer.Response, peer.Success)
-		search.mu.Unlock()
 
-		// process the heap's response
-		search.mu.Lock()
-		err = s.rp.Process(response, search.Result)
-		search.mu.Unlock()
+		// process the response
+		search.wrapLock(func() { err = s.rp.Process(response, result) })
 		if err != nil {
-			search.mu.Lock()
-			search.Result.FatalErr = err
-			search.mu.Unlock()
-			return
+			search.wrapLock(func() { recordError(nextIDStr, next, err, search) })
+			continue
 		}
 
-		// add to heap of closest responded peers
-		search.mu.Lock()
-		err = search.Result.Closest.SafePush(next)
-		search.mu.Unlock()
-		if err != nil {
-			panic(err) // should never happen
-		}
+		// bookkeep ok response
+		search.wrapLock(func() {
+			next.Recorder().Record(peer.Response, peer.Success)
+			cerrors.MaybePanic(result.Closest.SafePush(next))
+			result.Responded[nextIDStr] = next
+		})
+	}
+}
 
-		// add next peer to set of peers that responded
-		search.mu.Lock()
-		if _, in := search.Result.Responded[nextIDStr]; !in {
-			search.Result.Responded[nextIDStr] = next
-		}
-		search.mu.Unlock()
+func recordError(nextIDStr string, p peer.Peer, err error, s *Search) {
+	s.Result.Errored[nextIDStr] = err
+	p.Recorder().Record(peer.Response, peer.Error)
+	if s.Errored() {
+		s.Result.FatalErr = ErrTooManyFindErrors
 	}
 }
 
@@ -150,6 +134,22 @@ func (s *searcher) query(pConn peer.Connector, search *Search) (*api.FindRespons
 	}
 
 	return rp, nil
+}
+
+// NextPeerToQuery pops the next peer from unqueried and returns it if it hasn't responded or
+// errored yet. Otherwise it returns nil.
+func NextPeerToQuery(
+	unqueried heap.Interface, responded map[string]peer.Peer, errored map[string]error,
+) (peer.Peer, string) {
+	next := heap.Pop(unqueried).(peer.Peer)
+	nextIDStr := next.ID().String()
+	if _, in := responded[nextIDStr]; in {
+		return nil, ""
+	}
+	if _, in := errored[nextIDStr]; in {
+		return nil, ""
+	}
+	return next, nextIDStr
 }
 
 // ResponseProcessor handles an api.FindResponse
@@ -178,19 +178,28 @@ func (frp *responseProcessor) Process(rp *api.FindResponse, result *Result) erro
 
 	if rp.Peers != nil {
 		// response has peer addresses close to key
-		for _, pa := range rp.Peers {
-			newID := id.FromBytes(pa.PeerId)
-			if !result.Closest.In(newID) && !result.Unqueried.In(newID) {
-				// only add discovered peers that we haven't already seen
-				newPeer := frp.fromer.FromAPI(pa)
-				if err := result.Unqueried.SafePush(newPeer); err != nil {
-					panic(err) // should never happen
-				}
-			}
-		}
+		AddPeers(result.Responded, result.Unqueried, rp.Peers, frp.fromer)
 		return nil
 	}
 
 	// invalid response
-	return errors.New("FindResponse contains neither value nor peer addresses")
+	return errInvalidResponse
+}
+
+// AddPeers adds a list of peer address to the unqueried heap.
+func AddPeers(
+	responded map[string]peer.Peer,
+	unqueried ClosestPeers,
+	peers []*api.PeerAddress,
+	fromer peer.Fromer,
+) {
+	for _, pa := range peers {
+		newID := id.FromBytes(pa.PeerId)
+		_, inResponded := responded[newID.String()]
+		if !inResponded && !unqueried.In(newID) {
+			// only add discovered peers that we haven't already seen
+			newPeer := fromer.FromAPI(pa)
+			cerrors.MaybePanic(unqueried.SafePush(newPeer)) // should never happen
+		}
+	}
 }

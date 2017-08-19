@@ -75,11 +75,8 @@ func (r *receiver) ReceiveEntry(envelopeKey id.ID) (*api.Document, *enc.EEK, err
 }
 
 func (r *receiver) ReceiveEnvelope(envelopeKey id.ID) (*api.Envelope, error) {
-	lc, err := r.librarians.Next()
-	if err != nil {
-		return nil, err
-	}
-	envelopeDoc, err := r.acquirer.Acquire(envelopeKey, nil, lc)
+	rlc := r.msAcquirer.GetRetryGetter(r.librarians)
+	envelopeDoc, err := r.acquirer.Acquire(envelopeKey, nil, rlc)
 	if err != nil {
 		return nil, err
 	}

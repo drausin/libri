@@ -58,11 +58,8 @@ func (s *shipper) ShipEntry(
 		}
 	}
 
-	lc, err := s.librarians.Next()
-	if err != nil {
-		return nil, nil, err
-	}
-	entryKey, err := s.publisher.Publish(entry, authorPub, lc)
+	rlc := s.mlPublisher.GetRetryPutter(s.librarians)
+	entryKey, err := s.publisher.Publish(entry, authorPub, rlc)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -73,16 +70,13 @@ func (s *shipper) ShipEnvelope(
 	kek *enc.KEK, eek *enc.EEK, entryKey id.ID, authorPub, readerPub []byte,
 ) (*api.Document, id.ID, error) {
 
-	lc, err := s.librarians.Next()
-	if err != nil {
-		return nil, nil, err
-	}
 	eekCiphertext, eekCiphertextMAC, err := kek.Encrypt(eek)
 	if err != nil {
 		return nil, nil, err
 	}
 	envelope := pack.NewEnvelopeDoc(entryKey, authorPub, readerPub, eekCiphertext, eekCiphertextMAC)
-	envelopeKey, err := s.publisher.Publish(envelope, authorPub, lc)
+	rlc := s.mlPublisher.GetRetryPutter(s.librarians)
+	envelopeKey, err := s.publisher.Publish(envelope, authorPub, rlc)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/drausin/libri/libri/author/io/publish"
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/stretchr/testify/assert"
@@ -91,17 +92,6 @@ func TestShipper_Ship_err(t *testing.T) {
 	assert.Nil(t, envelope)
 	assert.Nil(t, entryKey)
 
-	// check getting next librarian error bubbles up
-	s = NewShipper(
-		&fixedPutterBalancer{err: errors.New("some Next error")},
-		&fixedPublisher{},
-		&fixedMultiLoadPublisher{},
-	)
-	envelope, entryKey, err = s.ShipEntry(entry, authorPub, readerPub, kek, eek)
-	assert.NotNil(t, err)
-	assert.Nil(t, envelope)
-	assert.Nil(t, entryKey)
-
 	// check entry publish error bubbles up
 	s = NewShipper(
 		&fixedPutterBalancer{},
@@ -151,9 +141,7 @@ func TestShipReceive(t *testing.T) {
 	assert.Nil(t, err)
 
 	for _, nDocs := range []uint32{1, 2, 4, 8} {
-		docSL1 := &fixedDocSLD{
-			docs: make(map[string]*api.Document),
-		}
+		docSL1 := storage.NewTestDocSLD()
 
 		// make and store documents as if they had already been packed
 		docs := make([]*api.Document, nDocs)
@@ -210,9 +198,7 @@ func TestShipReceive(t *testing.T) {
 		}
 
 		// receive all docs
-		docSL2 := &fixedDocSLD{
-			docs: make(map[string]*api.Document),
-		}
+		docSL2 := storage.NewTestDocSLD()
 		msA := publish.NewMultiStoreAcquirer(
 			publish.NewSingleStoreAcquirer(pubAcq, docSL2),
 			params,
@@ -241,6 +227,7 @@ func TestShipReceive(t *testing.T) {
 type fixedMultiLoadPublisher struct {
 	err     error
 	deleted bool
+	putter  api.Putter
 }
 
 func (f *fixedMultiLoadPublisher) Publish(
@@ -248,6 +235,10 @@ func (f *fixedMultiLoadPublisher) Publish(
 ) error {
 	f.deleted = delete
 	return f.err
+}
+
+func (f *fixedMultiLoadPublisher) GetRetryPutter(cb client.PutterBalancer) api.Putter {
+	return f.putter
 }
 
 type fixedPublisher struct {
@@ -284,33 +275,6 @@ type fixedPutterBalancer struct {
 
 func (f *fixedPutterBalancer) Next() (api.Putter, error) {
 	return f.client, f.err
-}
-
-type fixedDocSLD struct {
-	docs        map[string]*api.Document
-	mu          sync.Mutex
-	loadError   error
-	storeError  error
-	deleteError error
-}
-
-func (f *fixedDocSLD) Load(key id.ID) (*api.Document, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	value := f.docs[key.String()]
-	return value, f.loadError
-}
-
-func (f *fixedDocSLD) Store(key id.ID, value *api.Document) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.docs[key.String()] = value
-	return f.storeError
-}
-
-func (f *fixedDocSLD) Delete(key id.ID) error {
-	delete(f.docs, key.String())
-	return f.deleteError
 }
 
 type memPublisherAcquirer struct {

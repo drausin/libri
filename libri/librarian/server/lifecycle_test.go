@@ -84,7 +84,7 @@ func TestStart_bootstrapPeersErr(t *testing.T) {
 	config.BootstrapAddrs = append(config.BootstrapAddrs, publicAddr)
 
 	// check that bootstrap error bubbles up
-	assert.NotNil(t, Start(clogging.NewDevInfoLogger(), config, make(chan *Librarian, 1)))
+	assert.NotNil(t, Start(zap.NewNop(), config, make(chan *Librarian, 1)))
 }
 
 func TestLibrarian_bootstrapPeers_ok(t *testing.T) {
@@ -109,7 +109,7 @@ func TestLibrarian_bootstrapPeers_ok(t *testing.T) {
 			result: fixedResult,
 		},
 		rt:     routing.NewEmpty(id.NewPseudoRandom(rng), routing.NewDefaultParameters()),
-		logger: clogging.NewDevInfoLogger(),
+		logger: zap.NewNop(),
 	}
 
 	err := l.bootstrapPeers(seeds)
@@ -141,7 +141,7 @@ func TestLibrarian_bootstrapPeers_introduceErr(t *testing.T) {
 			err: errors.New("some fatal introduce error"),
 		},
 		rt:     routing.NewEmpty(id.NewPseudoRandom(rng), routing.NewDefaultParameters()),
-		logger: clogging.NewDevInfoLogger(),
+		logger: zap.NewNop(),
 	}
 
 	err := l.bootstrapPeers(seeds)
@@ -172,7 +172,7 @@ func TestLibrarian_bootstrapPeers_noResponsesErr(t *testing.T) {
 			result: fixedResult,
 		},
 		rt:     routing.NewEmpty(id.NewPseudoRandom(rng), routing.NewDefaultParameters()),
-		logger: clogging.NewDevInfoLogger(),
+		logger: zap.NewNop(),
 	}
 
 	err = l.bootstrapPeers(seeds)

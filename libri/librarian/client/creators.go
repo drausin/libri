@@ -47,6 +47,27 @@ func (*finderCreator) Create(c peer.Connector) (api.Finder, error) {
 	return lc.(api.Finder), nil
 }
 
+// VerifierCreator creates api.Verifiers.
+type VerifierCreator interface {
+	// Create creates an api.Verifier from the api.Connector.
+	Create(conn peer.Connector) (api.Verifier, error)
+}
+
+type verifierCreator struct{}
+
+// NewVerifierCreator creates a new FinderCreator.
+func NewVerifierCreator() VerifierCreator {
+	return &verifierCreator{}
+}
+
+func (*verifierCreator) Create(c peer.Connector) (api.Verifier, error) {
+	lc, err := c.Connect()
+	if err != nil {
+		return nil, err
+	}
+	return lc.(api.Verifier), nil
+}
+
 // StorerCreator creates api.Storers.
 type StorerCreator interface {
 	// Create creates an api.Storer from the api.Connector.

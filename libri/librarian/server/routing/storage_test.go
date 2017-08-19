@@ -86,27 +86,18 @@ func assertRoutingTablesEqual(t *testing.T, rt Table, srt *storage.RoutingTable)
 	}
 }
 
-type fixedLoader struct {
-	bytes []byte
-	err   error
-}
-
-func (l *fixedLoader) Load(key []byte) ([]byte, error) {
-	return l.bytes, l.err
-}
-
 func TestLoad_err(t *testing.T) {
 
 	// simulates missing/not stored table
-	rt1, err := Load(&fixedLoader{}, NewDefaultParameters())
+	rt1, err := Load(&storage.TestSLD{}, NewDefaultParameters())
 	assert.Nil(t, rt1)
 	assert.Nil(t, err)
 
 	// simulates loading error
 	rt2, err := Load(
-		&fixedLoader{
-			bytes: []byte("some random bytes"),
-			err:   errors.New("some random error"),
+		&storage.TestSLD{
+			Bytes:   []byte("some random bytes"),
+			LoadErr: errors.New("some random error"),
 		},
 		NewDefaultParameters(),
 	)
@@ -115,9 +106,9 @@ func TestLoad_err(t *testing.T) {
 
 	// simulates bad stored table
 	rt3, err := Load(
-		&fixedLoader{
-			bytes: []byte("the wrong bytes"),
-			err:   nil,
+		&storage.TestSLD{
+			Bytes:   []byte("the wrong bytes"),
+			LoadErr: nil,
 		},
 		NewDefaultParameters(),
 	)

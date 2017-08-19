@@ -13,6 +13,7 @@ GIT_DIFF_PKG_SUBDIRS=$(shell echo $(LIBRI_PKG_SUBDIRS) $(GIT_DIFF_SUBDIRS) | tr 
 
 acceptance:
 	@echo "--> Running acceptance tests"
+	@mkdir -p artifacts
 	@go test -tags acceptance -v github.com/drausin/libri/libri/acceptance 2>&1 | tee artifacts/acceptance.log
 
 bench:
@@ -70,7 +71,7 @@ proto:
 	@echo "--> Running protoc"
 	@protoc ./libri/author/keychain/*.proto --go_out=plugins=grpc:.
 	@protoc ./libri/common/ecid/*.proto --go_out=plugins=grpc:.
-	@protoc ./libri/librarian/api/*.proto --go_out=plugins=grpc:.
+	@pushd libri && protoc ./librarian/api/*.proto --go_out=plugins=grpc:. && popd
 	@protoc ./libri/common/storage/*.proto --go_out=plugins=grpc:.
 
 test-cover:

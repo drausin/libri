@@ -14,7 +14,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-// TestFinderCreator mocks the FindQuerier interface. The Query() method returns a fixed
+// TestFinderCreator mocks the FindQuerier interface. The Create() method returns a fixed
 // api.FindPeersResponse, derived from a list of addresses in the client.
 type TestFinderCreator struct {
 	finder api.Finder

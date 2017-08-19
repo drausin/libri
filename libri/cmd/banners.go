@@ -29,7 +29,8 @@ NumCPU:         {{ .NumCPU }}
 
 `
 
-const authorTemplate = `Libri Author Client v{{ .LibriVersion }}`
+const authorTemplate = `Libri Author Client v{{ .LibriVersion }}
+`
 
 type librarianConfig struct {
 	LibriVersion string
@@ -44,6 +45,7 @@ type authorConfig struct {
 	LibriVersion string
 }
 
+// WriteLibrarianBanner writes the librarian banner to the io.Writer.
 func WriteLibrarianBanner(w io.Writer) {
 	config := &librarianConfig{
 		LibriVersion: version.Version.String(),
@@ -59,6 +61,7 @@ func WriteLibrarianBanner(w io.Writer) {
 	errors.MaybePanic(err)
 }
 
+// WriteAuthorBanner writes the author banner to the io.Writer.
 func WriteAuthorBanner(w io.Writer) {
 	config := &authorConfig{
 		LibriVersion: version.Version.String(),
