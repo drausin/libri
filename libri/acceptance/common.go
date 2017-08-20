@@ -14,6 +14,7 @@ import (
 	"path"
 
 	lauthor "github.com/drausin/libri/libri/author"
+	"github.com/drausin/libri/libri/author/io/publish"
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/errors"
@@ -328,12 +329,17 @@ func newAuthorConfigs(dataDir string, nAuthors int, librarianAddrs []*net.TCPAdd
 	authorConfigs := make([]*lauthor.Config, nAuthors)
 	for c := 0; c < nAuthors; c++ {
 		authorDataDir := filepath.Join(dataDir, fmt.Sprintf("author-%d", c))
+		publishParams := publish.NewDefaultParameters()
+		publishParams.GetTimeout = 10 * time.Second
+		publishParams.PutTimeout = 10 * time.Second
+
 		authorConfigs[c] = lauthor.NewDefaultConfig().
 			WithLibrarianAddrs(librarianAddrs).
 			WithDataDir(authorDataDir).
 			WithDefaultDBDir().
 			WithDefaultKeychainDir().
-			WithLogLevel(logLevel)
+			WithLogLevel(logLevel).
+			WithPublish(publishParams)
 	}
 	return authorConfigs
 }
