@@ -239,7 +239,7 @@ func tearDown(state *state) {
 			// explicitly end subscriptions first and then sleep so that later librarians
 			// don't crash b/c of flurry of ended subscriptions from earlier librarians
 			p2.StopAuxRoutines()
-			time.Sleep(3 * time.Second)
+			time.Sleep(5 * time.Second)
 			err := p2.Close()
 			errors.MaybePanic(err)
 		}(p1)
@@ -330,8 +330,10 @@ func newAuthorConfigs(dataDir string, nAuthors int, librarianAddrs []*net.TCPAdd
 	for c := 0; c < nAuthors; c++ {
 		authorDataDir := filepath.Join(dataDir, fmt.Sprintf("author-%d", c))
 		publishParams := publish.NewDefaultParameters()
-		publishParams.GetTimeout = 10 * time.Second
-		publishParams.PutTimeout = 10 * time.Second
+
+		// this is really long but adds robustness to our acceptance tests
+		publishParams.GetTimeout = 20 * time.Second
+		publishParams.PutTimeout = 20 * time.Second
 
 		authorConfigs[c] = lauthor.NewDefaultConfig().
 			WithLibrarianAddrs(librarianAddrs).
