@@ -94,6 +94,21 @@ Test uploading/downloading entries from the cluster with
     $ docker run --rm daedalus2718/libri:latest test io -a '192.168.99.100:30100'
 
 
+#### Monitoring the cluster
+
+To start monitoring services (including Prometheus and Grafana), use
+
+    $ ./monitoring-create.sh
+
+If using a local cluster, you can get the URLs for these services via
+
+    $ minikube service prometheus --url
+    http://192.168.99.100:30090
+
+    $ minikube service grafana --url
+    http://192.168.99.100:30300
+
+
 #### Terminating the cluster
 
 Terminate the cluster with 

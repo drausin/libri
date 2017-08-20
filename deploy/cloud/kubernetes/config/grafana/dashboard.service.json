@@ -44,8 +44,9 @@
   "hideControls": false,
   "id": null,
   "links": [],
-  "refresh": "1m",
+  "refresh": "30s",
   "rows": [
+    
     {
       "collapse": false,
       "editable": true,
@@ -76,7 +77,7 @@
             "values": false
           },
           "lines": true,
-          "linewidth": 2,
+          "linewidth": 1,
           "links": [],
           "nullPointMode": "null as zero",
           "percentage": false,
@@ -85,7 +86,180 @@
           "renderer": "flot",
           "seriesOverrides": [],
           "spaceLength": 10,
-          "span": 6,
+          "span": 4,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.5, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"Find\"}[5m])) by (pod_name, le)) * 1000",
+              "format": "time_series",
+              "hide": false,
+              "interval": "10s",
+              "intervalFactor": 1,
+              "legendFormat": "{{ pod_name }}",
+              "metric": "Find_latency_p50",
+              "refId": "A",
+              "step": 10
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Find p50 Latency",
+          "tooltip": {
+            "msResolution": true,
+            "shared": true,
+            "sort": 2,
+            "value_type": "cumulative"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "none",
+              "label": "latency (ms)",
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": false
+            }
+          ]
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "${DS_PROMETHEUS}",
+          "decimals": 2,
+          "editable": true,
+          "error": false,
+          "fill": 0,
+          "grid": {},
+          "height": "250",
+          "id": 2,
+          "legend": {
+            "alignAsTable": false,
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "rightSide": false,
+            "show": false,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null as zero",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 4,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"Find\"}[5m])) by (pod_name, le)) * 1000",
+              "format": "time_series",
+              "interval": "10s",
+              "intervalFactor": 2,
+              "legendFormat": "{{ pod_name }}",
+              "metric": "Find_latency_p99",
+              "refId": "C",
+              "step": 20
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Find p99 Latency",
+          "tooltip": {
+            "msResolution": true,
+            "shared": true,
+            "sort": 2,
+            "value_type": "cumulative"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "none",
+              "label": "latency (ms)",
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": false
+            }
+          ]
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "${DS_PROMETHEUS}",
+          "decimals": 2,
+          "editable": true,
+          "error": false,
+          "fill": 0,
+          "grid": {},
+          "height": "250",
+          "id": 3,
+          "legend": {
+            "alignAsTable": false,
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "rightSide": false,
+            "show": false,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null as zero",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 2,
           "stack": false,
           "steppedLine": false,
           "targets": [
@@ -96,7 +270,7 @@
               "interval": "10s",
               "intervalFactor": 1,
               "legendFormat": "{{ pod_name }}",
-              "metric": "find_num_handled_rate",
+              "metric": "Find_num_handled_rate",
               "refId": "A",
               "step": 10
             }
@@ -150,7 +324,7 @@
           "fill": 0,
           "grid": {},
           "height": "",
-          "id": 2,
+          "id": 4,
           "legend": {
             "alignAsTable": false,
             "avg": false,
@@ -167,7 +341,7 @@
             "values": false
           },
           "lines": true,
-          "linewidth": 2,
+          "linewidth": 1,
           "links": [],
           "nullPointMode": "null as zero",
           "percentage": false,
@@ -176,7 +350,7 @@
           "renderer": "flot",
           "seriesOverrides": [],
           "spaceLength": 10,
-          "span": 6,
+          "span": 2,
           "stack": false,
           "steppedLine": false,
           "targets": [
@@ -186,7 +360,7 @@
               "interval": "10s",
               "intervalFactor": 1,
               "legendFormat": "{{ instance }}",
-              "metric": "find_error_rate",
+              "metric": "Find_error_rate",
               "refId": "A",
               "step": 10
             }
@@ -249,13 +423,11 @@
           "fill": 0,
           "grid": {},
           "height": "250",
-          "id": 3,
+          "id": 5,
           "legend": {
             "alignAsTable": false,
             "avg": false,
             "current": false,
-            "hideEmpty": true,
-            "hideZero": false,
             "max": false,
             "min": false,
             "rightSide": false,
@@ -264,7 +436,7 @@
             "values": false
           },
           "lines": true,
-          "linewidth": 2,
+          "linewidth": 1,
           "links": [],
           "nullPointMode": "null as zero",
           "percentage": false,
@@ -273,18 +445,191 @@
           "renderer": "flot",
           "seriesOverrides": [],
           "spaceLength": 10,
-          "span": 6,
+          "span": 4,
           "stack": false,
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum by (pod_name)(rate( grpc_server_handled_total{grpc_method=\"Store\"}[2m]))",
+              "expr": "histogram_quantile(0.5, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"Store\"}[5m])) by (pod_name, le)) * 1000",
               "format": "time_series",
               "hide": false,
               "interval": "10s",
               "intervalFactor": 1,
               "legendFormat": "{{ pod_name }}",
-              "metric": "store_num_handled_rate",
+              "metric": "Store_latency_p50",
+              "refId": "A",
+              "step": 10
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Store p50 Latency",
+          "tooltip": {
+            "msResolution": true,
+            "shared": true,
+            "sort": 2,
+            "value_type": "cumulative"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "none",
+              "label": "latency (ms)",
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": false
+            }
+          ]
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "${DS_PROMETHEUS}",
+          "decimals": 2,
+          "editable": true,
+          "error": false,
+          "fill": 0,
+          "grid": {},
+          "height": "250",
+          "id": 6,
+          "legend": {
+            "alignAsTable": false,
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "rightSide": false,
+            "show": false,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null as zero",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 4,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"Store\"}[5m])) by (pod_name, le)) * 1000",
+              "format": "time_series",
+              "interval": "10s",
+              "intervalFactor": 2,
+              "legendFormat": "{{ pod_name }}",
+              "metric": "Store_latency_p99",
+              "refId": "C",
+              "step": 20
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Store p99 Latency",
+          "tooltip": {
+            "msResolution": true,
+            "shared": true,
+            "sort": 2,
+            "value_type": "cumulative"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "none",
+              "label": "latency (ms)",
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": false
+            }
+          ]
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "${DS_PROMETHEUS}",
+          "decimals": 2,
+          "editable": true,
+          "error": false,
+          "fill": 0,
+          "grid": {},
+          "height": "250",
+          "id": 7,
+          "legend": {
+            "alignAsTable": false,
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "rightSide": false,
+            "show": false,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null as zero",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 2,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "sum by (pod_name)(rate( grpc_server_handled_total{grpc_method=\"Store\"}[2m] ))",
+              "format": "time_series",
+              "hide": false,
+              "interval": "10s",
+              "intervalFactor": 1,
+              "legendFormat": "{{ pod_name }}",
+              "metric": "Store_num_handled_rate",
               "refId": "A",
               "step": 10
             }
@@ -310,7 +655,7 @@
           "yaxes": [
             {
               "format": "none",
-              "label": "requests / second",
+              "label": "requests / sec",
               "logBase": 1,
               "max": null,
               "min": null,
@@ -338,7 +683,7 @@
           "fill": 0,
           "grid": {},
           "height": "",
-          "id": 4,
+          "id": 8,
           "legend": {
             "alignAsTable": false,
             "avg": false,
@@ -355,7 +700,7 @@
             "values": false
           },
           "lines": true,
-          "linewidth": 2,
+          "linewidth": 1,
           "links": [],
           "nullPointMode": "null as zero",
           "percentage": false,
@@ -364,17 +709,17 @@
           "renderer": "flot",
           "seriesOverrides": [],
           "spaceLength": 10,
-          "span": 6,
+          "span": 2,
           "stack": false,
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum by (pod_name) (rate( grpc_server_handled_total{grpc_method=\"Store\", grpc_code!=\"OK\"}[2m] )) / sum by (pod_name)(rate( grpc_server_handled_total{grpc_method=\"Store\"}[2m] ))",
+              "expr": "sum by (pod_name)(rate( grpc_server_handled_total{grpc_method=\"Store\", grpc_code!=\"OK\"}[2m] )) / sum by (pod_name)(rate( grpc_server_handled_total{grpc_method=\"Store\"}[2m] ))",
               "format": "time_series",
               "interval": "10s",
               "intervalFactor": 1,
               "legendFormat": "{{ instance }}",
-              "metric": "store_error_rate",
+              "metric": "Store_error_rate",
               "refId": "A",
               "step": 10
             }
@@ -437,13 +782,11 @@
           "fill": 0,
           "grid": {},
           "height": "250",
-          "id": 5,
+          "id": 9,
           "legend": {
             "alignAsTable": false,
             "avg": false,
             "current": false,
-            "hideEmpty": true,
-            "hideZero": false,
             "max": false,
             "min": false,
             "rightSide": false,
@@ -452,7 +795,7 @@
             "values": false
           },
           "lines": true,
-          "linewidth": 2,
+          "linewidth": 1,
           "links": [],
           "nullPointMode": "null as zero",
           "percentage": false,
@@ -461,7 +804,180 @@
           "renderer": "flot",
           "seriesOverrides": [],
           "spaceLength": 10,
-          "span": 6,
+          "span": 4,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.5, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"Get\"}[5m])) by (pod_name, le)) * 1000",
+              "format": "time_series",
+              "hide": false,
+              "interval": "10s",
+              "intervalFactor": 1,
+              "legendFormat": "{{ pod_name }}",
+              "metric": "Get_latency_p50",
+              "refId": "A",
+              "step": 10
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Get p50 Latency",
+          "tooltip": {
+            "msResolution": true,
+            "shared": true,
+            "sort": 2,
+            "value_type": "cumulative"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "none",
+              "label": "latency (ms)",
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": false
+            }
+          ]
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "${DS_PROMETHEUS}",
+          "decimals": 2,
+          "editable": true,
+          "error": false,
+          "fill": 0,
+          "grid": {},
+          "height": "250",
+          "id": 10,
+          "legend": {
+            "alignAsTable": false,
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "rightSide": false,
+            "show": false,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null as zero",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 4,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"Get\"}[5m])) by (pod_name, le)) * 1000",
+              "format": "time_series",
+              "interval": "10s",
+              "intervalFactor": 2,
+              "legendFormat": "{{ pod_name }}",
+              "metric": "Get_latency_p99",
+              "refId": "C",
+              "step": 20
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Get p99 Latency",
+          "tooltip": {
+            "msResolution": true,
+            "shared": true,
+            "sort": 2,
+            "value_type": "cumulative"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "none",
+              "label": "latency (ms)",
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": false
+            }
+          ]
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "${DS_PROMETHEUS}",
+          "decimals": 2,
+          "editable": true,
+          "error": false,
+          "fill": 0,
+          "grid": {},
+          "height": "250",
+          "id": 11,
+          "legend": {
+            "alignAsTable": false,
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "rightSide": false,
+            "show": false,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null as zero",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 2,
           "stack": false,
           "steppedLine": false,
           "targets": [
@@ -472,7 +988,7 @@
               "interval": "10s",
               "intervalFactor": 1,
               "legendFormat": "{{ pod_name }}",
-              "metric": "get_num_handled_rate",
+              "metric": "Get_num_handled_rate",
               "refId": "A",
               "step": 10
             }
@@ -498,7 +1014,7 @@
           "yaxes": [
             {
               "format": "none",
-              "label": "requests / second",
+              "label": "requests / sec",
               "logBase": 1,
               "max": null,
               "min": null,
@@ -526,7 +1042,7 @@
           "fill": 0,
           "grid": {},
           "height": "",
-          "id": 6,
+          "id": 12,
           "legend": {
             "alignAsTable": false,
             "avg": false,
@@ -543,7 +1059,7 @@
             "values": false
           },
           "lines": true,
-          "linewidth": 2,
+          "linewidth": 1,
           "links": [],
           "nullPointMode": "null as zero",
           "percentage": false,
@@ -552,17 +1068,17 @@
           "renderer": "flot",
           "seriesOverrides": [],
           "spaceLength": 10,
-          "span": 6,
+          "span": 2,
           "stack": false,
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum by (pod_name) (rate( grpc_server_handled_total{grpc_method=\"Get\", grpc_code!=\"OK\"}[2m] )) / sum by (pod_name)(rate( grpc_server_handled_total{grpc_method=\"Get\"}[2m] ))",
+              "expr": "sum by (pod_name)(rate( grpc_server_handled_total{grpc_method=\"Get\", grpc_code!=\"OK\"}[2m] )) / sum by (pod_name)(rate( grpc_server_handled_total{grpc_method=\"Get\"}[2m] ))",
               "format": "time_series",
               "interval": "10s",
               "intervalFactor": 1,
               "legendFormat": "{{ instance }}",
-              "metric": "get_error_rate",
+              "metric": "Get_error_rate",
               "refId": "A",
               "step": 10
             }
@@ -625,13 +1141,11 @@
           "fill": 0,
           "grid": {},
           "height": "250",
-          "id": 7,
+          "id": 13,
           "legend": {
             "alignAsTable": false,
             "avg": false,
             "current": false,
-            "hideEmpty": true,
-            "hideZero": false,
             "max": false,
             "min": false,
             "rightSide": false,
@@ -640,7 +1154,7 @@
             "values": false
           },
           "lines": true,
-          "linewidth": 2,
+          "linewidth": 1,
           "links": [],
           "nullPointMode": "null as zero",
           "percentage": false,
@@ -649,7 +1163,180 @@
           "renderer": "flot",
           "seriesOverrides": [],
           "spaceLength": 10,
-          "span": 6,
+          "span": 4,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.5, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"Put\"}[5m])) by (pod_name, le)) * 1000",
+              "format": "time_series",
+              "hide": false,
+              "interval": "10s",
+              "intervalFactor": 1,
+              "legendFormat": "{{ pod_name }}",
+              "metric": "Put_latency_p50",
+              "refId": "A",
+              "step": 10
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Put p50 Latency",
+          "tooltip": {
+            "msResolution": true,
+            "shared": true,
+            "sort": 2,
+            "value_type": "cumulative"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "none",
+              "label": "latency (ms)",
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": false
+            }
+          ]
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "${DS_PROMETHEUS}",
+          "decimals": 2,
+          "editable": true,
+          "error": false,
+          "fill": 0,
+          "grid": {},
+          "height": "250",
+          "id": 14,
+          "legend": {
+            "alignAsTable": false,
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "rightSide": false,
+            "show": false,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null as zero",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 4,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"Put\"}[5m])) by (pod_name, le)) * 1000",
+              "format": "time_series",
+              "interval": "10s",
+              "intervalFactor": 2,
+              "legendFormat": "{{ pod_name }}",
+              "metric": "Put_latency_p99",
+              "refId": "C",
+              "step": 20
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Put p99 Latency",
+          "tooltip": {
+            "msResolution": true,
+            "shared": true,
+            "sort": 2,
+            "value_type": "cumulative"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "none",
+              "label": "latency (ms)",
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": false
+            }
+          ]
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "${DS_PROMETHEUS}",
+          "decimals": 2,
+          "editable": true,
+          "error": false,
+          "fill": 0,
+          "grid": {},
+          "height": "250",
+          "id": 15,
+          "legend": {
+            "alignAsTable": false,
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "rightSide": false,
+            "show": false,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null as zero",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 2,
           "stack": false,
           "steppedLine": false,
           "targets": [
@@ -660,7 +1347,7 @@
               "interval": "10s",
               "intervalFactor": 1,
               "legendFormat": "{{ pod_name }}",
-              "metric": "put_num_handled_rate",
+              "metric": "Put_num_handled_rate",
               "refId": "A",
               "step": 10
             }
@@ -686,7 +1373,7 @@
           "yaxes": [
             {
               "format": "none",
-              "label": "requests / second",
+              "label": "requests / sec",
               "logBase": 1,
               "max": null,
               "min": null,
@@ -714,7 +1401,7 @@
           "fill": 0,
           "grid": {},
           "height": "",
-          "id": 8,
+          "id": 16,
           "legend": {
             "alignAsTable": false,
             "avg": false,
@@ -731,7 +1418,7 @@
             "values": false
           },
           "lines": true,
-          "linewidth": 2,
+          "linewidth": 1,
           "links": [],
           "nullPointMode": "null as zero",
           "percentage": false,
@@ -740,17 +1427,17 @@
           "renderer": "flot",
           "seriesOverrides": [],
           "spaceLength": 10,
-          "span": 6,
+          "span": 2,
           "stack": false,
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum by (pod_name) (rate( grpc_server_handled_total{grpc_method=\"Put\", grpc_code!=\"OK\"}[2m] )) / sum by (pod_name)(rate( grpc_server_handled_total{grpc_method=\"Put\"}[2m] ))",
+              "expr": "sum by (pod_name)(rate( grpc_server_handled_total{grpc_method=\"Put\", grpc_code!=\"OK\"}[2m] )) / sum by (pod_name)(rate( grpc_server_handled_total{grpc_method=\"Put\"}[2m] ))",
               "format": "time_series",
               "interval": "10s",
               "intervalFactor": 1,
               "legendFormat": "{{ instance }}",
-              "metric": "put_error_rate",
+              "metric": "Put_error_rate",
               "refId": "A",
               "step": 10
             }
@@ -813,13 +1500,11 @@
           "fill": 0,
           "grid": {},
           "height": "250",
-          "id": 9,
+          "id": 17,
           "legend": {
             "alignAsTable": false,
             "avg": false,
             "current": false,
-            "hideEmpty": true,
-            "hideZero": false,
             "max": false,
             "min": false,
             "rightSide": false,
@@ -828,7 +1513,7 @@
             "values": false
           },
           "lines": true,
-          "linewidth": 2,
+          "linewidth": 1,
           "links": [],
           "nullPointMode": "null as zero",
           "percentage": false,
@@ -837,18 +1522,18 @@
           "renderer": "flot",
           "seriesOverrides": [],
           "spaceLength": 10,
-          "span": 6,
+          "span": 4,
           "stack": false,
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum by (pod_name)(rate( grpc_server_handled_total{grpc_method=\"Introduce\"}[2m] ))",
+              "expr": "histogram_quantile(0.5, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"Verify\"}[5m])) by (pod_name, le)) * 1000",
               "format": "time_series",
               "hide": false,
               "interval": "10s",
               "intervalFactor": 1,
               "legendFormat": "{{ pod_name }}",
-              "metric": "introduce_num_handled_rate",
+              "metric": "Verify_latency_p50",
               "refId": "A",
               "step": 10
             }
@@ -856,7 +1541,180 @@
           "thresholds": [],
           "timeFrom": null,
           "timeShift": null,
-          "title": "Introduce Request Rate",
+          "title": "Verify p50 Latency",
+          "tooltip": {
+            "msResolution": true,
+            "shared": true,
+            "sort": 2,
+            "value_type": "cumulative"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "none",
+              "label": "latency (ms)",
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": false
+            }
+          ]
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "${DS_PROMETHEUS}",
+          "decimals": 2,
+          "editable": true,
+          "error": false,
+          "fill": 0,
+          "grid": {},
+          "height": "250",
+          "id": 18,
+          "legend": {
+            "alignAsTable": false,
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "rightSide": false,
+            "show": false,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null as zero",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 4,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"Verify\"}[5m])) by (pod_name, le)) * 1000",
+              "format": "time_series",
+              "interval": "10s",
+              "intervalFactor": 2,
+              "legendFormat": "{{ pod_name }}",
+              "metric": "Verify_latency_p99",
+              "refId": "C",
+              "step": 20
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Verify p99 Latency",
+          "tooltip": {
+            "msResolution": true,
+            "shared": true,
+            "sort": 2,
+            "value_type": "cumulative"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "none",
+              "label": "latency (ms)",
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": false
+            }
+          ]
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "${DS_PROMETHEUS}",
+          "decimals": 2,
+          "editable": true,
+          "error": false,
+          "fill": 0,
+          "grid": {},
+          "height": "250",
+          "id": 19,
+          "legend": {
+            "alignAsTable": false,
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "rightSide": false,
+            "show": false,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null as zero",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 2,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "sum by (pod_name)(rate( grpc_server_handled_total{grpc_method=\"Verify\"}[2m] ))",
+              "format": "time_series",
+              "hide": false,
+              "interval": "10s",
+              "intervalFactor": 1,
+              "legendFormat": "{{ pod_name }}",
+              "metric": "Verify_num_handled_rate",
+              "refId": "A",
+              "step": 10
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Verify Request Rate",
           "tooltip": {
             "msResolution": true,
             "shared": true,
@@ -874,7 +1732,7 @@
           "yaxes": [
             {
               "format": "none",
-              "label": "requests / second",
+              "label": "requests / sec",
               "logBase": 1,
               "max": null,
               "min": null,
@@ -902,7 +1760,7 @@
           "fill": 0,
           "grid": {},
           "height": "",
-          "id": 10,
+          "id": 20,
           "legend": {
             "alignAsTable": false,
             "avg": false,
@@ -919,7 +1777,7 @@
             "values": false
           },
           "lines": true,
-          "linewidth": 2,
+          "linewidth": 1,
           "links": [],
           "nullPointMode": "null as zero",
           "percentage": false,
@@ -928,17 +1786,17 @@
           "renderer": "flot",
           "seriesOverrides": [],
           "spaceLength": 10,
-          "span": 6,
+          "span": 2,
           "stack": false,
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum by (pod_name) (rate( grpc_server_handled_total{grpc_method=\"Introduce\", grpc_code!=\"OK\"}[2m] )) / sum by (pod_name)(rate( grpc_server_handled_total{grpc_method=\"Introduce\"}[2m] ))",
+              "expr": "sum by (pod_name)(rate( grpc_server_handled_total{grpc_method=\"Verify\", grpc_code!=\"OK\"}[2m] )) / sum by (pod_name)(rate( grpc_server_handled_total{grpc_method=\"Verify\"}[2m] ))",
               "format": "time_series",
               "interval": "10s",
               "intervalFactor": 1,
               "legendFormat": "{{ instance }}",
-              "metric": "introduce_error_rate",
+              "metric": "Verify_error_rate",
               "refId": "A",
               "step": 10
             }
@@ -946,7 +1804,7 @@
           "thresholds": [],
           "timeFrom": null,
           "timeShift": null,
-          "title": "Introduce Error Rate",
+          "title": "Verify Error Rate",
           "tooltip": {
             "msResolution": true,
             "shared": true,
@@ -983,8 +1841,7 @@
         }
       ],
       "title": "New row"
-    }
-  ],
+    }],
   "schemaVersion": 12,
   "sharedCrosshair": true,
   "style": "dark",
