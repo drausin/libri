@@ -18,7 +18,7 @@ const (
 )
 
 var (
-	// ErrGetMissingValue denotes when a Get request expectes to receive a value response but
+	// ErrGetMissingValue denotes when a Get request expects to receive a value response but
 	// doesn't and instead receives a ClosestPeers response.
 	ErrGetMissingValue = errors.New("Get response expected to have value but it is missing")
 )
