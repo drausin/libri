@@ -280,7 +280,7 @@ func TestRetryGetter_Get_ok(t *testing.T) {
 	}
 	for i, c := range cases {
 		info := fmt.Sprintf("case %d", i)
-		rg := NewRetryGetter(c, timeout)
+		rg := NewRetryGetter(c, true, timeout)
 		rp, err := rg.Get(nil, nil) // since .Get() is mocked, inputs don't matter
 		assert.Nil(t, err, info)
 		assert.Equal(t, doc, rp.Value, info)
@@ -338,7 +338,7 @@ func TestRetryGetter_Get_err(t *testing.T) {
 	}
 	for i, c := range cases {
 		info := fmt.Sprintf("case %d", i)
-		rg := NewRetryGetter(c, timeout)
+		rg := NewRetryGetter(c, true, timeout)
 		rp, err := rg.Get(nil, nil) // since .Get() is mocked, inputs don't matter
 		assert.NotNil(t, err, info)
 		assert.Nil(t, rp, info)

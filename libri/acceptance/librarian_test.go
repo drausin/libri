@@ -212,7 +212,7 @@ func testGet(t *testing.T, params *params, state *state) {
 	librarians, err := getLibrarians(state.peerConfigs)
 	assert.Nil(t, err)
 	getters := client.NewUniformGetterBalancer(librarians)
-	rlc := lclient.NewRetryGetter(getters, search.DefaultQueryTimeout)
+	rlc := lclient.NewRetryGetter(getters, true, search.DefaultQueryTimeout)
 
 	// create a bunch of random values to put
 	for c := 0; c < len(state.putDocs); c++ {

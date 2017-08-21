@@ -5,6 +5,7 @@ import (
 
 	cbackoff "github.com/cenkalti/backoff"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -14,6 +15,12 @@ const (
 	defaultExpBackoffRandomizationFactor = 0.25
 	defaultExpBackoffMultiplier          = 1.414
 	defaultExpBackoffMaxInterval         = 250 * time.Millisecond
+)
+
+var (
+	// ErrGetMissingValue denotes when a Get request expectes to receive a value response but
+	// doesn't and instead receives a ClosestPeers response.
+	ErrGetMissingValue = errors.New("Get response expected to have value but it is missing")
 )
 
 type retryFinder struct {
@@ -107,16 +114,18 @@ func (r *retryStorer) Store(ctx context.Context, rq *api.StoreRequest, opts ...g
 }
 
 type retryGetter struct {
-	cb      GetterBalancer
-	timeout time.Duration
+	cb        GetterBalancer
+	valueOnly bool
+	timeout   time.Duration
 }
 
 // NewRetryGetter wraps a client balancer with an exponential backoff, returning an api.Getter. Each
 // backoff attempt samples a (possibly) different api.Getter to use for the query.
-func NewRetryGetter(cb GetterBalancer, timeout time.Duration) api.Getter {
+func NewRetryGetter(cb GetterBalancer, valueOnly bool, timeout time.Duration) api.Getter {
 	return &retryGetter{
-		cb:      cb,
-		timeout: timeout,
+		cb:        cb,
+		valueOnly: valueOnly,
+		timeout:   timeout,
 	}
 }
 
@@ -131,7 +140,13 @@ func (r *retryGetter) Get(ctx context.Context, in *api.GetRequest, opts ...grpc.
 			return err
 		}
 		rp, err = lc.Get(ctx, in, opts...)
-		return err
+		if err != nil {
+			return err
+		}
+		if rp.Value == nil && r.valueOnly {
+			return ErrGetMissingValue
+		}
+		return nil
 	}
 	if err := cbackoff.Retry(operation, NewExpBackoff(r.timeout)); err != nil {
 		return nil, err
