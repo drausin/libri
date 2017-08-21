@@ -33,16 +33,16 @@ jobs:
           command: |
             case ${CIRCLE_NODE_INDEX} in
               0)
-                make acceptance
-                make demo
-                ;;
-              1)
                 if [[ "${CIRCLE_BRANCH}" == "develop-intensive-build" ]]; then
                   make test-stress  # both unit and acceptance tests
                 else
-                  make test-cover
-                  bash <(curl -s https://codecov.io/bash) -f artifacts/cover/test-coverage-merged.cov
+                  make acceptance
                 fi
+                make demo
+                ;;
+              1)
+                make test-cover
+                bash <(curl -s https://codecov.io/bash) -f artifacts/cover/test-coverage-merged.cov
                 ;;
             esac
       - run:
