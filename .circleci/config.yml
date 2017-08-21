@@ -59,6 +59,10 @@ jobs:
             if [[ "${CIRCLE_BRANCH}" == "develop" ]]; then
               docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}
               docker push daedalus2718/libri:latest
+            elif [[ "${CIRCLE_BRANCH}" == "master" ]]; then
+              docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}
+              LIBRI_VERSION=$(./deploy/bin/libri version)
+              docker push daedalus2718/libri:${LIBRI_VERSION}
             fi
       - run:
           name: Run benchmarks
