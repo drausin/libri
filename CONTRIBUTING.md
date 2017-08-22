@@ -1,6 +1,6 @@
 ## Contributing
 
-#### Developing
+### Developing
 Fork the project and clone to your development machine. Get the Golang dependencies onto your local
 development machine via
 ```bash
@@ -8,14 +8,14 @@ make get-deps
 ```
 We use [dep](https://github.com/golang/dep) for vendoring. You will also need Docker installed.
 
-#### Exploring
+### Exploring
 
 The [acceptance tests](libri/acceptance/librarian_test.go) and 
 [librarian type](libri/librarian/server/server.go) are good places from which to start exploring 
 the codebase. See the [libri librarian start](libri/cmd/start.go) and 
 [libri author upload](libri/cmd/upload.go) commands for example the CLI entrypoints. 
 
-#### Testing
+### Testing
 The simplest way to run the tests is from within a build container, which has all the required
 binaries (e.g., RocksDB) already installed and linked. Our [CI](.circleci/config.yml) uses it.
 
@@ -48,7 +48,7 @@ including
 If you want to run tests locally (i.e., not in the build container), you'll have do the local 
 installation (see below).
 
-#### Local OSX installation
+### Local OSX installation
 
 This requires a tad more setup and obviously isn't as isolated as the build container, but it's 
 faster since it's ultimately just your local machine.
