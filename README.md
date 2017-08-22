@@ -3,24 +3,23 @@
 
 # Libri
 
-libri is a peer-to-peer distributed data storage network based on the 
+Libri is a decentralized data storage network based on the 
 [Kademila](https://pdos.csail.mit.edu/~petar/papers/maymounkov-kademlia-lncs.pdf) protocol and 
-approach. It will also offer
+approach. It also offers
 - end-to-end encryption
 - notifications across the network for every storage event
 
 #### Status
-libri is currently under active development and not yet ready for primetime
-
+Libri is currently alpha quality and still being internally tested. 
 
 #### Design
 
-*Peers*
+**Peers**
 The peers of the network are called librarians. Each librarian exposes a set of simple endpoints, 
 descripted in [librarian.proto](https://github.com/drausin/libri/blob/develop/libri/librarian/api/librarian.proto) 
 for getting and putting documents, described in [documents.proto](https://github.com/drausin/libri/blob/develop/libri/librarian/api/documents.proto).
  
-*Clients*
+**Clients**
 The clients of the network are called authors. Each other connects to one or more librarian peers
 to upload/download documents and receive publications when others upload documents they are 
 interested in.
@@ -50,8 +49,34 @@ This simple architecture looks something like
 Currently, we have only a Golang author implementation, but we expect to develop other 
 implementations (e.g., Javascript) soon. 
 
-*Storage*
+**Storage**
 Each librarian and author uses [RocksDB](https://github.com/facebook/rocksdb) for local storage.
+
+**Identity**
+Author identity is managed through asymmetric 
+[ECDH](https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman) keys. When an author
+is initialized it generates a cache of ECDH keys. These are always unique for each client, and the 
+private key always stays on the local machine.
+
+**Encryption**
+When uploading a document, the author 
+1) generates a new set of entry encryption keys,
+2) uses it to encrypt the data contents into an [Entry](libri/librarian/api/documents.proto#L46) and 
+ publishes that to the Libri network,
+3) selects two of its own keys ECDH keys and uses their ECDH shared secret to generate a key 
+ encryption key,
+4) uses this key encryption key to encrypt the entry encryption key
+5) uploads an [Envelope](libri/librarian/api/documents.proto#L26) containing the two public keys 
+ and the entry encryption key ciphertext
+
+When an author wants to share a document with another author, it just repeats steps 3-5 but with 
+a public key of the author to send the document to. Only the Envelope is different (rather than
+re-encrypting the entire Entry).
+
+**Replication**
+Documents are uploaded with a specified number of replicas. If peers storing those replicas drop out 
+of the network, the other peers storing the remaining replicas take charge of storing additional 
+copies to bring the replication factor up to a given level.
 
 #### Containers
 Libri relies heavily on Docker containers, both for development and deployment. The development 
@@ -73,6 +98,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details.  Issues, suggestions, and pu
 
 #### References
 - [Kademila](https://pdos.csail.mit.edu/~petar/papers/maymounkov-kademlia-lncs.pdf) protocol and approach
-- libri is inspired by similar p2p distributed storage efforts Ethereum [Swarm](https://blog.ethereum.org/2016/12/15/swarm-alpha-public-pilot-basics-swarm/) and [Storj](https://storj.io/)
+- libri is inspired by similar p2p distributed storage efforts Ethereum 
+[Swarm](https://blog.ethereum.org/2016/12/15/swarm-alpha-public-pilot-basics-swarm/) and 
+[Storj](https://storj.io/), among others
 	- these two efforts also use variants of the Kademlia protocol
 	- unlike these two, libri will not include any blockchain or contracts
