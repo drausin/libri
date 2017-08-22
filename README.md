@@ -9,10 +9,10 @@ approach. It also offers
 - end-to-end encryption
 - notifications across the network for every storage event
 
-#### Status
+### Status
 Libri is currently alpha quality and still being internally tested. 
 
-#### Design
+### Design
 
 **Peers**
 The peers of the network are called librarians. Each librarian exposes a set of simple endpoints, 
@@ -78,7 +78,7 @@ Documents are uploaded with a specified number of replicas. If peers storing tho
 of the network, the other peers storing the remaining replicas take charge of storing additional 
 copies to bring the replication factor up to a given level.
 
-#### Containers
+### Containers
 Libri relies heavily on Docker containers, both for development and deployment. The development 
 image ([daedalus2718/libri-build](https://hub.docker.com/r/daedalus2718/libri-build/)) is fairly large
 (~1.5GB) because it contains all the binary dependencies needed for testing and development. The 
@@ -86,17 +86,17 @@ deployment image ([daedalus2718/libri](https://hub.docker.com/r/daedalus2718/lib
 small (~90MB) because it contains only the things needed to run the `libri` command line binary.
 
 
-#### Try it out
+### Try it out
 Ensure you have Docker installed and then run
 ```bash
 ./libri/acceptance/local-demo.sh
 ```
 to spin up a 3-node libri cluster, run some tests against it, and uploaded/download some sample data.
 
-#### Contribute
+### Contribute
 See [CONTRIBUTING.md](CONTRIBUTING.md) for details.  Issues, suggestions, and pull requests always welcome.
 
-#### References
+### References
 - [Kademila](https://pdos.csail.mit.edu/~petar/papers/maymounkov-kademlia-lncs.pdf) protocol and approach
 - libri is inspired by similar p2p distributed storage efforts Ethereum 
 [Swarm](https://blog.ethereum.org/2016/12/15/swarm-alpha-public-pilot-basics-swarm/) and 
