@@ -123,7 +123,6 @@ func (f *from) endSubscription(i uint64) {
 		close(f.done[i])
 	}
 	close(f.fanout[i])
-	delete(f.fanout, i)
 	delete(f.done, i)
 }
 
