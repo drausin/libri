@@ -18,7 +18,7 @@ message Document {
 // 2) 12-byte EEK block cipher initialization vector
 // 3) 32-byte HMAC-256 key, used for EEK MAC
 //
-// This AES-256 KEK is then used to decrypt the EEK ciphertext, which contains 4 sub-keys:
+// This AES-256 EEK is then used to decrypt the EEK ciphertext, which contains 4 sub-keys:
 // 1) 32-byte AES-256 key, used to enrypt Pages and Entry metadata
 // 2) 32-byte Page initialization vector (IV) seed
 // 3) 32-byte HMAC-256 key

@@ -17,10 +17,17 @@ the codebase. See the [libri librarian start](libri/cmd/start.go) and
 
 #### Testing
 The simplest way to run the tests is from within a build container, which has all the required
-binaries (e.g., RocksDB) already installed and linked. The build container mounts
+binaries (e.g., RocksDB) already installed and linked. Our [CI](.circleci/config.yml) uses it.
+
+*N.B., currently the local build container is a bit slower/more laggy than I would like. Improvement
+suggestions are very welcome.*
+
+The build container mounts
 - `~/.go/src`, so your libri code and its dependencies are available
 - `~/.bashrc`, so your build container shell is nice and familiar
 - `~/.gitconfig`, so you can do all your favorite git things
+
+To start it, run
 ```bash
 ./scripts/run-build-container.sh
 ```
@@ -42,6 +49,9 @@ If you want to run tests locally (i.e., not in the build container), you'll have
 installation (see below).
 
 #### Local OSX installation
+
+This requires a tad more setup and obviously isn't as isolated as the build container, but it's 
+faster since it's ultimately just your local machine.
 
 First [install RocksDB](https://github.com/facebook/rocksdb/blob/master/INSTALL.md).
 Then build the [gorocksdb](https://github.com/tecbot/gorocksdb) driver.
