@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package keychain;
+
+message StoredKeychain {
+    repeated bytes privateKeys = 1;
+}
+

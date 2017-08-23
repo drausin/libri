@@ -1,0 +1,8 @@
+vendor
+
+# created during CI
+artifacts
+
+# Intellij files
+.idea/
+*.iml

@@ -1,0 +1,94 @@
+syntax = "proto3";
+
+package api;
+
+// Document contains either an Envelope, Entry, or Page message.
+message Document {
+    oneof contents {
+        Envelope envelope = 1;
+        Entry entry = 2;
+        Page page = 3;
+    }
+}
+
+// Envelope defines the public keys an author uses to share an entry encryption key with a
+// particular reader. The shared ECDH secret is used with a key derivation function to generate the
+// key encryption key (KEK), which contains 2 sub-keys:
+// 1) 32-byte AES-256 key, used for encrypting/decrypting the entry encryption key (EEK)
+// 2) 12-byte EEK block cipher initialization vector
+// 3) 32-byte HMAC-256 key, used for EEK MAC
+//
+// This AES-256 EEK is then used to decrypt the EEK ciphertext, which contains 4 sub-keys:
+// 1) 32-byte AES-256 key, used to enrypt Pages and Entry metadata
+// 2) 32-byte Page initialization vector (IV) seed
+// 3) 32-byte HMAC-256 key
+// 4) 12-byte metadata block cipher initialization vector
+message Envelope {
+
+    // 32-byte key of the Entry whose encryption keys are being sent
+    bytes entry_key = 1;
+
+    // ECDH public key of the entry author/sender
+    bytes author_public_key = 2;
+
+    // ECDH public key of the entry reader/recipient
+    bytes reader_public_key = 3;
+
+    // ciphertext of 108-byte entry encryption key (EEK), encrypted with a KEK from the shared
+    // ECDH shared secret
+    bytes eek_ciphertext = 4;
+
+    // 32-byte MAC of the EEK
+    bytes eek_ciphertext_mac = 5;
+}
+
+// Entry is the main unit of storage in the Libri network.
+message Entry {
+
+    // ECDSA public key of the entry author
+    bytes author_public_key = 1;
+
+    // contents of the entry, either a single Page or a list of page keys
+    oneof contents {
+        Page page = 2;
+        PageKeys page_keys = 3;
+    }
+
+    // created epoch time (seconds since 1970-01-01)
+    int64 created_time = 4;
+
+    // ciphertext of marshalled Metadata message properties
+    bytes metadata_ciphertext = 5;
+
+    // 32-byte MAC of metatadata ciphertext, encrypted with the 32-byte Entry AES-256 key and
+    // 12-byte metadata block cipher IV
+    bytes metadata_ciphertext_mac = 6;
+}
+
+// Metadata is a map of (property, value) combinations.
+message Metadata {
+    map<string, bytes> properties = 1;
+}
+
+// PageKeys is an ordered list of keys to Page documents that comprise an Entry document.
+message PageKeys {
+    repeated bytes keys = 1;
+}
+
+// Page is a portion (possibly all) of an Entry document.
+message Page {
+
+    // ECDSA public key of the entry author
+    bytes author_public_key = 1;
+
+    // index of Page within Entry contents
+    uint32 index = 2;
+
+    // ciphertext of Page contents, encrypted using the 32-byte AES-256 key with the block cipher
+    // initialized by the first 12 bytes of HMAC-256(IV seed, page index)
+    bytes ciphertext = 3;
+
+    // 32-byte MAC of ciphertext using the 32-byte Page ciphertext HMAC-256 key
+    bytes ciphertext_mac = 4;
+
+}

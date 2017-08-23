@@ -1,0 +1,210 @@
+syntax = "proto3";
+
+package api;
+
+import "librarian/api/documents.proto";
+
+// The Librarian service handles all of the main Libri functionality.
+service Librarian {
+
+    // Introduce identifies the node by name and ID.
+    rpc Introduce (IntroduceRequest) returns (IntroduceResponse) {}
+
+    // Find returns the value for a key or the closest peers to it.
+    rpc Find (FindRequest) returns (FindResponse) {}
+
+    // Verify checks that a peer has the value for a given key or returns the closest peers to
+    // that value.
+    rpc Verify (VerifyRequest) returns (VerifyResponse) {}
+
+    // Store stores a value in a given key.
+    rpc Store (StoreRequest) returns (StoreResponse) {}
+
+    // Get retrieves a value, if it exists.
+    rpc Get (GetRequest) returns (GetResponse) {}
+
+    // Put stores a value.
+    rpc Put (PutRequest) returns (PutResponse) {}
+
+    // Subscribe streams Publications to the client per a subscription filter.
+    rpc Subscribe (SubscribeRequest) returns (stream SubscribeResponse) {}
+}
+
+// RequestMetadata defines metadata associated with every request.
+message RequestMetadata {
+    // 32-byte unique request ID
+    bytes request_id = 1;
+
+    // peer's ECDSA public key
+    bytes pub_key = 2;
+}
+
+message ResponseMetadata {
+    // 32-byte request ID that generated this response
+    bytes request_id = 1;
+
+    // peer's ECDSA public key
+    bytes pub_key = 2;
+}
+
+message IntroduceRequest {
+    RequestMetadata metadata = 1;
+
+    // info about the peer making the introduction
+    PeerAddress self = 2;
+
+    // number of peer librarians to request info for
+    uint32 num_peers = 3;
+}
+
+message IntroduceResponse {
+    ResponseMetadata metadata = 1;
+
+    // info about the peer receiving the introduction
+    PeerAddress self = 2;
+
+    // info about other peers
+    repeated PeerAddress peers = 3;
+}
+
+message FindRequest {
+    RequestMetadata metadata = 1;
+
+    // 32-byte target to find peers around
+    bytes key = 2;
+
+    // the number of closests peers to return
+    uint32 num_peers = 3;
+}
+
+message FindResponse {
+    ResponseMetadata metadata = 1;
+
+    // list of peers closest to target
+    repeated PeerAddress peers = 2;
+
+    // value, if found
+    Document value = 3;
+}
+
+message VerifyRequest {
+    RequestMetadata metadata = 1;
+
+    // 32-byte key of document to verify
+    bytes key = 2;
+
+    // 32-byte key to use in HMAC-256 verification
+    bytes mac_key = 3;
+
+    // the number of closests peers to return
+    uint32 num_peers = 4;
+}
+
+message VerifyResponse {
+    ResponseMetadata metadata = 1;
+
+    // nil if the peer does not have the document, otherwise the HMAC-256 of the document's
+    // serialized bytes given the MAC key in the request
+    bytes mac = 2;
+
+    // list of peers closest to target
+    repeated PeerAddress peers = 3;
+}
+
+message PeerAddress {
+    // 32-byte peer ID
+    bytes peer_id = 1;
+
+    // self-reported name of the peer
+    string peer_name = 2;
+
+    // public IP address
+    string ip = 3;
+
+    // public address TCP port
+    uint32 port = 4;
+}
+
+message StoreRequest {
+    RequestMetadata metadata = 1;
+
+    // key to store value under
+    bytes key = 2;
+
+    // value to store for key
+    Document value = 3;
+}
+
+message StoreResponse {
+    ResponseMetadata metadata = 1;
+}
+
+message GetRequest {
+    RequestMetadata metadata = 1;
+
+    // 32-byte key of document to get
+    bytes key = 2;
+}
+
+message GetResponse {
+    ResponseMetadata metadata = 1;
+
+    // value to store for key
+    Document value = 2;
+}
+
+message PutRequest {
+    RequestMetadata metadata = 1;
+
+    // key to store value under
+    bytes key = 2;
+
+    // value to store for key
+    Document value = 3;
+}
+
+message PutResponse {
+    ResponseMetadata metadata = 1;
+
+    // result of the put operation
+    PutOperation operation = 2;
+
+    // number of replicas of the stored value; only populated for operation = STORED
+    uint32 n_replicas = 3;
+}
+
+enum PutOperation {
+    // new value was added
+    STORED = 0;
+
+    // value already existed
+    LEFT_EXISTING = 1;
+}
+
+message SubscribeRequest {
+    RequestMetadata metadata = 1;
+    Subscription subscription = 2;
+}
+
+message SubscribeResponse {
+    ResponseMetadata metadata = 1;
+    bytes key = 2;
+    Publication value = 3;
+}
+
+message Publication {
+    bytes envelope_key = 1;
+    bytes entry_key = 2;
+    bytes author_public_key = 3;
+    bytes reader_public_key = 4;
+}
+
+message Subscription {
+    BloomFilter author_public_keys = 1;
+    BloomFilter reader_public_keys = 2;
+}
+
+message BloomFilter {
+    // using https://godoc.org/github.com/willf/bloom#BloomFilter.GobEncode
+    bytes encoded = 1;
+}

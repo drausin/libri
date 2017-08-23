@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package storage;
+
+// Address is a IPv4 address.
+message Address {
+    // IP address
+    string ip = 2;
+
+    // TCP port
+    uint32 port = 3;
+}
+
+message QueryOutcomes {
+    QueryTypeOutcomes requests = 1;
+    QueryTypeOutcomes responses = 2;
+}
+
+// Responses contains statistics about a Peer's query history.
+message QueryTypeOutcomes {
+    // epoch time (seconds since 1970 UTC) of the earliest response from the peer
+    int64 earliest = 1;
+
+    // epoch time of the latest response from the peer
+    int64 latest = 2;
+
+    // number of queries sent to the peer
+    uint64 n_queries = 3;
+
+    // number of queries that errored
+    uint64 n_errors = 4;
+}
+
+// Peer is the basic information associated with each peer in the network.
+message Peer {
+    // big-endian byte representation of 32-byte ID
+    bytes id = 1;
+
+    // self-reported name of the peer
+    string name = 2;
+
+    // public IP address
+    Address public_address = 3;
+
+    // response history
+    QueryOutcomes query_outcomes = 4;
+}
+
+// StoredRoutingTable contains the essential information associated with a routing table.
+message RoutingTable {
+    // big-endian byte representation of 32-byte self ID
+    bytes self_id = 1;
+
+    // array of peers in table
+    repeated Peer peers = 2;
+}
+
+message DocumentMetrics {
+    uint64 n_documents = 1;
+
+    uint64 total_size = 2;
+}
+
+message ReplicationMetrics {
+
+    // n_verified is the total number of verified documents (fully or partial)
+    uint64 n_verified = 1;
+
+    // n_underreplicated is the number of under-repliced documents found
+    uint64 n_underreplicated = 2;
+
+    // n_replicated is the number of documents successfully replicated
+    uint64 n_replicated = 3;
+
+    // latest_pass is the epoch time (in seconds) since the last full replication
+    int64 latest_pass = 4;
+}

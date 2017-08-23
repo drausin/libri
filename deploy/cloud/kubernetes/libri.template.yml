@@ -1,0 +1,154 @@
+{{/* the next line is obviously just for the generated file, not this template */}}
+# This file is generated from libri.template.yml. Please edit that instead!
+{{ $localPort := .LocalPort -}}
+{{ $localMetricsPort := .LocalMetricsPort -}}
+{{ $gceCluster := .GCECluster -}}
+{{ $localCluster := .LocalCluster -}}
+---
+# headless service for internal DNS networking
+kind: Service
+apiVersion: v1
+metadata:
+  name: libri
+  annotations:
+    prometheus.io/scrape: "false"  # we get stats from individual pods
+spec:
+  clusterIP: None
+  ports:
+  - port: {{ $localPort }}
+  selector:
+    app: libri
+---
+{{ range $index, $librarian := .Librarians -}}
+# NodePort service exposing the librarians-{{ $index }} node to the outside world
+kind: Service
+apiVersion: v1
+metadata:
+  name: librarians-{{ $index }}
+  annotations:
+    prometheus.io/scrape: "false"  # we get stats from individual pods
+spec:
+  type: NodePort
+  ports:
+  - port: {{ $localPort }}
+    nodePort: {{ $librarian.PublicPort }}
+  selector:
+    hostname: librarians-{{ $index }}
+---
+# PersistentVolume for librarian {{ $index }}'s /data dir
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: data-librarians-{{ $index }}
+  labels:
+    app: libri
+  annotations:
+    volume.beta.kubernetes.io/storage-class: standard
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes: ["ReadWriteOnce"]
+  {{ if $gceCluster -}}
+  gcePersistentDisk:
+      fsType: "ext4"
+      pdName: "data-librarians-{{ $index }}"
+  {{ end -}}
+  {{ if $localCluster -}}
+  hostPath:
+    path: "/data/data-librarians-{{ $index }}"
+  {{ end }}
+---
+# PersistentVolumeClaim for librarian {{ $index }}'s PersistentVolume
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: data-librarians-{{ $index }}
+  labels:
+    app: libri
+  annotations:
+    volume.beta.kubernetes.io/storage-class: standard
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 1Gi
+---
+{{ end -}}
+# StatefulSet of {{ .Librarians | len }} librarians
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: librarians
+spec:
+  serviceName: libri
+  replicas: {{ .Librarians | len }}
+  template:
+    metadata:
+      labels:
+        app: libri
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ $localMetricsPort }}"
+    spec:
+
+      containers:
+      - name: libriarian
+        image: daedalus2718/libri:latest  # develop branch
+        args: [
+          "librarian", "start",
+          "--nSubscriptions", "2",
+          "--dataDir", "/data",
+          "--localPort", "{{ $localPort }}",
+          "--localMetricsPort", "{{ $localMetricsPort }}",
+          "--bootstraps", "librarians-0.libri.default.svc.cluster.local:{{ $localPort }}",
+        ]
+        env:
+        - name: GODEBUG         # ensure we use the pure Go (rather than CGO) DNS
+          value: netdns=go      # resolver (see https://golang.org/src/net/net.go)
+        - name: LIBRI_LOCALHOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: LIBRI_PUBLICHOST
+        # TODO external peers once k8s v1.7.0 is available (with status.hostIP support)
+        # - move librarians to use hostIP:30100+ ports for public addresses
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        ports:
+        - containerPort: {{ $localPort }}
+        - containerPort: {{ $localMetricsPort }}
+        livenessProbe:
+          exec:
+            command: [
+              "sh", "-c",
+              "libri", "test", "health",
+              "-a", "$(hostname).libri.default.svc.cluster.local:{{ $localPort }}"
+            ]
+          initialDelaySeconds: 15
+          periodSeconds: 30
+        volumeMounts:
+        - name: data
+          mountPath: /data
+
+      initContainers:
+      - image: devth/k8s-labeler
+        name: labeler
+        env:
+        - name: KUBE_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: KUBE_LABEL_hostname  # used to identify individual pods to each NodePort service
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: data
+
+  volumeClaimTemplates:
+  - metadata:
+      name: data
