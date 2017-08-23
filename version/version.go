@@ -8,7 +8,7 @@ import (
 var Version semver.Version
 
 var versionString = "0.1.0"
-var isSnapshot = true
+var isSnapshot = false
 var snapshot = semver.PRVersion{VersionStr: "snapshot"}
 
 func init() {
