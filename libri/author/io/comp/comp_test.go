@@ -75,7 +75,8 @@ func TestNewCompressor_err(t *testing.T) {
 func TestNewDecompressor_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	keys := enc.NewPseudoRandomEEK(rng)
-	uncompressed, codec, minUncompressedBufferSize := new(bytes.Buffer), api.CompressionCodec_GZIP, uint32(256)
+	uncompressed, codec := new(bytes.Buffer), api.CompressionCodec_GZIP
+	minUncompressedBufferSize := uint32(256)
 	comp, err := NewDecompressor(uncompressed, codec, keys, minUncompressedBufferSize)
 	assert.Nil(t, err)
 	assert.Equal(t, uncompressed, comp.(*decompressor).uncompressed)
