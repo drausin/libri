@@ -12,7 +12,7 @@ import (
 var ErrUnexpectedMAC = errors.New("unexpected MAC")
 
 // EncryptedMetadata contains both the ciphertext and ciphertext MAC involved in encrypting an
-// *api.Metadata instance.
+// *api.EntryMetadata instance.
 type EncryptedMetadata struct {
 	Ciphertext    []byte
 	CiphertextMAC []byte
@@ -33,11 +33,11 @@ func NewEncryptedMetadata(ciphertext, ciphertextMAC []byte) (*EncryptedMetadata,
 	}, nil
 }
 
-// MetadataEncrypter encrypts *api.Metadata.
-type MetadataEncrypter interface {
-	// EncryptMetadata encrypts an *api.Metadata instance using the AES key and the MetadataIV
+// EntryMetadataEncrypter encrypts *api.EntryMetadata.
+type EntryMetadataEncrypter interface {
+	// EncryptMetadata encrypts an *api.EntryMetadata instance using the AES key and the MetadataIV
 	// key for the MAC.
-	Encrypt(m *api.Metadata, keys *EEK) (*EncryptedMetadata, error)
+	Encrypt(m *api.EntryMetadata, keys *EEK) (*EncryptedMetadata, error)
 }
 
 // MetadataDecrypter decrypts *EncryptedMetadata.
@@ -45,12 +45,12 @@ type MetadataDecrypter interface {
 	// Decrypt decrypts an *EncryptedMetadata instance, using the AES key and the MetadataIV
 	// key. It returns UnexpectedMACErr if the calculated ciphertext MAC does not match the
 	// expected ciphertext MAC.
-	Decrypt(em *EncryptedMetadata, keys *EEK) (*api.Metadata, error)
+	Decrypt(em *EncryptedMetadata, keys *EEK) (*api.EntryMetadata, error)
 }
 
-// MetadataEncrypterDecrypter encrypts *api.Metadata and decrypts *EncryptedMetadata.
+// MetadataEncrypterDecrypter encrypts *api.EntryMetadata and decrypts *EncryptedMetadata.
 type MetadataEncrypterDecrypter interface {
-	MetadataEncrypter
+	EntryMetadataEncrypter
 	MetadataDecrypter
 }
 
@@ -61,7 +61,7 @@ func NewMetadataEncrypterDecrypter() MetadataEncrypterDecrypter {
 	return metadataEncDec{}
 }
 
-func (metadataEncDec) Encrypt(m *api.Metadata, keys *EEK) (*EncryptedMetadata, error) {
+func (metadataEncDec) Encrypt(m *api.EntryMetadata, keys *EEK) (*EncryptedMetadata, error) {
 	mPlaintext, err := proto.Marshal(m)
 	if err != nil {
 		return nil, err
@@ -74,7 +74,7 @@ func (metadataEncDec) Encrypt(m *api.Metadata, keys *EEK) (*EncryptedMetadata, e
 	return NewEncryptedMetadata(mCiphertext, HMAC(mCiphertext, keys.HMACKey))
 }
 
-func (metadataEncDec) Decrypt(em *EncryptedMetadata, keys *EEK) (*api.Metadata, error) {
+func (metadataEncDec) Decrypt(em *EncryptedMetadata, keys *EEK) (*api.EntryMetadata, error) {
 	mac := HMAC(em.Ciphertext, keys.HMACKey)
 	if !bytes.Equal(em.CiphertextMAC, mac) {
 		return nil, ErrUnexpectedMAC
@@ -87,7 +87,7 @@ func (metadataEncDec) Decrypt(em *EncryptedMetadata, keys *EEK) (*api.Metadata, 
 	if err != nil {
 		return nil, err
 	}
-	m := &api.Metadata{}
+	m := &api.EntryMetadata{}
 	if err := proto.Unmarshal(mPlaintext, m); err != nil {
 		return nil, err
 	}

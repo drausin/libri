@@ -5,6 +5,8 @@ import (
 
 	"math/rand"
 
+	"fmt"
+
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/stretchr/testify/assert"
 )
@@ -101,13 +103,13 @@ func TestCheckMACs_ok(t *testing.T) {
 	assert.Nil(t, err)
 	_, err = ciphertextMAC.Write([]byte("some ciphertext"))
 	assert.Nil(t, err)
-	md, err := api.NewEntryMetadata(
-		"application/x-pdf",
-		ciphertextMAC.MessageSize(),
-		ciphertextMAC.Sum(nil),
-		uncompressedMAC.MessageSize(),
-		uncompressedMAC.Sum(nil),
-	)
+	md := &api.EntryMetadata{
+		MediaType:        "application/x-pdf",
+		CiphertextSize:   ciphertextMAC.MessageSize(),
+		CiphertextMac:    ciphertextMAC.Sum(nil),
+		UncompressedSize: uncompressedMAC.MessageSize(),
+		UncompressedMac:  uncompressedMAC.Sum(nil),
+	}
 	assert.Nil(t, err)
 
 	err = CheckMACs(ciphertextMAC, uncompressedMAC, md)
@@ -126,64 +128,47 @@ func TestCheckMACs_err(t *testing.T) {
 	assert.Nil(t, err)
 	mediaType := "application/x-pdf"
 
-	// check ValidateMetadata error bubbles up
-	md1, err := api.NewEntryMetadata(
-		mediaType,
-		ciphertextMAC.MessageSize(),
-		ciphertextMAC.Sum(nil),
-		uncompressedMAC.MessageSize(),
-		uncompressedMAC.Sum(nil),
-	)
-	assert.Nil(t, err)
-	md1.SetBytes(api.MetadataEntryCiphertextMAC, nil) // now md1 is invalid
-	err = CheckMACs(ciphertextMAC, uncompressedMAC, md1)
-	assert.NotNil(t, err)
+	// check ValidateEntryMetadata error bubbles up
+	ms := []*api.EntryMetadata{
 
-	// check errors on different ciphertext sizes
-	md2, err := api.NewEntryMetadata(
-		mediaType,
-		1,
-		ciphertextMAC.Sum(nil),
-		uncompressedMAC.MessageSize(),
-		uncompressedMAC.Sum(nil),
-	)
-	assert.Nil(t, err)
-	err = CheckMACs(ciphertextMAC, uncompressedMAC, md2)
-	assert.Equal(t, ErrUnexpectedCiphertextSize, err)
-
-	// check errors on different ciphertext MACs
-	md3, err := api.NewEntryMetadata(
-		mediaType,
-		ciphertextMAC.MessageSize(),
-		api.RandBytes(rng, 32),
-		uncompressedMAC.MessageSize(),
-		uncompressedMAC.Sum(nil),
-	)
-	assert.Nil(t, err)
-	err = CheckMACs(ciphertextMAC, uncompressedMAC, md3)
-	assert.Equal(t, ErrUnexpectedCiphertextMAC, err)
-
-	// check errors on different uncompressed sizes
-	md4, err := api.NewEntryMetadata(
-		mediaType,
-		ciphertextMAC.MessageSize(),
-		ciphertextMAC.Sum(nil),
-		1,
-		uncompressedMAC.Sum(nil),
-	)
-	assert.Nil(t, err)
-	err = CheckMACs(ciphertextMAC, uncompressedMAC, md4)
-	assert.Equal(t, ErrUnexpectedUncompressedSize, err)
-
-	// check errors on different uncompressed MACs
-	md5, err := api.NewEntryMetadata(
-		mediaType,
-		ciphertextMAC.MessageSize(),
-		ciphertextMAC.Sum(nil),
-		uncompressedMAC.MessageSize(),
-		api.RandBytes(rng, 32),
-	)
-	assert.Nil(t, err)
-	err = CheckMACs(ciphertextMAC, uncompressedMAC, md5)
-	assert.Equal(t, ErrUnexpectedUncompressedMAC, err)
+		{ // 0 : check errors on invalid EntryMetadata
+			MediaType:        mediaType,
+			CiphertextSize:   0,
+			CiphertextMac:    ciphertextMAC.Sum(nil),
+			UncompressedSize: uncompressedMAC.MessageSize(),
+			UncompressedMac:  uncompressedMAC.Sum(nil),
+		},
+		{ // 1 : check errors on unequal ciphertext size
+			MediaType:        mediaType,
+			CiphertextSize:   1,
+			CiphertextMac:    ciphertextMAC.Sum(nil),
+			UncompressedSize: uncompressedMAC.MessageSize(),
+			UncompressedMac:  uncompressedMAC.Sum(nil),
+		},
+		{ // 2 : check errors on unequal ciphertext mac
+			MediaType:        mediaType,
+			CiphertextSize:   ciphertextMAC.MessageSize(),
+			CiphertextMac:    api.RandBytes(rng, 32),
+			UncompressedSize: uncompressedMAC.MessageSize(),
+			UncompressedMac:  uncompressedMAC.Sum(nil),
+		},
+		{ // 3 : check errors on unequal uncompressed size
+			MediaType:        mediaType,
+			CiphertextSize:   ciphertextMAC.MessageSize(),
+			CiphertextMac:    ciphertextMAC.Sum(nil),
+			UncompressedSize: 1,
+			UncompressedMac:  uncompressedMAC.Sum(nil),
+		},
+		{ // 4 : check errors on unequal uncompressed mac
+			MediaType:        mediaType,
+			CiphertextSize:   ciphertextMAC.MessageSize(),
+			CiphertextMac:    ciphertextMAC.Sum(nil),
+			UncompressedSize: uncompressedMAC.MessageSize(),
+			UncompressedMac:  api.RandBytes(rng, 32),
+		},
+	}
+	for i, m := range ms {
+		err := CheckMACs(ciphertextMAC, uncompressedMAC, m)
+		assert.NotNil(t, err, fmt.Sprintf("case %d", i))
+	}
 }

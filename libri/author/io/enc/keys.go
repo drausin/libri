@@ -198,7 +198,7 @@ func MarshalEEK(keys *EEK) []byte {
 	)
 }
 
-// UnmarshalEEK deserializes the KEK from its byte representation.
+// UnmarshalEEK deserializes the EEK from its byte representation.
 func UnmarshalEEK(x []byte) (*EEK, error) {
 	err := api.ValidateBytes(x, api.EEKLength, "EEK byte representation")
 	if err != nil {

@@ -36,9 +36,7 @@ func TestEntryPacker_Pack_ok(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, doc)
 	assert.NotNil(t, metadata)
-	origSize, in := metadata.GetUncompressedSize()
-	assert.True(t, in)
-	assert.Equal(t, uint64(uncompressedSize1), origSize)
+	assert.Equal(t, uint64(uncompressedSize1), metadata.UncompressedSize)
 
 	// test works with multi-page content
 	uncompressedSize2 := int(params.PageSize * 5)
@@ -47,9 +45,7 @@ func TestEntryPacker_Pack_ok(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, doc)
 	assert.NotNil(t, metadata)
-	origSize, in = metadata.GetUncompressedSize()
-	assert.True(t, in)
-	assert.Equal(t, uint64(uncompressedSize2), origSize)
+	assert.Equal(t, uint64(uncompressedSize2), metadata.UncompressedSize)
 	pageKeys, err := api.GetEntryPageKeys(doc)
 	assert.Nil(t, err)
 	assert.True(t, len(pageKeys) > 1)
@@ -102,14 +98,13 @@ func TestEntryUnpacker_Unpack_ok(t *testing.T) {
 	keys := enc.NewPseudoRandomEEK(rng)
 	content := new(bytes.Buffer)
 	doc, _ := api.NewTestDocument(rng)
-	metadata1, err := api.NewEntryMetadata(
-		"application/x-pdf",
-		1,
-		api.RandBytes(rng, 32),
-		2,
-		api.RandBytes(rng, 32),
-	)
-	assert.Nil(t, err)
+	metadata1 := &api.EntryMetadata{
+		MediaType:        "application/x-pdf",
+		CiphertextSize:   1,
+		CiphertextMac:    api.RandBytes(rng, 32),
+		UncompressedSize: 2,
+		UncompressedMac:  api.RandBytes(rng, 32),
+	}
 
 	metadataDec := &fixedMetadataDecrypter{
 		metadata: metadata1,
@@ -195,27 +190,23 @@ func TestEntryPackUnpack(t *testing.T) {
 		doc, metadata1, err := p.Pack(content1, c.mediaType, keys, authorPub)
 		assert.Nil(t, err)
 		assert.NotNil(t, doc)
-		uncompressedSize1, in := metadata1.GetUncompressedSize()
-		assert.True(t, in)
-		assert.Equal(t, c.uncompressedSize, int(uncompressedSize1))
+		assert.Equal(t, c.uncompressedSize, int(metadata1.UncompressedSize))
 
 		content2 := new(bytes.Buffer)
 		metadata2, err := u.Unpack(content2, doc, keys)
 		assert.Nil(t, err)
 		assert.Equal(t, content1Bytes, content2.Bytes())
-		uncompressedSize2, in := metadata2.GetUncompressedSize()
-		assert.True(t, in)
-		assert.Equal(t, c.uncompressedSize, int(uncompressedSize2))
+		assert.Equal(t, c.uncompressedSize, int(metadata2.UncompressedSize))
 	}
 }
 
 type fixedMetadataDecrypter struct {
-	metadata *api.Metadata
+	metadata *api.EntryMetadata
 	err      error
 }
 
 func (f *fixedMetadataDecrypter) Decrypt(em *enc.EncryptedMetadata, keys *enc.EEK) (
-	*api.Metadata, error) {
+	*api.EntryMetadata, error) {
 	return f.metadata, f.err
 }
 
@@ -224,7 +215,7 @@ type fixedScanner struct {
 }
 
 func (f *fixedScanner) Scan(
-	content io.Writer, pageKeys []id.ID, keys *enc.EEK, metatdata *api.Metadata,
+	content io.Writer, pageKeys []id.ID, keys *enc.EEK, metatdata *api.EntryMetadata,
 ) error {
 	return f.err
 }

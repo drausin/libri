@@ -37,7 +37,7 @@ func shippingEntryFields(authorPub, readerPub []byte) []zapcore.Field {
 }
 
 func uploadedDocFields(
-	envKey fmt.Stringer, env *api.Document, md *api.Metadata, elapsed time.Duration,
+	envKey fmt.Stringer, env *api.Document, md *api.EntryMetadata, elapsed time.Duration,
 ) []zapcore.Field {
 	entryKey := id.FromBytes(env.Contents.(*api.Document_Envelope).Envelope.EntryKey)
 	return docFields(envKey, entryKey, md, elapsed)
@@ -50,18 +50,17 @@ func downloadingDocFields(envKey fmt.Stringer) []zapcore.Field {
 }
 
 func downloadedDocFields(
-	envKey, entryKey fmt.Stringer, md *api.Metadata, elapsed time.Duration,
+	envKey, entryKey fmt.Stringer, md *api.EntryMetadata, elapsed time.Duration,
 ) []zapcore.Field {
 	return docFields(envKey, entryKey, md, elapsed)
 }
 
 func docFields(
-	envKey, entryKey fmt.Stringer, md *api.Metadata, elapsed time.Duration,
+	envKey, entryKey fmt.Stringer, md *api.EntryMetadata, elapsed time.Duration,
 ) []zapcore.Field {
 
-	uncompressedSize, _ := md.GetUncompressedSize()
 	// surprisingly hard to truncate this to 2 decimal places as float
-	speedMbps := float32(uncompressedSize) * 8 / float32(2<<20) / float32(elapsed.Seconds())
+	speedMbps := float32(md.UncompressedSize) * 8 / float32(2<<20) / float32(elapsed.Seconds())
 	return []zapcore.Field{
 		zap.Stringer(logEnvelopeKey, envKey),
 		zap.Stringer(logEntryKey, entryKey),
