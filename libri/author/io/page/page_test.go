@@ -265,7 +265,7 @@ func TestPaginateUnpaginate(t *testing.T) {
 	MinSize = 64 // just for testing
 	uncompressedSizes := []int{32, 64, 128, 192, 256, 384, 512, 768, 1024, 2048, 4096, 8192}
 	pageSizes := []uint32{128, 256, 512, 1024}
-	codecs := []comp.Codec{comp.GZIPCodec, comp.NoneCodec}
+	codecs := []api.CompressionCodec{api.CompressionCodec_GZIP, api.CompressionCodec_NONE}
 
 	for _, c := range caseCrossProduct(pageSizes, uncompressedSizes, codecs) {
 		pages := make(chan *api.Page, 3)
@@ -310,7 +310,7 @@ func TestPaginateUnpaginate(t *testing.T) {
 type pageTestCase struct {
 	pageSize         uint32
 	uncompressedSize int
-	codec            comp.Codec
+	codec            api.CompressionCodec
 }
 
 func (p pageTestCase) String() string {
@@ -319,7 +319,7 @@ func (p pageTestCase) String() string {
 }
 
 func caseCrossProduct(
-	pageSizes []uint32, uncompressedSizes []int, codecs []comp.Codec,
+	pageSizes []uint32, uncompressedSizes []int, codecs []api.CompressionCodec,
 ) []*pageTestCase {
 	cases := make([]*pageTestCase, 0)
 	for _, pageSize := range pageSizes {

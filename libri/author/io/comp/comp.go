@@ -16,7 +16,7 @@ import (
 
 const (
 	// DefaultCodec defines the default comp.scheme.
-	DefaultCodec = api.CompressionCodec_NONE
+	DefaultCodec = api.CompressionCodec_GZIP
 
 	// MinBufferSize is the minimum size of the uncompressed buffer used by the
 	// compressor and decompressor.

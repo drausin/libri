@@ -27,17 +27,17 @@ var (
 
 var benchmarkCases = []struct {
 	name              string
-	codec             comp.Codec
+	codec             api.CompressionCodec
 	uncompressedSizes []int
 }{
-	{"small+none", comp.NoneCodec, smallUncompressedSizes},
-	{"small+gzip", comp.GZIPCodec, smallUncompressedSizes},
-	{"medium+none", comp.NoneCodec, mediumUncompressedSizes},
-	{"medium+gzip", comp.GZIPCodec, mediumUncompressedSizes},
-	{"large+none", comp.NoneCodec, largeUncompressedSizes},
-	{"large+gzip", comp.GZIPCodec, largeUncompressedSizes},
-	{"xlarge+none", comp.NoneCodec, extraLargeUncompressedSizes},
-	{"xlarge+gzip", comp.GZIPCodec, extraLargeUncompressedSizes},
+	{"small+none", api.CompressionCodec_NONE, smallUncompressedSizes},
+	{"small+gzip", api.CompressionCodec_GZIP, smallUncompressedSizes},
+	{"medium+none", api.CompressionCodec_NONE, mediumUncompressedSizes},
+	{"medium+gzip", api.CompressionCodec_GZIP, mediumUncompressedSizes},
+	{"large+none", api.CompressionCodec_NONE, largeUncompressedSizes},
+	{"large+gzip", api.CompressionCodec_GZIP, largeUncompressedSizes},
+	{"xlarge+none", api.CompressionCodec_NONE, extraLargeUncompressedSizes},
+	{"xlarge+gzip", api.CompressionCodec_GZIP, extraLargeUncompressedSizes},
 }
 
 func BenchmarkPaginate(b *testing.B) {
@@ -52,7 +52,7 @@ func BenchmarkUnpaginate(b *testing.B) {
 	}
 }
 
-func benchmarkPaginate(b *testing.B, uncompressedSizes []int, codec comp.Codec) {
+func benchmarkPaginate(b *testing.B, uncompressedSizes []int, codec api.CompressionCodec) {
 	b.StopTimer()
 	rng := rand.New(rand.NewSource(0))
 	keys := enc.NewPseudoRandomEEK(rng)
@@ -88,7 +88,7 @@ func benchmarkPaginate(b *testing.B, uncompressedSizes []int, codec comp.Codec) 
 	}
 }
 
-func benchmarkUnpaginate(b *testing.B, uncompressedSizes []int, codec comp.Codec) {
+func benchmarkUnpaginate(b *testing.B, uncompressedSizes []int, codec api.CompressionCodec) {
 	b.StopTimer()
 	rng := rand.New(rand.NewSource(0))
 	keys := enc.NewPseudoRandomEEK(rng)
