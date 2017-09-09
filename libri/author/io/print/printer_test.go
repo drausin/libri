@@ -90,31 +90,38 @@ func TestPrinter_Print_err(t *testing.T) {
 	keys := enc.NewPseudoRandomEEK(rng)
 	content, mediaType := bytes.NewReader(api.RandBytes(rng, 64)), "application/x-pdf"
 
+	// check get compression codec error bubbles up
 	printer1 := NewPrinter(params, &fixedStorer{})
-	printer1.(*printer).init = &fixedPrintInitializer{
+	pageKeys, entryMetadata, err := printer1.Print(content, "application/", keys, authorPub)
+	assert.NotNil(t, err)
+	assert.Nil(t, pageKeys)
+	assert.Nil(t, entryMetadata)
+
+	printer2 := NewPrinter(params, &fixedStorer{})
+	printer2.(*printer).init = &fixedPrintInitializer{
 		initCompressor: nil,
 		initPaginator:  &fixedPaginator{},
 		initErr:        errors.New("some Initialize error"),
 	}
 
 	// check that init error bubbles up
-	pageKeys, entryMetadata, err := printer1.Print(content, mediaType, keys, authorPub)
+	pageKeys, entryMetadata, err = printer2.Print(content, mediaType, keys, authorPub)
 	assert.NotNil(t, err)
 	assert.Nil(t, pageKeys)
 	assert.Nil(t, entryMetadata)
 
-	storer2 := &fixedStorer{
+	storer3 := &fixedStorer{
 		storeErr: errors.New("some Store error"),
 	}
-	printer2 := NewPrinter(params, storer2)
-	printer2.(*printer).init = &fixedPrintInitializer{
+	printer3 := NewPrinter(params, storer3)
+	printer3.(*printer).init = &fixedPrintInitializer{
 		initCompressor: nil,
 		initPaginator:  &fixedPaginator{},
 		initErr:        nil,
 	}
 
 	// check that store error bubbles up
-	pageKeys, entryMetadata, err = printer2.Print(content, mediaType, keys, authorPub)
+	pageKeys, entryMetadata, err = printer3.Print(content, mediaType, keys, authorPub)
 	assert.NotNil(t, err)
 	assert.Nil(t, pageKeys)
 	assert.Nil(t, entryMetadata)
@@ -124,15 +131,15 @@ func TestPrinter_Print_err(t *testing.T) {
 		readErr: errors.New("some ReadFrom error"),
 	}
 
-	printer3 := NewPrinter(params, &fixedStorer{})
-	printer3.(*printer).init = &fixedPrintInitializer{
+	printer4 := NewPrinter(params, &fixedStorer{})
+	printer4.(*printer).init = &fixedPrintInitializer{
 		initCompressor: nil,
 		initPaginator:  paginator3,
 		initErr:        nil,
 	}
 
 	// check that paginator.ReadFrom error bubbles up
-	pageKeys, entryMetadata, err = printer3.Print(content, mediaType, keys, authorPub)
+	pageKeys, entryMetadata, err = printer4.Print(content, mediaType, keys, authorPub)
 	assert.NotNil(t, err)
 	assert.Nil(t, pageKeys)
 	assert.Nil(t, entryMetadata)
@@ -149,15 +156,15 @@ func TestPrinter_Print_err(t *testing.T) {
 			sum:         []byte{},
 		},
 	}
-	printer4 := NewPrinter(params, &fixedStorer{})
-	printer4.(*printer).init = &fixedPrintInitializer{
+	printer5 := NewPrinter(params, &fixedStorer{})
+	printer5.(*printer).init = &fixedPrintInitializer{
 		initCompressor: compressor,
 		initPaginator:  paginator,
 		initErr:        nil,
 	}
 
 	// check that api.NewEntryMetadata error bubbles up
-	pageKeys, entryMetadata, err = printer4.Print(content, mediaType, keys, authorPub)
+	pageKeys, entryMetadata, err = printer5.Print(content, mediaType, keys, authorPub)
 	assert.NotNil(t, err)
 	assert.Nil(t, pageKeys)
 	assert.Nil(t, entryMetadata)
