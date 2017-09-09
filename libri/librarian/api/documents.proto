@@ -97,7 +97,10 @@ message EntryMetadata {
     string filepath = 8;
 
     // schema of the entry plaintext
-    EntrySchema schema = 9;
+    SchemaArtifact schema = 9;
+
+    // data dictionary of the entry plaintext
+    SchemaArtifact dataDictionary = 10;
 }
 
 // CompressionCodec denotes whether and how the plaintext is compressed before encryption.
@@ -106,12 +109,31 @@ enum CompressionCodec {
     GZIP = 1;
 }
 
-// EntrySchema denotes the schema associated with the serialized plaintext of a particular entry.
-// Schemas can be of any type (e.g., proto, avro, json, XML, etc).
+// SchemaArtifact denotes the schema artifact associated with the serialized plaintext of a
+// particular entry. Artifacts can mainly be two separate types:
 //
-// Clients can choose to do what they want with this schema, but commonly they will have a set of
-// schemas they know how to handle explicitly.
-message EntrySchema {
+// - schema: can be of any type (e.g., proto, avro, json, XML, XSD, etc) that minimally describe the
+// format of the data and optionally/preferably also include the data dictionary (i.e., the
+// semantic meaning of the schema components) as well.
+//
+// - data dictionary: when the schema is broad/loose (as is the case in some standard data formats
+// like HL7), this additional documentation adds clarity about the semantic meaning/use of each
+// field. For example, a schema may contain two similar fields, A1 and A2, and one entry
+// data producer may store a value in A1, whereas another producer may store the same semantic
+// value in A2. The schema for both messages is the same, but the schema interpretation is
+// different.
+//
+// New schemas should obviously be as well-defined and unambiguous as possible, but many legacy
+// data formats require additional interpretation. Clients can choose to do what they want with
+// the schema and data dictionary, but commonly they will have combinations of these that they
+// know how to handle explicitly.
+//
+// Preferred formats:
+//  - schema: Protobuf
+//  - data dictionary: Markdown
+//
+message SchemaArtifact {
+
     // group owning the schema (commonly a Github user, e.g., 'drausin')
     string group = 1;
 
