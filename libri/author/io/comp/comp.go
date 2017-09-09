@@ -10,21 +10,13 @@ import (
 
 	"github.com/drausin/libri/libri/author/io/enc"
 	cerrors "github.com/drausin/libri/libri/common/errors"
+	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/klauspost/compress/gzip"
 )
 
-// Codec is a comp.codec.
-type Codec string
-
 const (
-	// NoneCodec indicates no comp.
-	NoneCodec Codec = "none"
-
-	// GZIPCodec indicates gzip comp.
-	GZIPCodec Codec = "gzip"
-
 	// DefaultCodec defines the default comp.scheme.
-	DefaultCodec = GZIPCodec
+	DefaultCodec = api.CompressionCodec_GZIP
 
 	// MinBufferSize is the minimum size of the uncompressed buffer used by the
 	// compressor and decompressor.
@@ -40,16 +32,16 @@ var ErrBufferSizeTooSmall = fmt.Errorf("buffer size is below %d byte minimum", M
 
 // MediaToCompressionCodec maps MIME media types to what comp.codec should be used with
 // them.
-var MediaToCompressionCodec = map[string]Codec{
+var MediaToCompressionCodec = map[string]api.CompressionCodec{
 	// don't compress again since it's already compressed
-	"application/x-gzip":           NoneCodec,
-	"application/x-compressed":     NoneCodec,
-	"application/x-zip-compressed": NoneCodec,
-	"application/zip":              NoneCodec,
+	"application/x-gzip":           api.CompressionCodec_NONE,
+	"application/x-compressed":     api.CompressionCodec_NONE,
+	"application/x-zip-compressed": api.CompressionCodec_NONE,
+	"application/zip":              api.CompressionCodec_NONE,
 }
 
 // GetCompressionCodec returns the comp.codec to use given a MIME media type.
-func GetCompressionCodec(mediaType string) (Codec, error) {
+func GetCompressionCodec(mediaType string) (api.CompressionCodec, error) {
 	if mediaType == "" {
 		return DefaultCodec, nil
 	}
@@ -130,16 +122,16 @@ var gzipWriters = sync.Pool{
 // codec. Larger values of uncompressedBufferSize will result in fewer calls to the uncompressed
 // io.Reader, at the expense of reading more than is needed into the internal buffer.
 func NewCompressor(
-	uncompressed io.Reader, codec Codec, keys *enc.EEK, uncompressedBufferSize uint32,
+	uncompressed io.Reader, codec api.CompressionCodec, keys *enc.EEK, uncompressedBufferSize uint32,
 ) (Compressor, error) {
 	var inner FlushCloseWriter
 	buf := new(bytes.Buffer)
 
 	switch codec {
-	case GZIPCodec:
+	case api.CompressionCodec_GZIP:
 		inner = gzipWriters.Get().(*gzip.Writer)
 		inner.(*gzip.Writer).Reset(buf)
-	case NoneCodec:
+	case api.CompressionCodec_NONE:
 		inner = &noOpFlushCloseWriter{buf}
 	default:
 		panic(fmt.Errorf("unexpected codec: %s", codec))
@@ -235,7 +227,7 @@ type decompressor struct {
 	uncompressed           io.Writer
 	uncompressedMAC        enc.MAC
 	inner                  io.Reader
-	codec                  Codec
+	codec                  api.CompressionCodec
 	buf                    *bytes.Buffer
 	closed                 bool
 	uncompressedBufferSize uint32
@@ -243,7 +235,7 @@ type decompressor struct {
 
 // NewDecompressor creates a new Decompressor instance.
 func NewDecompressor(
-	uncompressed io.Writer, codec Codec, keys *enc.EEK, uncompressedBufferSize uint32,
+	uncompressed io.Writer, codec api.CompressionCodec, keys *enc.EEK, uncompressedBufferSize uint32,
 ) (Decompressor, error) {
 	if uncompressedBufferSize < MinBufferSize {
 		return nil, ErrBufferSizeTooSmall
@@ -260,11 +252,11 @@ func NewDecompressor(
 }
 
 // newInnerDecompressor creates a new io.Reader given the codec.
-func newInnerDecompressor(buf io.Reader, codec Codec) (io.Reader, error) {
+func newInnerDecompressor(buf io.Reader, codec api.CompressionCodec) (io.Reader, error) {
 	switch codec {
-	case GZIPCodec:
+	case api.CompressionCodec_GZIP:
 		return gzip.NewReader(buf)
-	case NoneCodec:
+	case api.CompressionCodec_NONE:
 		return buf, nil
 	default:
 		panic(fmt.Errorf("unexpected codec: %s", codec))

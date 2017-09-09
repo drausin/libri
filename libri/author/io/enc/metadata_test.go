@@ -37,14 +37,13 @@ func TestMetadataEncDec_EncryptDecrypt(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	keys := NewPseudoRandomEEK(rng)
 	mediaType := "application/x-pdf"
-	m1, err := api.NewEntryMetadata(
-		mediaType,
-		1,
-		api.RandBytes(rng, 32),
-		2,
-		api.RandBytes(rng, 32),
-	)
-	assert.Nil(t, err)
+	m1 := &api.EntryMetadata{
+		MediaType:        mediaType,
+		CiphertextSize:   1,
+		CiphertextMac:    api.RandBytes(rng, 32),
+		UncompressedSize: 2,
+		UncompressedMac:  api.RandBytes(rng, 32),
+	}
 
 	me := metadataEncDec{}
 	em, err := me.Encrypt(m1, keys)
@@ -67,15 +66,13 @@ func TestMetadataEncDec_Encrypt_err(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Nil(t, em1)
 
-	mediaType := "application/x-pdf"
-	m, err := api.NewEntryMetadata(
-		mediaType,
-		1,
-		api.RandBytes(rng, 32),
-		2,
-		api.RandBytes(rng, 32),
-	)
-	assert.Nil(t, err)
+	m := &api.EntryMetadata{
+		MediaType:        "application/x-pdf",
+		CiphertextSize:   1,
+		CiphertextMac:    api.RandBytes(rng, 32),
+		UncompressedSize: 2,
+		UncompressedMac:  api.RandBytes(rng, 32),
+	}
 
 	// check missing AES key triggers error
 	keys2 := NewPseudoRandomEEK(rng)

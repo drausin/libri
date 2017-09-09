@@ -82,23 +82,20 @@ func HMAC(p []byte, hmacKey []byte) []byte {
 }
 
 // CheckMACs checks that the ciphertext and uncompressed MACs are consistent with the *api.Metadata.
-func CheckMACs(ciphertextMAC, uncompressedMAC MAC, md *api.Metadata) error {
-	if err := api.ValidateMetadata(md); err != nil {
+func CheckMACs(ciphertextMAC, uncompressedMAC MAC, md *api.EntryMetadata) error {
+	if err := api.ValidateEntryMetadata(md); err != nil {
 		return err
 	}
-
-	// ignore second boolean argument in all Get... calls below b/c we've already validated
-	// that they are present via api.ValidateMetadata call
-	if size, _ := md.GetCiphertextSize(); size != ciphertextMAC.MessageSize() {
+	if md.CiphertextSize != ciphertextMAC.MessageSize() {
 		return ErrUnexpectedCiphertextSize
 	}
-	if mac, _ := md.GetCiphertextMAC(); !bytes.Equal(mac, ciphertextMAC.Sum(nil)) {
+	if !bytes.Equal(md.CiphertextMac, ciphertextMAC.Sum(nil)) {
 		return ErrUnexpectedCiphertextMAC
 	}
-	if size, _ := md.GetUncompressedSize(); size != uncompressedMAC.MessageSize() {
+	if md.UncompressedSize != uncompressedMAC.MessageSize() {
 		return ErrUnexpectedUncompressedSize
 	}
-	if mac, _ := md.GetUncompressedMAC(); !bytes.Equal(mac, uncompressedMAC.Sum(nil)) {
+	if !bytes.Equal(md.UncompressedMac, uncompressedMAC.Sum(nil)) {
 		return ErrUnexpectedUncompressedMAC
 	}
 	return nil

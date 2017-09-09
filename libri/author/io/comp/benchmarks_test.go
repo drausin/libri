@@ -9,6 +9,7 @@ import (
 	"github.com/drausin/libri/libri/author/io/common"
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/common/errors"
+	"github.com/drausin/libri/libri/librarian/api"
 )
 
 const (
@@ -25,17 +26,17 @@ var (
 
 var benchmarkCases = []struct {
 	name              string
-	codec             Codec
+	codec             api.CompressionCodec
 	uncompressedSizes []int
 }{
-	{"small+none", NoneCodec, smallUncompressedSizes},
-	{"small+gzip", GZIPCodec, smallUncompressedSizes},
-	{"medium+none", NoneCodec, mediumUncompressedSizes},
-	{"medium+gzip", GZIPCodec, mediumUncompressedSizes},
-	{"large+none", NoneCodec, largeUncompressedSizes},
-	{"large+gzip", GZIPCodec, largeUncompressedSizes},
-	{"xlarge+none", NoneCodec, extraLargeUncompressedSizes},
-	{"xlarge+gzip", GZIPCodec, extraLargeUncompressedSizes},
+	{"small+none", api.CompressionCodec_NONE, smallUncompressedSizes},
+	{"small+gzip", api.CompressionCodec_GZIP, smallUncompressedSizes},
+	{"medium+none", api.CompressionCodec_NONE, mediumUncompressedSizes},
+	{"medium+gzip", api.CompressionCodec_GZIP, mediumUncompressedSizes},
+	{"large+none", api.CompressionCodec_NONE, largeUncompressedSizes},
+	{"large+gzip", api.CompressionCodec_GZIP, largeUncompressedSizes},
+	{"xlarge+none", api.CompressionCodec_NONE, extraLargeUncompressedSizes},
+	{"xlarge+gzip", api.CompressionCodec_GZIP, extraLargeUncompressedSizes},
 }
 
 func BenchmarkCompress(b *testing.B) {
@@ -50,7 +51,7 @@ func BenchmarkDecompress(b *testing.B) {
 	}
 }
 
-func benchmarkCompress(b *testing.B, uncompressedSizes []int, codec Codec) {
+func benchmarkCompress(b *testing.B, uncompressedSizes []int, codec api.CompressionCodec) {
 	b.StopTimer()
 	rng := rand.New(rand.NewSource(0))
 	keys := enc.NewPseudoRandomEEK(rng)
@@ -85,7 +86,7 @@ func benchmarkCompress(b *testing.B, uncompressedSizes []int, codec Codec) {
 	}
 }
 
-func benchmarkDecompress(b *testing.B, uncompressedSizes []int, codec Codec) {
+func benchmarkDecompress(b *testing.B, uncompressedSizes []int, codec api.CompressionCodec) {
 	b.StopTimer()
 	rng := rand.New(rand.NewSource(0))
 	keys := enc.NewPseudoRandomEEK(rng)
