@@ -9,6 +9,7 @@ import (
 	"regexp"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/drausin/libri/libri/common/errors"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -19,9 +20,7 @@ func init() {
 	// base-64 encoded 256-bit values have 43 chars followed by an =
 	var err error
 	b64url256bit, err = regexp.Compile(`^[A-Za-z0-9\-_]{43}=$`)
-	if err != nil {
-		panic(err)
-	}
+	errors.MaybePanic(err)
 }
 
 // Claims holds the claims associated with a message signature.

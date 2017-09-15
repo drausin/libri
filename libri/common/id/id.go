@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"math/big"
 	mrand "math/rand"
+
+	"github.com/drausin/libri/libri/common/errors"
 )
 
 const (
@@ -108,9 +110,7 @@ func FromString(value string) (ID, error) {
 func NewRandom() ID {
 	b := make([]byte, Length)
 	_, err := crand.Read(b)
-	if err != nil {
-		panic(err)
-	}
+	errors.MaybePanic(err)
 	return FromBytes(b)
 }
 

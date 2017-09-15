@@ -69,9 +69,7 @@ func newTestLibrarian() *Librarian {
 func newTestConfig() *Config {
 	config := NewDefaultConfig()
 	dir, err := ioutil.TempDir("", "test-data-dir")
-	if err != nil {
-		panic(err)
-	}
+	cerrors.MaybePanic(err)
 	config.WithDataDir(dir).WithDefaultDBDir() // resets default DB dir given new data dir
 	return config
 }

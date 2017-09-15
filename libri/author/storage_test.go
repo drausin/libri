@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/drausin/libri/libri/common/ecid"
+	cerrors "github.com/drausin/libri/libri/common/errors"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/golang/protobuf/proto"
@@ -199,7 +200,5 @@ func TestMissingKeychains(t *testing.T) {
 
 func rmDir(dir string) {
 	err := os.RemoveAll(dir)
-	if err != nil {
-		panic(err)
-	}
+	cerrors.MaybePanic(err)
 }

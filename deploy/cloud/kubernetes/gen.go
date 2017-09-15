@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"text/template"
 
+	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/librarian/server"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -79,12 +80,9 @@ var genCmd = &cobra.Command{
 
 		absOutFilepath := filepath.Join(wd, outFilepath)
 		out, err := os.Create(absOutFilepath)
-		if err != nil {
-			panic(err)
-		}
-		if err = tmpl.Execute(out, config); err != nil {
-			panic(err)
-		}
+		cerrors.MaybePanic(err)
+		err = tmpl.Execute(out, config)
+		cerrors.MaybePanic(err)
 		fmt.Printf("wrote config to %s\n", outFilepath)
 	},
 }

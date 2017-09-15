@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/drausin/libri/libri/common/ecid"
+	errors2 "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/server/peer"
@@ -171,10 +172,8 @@ func (rt *table) Push(new peer.Peer) PushStatus {
 		existing := heap.Remove(insertBucket, pHeapIdx).(peer.Peer)
 		if new != existing {
 			// if the two peers aren't the same instance, merge new into existing
-			if err := existing.Merge(new); err != nil {
-				// should never happen
-				panic(err)
-			}
+			err := existing.Merge(new)
+			errors2.MaybePanic(err) // should never happen
 		}
 		heap.Push(insertBucket, existing)
 		rt.mu.Unlock()

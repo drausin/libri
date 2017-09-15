@@ -11,6 +11,8 @@ import (
 
 	"crypto/cipher"
 
+	"fmt"
+
 	"github.com/drausin/libri/libri/common/ecid"
 	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -173,7 +175,7 @@ func NewPseudoRandomEEK(rng *mrand.Rand) *EEK {
 	nRead, err := rng.Read(eekBytes)
 	cerrors.MaybePanic(err)
 	if nRead != api.EEKLength {
-		panic(err)
+		panic(fmt.Errorf("nRead (%d) != EEKLength (%d)", nRead, api.EEKLength))
 	}
 	eek, err := UnmarshalEEK(eekBytes)
 	cerrors.MaybePanic(err)
