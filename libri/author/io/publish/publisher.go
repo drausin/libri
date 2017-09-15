@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/drausin/libri/libri/common/ecid"
+	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -105,10 +106,7 @@ func NewParameters(
 func NewDefaultParameters() *Parameters {
 	params, err := NewParameters(DefaultPutTimeout, DefaultGetTimeout, DefaultPutParallelism,
 		DefaultGetParallelism)
-	if err != nil {
-		// should never happen; if does, it's programmer error
-		panic(err)
-	}
+	cerrors.MaybePanic(err) // should never happen; if does, it's programmer error
 	return params
 }
 

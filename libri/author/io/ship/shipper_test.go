@@ -9,6 +9,7 @@ import (
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/publish"
 	"github.com/drausin/libri/libri/author/keychain"
+	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -285,9 +286,7 @@ type memPublisherAcquirer struct {
 func (p *memPublisherAcquirer) Publish(doc *api.Document, authorPub []byte, lc api.Putter) (
 	id.ID, error) {
 	docKey, err := api.GetKey(doc)
-	if err != nil {
-		panic(err)
-	}
+	cerrors.MaybePanic(err)
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.docs[docKey.String()] = doc

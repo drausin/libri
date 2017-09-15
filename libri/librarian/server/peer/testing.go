@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -34,9 +35,7 @@ func NewTestPeer(rng *rand.Rand, idx int) Peer {
 // NewTestPublicAddr creates a new net.TCPAddr given a particular peer index.
 func NewTestPublicAddr(idx int) *net.TCPAddr {
 	address, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("127.0.0.1:%v", 20100+idx))
-	if err != nil {
-		panic(err)
-	}
+	cerrors.MaybePanic(err)
 	return address
 }
 

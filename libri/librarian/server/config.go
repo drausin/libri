@@ -121,10 +121,7 @@ func (c *Config) WithLocalAddr(localAddr *net.TCPAddr) *Config {
 // WithDefaultLocalAddr sets the local address to the default value.
 func (c *Config) WithDefaultLocalAddr() *Config {
 	addr, err := ParseAddr(DefaultIP, DefaultPort)
-	if err != nil {
-		// should never happen with default
-		panic(err)
-	}
+	errors.MaybePanic(err) // should never happen with default
 	c.LocalAddr = addr
 	return c
 }
@@ -193,9 +190,7 @@ func (c *Config) WithDataDir(dataDir string) *Config {
 // WithDefaultDataDir sets the data dir to a 'data' subdir of the current working directory..
 func (c *Config) WithDefaultDataDir() *Config {
 	cwd, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
+	errors.MaybePanic(err)
 	c.DataDir = filepath.Join(cwd, DataSubdir)
 	return c
 }
@@ -230,10 +225,7 @@ func (c *Config) WithBootstrapAddrs(bootstrapAddrs []*net.TCPAddr) *Config {
 func (c *Config) WithDefaultBootstrapAddrs() *Config {
 	// default is itself
 	addr, err := ParseAddr(DefaultIP, DefaultPort)
-	if err != nil {
-		// should never happen with default
-		panic(err)
-	}
+	errors.MaybePanic(err) // should never happen with default
 	c.BootstrapAddrs = []*net.TCPAddr{addr}
 	return c
 }

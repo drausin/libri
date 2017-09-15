@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/golang/protobuf/proto"
@@ -103,9 +104,7 @@ func TestEcdsaVerifer_Verify_err(t *testing.T) {
 
 	assert.Panics(t, func() {
 		err := verifier.Verify(encToken, nil, message) // can't have nil key
-		if err != nil {
-			panic(err)
-		}
+		errors.MaybePanic(err)
 	})
 }
 

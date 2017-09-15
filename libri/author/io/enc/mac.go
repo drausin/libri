@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
+	"errors"
 	"hash"
 	"io"
 
-	"errors"
-
+	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/librarian/api"
 )
 
@@ -74,10 +74,8 @@ func (h *sizeHMAC) MessageSize() uint64 {
 // HMAC returns the HMAC sum for the given input bytes and HMAC-256 key.
 func HMAC(p []byte, hmacKey []byte) []byte {
 	macer := NewHMAC(hmacKey)
-	if _, err := macer.Write(p); err != nil {
-		// should never happen b/c sha256.Write always returns nil error
-		panic(err)
-	}
+	_, err := macer.Write(p)
+	cerrors.MaybePanic(err) // should never happen b/c sha256.Write always returns nil error
 	return macer.Sum(nil)
 }
 

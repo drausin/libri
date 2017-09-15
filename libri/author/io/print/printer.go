@@ -7,6 +7,7 @@ import (
 	"github.com/drausin/libri/libri/author/io/comp"
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/page"
+	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 )
@@ -50,10 +51,7 @@ func NewParameters(
 // NewDefaultParameters creates a default *Parameters instance.
 func NewDefaultParameters() *Parameters {
 	params, err := NewParameters(comp.DefaultBufferSize, page.DefaultSize, DefaultParallelism)
-	if err != nil {
-		// should never happen; if does, it's programmer error
-		panic(err)
-	}
+	cerrors.MaybePanic(err) // should never happen; if does, it's programmer error
 	return params
 }
 

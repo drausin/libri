@@ -430,9 +430,7 @@ type memPublisherAcquirer struct {
 func (p *memPublisherAcquirer) Publish(doc *api.Document, authorPub []byte, lc api.Putter) (
 	id.ID, error) {
 	docKey, err := api.GetKey(doc)
-	if err != nil {
-		panic(err)
-	}
+	cerrors.MaybePanic(err)
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.docs[docKey.String()] = doc
@@ -507,15 +505,11 @@ func newTestAuthor() *Author {
 	// create keychains
 	err := CreateKeychains(logger, config.KeychainDir, testKeychainAuth,
 		veryLightScryptN, veryLightScryptP)
-	if err != nil {
-		panic(err)
-	}
+	cerrors.MaybePanic(err)
 
 	authorKeys, selfReaderKeys := keychain.New(nInitialKeys), keychain.New(nInitialKeys)
 	author, err := NewAuthor(config, authorKeys, selfReaderKeys, logger)
-	if err != nil {
-		panic(err)
-	}
+	cerrors.MaybePanic(err)
 	return author
 }
 
@@ -523,9 +517,7 @@ func newTestConfig() *Config {
 	config := NewDefaultConfig()
 	dir, err := ioutil.TempDir("", "author-test-data-dir")
 	defer func() { cerrors.MaybePanic(os.RemoveAll(dir)) }()
-	if err != nil {
-		panic(err)
-	}
+	cerrors.MaybePanic(err)
 
 	// set data dir and resets DB and Keychain dirs to use it
 	config.WithDataDir(dir).

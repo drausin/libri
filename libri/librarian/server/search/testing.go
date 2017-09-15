@@ -6,6 +6,7 @@ import (
 	"net"
 
 	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
@@ -98,9 +99,7 @@ func NewTestPeers(rng *rand.Rand, n int) ([]peer.Peer, map[string]peer.Peer, []i
 		}
 		names[i] = fmt.Sprintf("peer-%03d", i)
 		address, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("localhost:%v", 20100+i))
-		if err != nil {
-			panic(err)
-		}
+		errors.MaybePanic(err)
 		addresses[i] = address
 	}
 

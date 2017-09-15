@@ -89,9 +89,7 @@ type testClient struct {
 func setUp(params *params) *state {
 	maxBucketPeers := uint(8)
 	dataDir, err := ioutil.TempDir("", "test-data-dir")
-	if err != nil {
-		panic(err)
-	}
+	errors.MaybePanic(err)
 	seedConfigs, peerConfigs, peerAddrs := newLibrarianConfigs(
 		dataDir,
 		params.nSeeds,
@@ -159,23 +157,17 @@ func setUp(params *params) *state {
 		// create keychains
 		err := lauthor.CreateKeychains(logger, authorConfig.KeychainDir, authorKeychainAuth,
 			veryLightScryptN, veryLightScryptP)
-		if err != nil {
-			panic(err)
-		}
+		errors.MaybePanic(err)
 
 		// load keychains
 		authorKCs, selfReaderKCs, err := lauthor.LoadKeychains(authorConfig.KeychainDir,
 			authorKeychainAuth)
-		if err != nil {
-			panic(err)
-		}
+		errors.MaybePanic(err)
 		authorKeys[i] = authorKCs
 
 		// create author
 		authors[i], err = lauthor.NewAuthor(authorConfig, authorKCs, selfReaderKCs, logger)
-		if err != nil {
-			panic(err)
-		}
+		errors.MaybePanic(err)
 	}
 
 	return &state{
@@ -401,9 +393,7 @@ func newTestDocument(rng *rand.Rand, entrySize int) (*api.Document, id.ID) {
 		},
 	}
 	key, err := api.GetKey(doc)
-	if err != nil {
-		panic(err)
-	}
+	errors.MaybePanic(err)
 	return doc, key
 }
 

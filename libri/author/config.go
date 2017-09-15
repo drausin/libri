@@ -7,6 +7,7 @@ import (
 
 	"github.com/drausin/libri/libri/author/io/print"
 	"github.com/drausin/libri/libri/author/io/publish"
+	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/librarian/server"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -86,9 +87,7 @@ func (c *Config) WithDataDir(dataDir string) *Config {
 // WithDefaultDataDir sets the data dir to a 'data' subdir of the current working directory..
 func (c *Config) WithDefaultDataDir() *Config {
 	cwd, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
+	errors.MaybePanic(err)
 	c.DataDir = filepath.Join(cwd, DataSubdir)
 	return c
 }
@@ -138,10 +137,7 @@ func (c *Config) WithLibrarianAddrs(librarianAddrs []*net.TCPAddr) *Config {
 // and port.
 func (c *Config) WithDefaultLibrarianAddrs() *Config {
 	addr, err := server.ParseAddr(DefaultLibrarianIP, DefaultLibrarianPort)
-	if err != nil {
-		// should never happen
-		panic(err)
-	}
+	errors.MaybePanic(err) // should never happen
 	c.LibrarianAddrs = []*net.TCPAddr{addr}
 	return c
 }

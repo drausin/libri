@@ -4,6 +4,7 @@ import (
 	"math/rand"
 
 	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 )
 
@@ -11,9 +12,7 @@ import (
 func NewTestDocument(rng *rand.Rand) (*Document, id.ID) {
 	doc := &Document{&Document_Entry{NewTestSinglePageEntry(rng)}}
 	key, err := GetKey(doc)
-	if err != nil {
-		panic(err)
-	}
+	errors.MaybePanic(err)
 	return doc, key
 }
 
@@ -78,9 +77,7 @@ func NewTestPublication(rng *rand.Rand) *Publication {
 func RandBytes(rng *rand.Rand, length int) []byte {
 	b := make([]byte, length)
 	_, err := rng.Read(b)
-	if err != nil {
-		panic(err)
-	}
+	errors.MaybePanic(err)
 	return b
 }
 func fakePubKey(rng *rand.Rand) []byte {
