@@ -50,13 +50,12 @@ type Sampler interface {
 	Sample() (ecid.ID, error)
 }
 
-// GetterSampler and a collection of ECCSA keys that can be both looked up and sampled.
+// GetterSampler and a collection of ECDSA keys that can be both looked up and sampled.
 type GetterSampler interface {
 	Getter
 	Sampler
 }
 
-// Getter represents a collection of ECDSA private keys.
 type keychain struct {
 	// private keys indexed by the hex of the 65-byte public key representation
 	privs map[string]ecid.ID

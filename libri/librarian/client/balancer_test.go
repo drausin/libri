@@ -15,7 +15,7 @@ func TestNewUniformBalancer_err(t *testing.T) {
 	assert.Nil(t, b)
 }
 
-func TestUniformRandBalancer_Next_err(t *testing.T) {
+func TestUniformRandBalancer_Next(t *testing.T) {
 	addrs := []*net.TCPAddr{
 		{IP: net.ParseIP("1.2.3.4"), Port: 8080},
 		{IP: net.ParseIP("1.2.3.4"), Port: 8081},

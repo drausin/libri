@@ -3,15 +3,13 @@ package enc
 import (
 	"bytes"
 	"crypto/aes"
+	"crypto/cipher"
 	"crypto/ecdsa"
 	crand "crypto/rand"
 	"crypto/sha256"
 	"errors"
-	mrand "math/rand"
-
-	"crypto/cipher"
-
 	"fmt"
+	mrand "math/rand"
 
 	"github.com/drausin/libri/libri/common/ecid"
 	cerrors "github.com/drausin/libri/libri/common/errors"
