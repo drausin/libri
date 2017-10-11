@@ -14,7 +14,7 @@ if [[ ! -d "${LOCAL_TEST_DATA_DIR}" ]]; then
     ${LOCAL_DIR}/get-test-data.sh
 fi
 
-# container command contants
+# container command constants
 IMAGE="daedalus2718/libri:latest"
 KEYCHAIN_DIR="/keychains"  # inside container
 CONTAINER_TEST_DATA_DIR="/test-data"
@@ -22,9 +22,14 @@ LIBRI_PASSPHRASE="test passphrase"  # bypass command-line entry
 N_LIBRARIANS=3
 
 # clean up any existing libri containers
-echo "cleaning up existing containers..."
+echo "cleaning up existing network and containers..."
 docker ps | grep 'libri' | awk '{print $1}' | xargs -I {} docker stop {} || true
 docker ps -a | grep 'libri' | awk '{print $1}' | xargs -I {} docker rm {} || true
+docker network list | grep 'libri' | awk '{print $2}' | xargs -I {} docker network rm {} || true
+
+echo
+echo "creating libri docker network..."
+docker network create libri
 
 echo
 echo "starting librarian peers..."
@@ -34,7 +39,7 @@ for c in $(seq 0 $((${N_LIBRARIANS} - 1))); do
     port=$((20100+c))
     metricsPort=$((20200+c))
     name="librarian-${c}"
-    docker run --name "${name}" -d -p ${port}:${port} ${IMAGE} \
+    docker run --name "${name}" --net=libri -d -p ${port}:${port} ${IMAGE} \
         librarian start \
         --nSubscriptions 2 \
         --publicPort ${port} \
@@ -50,11 +55,11 @@ sleep 5  # TODO (drausin) add retry to healthcheck
 
 echo
 echo "testing librarians health..."
-docker run --rm ${IMAGE} test health -a "${librarian_addrs}"
+docker run --rm --net=libri ${IMAGE} test health -a "${librarian_addrs}"
 
 echo
 echo "testing librarians upload/download..."
-docker run --rm ${IMAGE} test io -a "${librarian_addrs}" -n 4
+docker run --rm --net=libri ${IMAGE} test io -a "${librarian_addrs}" -n 4
 
 echo
 echo "initializing author..."
@@ -67,6 +72,7 @@ docker create \
 docker cp ${LOCAL_TEST_DATA_DIR}/* author-data:${CONTAINER_TEST_DATA_DIR}
 docker run \
     --rm \
+     --net=libri \
     --volumes-from author-data \
     -e LIBRI_PASSPHRASE="${LIBRI_PASSPHRASE}" \
     ${IMAGE} \
@@ -78,6 +84,7 @@ for file in $(ls ${LOCAL_TEST_DATA_DIR}); do
     up_file="${CONTAINER_TEST_DATA_DIR}/${file}"
     docker run \
         --rm \
+        --net=libri \
         --volumes-from author-data \
         -e LIBRI_PASSPHRASE="${LIBRI_PASSPHRASE}" \
         ${IMAGE} \
@@ -89,6 +96,7 @@ for file in $(ls ${LOCAL_TEST_DATA_DIR}); do
     envelope_key=$(grep envelope_key ${log_file} | sed -r 's/^.*"envelope_key": "(\w+)".*$/\1/g')
     docker run \
         --rm \
+        --net=libri \
         --volumes-from author-data \
         -e LIBRI_PASSPHRASE="${LIBRI_PASSPHRASE}" \
         ${IMAGE} \
@@ -107,6 +115,7 @@ rm -f ${LOCAL_TEST_DATA_DIR}/downloaded.*
 rm -f ${LOCAL_TEST_LOGS_DIR}/*
 docker ps | grep 'libri' | awk '{print $1}' | xargs -I {} docker stop {} || true
 docker ps -a | grep 'libri' | awk '{print $1}' | xargs -I {} docker rm {} || true
+docker network list | grep 'libri' | awk '{print $2}' | xargs -I {} docker network rm {} || true
 
 echo
 echo "All tests passed."
