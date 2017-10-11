@@ -10,12 +10,12 @@ jobs:
       - setup_remote_docker
       - restore_cache:
           keys:
-            - v1-vendor-{{ checksum "Gopkg.lock" }}
+            - v1-vendor-{{ arch }}-{{ checksum "Gopkg.lock" }}
       - run:
           name: Install dependencies
           command: make get-deps
       - save_cache:
-          key: v1-vendor-{{ checksum "Gopkg.lock" }}
+          key: v1-vendor-{{ arch }}-{{ checksum "Gopkg.lock" }}
           paths:
             - vendor
       - run:
