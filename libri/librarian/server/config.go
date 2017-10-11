@@ -40,11 +40,11 @@ const (
 
 // Config is used to configure a Librarian server
 type Config struct {
-	// LocalAddr is the local address the main grpc server listens to.
-	LocalAddr *net.TCPAddr
+	// LocalPort is the local port the main grpc server listens to.
+	LocalPort int
 
-	// LocalMetricsAddr is the local address the metrics server listens to.
-	LocalMetricsAddr *net.TCPAddr
+	// LocalMetricsPort is the local port the metrics server listens to.
+	LocalMetricsPort int
 
 	// PublicAddr is the public address clients make requests to.
 	PublicAddr *net.TCPAddr
@@ -90,8 +90,8 @@ func NewDefaultConfig() *Config {
 
 	// set defaults via zero values; in cases where the config B depends on config A, config A
 	// should be set before config B
-	config.WithDefaultLocalAddr()
-	config.WithDefaultLocalMetricsAddr()
+	config.WithDefaultLocalPort()
+	config.WithDefaultLocalMetricsPort()
 	config.WithDefaultPublicAddr()
 	config.WithDefaultPublicName()
 	config.WithDefaultDataDir()
@@ -108,39 +108,35 @@ func NewDefaultConfig() *Config {
 	return config
 }
 
-// WithLocalAddr sets config's local address to the given value or to the default if the given
+// WithLocalPort sets config's local address to the given value or to the default if the given
 // value is nil.
-func (c *Config) WithLocalAddr(localAddr *net.TCPAddr) *Config {
-	if localAddr == nil {
-		return c.WithDefaultLocalAddr()
+func (c *Config) WithLocalPort(localPort int) *Config {
+	if localPort == 0 {
+		return c.WithDefaultLocalPort()
 	}
-	c.LocalAddr = localAddr
+	c.LocalPort = localPort
 	return c
 }
 
-// WithDefaultLocalAddr sets the local address to the default value.
-func (c *Config) WithDefaultLocalAddr() *Config {
-	addr, err := ParseAddr(DefaultIP, DefaultPort)
-	errors.MaybePanic(err) // should never happen with default
-	c.LocalAddr = addr
+// WithDefaultLocalPort sets the local address to the default value.
+func (c *Config) WithDefaultLocalPort() *Config {
+	c.LocalPort = DefaultPort
 	return c
 }
 
-// WithLocalMetricsAddr sets config's local metrics address to the given value or to the default
+// WithLocalMetricsPort sets config's local metrics address to the given value or to the default
 // if the given value is nil.
-func (c *Config) WithLocalMetricsAddr(localMetricsAddr *net.TCPAddr) *Config {
-	if localMetricsAddr == nil {
-		return c.WithDefaultLocalMetricsAddr()
+func (c *Config) WithLocalMetricsPort(localMetricsPort int) *Config {
+	if localMetricsPort == 0 {
+		return c.WithDefaultLocalMetricsPort()
 	}
-	c.LocalMetricsAddr = localMetricsAddr
+	c.LocalMetricsPort = localMetricsPort
 	return c
 }
 
-// WithDefaultLocalMetricsAddr sets the local address to the default value.
-func (c *Config) WithDefaultLocalMetricsAddr() *Config {
-	addr, err := ParseAddr(DefaultIP, DefaultMetricsPort)
-	errors.MaybePanic(err) // should never happen with default
-	c.LocalMetricsAddr = addr
+// WithDefaultLocalMetricsPort sets the local address to the default value.
+func (c *Config) WithDefaultLocalMetricsPort() *Config {
+	c.LocalMetricsPort = DefaultMetricsPort
 	return c
 }
 
@@ -157,7 +153,9 @@ func (c *Config) WithPublicAddr(publicAddr *net.TCPAddr) *Config {
 // WithDefaultPublicAddr sets the public address to the local address, useful when just running
 // a cluster locally.
 func (c *Config) WithDefaultPublicAddr() *Config {
-	c.PublicAddr = c.LocalAddr
+	addr, err := ParseAddr(DefaultIP, c.LocalPort)
+	errors.MaybePanic(err) // should never happen with default
+	c.PublicAddr = addr
 	return c
 }
 

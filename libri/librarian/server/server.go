@@ -7,6 +7,8 @@ import (
 
 	"net/http"
 
+	"fmt"
+
 	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
@@ -146,7 +148,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 
 	metricsSM := http.NewServeMux()
 	metricsSM.Handle("/metrics", promhttp.Handler())
-	metrics := &http.Server{Addr: config.LocalMetricsAddr.String(), Handler: metricsSM}
+	metrics := &http.Server{Addr: fmt.Sprintf(":%d", config.LocalMetricsPort), Handler: metricsSM}
 
 	verifier := verify.NewDefaultVerifier(signer)
 	replicator := replicate.NewReplicator(
