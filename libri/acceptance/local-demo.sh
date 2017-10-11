@@ -30,21 +30,19 @@ echo
 echo "starting librarian peers..."
 librarian_addrs=""
 librarian_containers=""
-host='localhost'
 for c in $(seq 0 $((${N_LIBRARIANS} - 1))); do
     port=$((20100+c))
     metricsPort=$((20200+c))
     name="librarian-${c}"
-    docker run --name "${name}" --net=host -d -p ${port}:${port} ${IMAGE} \
+    docker run --name "${name}" -d -p ${port}:${port} ${IMAGE} \
         librarian start \
         --nSubscriptions 2 \
         --publicPort ${port} \
-        --publicHost ${host} \
+        --publicHost ${name} \
         --localPort ${port} \
         --localMetricsPort ${metricsPort} \
-        --localHost ${host} \
-        --bootstraps "${host}:20100"
-    librarian_addrs="${host}:${port},${librarian_addrs}"
+        --bootstraps "librarian-0:20100"
+    librarian_addrs="${name}:${port},${librarian_addrs}"
     librarian_containers="${name} ${librarian_containers}"
 done
 librarian_addrs=${librarian_addrs::-1}  # remove trailing space
@@ -52,11 +50,11 @@ sleep 5  # TODO (drausin) add retry to healthcheck
 
 echo
 echo "testing librarians health..."
-docker run --rm --net=host ${IMAGE} test health -a "${librarian_addrs}"
+docker run --rm ${IMAGE} test health -a "${librarian_addrs}"
 
 echo
 echo "testing librarians upload/download..."
-docker run --rm --net=host ${IMAGE} test io -a "${librarian_addrs}" -n 4
+docker run --rm ${IMAGE} test io -a "${librarian_addrs}" -n 4
 
 echo
 echo "initializing author..."
@@ -80,7 +78,6 @@ for file in $(ls ${LOCAL_TEST_DATA_DIR}); do
     up_file="${CONTAINER_TEST_DATA_DIR}/${file}"
     docker run \
         --rm \
-        --net=host \
         --volumes-from author-data \
         -e LIBRI_PASSPHRASE="${LIBRI_PASSPHRASE}" \
         ${IMAGE} \
@@ -92,7 +89,6 @@ for file in $(ls ${LOCAL_TEST_DATA_DIR}); do
     envelope_key=$(grep envelope_key ${log_file} | sed -r 's/^.*"envelope_key": "(\w+)".*$/\1/g')
     docker run \
         --rm \
-        --net=host \
         --volumes-from author-data \
         -e LIBRI_PASSPHRASE="${LIBRI_PASSPHRASE}" \
         ${IMAGE} \
