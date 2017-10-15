@@ -22,7 +22,7 @@ ENV LANG en_US.utf8
 # install RocksDB & gorocksdb
 ADD *.sh /usr/local/bin/
 RUN /usr/local/bin/install-rocksdb.sh && \
-    /usr/local/bin/build/install-gorocksdb.sh
+    /usr/local/bin/install-gorocksdb.sh
 
 ENV GOPATH "/go"
 RUN mkdir -p "${GOPATH}/src/github.com/drausin/libri"
