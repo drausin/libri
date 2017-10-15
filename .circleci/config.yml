@@ -8,28 +8,28 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker
-#      - restore_cache:
-#          keys:
-#            - v1-vendor-{{ arch }}-{{ checksum "Gopkg.lock" }}-rdb5.8
+      - restore_cache:
+          keys:
+            - v1-vendor-{{ arch }}-{{ checksum "Gopkg.lock" }}-rdb5.8
       - run:
           name: Install dependencies
           command: make get-deps
-#      - run:
-#          name: Install RocksDB
-#          command: |
-#            # hack to make sure RocksDB static lib runs on CircleCI machines
-#            # TODO(drausin) figure out why build container's version doesn't work
-#            if [[ $(md5sum /usr/local/lib/librocksdb.a | awk '{print $1}') != "a4a398a35782e12a13d8f7836f21ddf7" ]]; then
-#              ./build/install-rocksdb.sh
-#            fi
-#      - save_cache:
-#          key: v1-vendor-{{ arch }}-{{ checksum "Gopkg.lock" }}-rdb5.8
-#          paths:
-#            - vendor
-#            - /usr/local/lib/librocksdb.a
-#      - run:
-#          name: Install gorocksdb
-#          command: ./build/install-gorocksdb.sh
+      - run:
+          name: Install RocksDB
+          command: |
+            # hack to make sure RocksDB static lib runs on CircleCI machines
+            # TODO(drausin) figure out why build container's version doesn't work
+            if [[ $(md5sum /usr/local/lib/librocksdb.a | awk '{print $1}') != "a4a398a35782e12a13d8f7836f21ddf7" ]]; then
+              ./build/install-rocksdb.sh
+            fi
+      - run:
+          name: Install gorocksdb
+          command: ./build/install-gorocksdb.sh
+      - save_cache:
+          key: v1-vendor-{{ arch }}-{{ checksum "Gopkg.lock" }}-rdb5.8
+          paths:
+            - vendor
+            - /usr/local/lib/librocksdb.a
       - run:
           name: Build
           command: |
