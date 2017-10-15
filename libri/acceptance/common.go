@@ -357,12 +357,9 @@ func newConfig(
 	errors.MaybePanic(err) // should never happen
 	peerDataDir := filepath.Join(dataDir, server.NameFromAddr(localAddr))
 
-	localMetricsAddr, err := server.ParseAddr("localhost", metricsPort)
-	errors.MaybePanic(err) // should never happen
-
 	return server.NewDefaultConfig().
-		WithLocalAddr(localAddr).
-		WithLocalMetricsAddr(localMetricsAddr).
+		WithLocalPort(port).
+		WithLocalMetricsPort(metricsPort).
 		WithDefaultPublicAddr().
 		WithDefaultPublicName().
 		WithDataDir(peerDataDir).

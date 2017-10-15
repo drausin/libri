@@ -1,6 +1,8 @@
 package server
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -8,9 +10,6 @@ import (
 	"math/rand"
 	"sync"
 	"testing"
-
-	"crypto/hmac"
-	"crypto/sha256"
 
 	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/common/ecid"
@@ -36,7 +35,10 @@ import (
 // expected.
 func TestNewLibrarian(t *testing.T) {
 	l1 := newTestLibrarian()
-	go l1.replicator.Start()
+	go func() {
+		err := l1.replicator.Start()
+		assert.Nil(t, err)
+	}()
 	go func() { // dummy stop signal acceptor
 		<-l1.stop
 		close(l1.stopped)
@@ -47,7 +49,10 @@ func TestNewLibrarian(t *testing.T) {
 	assert.Nil(t, err)
 
 	l2, err := NewLibrarian(l1.config, zap.NewNop())
-	go l2.replicator.Start()
+	go func() {
+		err := l2.replicator.Start()
+		assert.Nil(t, err)
+	}()
 	go func() { // dummy stop signal acceptor
 		<-l2.stop
 		close(l2.stopped)
@@ -92,7 +97,7 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 	lib := &Librarian{
 		config: &Config{
 			PublicName: peerName,
-			LocalAddr:  publicAddr,
+			LocalPort:  publicAddr.Port,
 		},
 		apiSelf: peer.FromAddress(serverID.ID(), peerName, publicAddr),
 		fromer:  peer.NewFromer(),

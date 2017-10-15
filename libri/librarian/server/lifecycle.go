@@ -162,7 +162,7 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 	// handle stop signal
 	go func() {
 		<-l.stop
-		l.logger.Info("gracefully stopping server", zap.Int(LoggerPortKey, l.config.LocalAddr.Port))
+		l.logger.Info("gracefully stopping server", zap.Int(LoggerPortKey, l.config.LocalPort))
 		s.GracefulStop()
 		close(l.stopped)
 	}()
@@ -197,8 +197,7 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 	// notify up channel shortly after starting to serve requests
 	go func() {
 		time.Sleep(postListenNotifyWait)
-		l.logger.Info("listening for requests", zap.Int(LoggerPortKey,
-			l.config.LocalAddr.Port))
+		l.logger.Info("listening for requests", zap.Int(LoggerPortKey, l.config.LocalPort))
 
 		// set top-level health status
 		l.health.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
@@ -206,7 +205,7 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 		up <- l
 	}()
 
-	lis, err := net.Listen("tcp", l.config.LocalAddr.String())
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", l.config.LocalPort))
 	if err != nil {
 		l.logger.Error("failed to listen", zap.Error(err))
 		return err
