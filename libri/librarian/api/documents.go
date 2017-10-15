@@ -89,19 +89,21 @@ func GetAuthorPub(d *Document) []byte {
 
 // GetEntryPageKeys returns the []id.ID page keys if the entry is multi-page. It returns nil for
 // single-page entries.
-func GetEntryPageKeys(entry *Document) ([]id.ID, error) {
-	if _, ok := entry.Contents.(*Document_Entry); !ok {
+func GetEntryPageKeys(entryDoc *Document) ([]id.ID, error) {
+	entry, ok := entryDoc.Contents.(*Document_Entry)
+	if !ok {
 		return nil, ErrUnexpectedDocumentType
 	}
-	switch x := entry.Contents.(*Document_Entry).Entry.Contents.(type) {
-	case *Entry_PageKeys:
-		pageKeys := make([]id.ID, len(x.PageKeys.Keys))
-		for i, keyBytes := range x.PageKeys.Keys {
+	if entry.Entry.Page != nil {
+		return nil, nil
+	}
+	if entry.Entry.PageKeys != nil {
+		pageKeyBytes := entry.Entry.PageKeys
+		pageKeys := make([]id.ID, len(pageKeyBytes))
+		for i, keyBytes := range pageKeyBytes {
 			pageKeys[i] = id.FromBytes(keyBytes)
 		}
 		return pageKeys, nil
-	case *Entry_Page:
-		return nil, nil
 	}
 	return nil, ErrUnexpectedDocumentType
 }
@@ -185,23 +187,22 @@ func ValidateEntry(e *Entry) error {
 }
 
 func validateEntryContents(e *Entry) error {
-	switch x := e.Contents.(type) {
-	case *Entry_Page:
-		if !bytes.Equal(e.AuthorPublicKey, x.Page.AuthorPublicKey) {
-			return errors.New("Page author public key must be the same as Entry's")
+	if e.Page != nil {
+		if !bytes.Equal(e.AuthorPublicKey, e.Page.AuthorPublicKey) {
+			return errors.New("page author public key must be the same as Entry's")
 		}
-		return ValidatePage(x.Page)
-	case *Entry_PageKeys:
-		return ValidatePageKeys(x.PageKeys)
-	default:
-		return ErrUnknownDocumentType
+		return ValidatePage(e.Page)
 	}
+	if e.PageKeys != nil {
+		return ValidatePageKeys(e.PageKeys)
+	}
+	return ErrUnknownDocumentType
 }
 
 // ValidatePage checks that all fields of a Page are populated and have the expected lengths.
 func ValidatePage(p *Page) error {
 	if p == nil {
-		return errors.New("Page may not be nil")
+		return errors.New("page may not be nil")
 	}
 	if err := ValidatePublicKey(p.AuthorPublicKey); err != nil {
 		return err
@@ -218,17 +219,14 @@ func ValidatePage(p *Page) error {
 
 // ValidatePageKeys checks that all fields of a PageKeys are populated and have the expected
 // lengths.
-func ValidatePageKeys(pk *PageKeys) error {
+func ValidatePageKeys(pk [][]byte) error {
 	if pk == nil {
 		return errors.New("PageKeys may not be nil")
 	}
-	if pk.Keys == nil {
-		return errors.New("PageKeys.Keys may not be nil")
-	}
-	if len(pk.Keys) == 0 {
+	if len(pk) == 0 {
 		return errors.New("PageKeys.Keys must have length > 0")
 	}
-	for i, k := range pk.Keys {
+	for i, k := range pk {
 		if err := ValidateNotEmpty(k, fmt.Sprintf("key %d", i)); err != nil {
 			return err
 		}

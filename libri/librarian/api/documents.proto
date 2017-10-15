@@ -48,14 +48,14 @@ message Entry {
     // ECDSA public key of the entry author
     bytes author_public_key = 1;
 
-    // contents of the entry, either a single Page or a list of page keys
-    oneof contents {
-        Page page = 2;
-        PageKeys page_keys = 3;
-    }
+    // single-page contents of the entry, set when page_keys is not set
+    Page page = 2;
+
+    // multi-page contents of the entry, set when page is not set
+    repeated bytes page_keys = 3;
 
     // created epoch time (seconds since 1970-01-01)
-    int64 created_time = 4;
+    uint32 created_time = 4;
 
     // ciphertext of marshalled EntryMetadata message properties
     bytes metadata_ciphertext = 5;
@@ -148,11 +148,6 @@ message SchemaArtifact {
 
     // version of schema (commonly a semver tag, e.g., '0.1.0')
     string version = 5;
-}
-
-// PageKeys is an ordered list of keys to Page documents that comprise an Entry document.
-message PageKeys {
-    repeated bytes keys = 1;
 }
 
 // Page is a portion (possibly all) of an Entry document.

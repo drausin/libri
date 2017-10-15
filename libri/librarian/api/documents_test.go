@@ -145,11 +145,7 @@ func TestValidateEntry_ok(t *testing.T) {
 	assert.Nil(t, ValidateEntry(e1))
 
 	e2 := NewTestSinglePageEntry(rng)
-	e2.Contents = &Entry_PageKeys{
-		&PageKeys{
-			Keys: [][]byte{[]byte{0, 1, 2}, []byte{1, 2, 3}},
-		},
-	}
+	e2.PageKeys = [][]byte{{0, 1, 2}, {1, 2, 3}}
 	assert.Nil(t, ValidateEntry(e2))
 }
 
@@ -217,22 +213,19 @@ func TestValidatePage_err(t *testing.T) {
 }
 
 func TestValidatePageKeys_ok(t *testing.T) {
-	pk := &PageKeys{
-		Keys: [][]byte{[]byte{0, 1, 2}, []byte{1, 2, 3}},
-	}
+	pk := [][]byte{{0, 1, 2}, {1, 2, 3}}
 	assert.Nil(t, ValidatePageKeys(pk))
 }
 
 func TestValidatePageKeys_err(t *testing.T) {
-	cases := []*PageKeys{
-		nil,                                                // 0) nil PageKeys not allowed
-		{Keys: nil},                                        // 1) nil Keys not allowed
-		{Keys: [][]byte{}},                                 // 2) must have at least one key
-		{Keys: [][]byte{nil, nil}},                         // 3) nil keys not allowed
-		{Keys: [][]byte{[]byte{}, []byte{0, 1, 2}}},        // 4) keys cannot be empty
-		{Keys: [][]byte{[]byte{0, 1, 2}, []byte{}}},        // 5) keys cannot be empty
-		{Keys: [][]byte{[]byte{0, 0, 0}, []byte{0, 1, 2}}}, // 6) keys may not equal 0
-		{Keys: [][]byte{[]byte{0, 1, 2}, []byte{0, 0, 0}}}, // 7) keys may not equal 0
+	cases := [][][]byte{
+		nil,                                // 0) nil PageKeys not allowed
+		{},                                 // 1) must have at least one key
+		{nil, nil},                         // 2) nil keys not allowed
+		{[]byte{}, []byte{0, 1, 2}},        // 3) keys cannot be empty
+		{[]byte{0, 1, 2}, []byte{}},        // 4) keys cannot be empty
+		{[]byte{0, 0, 0}, []byte{0, 1, 2}}, // 5) keys may not equal 0
+		{[]byte{0, 1, 2}, []byte{0, 0, 0}}, // 6) keys may not equal 0
 	}
 	for i, c := range cases {
 		assert.NotNil(t, ValidatePageKeys(c), fmt.Sprintf("case %d", i))

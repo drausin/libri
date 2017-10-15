@@ -74,13 +74,12 @@ func TestReceiver_ReceiveEntry_ok(t *testing.T) {
 
 		// check that pages have been stored, if necessary
 		assert.Equal(t, pageKeys, msAcq.docKeys)
-		switch entry1.Contents.(*api.Document_Entry).Entry.Contents.(type) {
-		case *api.Entry_PageKeys:
+		if entry1.Contents.(*api.Document_Entry).Entry.Page != nil {
+			assert.True(t, len(docS.Stored) > 0)
+		} else {
 			// pages would have been stored on the MultiStoreAcquirer.Acquire(...)
 			// call
 			assert.Equal(t, 0, len(docS.Stored))
-		case *api.Entry_Page:
-			assert.True(t, len(docS.Stored) > 0)
 		}
 	}
 }
