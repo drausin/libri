@@ -18,7 +18,7 @@ jobs:
           name: Install RocksDB
           command: |
             if [ ! -d "${HOME}/rocksdb-5.8" ]; then cd ~ && wget https://github.com/facebook/rocksdb/archive/v5.8.zip && unzip ~/v5.8.zip -d ~; fi
-            cd ~/rocksdb-5.8 && make static_lib && sudo make install
+            cd ~/rocksdb-5.8 && make static_lib && make install
       - run:
           name: Build gorocksdb
           command: |
