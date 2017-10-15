@@ -105,20 +105,20 @@ func (r *receiver) GetEEK(envelope *api.Envelope) (*enc.EEK, error) {
 	return eek, err
 }
 
-func (r *receiver) getPages(entry *api.Document, authorPubBytes []byte) error {
-	if _, ok := entry.Contents.(*api.Document_Entry); !ok {
+func (r *receiver) getPages(entryDoc *api.Document, authorPubBytes []byte) error {
+	entry, ok := entryDoc.Contents.(*api.Document_Entry)
+	if !ok {
 		return api.ErrUnexpectedDocumentType
 	}
-	switch ec := entry.Contents.(*api.Document_Entry).Entry.Contents.(type) {
-	case *api.Entry_PageKeys:
-		pageKeys, err := api.GetEntryPageKeys(entry)
-		errors.MaybePanic(err) // should never get here
-		return r.msAcquirer.Acquire(pageKeys, authorPubBytes, r.librarians)
-
-	case *api.Entry_Page:
-		pageDoc, docKey, err := api.GetPageDocument(ec.Page)
-		errors.MaybePanic(err) // should never get here
+	if entry.Entry.Page != nil {
+		pageDoc, docKey, err := api.GetPageDocument(entry.Entry.Page)
+		errors.MaybePanic(err) // should never happen
 		return r.docS.Store(docKey, pageDoc)
+	}
+	if entry.Entry.PageKeys != nil {
+		pageKeys, err := api.GetEntryPageKeys(entryDoc)
+		errors.MaybePanic(err) // should never happen
+		return r.msAcquirer.Acquire(pageKeys, authorPubBytes, r.librarians)
 	}
 
 	// should never get here

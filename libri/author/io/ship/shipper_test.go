@@ -161,7 +161,7 @@ func TestShipReceive(t *testing.T) {
 					assert.Nil(t, err)
 				}
 				entry = api.NewTestMultiPageEntry(rng)
-				entry.Contents.(*api.Entry_PageKeys).PageKeys.Keys = pageKeys
+				entry.PageKeys = pageKeys
 			}
 			entry.AuthorPublicKey = authorPub
 			docs[i] = &api.Document{

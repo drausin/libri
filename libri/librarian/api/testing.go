@@ -35,7 +35,7 @@ func NewTestSinglePageEntry(rng *rand.Rand) *Entry {
 		CreatedTime:           1,
 		MetadataCiphertext:    RandBytes(rng, 64),
 		MetadataCiphertextMac: RandBytes(rng, HMAC256Length),
-		Contents:              &Entry_Page{page},
+		Page: page,
 	}
 }
 
@@ -50,7 +50,7 @@ func NewTestMultiPageEntry(rng *rand.Rand) *Entry {
 		CreatedTime:           1,
 		MetadataCiphertextMac: RandBytes(rng, 32),
 		MetadataCiphertext:    RandBytes(rng, 64),
-		Contents:              &Entry_PageKeys{PageKeys: &PageKeys{Keys: pageKeys}},
+		PageKeys:              pageKeys,
 	}
 }
 

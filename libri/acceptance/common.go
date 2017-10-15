@@ -385,7 +385,7 @@ func newTestDocument(rng *rand.Rand, entrySize int) (*api.Document, id.ID) {
 		CreatedTime:           1,
 		MetadataCiphertext:    api.RandBytes(rng, 64),
 		MetadataCiphertextMac: api.RandBytes(rng, api.HMAC256Length),
-		Contents:              &api.Entry_Page{Page: page},
+		Page: page,
 	}
 	doc := &api.Document{
 		Contents: &api.Document_Entry{
