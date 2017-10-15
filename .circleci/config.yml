@@ -14,6 +14,12 @@ jobs:
       - run:
           name: Install dependencies
           command: make get-deps
+      - run:
+          name: Build gorocksdb
+          command: |
+            CGO_CFLAGS="-I/usr/local/include/rocksdb" \
+            CGO_LDFLAGS="-L/usr/local/lib/librocksdb.a -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy" \
+            go get github.com/tecbot/gorocksdb
       - save_cache:
           key: v1-vendor-{{ arch }}-{{ checksum "Gopkg.lock" }}
           paths:
