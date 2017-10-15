@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/golang/protobuf/proto"
 )
@@ -114,10 +115,7 @@ func GetPageDocument(page *Page) (*Document, id.ID, error) {
 	}
 	// store single page as separate doc
 	pageKey, err := GetKey(pageDoc)
-	if err != nil {
-		// should never happen
-		return nil, nil, err
-	}
+	cerrors.MaybePanic(err) // should never happen
 	return pageDoc, pageKey, nil
 }
 

@@ -5,6 +5,7 @@ import (
 	"github.com/drausin/libri/libri/author/io/publish"
 	"github.com/drausin/libri/libri/author/keychain"
 	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -54,11 +55,11 @@ func (r *receiver) ReceiveEntry(envelopeKey id.ID) (*api.Document, *enc.EEK, err
 	if err != nil {
 		return nil, nil, err
 	}
-	lc, err := r.librarians.Next()
+	eek, err := r.GetEEK(envelope)
 	if err != nil {
 		return nil, nil, err
 	}
-	eek, err := r.GetEEK(envelope)
+	lc, err := r.librarians.Next()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -111,17 +112,12 @@ func (r *receiver) getPages(entry *api.Document, authorPubBytes []byte) error {
 	switch ec := entry.Contents.(*api.Document_Entry).Entry.Contents.(type) {
 	case *api.Entry_PageKeys:
 		pageKeys, err := api.GetEntryPageKeys(entry)
-		if err != nil {
-			// should never get here
-			return err
-		}
+		errors.MaybePanic(err) // should never get here
 		return r.msAcquirer.Acquire(pageKeys, authorPubBytes, r.librarians)
+
 	case *api.Entry_Page:
 		pageDoc, docKey, err := api.GetPageDocument(ec.Page)
-		if err != nil {
-			// should never get here
-			return err
-		}
+		errors.MaybePanic(err) // should never get here
 		return r.docS.Store(docKey, pageDoc)
 	}
 
