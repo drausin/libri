@@ -7,7 +7,7 @@ RUN apt-get update && \
     vim emacs bash-completion
 
 # install RocksDB
-ENV ROCKSDB_VERSION '5.4.5'
+ENV ROCKSDB_VERSION '5.8'
 RUN wget https://github.com/facebook/rocksdb/archive/v${ROCKSDB_VERSION}.zip -O /tmp/rocksdb-${ROCKSDB_VERSION}.zip && \
     unzip /tmp/rocksdb-${ROCKSDB_VERSION}.zip -d /tmp && \
     cd /tmp/rocksdb-${ROCKSDB_VERSION} && \
@@ -31,7 +31,9 @@ RUN wget https://get.docker.com/builds/Linux/x86_64/docker-${DOCKER_VERSION}.tgz
     rm -r /tmp/docker
 
 # set lang as UTF-8
-RUN apt-get install -y locales && rm -rf /var/lib/apt/lists/* && \
+RUN apt-get update && \
+    apt-get install -y locales && \
+    rm -rf /var/lib/apt/lists/* && \
     localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8
 ENV LANG en_US.utf8
 
