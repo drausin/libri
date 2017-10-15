@@ -82,11 +82,6 @@ func TestGetPageDocument(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, page, pageDoc.Contents.(*Document_Page).Page)
 	assert.NotNil(t, docKey)
-
-	pageDoc, docKey, err = GetPageDocument(nil)
-	assert.NotNil(t, err)
-	assert.Nil(t, pageDoc)
-	assert.Nil(t, docKey)
 }
 
 func TestValidateDocument_ok(t *testing.T) {
