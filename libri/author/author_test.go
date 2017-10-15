@@ -385,7 +385,7 @@ func (f *fixedShipper) ShipEntry(
 }
 
 func (f *fixedShipper) ShipEnvelope(
-	kek *enc.KEK, eek *enc.EEK, entryKey id.ID, authorPub, readerPub []byte,
+	entryKey id.ID, authorPub, readerPub []byte, kek *enc.KEK, eek *enc.EEK,
 ) (*api.Document, id.ID, error) {
 	return f.envelope, f.envelopeKey, f.err
 }
