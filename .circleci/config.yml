@@ -10,15 +10,13 @@ jobs:
       - setup_remote_docker
       - restore_cache:
           keys:
-            - v1-vendor-{{ arch }}-{{ checksum "Gopkg.lock" }}
+            - v1-vendor-{{ arch }}-{{ checksum "Gopkg.lock" }}-rdb5.8
       - run:
           name: Install dependencies
           command: make get-deps
       - run:
           name: Install RocksDB
-          command: |
-            if [ ! -d "${HOME}/rocksdb-5.8" ]; then cd ~ && wget https://github.com/facebook/rocksdb/archive/v5.8.zip && unzip ~/v5.8.zip -d ~; fi
-            cd ~/rocksdb-5.8 && make static_lib && make install
+          command: ./build/install-rocksdb.sh
       - run:
           name: Build gorocksdb
           command: |
@@ -29,6 +27,7 @@ jobs:
           key: v1-vendor-{{ arch }}-{{ checksum "Gopkg.lock" }}
           paths:
             - vendor
+            - /usr/local/lib/librocksdb.a
       - run:
           name: Build
           command: |
