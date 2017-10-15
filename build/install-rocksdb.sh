@@ -14,8 +14,6 @@ make static_lib
 
 # installs librocksdb.a at /usr/local/lib/librocksdb.a and source at /usr/local/include/rocksdb/
 make install
-
-# temporary, local container: cf2a62e39be56d937ecb6c6c6fd8dbb8
 md5sum /usr/local/lib/librocksdb.a
 
 # clean up, keeping

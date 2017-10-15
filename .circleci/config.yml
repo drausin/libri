@@ -16,18 +16,20 @@ jobs:
           command: make get-deps
       - run:
           name: Install RocksDB
-          command: ./build/install-rocksdb.sh
-      - run:
-          name: Build gorocksdb
           command: |
-            CGO_CFLAGS="-I/usr/local/include/rocksdb" \
-            CGO_LDFLAGS="-L/usr/local/lib/librocksdb.a -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy" \
-            go get github.com/tecbot/gorocksdb
+            # hack to make sure RocksDB static lib runs on CircleCI machines
+            # TODO(drausin) figure out why build container's version doesn't work
+            if [[ $(md5sum /usr/local/lib/librocksdb.a) != "a4a398a35782e12a13d8f7836f21ddf7" ]]; then
+              ./build/install-rocksdb.sh
+            fi
       - save_cache:
           key: v1-vendor-{{ arch }}-{{ checksum "Gopkg.lock" }}-rdb5.8
           paths:
             - vendor
             - /usr/local/lib/librocksdb.a
+      - run:
+          name: Install gorocksdb
+          command: ./build/install-gorocksdb.sh
       - run:
           name: Build
           command: |
