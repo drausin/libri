@@ -1,6 +1,6 @@
 {
   "Enable": [
-    "aligncheck",
+    "maligned",
     "errcheck",
     "gocyclo",
     "golint",
