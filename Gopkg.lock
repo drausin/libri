@@ -250,7 +250,7 @@
 [[projects]]
   name = "github.com/tecbot/gorocksdb"
   packages = ["."]
-  revision = "943ff5745db7e1765b5723f2deec783f4803918e"
+  revision = "57a309fefefb9c03d6dcc11a0e5705fc4711b46d"
 
 [[projects]]
   name = "github.com/willf/bitset"
@@ -333,6 +333,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "cdfc5316a479b2dddf40f3093860d4f2cb45d6cee423d3a8e4486bf6ba4815aa"
+  inputs-digest = "7ca788b53c82ffa97f956d0904e6d255ea1cc7ee7227245ab321c98dd5e3810b"
   solver-name = "gps-cdcl"
   solver-version = 1
