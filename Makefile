@@ -37,7 +37,7 @@ docker-build-image:
 
 docker-image:
 	@echo "--> Building docker image"
-	@docker build --rm=false -t daedalus2718/libri:latest deploy
+	@docker build --rm=false -t daedalus2718/libri:snapshot deploy
 
 fix:
 	@echo "--> Running goimports"

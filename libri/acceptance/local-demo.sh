@@ -15,7 +15,7 @@ if [[ ! -d "${LOCAL_TEST_DATA_DIR}" ]]; then
 fi
 
 # container command constants
-IMAGE="daedalus2718/libri:latest"
+IMAGE="daedalus2718/libri:snapshot"
 KEYCHAIN_DIR="/keychains"  # inside container
 CONTAINER_TEST_DATA_DIR="/test-data"
 LIBRI_PASSPHRASE="test passphrase"  # bypass command-line entry
