@@ -17,8 +17,7 @@ jobs:
       - run:
           name: Install RocksDB
           command: |
-            # hack to make sure RocksDB static lib runs on CircleCI machines
-            # TODO(drausin) figure out why build container's version doesn't work
+            # hack to make sure RocksDB runs on CircleCI machines
             if [[ $(md5sum /usr/local/lib/librocksdb.a | awk '{print $1}') != "a4a398a35782e12a13d8f7836f21ddf7" ]]; then
               ./build/install-rocksdb.sh
             fi
