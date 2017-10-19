@@ -109,9 +109,9 @@ func (u *entryUnpacker) Unpack(content io.Writer, entryDoc *api.Document, keys *
 
 	var pageKeys []id.ID
 	if entry.Page != nil {
-		_, docKey, err := api.GetPageDocument(entry.Page)
-		if err != nil {
-			return nil, err
+		_, docKey, err2 := api.GetPageDocument(entry.Page)
+		if err2 != nil {
+			return nil, err2
 		}
 		pageKeys = []id.ID{docKey}
 	} else if entry.PageKeys != nil {
