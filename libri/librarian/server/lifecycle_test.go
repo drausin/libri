@@ -79,7 +79,7 @@ func TestStart_bootstrapPeersErr(t *testing.T) {
 	config.WithBootstrapAddrs(make([]*net.TCPAddr, 0))
 
 	// configure bootstrap peer to be non-existent peer
-	publicAddr, err := ParseAddr(DefaultIP, DefaultPort+1)
+	publicAddr, err := ParseAddr(DefaultIP, DefaultPort-1)
 	assert.Nil(t, err)
 	config.BootstrapAddrs = append(config.BootstrapAddrs, publicAddr)
 
