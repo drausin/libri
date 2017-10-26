@@ -319,7 +319,7 @@ func (r *replicator) replicate(wg *sync.WaitGroup) {
 		// empty seeds b/c verification has already, in effect, replaced the search component of
 		// the store operation
 		if err := r.storer.Store(s, []peer.Peer{}); err != nil {
-			r.errs <- err
+			maybeSendErrChan(r.errs, err)
 			continue
 		}
 		if s.Stored() {

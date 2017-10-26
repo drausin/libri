@@ -3,6 +3,8 @@ package peer
 import (
 	"net"
 
+	"sync"
+
 	"github.com/drausin/libri/libri/librarian/api"
 	"google.golang.org/grpc"
 )
@@ -21,7 +23,6 @@ type Connector interface {
 }
 
 type connector struct {
-
 	// RPC TCP address
 	publicAddress *net.TCPAddr
 
@@ -33,6 +34,8 @@ type connector struct {
 
 	// dials a particular address
 	dialer dialer
+
+	mu *sync.Mutex
 }
 
 // NewConnector creates a Connector instance from an address.
@@ -40,12 +43,15 @@ func NewConnector(address *net.TCPAddr) Connector {
 	return &connector{
 		publicAddress: address,
 		dialer:        insecureDialer{},
+		mu:            new(sync.Mutex),
 	}
 }
 
 // Connect establishes the TCP connection with the peer and establishes the Librarian client with
 // it.
 func (c *connector) Connect() (api.LibrarianClient, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.client == nil {
 		conn, err := c.dialer.Dial(c.publicAddress)
 		if err != nil {
@@ -59,6 +65,8 @@ func (c *connector) Connect() (api.LibrarianClient, error) {
 
 // Disconnect closes the connection with the peer.
 func (c *connector) Disconnect() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.client != nil {
 		c.client = nil
 		return c.clientConn.Close()
