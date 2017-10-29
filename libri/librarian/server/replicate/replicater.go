@@ -328,7 +328,7 @@ func (r *replicator) replicate(wg *sync.WaitGroup) {
 		}
 		// for all other non-Stored outcomes for the store, we basically give up and hope to
 		// replicate on next pass
-		r.wrapLock(func() { r.errs <- nil })
+		r.wrapLock(func() { maybeSendErrChan(r.errs, nil) })
 	}
 }
 
