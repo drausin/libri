@@ -12,14 +12,16 @@ const (
 	templateDir          = "terraform/gce"
 	mainTemplateFilename = "main.template.tf"
 	mainFilename         = "main.tf"
-	propsFilename        = "properties.tfvars"
+	propsFilename        = "terraform.tfvars"
+	moduleSubDir         = "module"
 )
 
 type Config struct {
-	ClusterName string
-	Bucket      string
-	GCPProject  string
-	OutDir string
+	ClusterName     string
+	Bucket          string
+	GCPProject      string
+	OutDir          string
+	LocalModulePath string
 }
 
 var flags Config
@@ -41,9 +43,11 @@ var initCmd = cobra.Command{
 		writeMainTFFile(config, absOutDir)
 		writePropsFile(config, absOutDir)
 
-		// - tf init
-
-		fmt.Printf("initialized cluster flags in %s\n", flags.OutDir)
+		fmt.Printf("initialized cluster terraform in %s\n", flags.OutDir)
+		fmt.Println("To complete initialization, run the following in your shell:")
+		fmt.Println()
+		fmt.Printf("\tpushd %s && terraform init && popd\n", absOutDir)
+		fmt.Println()
 	},
 }
 
@@ -73,6 +77,8 @@ func checkParams(config Config) {
 func writeMainTFFile(config Config, absOutDir string) {
 	wd, err := os.Getwd()
 	maybeExit(err)
+
+	config.LocalModulePath = filepath.Join(wd, templateDir, moduleSubDir)
 	absMainTemplateFilepath := filepath.Join(wd, templateDir, mainTemplateFilename)
 	mainTmpl, err := template.New(mainTemplateFilename).ParseFiles(absMainTemplateFilepath)
 	maybeExit(err)

@@ -7,7 +7,7 @@ provider "google" {
 
 resource "google_container_cluster" "libri" {
   description = "libri cluster"
-  name = "libri"
+  name = "${var.cluster_name}"
   zone = "${var.gce_node_zone}"
   initial_node_count = "${var.num_cluster_nodes}"
   project = "${var.gcp_project}"
@@ -37,7 +37,7 @@ resource "google_compute_disk" "data-librarians" {
 
 resource "google_compute_firewall" "default" {
   description = "opens up ports for libri cluster communication to the outside world"
-  name = "libri"
+  name = "${var.cluster_name}"
   network = "default"
 
   allow {

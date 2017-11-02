@@ -28,7 +28,7 @@ variable "gce_node_machine_type" {
 }
 
 module "{{ .ClusterName }}" {
-  source = "./module"  # TODO (drausin) add script to publish module to Terraform
+  source = "{{ .LocalModulePath }}"
   credentials_file = "${var.credentials_file}"
   gcs_clusters_bucket = "{{ .Bucket }}"
   cluster_name = "{{ .ClusterName }}"
