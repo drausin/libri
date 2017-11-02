@@ -5,63 +5,51 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"log"
 	"text/template"
 )
 
 const (
-	mainTemplateDir      = "terraform/gce"
+	templateDir          = "terraform/gce"
 	mainTemplateFilename = "main.template.tf"
 	mainFilename         = "main.tf"
+	propsFilename        = "properties.tfvars"
 )
 
 type Config struct {
 	ClusterName string
 	Bucket      string
 	GCPProject  string
+	OutDir string
 }
 
-var config Config
-var outputDir string
+var flags Config
 
 var initCmd = cobra.Command{
 	Use:   "go run init.go",
-	Short: "initialize config for a new libri cluster",
-	Long:  "initialize config for a new libri cluster",
+	Short: "initialize flags for a new libri cluster",
+	Long:  "initialize flags for a new libri cluster",
 	Run: func(cmd *cobra.Command, args []string) {
-		checkParams()
-		wd, err := os.Getwd()
-		if err != nil {
-			log.Fatal(err)
-		}
-		absMainTemplateFilepath := filepath.Join(wd, mainTemplateDir, mainTemplateFilename)
-		mainTmpl, err := template.New(mainTemplateFilename).ParseFiles(absMainTemplateFilepath)
-		if err != nil {
-			log.Fatal(err)
+		config := flags
+		checkParams(config)
+
+		absOutDir := filepath.Join(config.OutDir, flags.ClusterName)
+		if _, err := os.Stat(absOutDir); os.IsNotExist(err) {
+			err := os.Mkdir(absOutDir, os.ModePerm)
+			maybeExit(err)
 		}
 
-		absOutDir := filepath.Join(outputDir, config.ClusterName)
-		if _, err := os.Stat(absOutDir); os.IsNotExist(err) {
-			if err := os.Mkdir(absOutDir,os.ModePerm); err != nil {
-				log.Fatal(err)
-			}
-		}
-		absOutMainFilepath := filepath.Join(absOutDir, mainFilename)
-		mainFile, err := os.Create(absOutMainFilepath)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = mainTmpl.Execute(mainFile, config)
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Printf("initialized cluster config in %s\n", absOutDir)
+		writeMainTFFile(config, absOutDir)
+		writePropsFile(config, absOutDir)
+
+		// - tf init
+
+		fmt.Printf("initialized cluster flags in %s\n", flags.OutDir)
 	},
 }
 
-func checkParams() {
+func checkParams(config Config) {
 	missingParam := false
-	if outputDir == "" {
+	if config.OutDir == "" {
 		fmt.Println("outputDir parameteter is required")
 		missingParam = true
 	}
@@ -82,14 +70,51 @@ func checkParams() {
 	}
 }
 
+func writeMainTFFile(config Config, absOutDir string) {
+	wd, err := os.Getwd()
+	maybeExit(err)
+	absMainTemplateFilepath := filepath.Join(wd, templateDir, mainTemplateFilename)
+	mainTmpl, err := template.New(mainTemplateFilename).ParseFiles(absMainTemplateFilepath)
+	maybeExit(err)
+
+	absMainOutFilepath := filepath.Join(absOutDir, mainFilename)
+	mainFile, err := os.Create(absMainOutFilepath)
+	maybeExit(err)
+
+	err = mainTmpl.Execute(mainFile, config)
+	maybeExit(err)
+}
+
+func writePropsFile(config Config, absOutDir string) {
+	wd, err := os.Getwd()
+	maybeExit(err)
+	absPropsTemplateFilepath := filepath.Join(wd, templateDir, propsFilename)
+	propsTmpl, err := template.New(propsFilename).ParseFiles(absPropsTemplateFilepath)
+	maybeExit(err)
+
+	absPropsOutFilepath := filepath.Join(absOutDir, propsFilename)
+	propsFile, err := os.Create(absPropsOutFilepath)
+	maybeExit(err)
+
+	err = propsTmpl.Execute(propsFile, config)
+	maybeExit(err)
+}
+
+func maybeExit(err error) {
+	if err != nil {
+		fmt.Print(err)
+		os.Exit(1)
+	}
+}
+
 func init() {
-	initCmd.Flags().StringVarP(&outputDir, "outDir", "d", "",
-		"directory to create new cluster config subdirectory in")
-	initCmd.Flags().StringVarP(&config.ClusterName, "clusterName", "n", "",
+	initCmd.Flags().StringVarP(&flags.OutDir, "outDir", "d", "",
+		"directory to create new cluster flags subdirectory in")
+	initCmd.Flags().StringVarP(&flags.ClusterName, "clusterName", "n", "",
 		"cluster name (without spaces)")
-	initCmd.Flags().StringVarP(&config.Bucket, "bucket", "b", "",
+	initCmd.Flags().StringVarP(&flags.Bucket, "bucket", "b", "",
 		"bucket where cluster state will be stored")
-	initCmd.Flags().StringVarP(&config.GCPProject, "gcpProject", "p", "",
+	initCmd.Flags().StringVarP(&flags.GCPProject, "gcpProject", "p", "",
 		"GCP project to create infrastructure in")
 }
 
