@@ -93,7 +93,7 @@ spec:
 
       containers:
       - name: libriarian
-        image: daedalus2718/libri:latest  # develop branch
+        image: daedalus2718/libri:snapshot  # develop branch
         args: [
           "librarian", "start",
           "--nSubscriptions", "2",

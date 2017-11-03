@@ -1,22 +1,24 @@
 package main
 
 import (
-	"github.com/spf13/cobra"
 	"fmt"
 	"os"
 	"path/filepath"
 	"text/template"
+
+	"github.com/spf13/cobra"
 )
 
 const (
-	templateDir          = "terraform/gce"
+	tfTemplateDir        = "terraform/gce"
 	mainTemplateFilename = "main.template.tf"
 	mainFilename         = "main.tf"
 	propsFilename        = "terraform.tfvars"
 	moduleSubDir         = "module"
 )
 
-type Config struct {
+// TFConfig defines the configuration of the Terraform infrastructure.
+type TFConfig struct {
 	ClusterName     string
 	Bucket          string
 	GCPProject      string
@@ -24,7 +26,7 @@ type Config struct {
 	LocalModulePath string
 }
 
-var flags Config
+var flags TFConfig
 
 var initCmd = cobra.Command{
 	Use:   "go run init.go",
@@ -37,7 +39,7 @@ var initCmd = cobra.Command{
 		absOutDir := filepath.Join(config.OutDir, flags.ClusterName)
 		if _, err := os.Stat(absOutDir); os.IsNotExist(err) {
 			err := os.Mkdir(absOutDir, os.ModePerm)
-			maybeExit(err)
+			initMaybeExit(err)
 		}
 
 		writeMainTFFile(config, absOutDir)
@@ -51,7 +53,7 @@ var initCmd = cobra.Command{
 	},
 }
 
-func checkParams(config Config) {
+func checkParams(config TFConfig) {
 	missingParam := false
 	if config.OutDir == "" {
 		fmt.Println("outputDir parameteter is required")
@@ -74,39 +76,39 @@ func checkParams(config Config) {
 	}
 }
 
-func writeMainTFFile(config Config, absOutDir string) {
+func writeMainTFFile(config TFConfig, absOutDir string) {
 	wd, err := os.Getwd()
-	maybeExit(err)
+	initMaybeExit(err)
 
-	config.LocalModulePath = filepath.Join(wd, templateDir, moduleSubDir)
-	absMainTemplateFilepath := filepath.Join(wd, templateDir, mainTemplateFilename)
+	config.LocalModulePath = filepath.Join(wd, tfTemplateDir, moduleSubDir)
+	absMainTemplateFilepath := filepath.Join(wd, tfTemplateDir, mainTemplateFilename)
 	mainTmpl, err := template.New(mainTemplateFilename).ParseFiles(absMainTemplateFilepath)
-	maybeExit(err)
+	initMaybeExit(err)
 
 	absMainOutFilepath := filepath.Join(absOutDir, mainFilename)
 	mainFile, err := os.Create(absMainOutFilepath)
-	maybeExit(err)
+	initMaybeExit(err)
 
 	err = mainTmpl.Execute(mainFile, config)
-	maybeExit(err)
+	initMaybeExit(err)
 }
 
-func writePropsFile(config Config, absOutDir string) {
+func writePropsFile(config TFConfig, absOutDir string) {
 	wd, err := os.Getwd()
-	maybeExit(err)
-	absPropsTemplateFilepath := filepath.Join(wd, templateDir, propsFilename)
+	initMaybeExit(err)
+	absPropsTemplateFilepath := filepath.Join(wd, tfTemplateDir, propsFilename)
 	propsTmpl, err := template.New(propsFilename).ParseFiles(absPropsTemplateFilepath)
-	maybeExit(err)
+	initMaybeExit(err)
 
 	absPropsOutFilepath := filepath.Join(absOutDir, propsFilename)
 	propsFile, err := os.Create(absPropsOutFilepath)
-	maybeExit(err)
+	initMaybeExit(err)
 
 	err = propsTmpl.Execute(propsFile, config)
-	maybeExit(err)
+	initMaybeExit(err)
 }
 
-func maybeExit(err error) {
+func initMaybeExit(err error) {
 	if err != nil {
 		fmt.Print(err)
 		os.Exit(1)
