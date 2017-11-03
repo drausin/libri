@@ -44,12 +44,6 @@ var initCmd = cobra.Command{
 
 		writeMainTFFile(config, absOutDir)
 		writePropsFile(config, absOutDir)
-
-		fmt.Printf("initialized cluster terraform in %s\n", flags.OutDir)
-		fmt.Println("To complete initialization, run the following in your shell:")
-		fmt.Println()
-		fmt.Printf("\tpushd %s && terraform init && popd\n", absOutDir)
-		fmt.Println()
 	},
 }
 
