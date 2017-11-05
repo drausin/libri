@@ -104,7 +104,7 @@ func writePropsFile(config TFConfig, absOutDir string) {
 
 func initMaybeExit(err error) {
 	if err != nil {
-		fmt.Print(err)
+		fmt.Println(err)
 		os.Exit(1)
 	}
 }

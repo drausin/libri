@@ -23,7 +23,7 @@ resource "google_container_cluster" "libri" {
   }
 
   provisioner "local-exec" {
-    command = "gcloud container clusters get-credentials libri --zone ${var.gce_node_zone}"
+    command = "gcloud container clusters get-credentials ${var.cluster_name} --zone ${var.gce_node_zone}"
   }
 }
 
@@ -42,7 +42,11 @@ resource "google_compute_firewall" "default" {
 
   allow {
     protocol = "tcp"
-    ports = ["${var.min_libri_port}-${var.min_libri_port + var.num_librarians - 1}"]
+    ports = [
+      "${var.min_libri_port}-${var.min_libri_port + var.num_librarians - 1}",
+      "30300",
+      "30090",
+    ]
   }
 
   source_ranges = ["0.0.0.0/0"]

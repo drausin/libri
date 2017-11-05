@@ -1,6 +1,7 @@
 # good resources
 # - https://github.com/kayrus/prometheus-kubernetes
 # - https://github.com/kubernetes/kube-state-metrics
+# - https://github.com/prometheus/prometheus/blob/master/documentation/examples/prometheus-kubernetes.yml
 
 scrape_configs:
 - job_name: 'etcd'
@@ -50,18 +51,22 @@ scrape_configs:
     target_label: kubernetes_name
 
 - job_name: 'kubernetes-nodes'
-  scheme: http
+  scheme: https
+  tls_config:
+    ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+  bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
   kubernetes_sd_configs:
   - role: node
+
   relabel_configs:
   - action: labelmap
     regex: __meta_kubernetes_node_label_(.+)
-  # Use insecure read-only HTTP 10255 port
-  # More info is here: http://github.com/kayrus/kubelet-exploit
-  - source_labels: [__address__]
-    regex: '(.*):10250'
-    replacement: '${1}:10255'
-    target_label: __address__
+  - target_label: __address__
+    replacement: kubernetes.default.svc:443
+  - source_labels: [__meta_kubernetes_node_name]
+    regex: (.+)
+    target_label: __metrics_path__
+    replacement: /api/v1/nodes/${1}/proxy/metrics
 
 - job_name: 'kubernetes-node-exporter'
   kubernetes_sd_configs:
@@ -82,6 +87,23 @@ scrape_configs:
     regex: 'kubernetes-(.*)'
     replacement: '${1}'
     target_label: name
+
+- job_name: 'kubernetes-cadvisor'
+  scheme: https
+  tls_config:
+    ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+  bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+  kubernetes_sd_configs:
+  - role: node
+  relabel_configs:
+  - action: labelmap
+    regex: __meta_kubernetes_node_label_(.+)
+  - target_label: __address__
+    replacement: kubernetes.default.svc
+  - source_labels: [__meta_kubernetes_node_name]
+    regex: (.+)
+    target_label: __metrics_path__
+    replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
 
 - job_name: 'kubernetes-pods'
   scheme: http

@@ -59,6 +59,10 @@ var genCmd = &cobra.Command{
 			fmt.Println("tfVarsFile is is required")
 			os.Exit(1)
 		}
+		if outFilepath == "" {
+			fmt.Println("outFilepath is is required")
+			os.Exit(1)
+		}
 
 		tfvars := make(variables.FlagFile)
 		err := tfvars.Set(tfvarsFilepath)
@@ -77,22 +81,21 @@ var genCmd = &cobra.Command{
 
 		wd, err := os.Getwd()
 		genMaybeExit(err)
+		templateFilename := filepath.Base(templateFilepath)
 		absTemplateFilepath := filepath.Join(wd, k8sTemplateDir, templateFilepath)
-		tmpl, err := template.New(templateFilepath).ParseFiles(absTemplateFilepath)
+		tmpl, err := template.New(templateFilename).ParseFiles(absTemplateFilepath)
 		genMaybeExit(err)
 
-		absOutFilepath := filepath.Join(wd, outFilepath)
-		out, err := os.Create(absOutFilepath)
+		out, err := os.Create(outFilepath)
 		genMaybeExit(err)
 		err = tmpl.Execute(out, config)
 		genMaybeExit(err)
-		fmt.Printf("wrote config to %s\n", outFilepath)
 	},
 }
 
 func genMaybeExit(err error) {
 	if err != nil {
-		fmt.Print(err)
+		fmt.Println(err)
 		os.Exit(1)
 	}
 }
@@ -100,7 +103,7 @@ func genMaybeExit(err error) {
 func init() {
 	genCmd.Flags().StringVarP(&templateFilepath, "templateFile", "t", defaultTemplateFilename,
 		"template YML filepath")
-	genCmd.Flags().StringVarP(&outFilepath, "outFile", "o", defaultOutputFilename,
+	genCmd.Flags().StringVarP(&outFilepath, "outFilepath", "o", "",
 		"output YML filepath")
 	genCmd.Flags().StringVarP(&tfvarsFilepath, "tfvarsFile", "v", "",
 		"filepath of *.tfvars file defining properties (required)")

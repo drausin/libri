@@ -10,7 +10,7 @@ spec:
       name: node-exporter
     spec:
       containers:
-      - image: prom/node-exporter:v0.14.0
+      - image: prom/node-exporter:v0.15.0
         name: node-exporter
         ports:
         - containerPort: 9100
@@ -60,7 +60,7 @@ spec:
     spec:
       containers:
       - name: prometheus
-        image: prom/prometheus:v1.7.1
+        image: prom/prometheus:v1.8.2
         args:
           - '-storage.local.retention=360h'
           - '-storage.local.memory-chunks=1048576'
