@@ -151,3 +151,52 @@ or, when using minikube,
 
     ./libri-cluster.sh apply /path/to/clusters/my-cluster --minikube
 
+If the change you've applied involves the Prometheus or Grafana configmaps, you have to bounce the service manually
+(since configmaps aren't a formal Kubernetes resources) to pick up the new config. Do this by just deleting the pod
+and letting Kubernetes recreate it
+
+    $ kubectl get pods
+    NAME                          READY     STATUS    RESTARTS   AGE
+    grafana-1885146873-rh24j      1/1       Running   0          1h
+    librarians-0                  1/1       Running   0          1h
+    librarians-1                  1/1       Running   0          1h
+    librarians-2                  1/1       Running   0          1h
+    librarians-3                  1/1       Running   0          1h
+    node-exporter-9c6jn           1/1       Running   0          1h
+    prometheus-1589647967-0c0bn   1/1       Running   0          1h
+
+    $ kubectl delete pod grafana-1885146873-rh24j
+
+    $ kubectl get pods
+    NAME                          READY     STATUS        RESTARTS   AGE
+    grafana-1885146873-h66zj      1/1       Running       0          12m
+    grafana-1885146873-rh24j      0/1       Terminating   0          1h
+    librarians-0                  1/1       Running       0          1h
+    librarians-1                  1/1       Running       0          1h
+    librarians-2                  1/1       Running       0          1h
+    librarians-3                  1/1       Running       0          1h
+    node-exporter-9c6jn           1/1       Running       0          1h
+    prometheus-1589647967-0c0bn   1/1       Running       0          1h
+
+    $ kubectl get pods
+    NAME                          READY     STATUS    RESTARTS   AGE
+    grafana-1885146873-h66zj      1/1       Running   0          13m
+    librarians-0                  1/1       Running   0          1h
+    librarians-1                  1/1       Running   0          1h
+    librarians-2                  1/1       Running   0          1h
+    librarians-3                  1/1       Running   0          1h
+    node-exporter-9c6jn           1/1       Running   0          1h
+    prometheus-1589647967-0c0bn   1/1       Running   0          1h
+
+
+#### Destroying
+
+When you're finished with a cluster, you have to destroy it manually, which you can do via
+
+    $ kubectl delete -f /path/to/clusters/my-cluster/libri.yml
+
+If you have Terraform infrastructure, you'll then use
+
+    $ pushd /path/to/clusters/my-cluster
+    $ terraform destroy
+    $ popd

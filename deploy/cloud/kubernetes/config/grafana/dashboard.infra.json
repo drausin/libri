@@ -425,12 +425,12 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum by (pod_name, namespace )( rate(container_cpu_usage_seconds_total{image!=\"\",pod_name!=\"\"}[2m] ) )",
+              "expr": "sum by (pod_name)( rate(container_cpu_usage_seconds_total{image!=\"\",pod_name!=\"\",namespace=\"default\"}[2m] ) )",
               "format": "time_series",
               "hide": false,
               "interval": "10s",
               "intervalFactor": 1,
-              "legendFormat": "{{ pod_name }} ({{ namespace }})",
+              "legendFormat": "{{ pod_name }}",
               "metric": "container_cpu",
               "refId": "A",
               "step": 10
@@ -608,11 +608,11 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sort_desc(sum(container_memory_usage_bytes{image!=\"\",pod_name!=\"\"}) by (pod_name, namespace))",
+              "expr": "sort_desc(sum(container_memory_usage_bytes{image!=\"\",pod_name!=\"\",namespace=\"default\"}) by (pod_name))",
               "format": "time_series",
               "interval": "10s",
               "intervalFactor": 1,
-              "legendFormat": "{{ pod_name }} ({{ namespace }})",
+              "legendFormat": "{{ pod_name }}",
               "metric": "container_memory_usage:sort_desc",
               "refId": "A",
               "step": 10
@@ -796,21 +796,21 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sort_desc(sum by (pod_name, namespace) (rate (container_network_receive_bytes_total{name!=\"\",pod_name!=\"\"}[2m]) ))",
+              "expr": "sort_desc(sum by (pod_name) (rate (container_network_receive_bytes_total{name!=\"\",pod_name!=\"\",namespace=\"default\"}[2m]) ))",
               "format": "time_series",
               "interval": "10s",
               "intervalFactor": 1,
-              "legendFormat": "{{ pod_name }} ({{namespace}})",
+              "legendFormat": "{{ pod_name }} (in)",
               "metric": "network",
               "refId": "A",
               "step": 10
             },
             {
-              "expr": "sort_desc(sum by (pod_name, namespace) (rate (container_network_transmit_bytes_total{name!=\"\",pod_name!=\"\"}[2m]) ))",
+              "expr": "sort_desc(sum by (pod_name) (rate (container_network_transmit_bytes_total{name!=\"\",pod_name!=\"\",namespace=\"default\"}[2m]) ))",
               "format": "time_series",
               "interval": "10s",
               "intervalFactor": 1,
-              "legendFormat": "{{ pod_name }} ({{namespace}})",
+              "legendFormat": "{{ pod_name }} (out)",
               "metric": "network",
               "refId": "B",
               "step": 10
