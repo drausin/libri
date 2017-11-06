@@ -22,8 +22,8 @@ module "libri-staging" {
 
   # these, among others, are optional and are commonly set in separate
   # properties.tfvars file
-  num_librarians = 3
-  num_cluster_nodes = 3
+  num_librarians = 4
+  num_cluster_nodes = 2
   gce_node_machine_type = "n1-standard-1"
 }
 ```

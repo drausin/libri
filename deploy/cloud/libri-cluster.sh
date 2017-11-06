@@ -34,7 +34,8 @@ plan_usage() {
     echo
     echo "optional flags:"
     echo "  --notf      skip Terraform planning"
-    echo "  --nokub     skip Kubernetes planning"
+    echo "  --nokube    skip Kubernetes planning"
+    echo "  --minikube  use minikube instead of Terraform infrastructure"
     echo
 }
 
@@ -49,7 +50,8 @@ apply_usage() {
     echo
     echo "optional flags:"
     echo "  --notf      skip Terraform planning"
-    echo "  --nokub     skip Kubernetes planning"
+    echo "  --nokube    skip Kubernetes planning"
+    echo "  --minikube  use minikube instead of Terraform infrastructure"
     echo
 }
 
@@ -64,11 +66,22 @@ gen_kub_config() {
     # (Re-)Generate the Kubernetes configuration in the cluster directory using variables
     # defined in it's terraform.tfvars file.
     cluster_dir="${1}"
+    minikube="${2}"
+    infra_flag="--gce"
+    if [[ "${minikube}" == "true" ]]; then
+        infra_flag="--local"
+    fi
     go run src/gen.go \
-        --gce \
+        "${infra_flag}" \
         -t '../kubernetes/libri.template.yml' \
         -o "${cluster_dir}/libri.yml" \
         -v "${cluster_dir}/terraform.tfvars"
+}
+
+gen_configmaps() {
+    kubectl get configmap --no-headers | grep 'config' | awk '{print $1}' | xargs -I {} kubectl delete configmap {}
+    kubectl create configmap prometheus-config --from-file=kubernetes/config/prometheus
+    kubectl create configmap grafana-config --from-file=kubernetes/config/grafana
 }
 
 init() {
@@ -107,9 +120,13 @@ plan() {
         exit 1
     fi
     cluster_dir="${arg_2}"
-    skipflag=${arg_3:-}
+    flag=${arg_3:-}
+    minikube=false
+    if [[ "${flag}" == "--minikube" ]]; then
+        minikube=true
+    fi
 
-    if [[ "${skipflag}" != "--notf" ]]; then
+    if [[ "${flag}" != "--notf" && "${flag}" != "--minikube" ]]; then
         echo -e "Planning Terraform changes...\n"
         pushd "${cluster_dir}" > /dev/null 2>&1
         terraform plan
@@ -117,9 +134,9 @@ plan() {
         echo -e "\n"
     fi
 
-    if [[ "${skipflag}" != "--nokub" ]]; then
+    if [[ "${flag}" != "--nokube" ]]; then
         echo -e "Planning Kubernetes changes...\n"
-        gen_kub_config "${cluster_dir}"
+        gen_kub_config "${cluster_dir}" "${minikube}"
         kubectl apply --dry-run -f "${cluster_dir}/libri.yml"
     fi
 }
@@ -130,19 +147,24 @@ apply() {
         exit 1
     fi
     cluster_dir="${arg_2}"
-    skipflag=${arg_3:-}
+    flag=${arg_3:-}
+    minikube=false
+    if [[ "${flag}" == "--minikube" ]]; then
+        minikube=true
+    fi
 
-    if [[ "${skipflag}" != "--notf" ]]; then
+    if [[ "${flag}" != "--notf" && "${flag}" != "--minikube" ]]; then
         echo -e "Applying Terraform changes...\n"
         pushd "${cluster_dir}" > /dev/null 2>&1
-        terraform apply
+        terraform apply -state current.tfstate
         popd > /dev/null 2>&1
         echo -e "\n"
     fi
 
-    if [[ "${skipflag}" != "--nokub" ]]; then
+    if [[ "${flag}" != "--nokube" ]]; then
         echo -e "Applying Kubernetes changes...\n"
-        gen_kub_config "${cluster_dir}"
+        gen_kub_config "${cluster_dir}" "${minikube}"
+        gen_configmaps
         kubectl apply -f "${cluster_dir}/libri.yml"
     fi
 }
