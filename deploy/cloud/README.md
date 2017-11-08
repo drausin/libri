@@ -20,38 +20,41 @@ you can run it via minikube (currently tested with v0.22)
 
 Initialize the cluster with
 
-    ./libri-cluster.sh init /path/to/clusters
+    go run cluster.go init \
+        --outDir /path/to/clusters
+        --clusterName my-test-cluster \
+        --bucket my-bucket-name \
+        --gcpProject my-gcp-project \
 
 where `/path/to/clusters/dir` is the directory to create the cluster subdirectory in.
 
-If you're going to start with a minikube cluster, just enter `none` for the GCP-related
-prompts. The `terraform.tfvars` file created in the cluster directory has settings (like
-number of librarians) that can you can change if you want, though the default should be
-reasonable enough to start.
+The `terraform.tfvars` file created in the cluster directory has settings (like number of
+librarians) that can you can change if you want, though the default should be reasonable
+enough to start.
 
 
 #### Planning
 
 To see what would be created upon spinning up a cluster called `my-cluster`, use
 
-    ./libri-cluster.sh plan /path/to/clusters/my-cluster
+    go run cluster.go plan -c /path/to/clusters/my-cluster
 
 You should first see Terraform plans and then planned dry run Kubernetes resources. If creating
 cluster on minikube add `--minikube`
 
-    ./libri-cluster.sh plan /path/to/clusters/my-cluster --minikube
+    go run cluster.go plan -c /path/to/clusters/my-cluster --minikube
 
 
 #### Applying
 
 Create the cluster and resources with
 
-    ./libri-cluster.sh apply /path/to/clusters/my-cluster
+    go run cluster.go apply -c /path/to/clusters/my-cluster
 
 which will first create the Terraform infrastructure and the the Kubernetes resources. If using
 minikube, you can add the `--notf` as with the plan `command`.
 
-    ./libri-cluster.sh apply /path/to/clusters/my-cluster --minikube
+    go run cluster.go apply -c /path/to/clusters/my-cluster --minikube
 
 You should see the the resources being created (Terraform resources can take up to 5 minutes). See
 the created pods with

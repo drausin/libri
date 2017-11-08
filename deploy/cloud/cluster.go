@@ -1,16 +1,16 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"text/template"
 
-	"github.com/spf13/cobra"
-	"log"
 	"github.com/hashicorp/terraform/helper/variables"
-	"path"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -79,16 +79,18 @@ func init() {
 		"directory to create new cluster subdirectory in")
 	initCmd.Flags().StringVarP(&initFlags.ClusterName, "clusterName", "n", "",
 		"cluster clusterName (without spaces)")
-	initCmd.Flags().StringVarP(&initFlags.Bucket, "bucket", "b", "",
+	initCmd.Flags().StringVarP(&initFlags.Bucket, "bucket", "b", "none",
 		"bucket where cluster state will be stored")
-	initCmd.Flags().StringVarP(&initFlags.GCPProject, "gcpProject", "p", "",
+	initCmd.Flags().StringVarP(&initFlags.GCPProject, "gcpProject", "p", "none",
 		"GCP project to create infrastructure in")
 
+	planCmd.Flags().StringVarP(&clusterDir, "clusterDir", "c", "", "local cluster directory (required)")
 	planCmd.Flags().BoolVarP(&notf, "notf", "", false, "skip Terraform planning")
 	planCmd.Flags().BoolVarP(&nokube, "nokube", "", false, "skip Kubernetes planning")
 	planCmd.Flags().BoolVarP(&minikube, "minikube", "", false,
 		"use local minikube instead of Terraform intrastructure")
 
+	applyCmd.Flags().StringVarP(&clusterDir, "clusterDir", "c", "", "local cluster directory (required)")
 	applyCmd.Flags().BoolVarP(&notf, "notf", "", false, "skip Terraform applying")
 	applyCmd.Flags().BoolVarP(&nokube, "nokube", "", false, "skip Kubernetes applying")
 	applyCmd.Flags().BoolVarP(&minikube, "minikube", "", false,
@@ -106,7 +108,7 @@ var initCmd = &cobra.Command{
 	Long:  "initialize a new libri cluster",
 	Run: func(cmd *cobra.Command, args []string) {
 		config := initFlags
-		checkParams(config)
+		checkInitParams(config)
 
 		clusterDir := filepath.Join(config.OutDir, initFlags.ClusterName)
 		if _, err := os.Stat(clusterDir); os.IsNotExist(err) {
@@ -118,7 +120,7 @@ var initCmd = &cobra.Command{
 		writePropsFile(config, clusterDir)
 		tfCommand(clusterDir, "init")
 
-		fmt.Printf("%s successfully initialized in %s\n", config.ClusterName, clusterDir)
+		fmt.Printf("\n%s successfully initialized in %s\n", config.ClusterName, clusterDir)
 	},
 }
 
@@ -127,12 +129,15 @@ var planCmd = &cobra.Command{
 	Short: "plan changes to a libri cluster",
 	Long:  "plan changes to a libri cluster",
 	Run: func(cmd *cobra.Command, args []string) {
+		if clusterDir == "" {
+			maybeExit(errors.New("clusterDir param must be set"))
+		}
 		if !notf && !minikube {
-			log.Printf("planning Terraform changes\n\n")
+			fmt.Printf("planning Terraform changes\n\n")
 			tfCommand(clusterDir, "plan")
 		}
 		if !nokube {
-			log.Printf("planning Kubernetes changes\n\n")
+			fmt.Printf("planning Kubernetes changes\n\n")
 			writeKubeConfig(clusterDir)
 			kubeApply(clusterDir, true)
 		}
@@ -144,20 +149,23 @@ var applyCmd = &cobra.Command{
 	Short: "apply changes to a libri cluster",
 	Long:  "apply changes to a libri cluster",
 	Run: func(cmd *cobra.Command, args []string) {
+		if clusterDir == "" {
+			maybeExit(errors.New("clusterDir param must be set"))
+		}
 		if !notf && !minikube {
-			log.Printf("applying Terraform changes\n\n")
+			fmt.Printf("applying Terraform changes\n\n")
 			tfCommand(clusterDir, "apply")
 		}
 		if !nokube {
-			log.Printf("applying Kubernetes changes\n\n")
+			fmt.Printf("applying Kubernetes changes\n\n")
 			writeKubeConfig(clusterDir)
-			// TODO (drausin) write configmaps
+			writeKubeConfigMaps()
 			kubeApply(clusterDir, false)
 		}
 	},
 }
 
-func checkParams(config TFConfig) {
+func checkInitParams(config TFConfig) {
 	missingParam := false
 	if config.OutDir == "" {
 		fmt.Println("outputDir parameteter is required")
@@ -264,6 +272,24 @@ func writeKubeConfig(clusterDir string) {
 	maybeExit(err)
 	err = tmpl.Execute(out, config)
 	maybeExit(err)
+}
+
+func writeKubeConfigMaps() {
+	maybeDelete := exec.Command("sh", "-c", "kubectl get configmap --no-headers | "+
+		"grep 'config' | awk '{print $1}' | xargs -I {} kubectl delete configmap {}")
+	maybeDelete.Stdout = os.Stdout
+	err := maybeDelete.Run()
+	maybeExit(err)
+
+	resourceNames := []string{"prometheus", "grafana"}
+	for _, name := range resourceNames {
+		configName := fmt.Sprintf("%s-config", name)
+		fromFile := fmt.Sprintf("--from-file=kubernetes/config/%s", name)
+		create := exec.Command("kubectl", "create", "configmap", configName, fromFile)
+		create.Stdout = os.Stdout
+		err = create.Run()
+		maybeExit(err)
+	}
 }
 
 func maybeExit(err error) {
