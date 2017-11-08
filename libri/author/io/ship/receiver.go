@@ -59,13 +59,10 @@ func (r *receiver) ReceiveEntry(envelopeKey id.ID) (*api.Document, *enc.EEK, err
 	if err != nil {
 		return nil, nil, err
 	}
-	lc, err := r.librarians.Next()
-	if err != nil {
-		return nil, nil, err
-	}
 	// get the entry and pages
 	entryKey := id.FromBytes(envelope.EntryKey)
-	entryDoc, err := r.acquirer.Acquire(entryKey, envelope.AuthorPublicKey, lc)
+	rlc := r.msAcquirer.GetRetryGetter(r.librarians)
+	entryDoc, err := r.acquirer.Acquire(entryKey, envelope.AuthorPublicKey, rlc)
 	if err != nil {
 		return nil, nil, err
 	}
