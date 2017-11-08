@@ -298,7 +298,7 @@ func checkPublications(t *testing.T, params *params, state *state) {
 
 	// check all peers have publications for all docs
 	for i, p := range state.peers {
-		info := fmt.Sprintf("peer %d", i)
+		info := fmt.Sprintf("peer %d, nRecenptPubs: %d", i, p.RecentPubs.Len())
 		assert.True(t, p.RecentPubs.Len() >= params.nUploads-acceptableNMissing, info)
 	}
 }
