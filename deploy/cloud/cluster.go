@@ -84,13 +84,15 @@ func init() {
 	initCmd.Flags().StringVarP(&initFlags.GCPProject, "gcpProject", "p", "none",
 		"GCP project to create infrastructure in")
 
-	planCmd.Flags().StringVarP(&clusterDir, "clusterDir", "c", "", "local cluster directory (required)")
+	planCmd.Flags().StringVarP(&clusterDir, "clusterDir", "c", "",
+		"local cluster directory (required)")
 	planCmd.Flags().BoolVarP(&notf, "notf", "", false, "skip Terraform planning")
 	planCmd.Flags().BoolVarP(&nokube, "nokube", "", false, "skip Kubernetes planning")
 	planCmd.Flags().BoolVarP(&minikube, "minikube", "", false,
 		"use local minikube instead of Terraform intrastructure")
 
-	applyCmd.Flags().StringVarP(&clusterDir, "clusterDir", "c", "", "local cluster directory (required)")
+	applyCmd.Flags().StringVarP(&clusterDir, "clusterDir", "c", "",
+		"local cluster directory (required)")
 	applyCmd.Flags().BoolVarP(&notf, "notf", "", false, "skip Terraform applying")
 	applyCmd.Flags().BoolVarP(&nokube, "nokube", "", false, "skip Kubernetes applying")
 	applyCmd.Flags().BoolVarP(&minikube, "minikube", "", false,
@@ -110,7 +112,7 @@ var initCmd = &cobra.Command{
 		config := initFlags
 		checkInitParams(config)
 
-		clusterDir := filepath.Join(config.OutDir, initFlags.ClusterName)
+		clusterDir = filepath.Join(config.OutDir, initFlags.ClusterName)
 		if _, err := os.Stat(clusterDir); os.IsNotExist(err) {
 			err := os.Mkdir(clusterDir, os.ModePerm)
 			maybeExit(err)
