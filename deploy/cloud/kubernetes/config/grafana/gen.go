@@ -19,7 +19,7 @@ type Config struct {
 }
 
 var config = Config{
-	Endpoints: []string{"Find", "Store", "Get", "Put", "Verify"},
+	Endpoints: []string{"Get", "Put", "Find", "Store", "Verify"},
 }
 
 func main() {

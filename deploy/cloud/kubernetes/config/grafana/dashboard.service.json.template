@@ -65,93 +65,6 @@
           "fill": 0,
           "grid": {},
           "height": "250",
-          "id": [[timesplus $index 4 1]],
-          "legend": {
-            "alignAsTable": false,
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "rightSide": false,
-            "show": false,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "links": [],
-          "nullPointMode": "null as zero",
-          "percentage": false,
-          "pointradius": 5,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "span": 4,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "expr": "histogram_quantile(0.5, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"[[ $endpoint ]]\"}[5m])) by (pod_name, le)) * 1000",
-              "format": "time_series",
-              "hide": false,
-              "interval": "10s",
-              "intervalFactor": 1,
-              "legendFormat": "{{ pod_name }}",
-              "metric": "[[ $endpoint ]]_latency_p50",
-              "refId": "A",
-              "step": 10
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeShift": null,
-          "title": "[[ $endpoint ]] p50 Latency",
-          "tooltip": {
-            "msResolution": true,
-            "shared": true,
-            "sort": 2,
-            "value_type": "cumulative"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "none",
-              "label": "latency (ms)",
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": false
-            }
-          ]
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "${DS_PROMETHEUS}",
-          "decimals": 2,
-          "editable": true,
-          "error": false,
-          "fill": 0,
-          "grid": {},
-          "height": "250",
           "id": [[timesplus $index 4 2]],
           "legend": {
             "alignAsTable": false,
@@ -238,6 +151,93 @@
           "fill": 0,
           "grid": {},
           "height": "250",
+          "id": [[timesplus $index 4 1]],
+          "legend": {
+            "alignAsTable": false,
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "rightSide": false,
+            "show": false,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null as zero",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 4,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.5, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"[[ $endpoint ]]\"}[5m])) by (pod_name, le)) * 1000",
+              "format": "time_series",
+              "hide": false,
+              "interval": "10s",
+              "intervalFactor": 1,
+              "legendFormat": "{{ pod_name }}",
+              "metric": "[[ $endpoint ]]_latency_p50",
+              "refId": "A",
+              "step": 10
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "[[ $endpoint ]] p50 Latency",
+          "tooltip": {
+            "msResolution": true,
+            "shared": true,
+            "sort": 2,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "none",
+              "label": "latency (ms)",
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": false
+            }
+          ]
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "${DS_PROMETHEUS}",
+          "decimals": 2,
+          "editable": true,
+          "error": false,
+          "fill": 5,
+          "grid": {},
+          "height": "250",
           "id": [[timesplus $index 4 3]],
           "legend": {
             "alignAsTable": false,
@@ -261,7 +261,7 @@
           "seriesOverrides": [],
           "spaceLength": 10,
           "span": 2,
-          "stack": false,
+          "stack": true,
           "steppedLine": false,
           "targets": [
             {
@@ -283,8 +283,8 @@
           "tooltip": {
             "msResolution": true,
             "shared": true,
-            "sort": 0,
-            "value_type": "cumulative"
+            "sort": 2,
+            "value_type": "individual"
           },
           "type": "graph",
           "xaxis": {
@@ -322,7 +322,7 @@
           "decimals": null,
           "editable": true,
           "error": false,
-          "fill": 0,
+          "fill": 5,
           "grid": {},
           "height": "",
           "id": [[timesplus $index 4 4]],
@@ -352,7 +352,7 @@
           "seriesOverrides": [],
           "spaceLength": 10,
           "span": 2,
-          "stack": false,
+          "stack": true,
           "steppedLine": false,
           "targets": [
             {
@@ -360,7 +360,7 @@
               "format": "time_series",
               "interval": "10s",
               "intervalFactor": 1,
-              "legendFormat": "{{ instance }}",
+              "legendFormat": "{{ pod_name }}",
               "metric": "[[ $endpoint ]]_error_rate",
               "refId": "A",
               "step": 10
@@ -374,7 +374,7 @@
             "msResolution": true,
             "shared": true,
             "sort": 2,
-            "value_type": "cumulative"
+            "value_type": "individual"
           },
           "transparent": false,
           "type": "graph",
