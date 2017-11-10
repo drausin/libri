@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drausin/libri/libri/common/storage"
+	"github.com/drausin/libri/libri/librarian/server/storage"
 	"github.com/stretchr/testify/assert"
 )
 

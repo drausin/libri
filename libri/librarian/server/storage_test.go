@@ -1,15 +1,15 @@
 package server
 
 import (
+	"errors"
 	"math/rand"
 	"testing"
 
-	"errors"
-
 	"github.com/drausin/libri/libri/common/ecid"
 	clogging "github.com/drausin/libri/libri/common/logging"
-	"github.com/drausin/libri/libri/common/storage"
+	cstorage "github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/server/routing"
+	sstorage "github.com/drausin/libri/libri/librarian/server/storage"
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 )
@@ -17,7 +17,7 @@ import (
 func TestLoadOrCreatePeerID_ok(t *testing.T) {
 
 	// create new peer ID
-	id1, err := loadOrCreatePeerID(clogging.NewDevInfoLogger(), &storage.TestSLD{})
+	id1, err := loadOrCreatePeerID(clogging.NewDevInfoLogger(), &cstorage.TestSLD{})
 	assert.NotNil(t, id1)
 	assert.Nil(t, err)
 
@@ -27,20 +27,20 @@ func TestLoadOrCreatePeerID_ok(t *testing.T) {
 	bytes, err := proto.Marshal(ecid.ToStored(peerID2))
 	assert.Nil(t, err)
 
-	id2, err := loadOrCreatePeerID(clogging.NewDevInfoLogger(), &storage.TestSLD{Bytes: bytes})
+	id2, err := loadOrCreatePeerID(clogging.NewDevInfoLogger(), &cstorage.TestSLD{Bytes: bytes})
 
 	assert.Equal(t, peerID2, id2)
 	assert.Nil(t, err)
 }
 
 func TestLoadOrCreatePeerID_err(t *testing.T) {
-	id1, err := loadOrCreatePeerID(clogging.NewDevInfoLogger(), &storage.TestSLD{
+	id1, err := loadOrCreatePeerID(clogging.NewDevInfoLogger(), &cstorage.TestSLD{
 		LoadErr: errors.New("some load error"),
 	})
 	assert.Nil(t, id1)
 	assert.NotNil(t, err)
 
-	id2, err := loadOrCreatePeerID(clogging.NewDevInfoLogger(), &storage.TestSLD{
+	id2, err := loadOrCreatePeerID(clogging.NewDevInfoLogger(), &cstorage.TestSLD{
 		Bytes: []byte("the wrong bytes"),
 	})
 	assert.Nil(t, id2)
@@ -49,7 +49,7 @@ func TestLoadOrCreatePeerID_err(t *testing.T) {
 
 func TestSavePeerID(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	assert.Nil(t, savePeerID(&storage.TestSLD{}, ecid.NewPseudoRandom(rng)))
+	assert.Nil(t, savePeerID(&cstorage.TestSLD{}, ecid.NewPseudoRandom(rng)))
 }
 
 func TestLoadOrCreateRoutingTable_ok(t *testing.T) {
@@ -57,13 +57,13 @@ func TestLoadOrCreateRoutingTable_ok(t *testing.T) {
 
 	// load stored RT
 	selfID1 := ecid.NewPseudoRandom(rng)
-	srt1 := &storage.RoutingTable{
+	srt1 := &sstorage.RoutingTable{
 		SelfId: selfID1.ID().Bytes(),
 	}
 	bytes, err := proto.Marshal(srt1)
 	assert.Nil(t, err)
 
-	fullLoader := &storage.TestSLD{
+	fullLoader := &cstorage.TestSLD{
 		Bytes: bytes,
 	}
 	rt1, err := loadOrCreateRoutingTable(clogging.NewDevInfoLogger(), fullLoader, selfID1,
@@ -73,7 +73,7 @@ func TestLoadOrCreateRoutingTable_ok(t *testing.T) {
 
 	// create new RT
 	selfID2 := ecid.NewPseudoRandom(rng)
-	rt2, err := loadOrCreateRoutingTable(clogging.NewDevInfoLogger(), &storage.TestSLD{}, selfID2,
+	rt2, err := loadOrCreateRoutingTable(clogging.NewDevInfoLogger(), &cstorage.TestSLD{}, selfID2,
 		routing.NewDefaultParameters())
 	assert.Equal(t, selfID2.ID(), rt2.SelfID())
 	assert.Nil(t, err)
@@ -83,7 +83,7 @@ func TestLoadOrCreateRoutingTable_loadErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	selfID := ecid.NewPseudoRandom(rng)
 
-	errLoader := &storage.TestSLD{
+	errLoader := &cstorage.TestSLD{
 		LoadErr: errors.New("some error during load"),
 	}
 
@@ -97,13 +97,13 @@ func TestLoadOrCreateRoutingTable_selfIDErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 
 	selfID1 := ecid.NewPseudoRandom(rng)
-	srt1 := &storage.RoutingTable{
+	srt1 := &sstorage.RoutingTable{
 		SelfId: selfID1.Bytes(),
 	}
 	bytes, err := proto.Marshal(srt1)
 	assert.Nil(t, err)
 
-	fullLoader := &storage.TestSLD{
+	fullLoader := &cstorage.TestSLD{
 		Bytes: bytes,
 	}
 

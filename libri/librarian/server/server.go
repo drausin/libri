@@ -155,7 +155,6 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		selfID,
 		rt,
 		documentSL,
-		serverSL,
 		verifier,
 		storer,
 		replicate.NewDefaultParameters(),
