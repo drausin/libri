@@ -3,7 +3,6 @@ package storage
 import (
 	"crypto/hmac"
 	"crypto/sha256"
-	"sync"
 
 	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/common/errors"
@@ -65,8 +64,6 @@ type DocumentStorer interface {
 	Store(key id.ID, value *api.Document) error
 
 	Iterate(done chan struct{}, callback func(key id.ID, value []byte)) error
-
-	Metrics() *DocumentMetrics
 }
 
 // DocumentLoader loads api.Document values.
@@ -103,10 +100,8 @@ type DocumentSLD interface {
 }
 
 type documentSLD struct {
-	sld     StorerLoaderDeleter
-	c       KeyValueChecker
-	metrics *DocumentMetrics
-	mu      *sync.Mutex
+	sld StorerLoaderDeleter
+	c   KeyValueChecker
 }
 
 // NewDocumentSLD creates a new NamespaceSL for the "entries" namespace
@@ -120,9 +115,7 @@ func NewDocumentSLD(kvdb db.KVDB) DocumentSLD {
 			NewExactLengthChecker(EntriesKeyLength),
 			NewMaxLengthChecker(MaxEntriesValueLength),
 		),
-		c:       NewHashKeyValueChecker(),
-		metrics: &DocumentMetrics{},
-		mu:      new(sync.Mutex),
+		c: NewHashKeyValueChecker(),
 	}
 }
 
@@ -140,10 +133,6 @@ func (dsld *documentSLD) Store(key id.ID, value *api.Document) error {
 	if err := dsld.sld.Store(keyBytes, valueBytes); err != nil {
 		return err
 	}
-	dsld.mu.Lock()
-	defer dsld.mu.Unlock()
-	dsld.metrics.NDocuments++
-	dsld.metrics.TotalSize += uint64(len(valueBytes))
 	return nil
 }
 
@@ -152,12 +141,6 @@ func (dsld *documentSLD) Iterate(done chan struct{}, callback func(key id.ID, va
 	return dsld.sld.Iterate(lb, ub, done, func(key, value []byte) {
 		callback(id.FromBytes(key), value)
 	})
-}
-
-func (dsld *documentSLD) Metrics() *DocumentMetrics {
-	dsld.mu.Lock()
-	defer dsld.mu.Unlock()
-	return dsld.metrics.clone()
 }
 
 func (dsld *documentSLD) Load(key id.ID) (*api.Document, error) {
@@ -188,17 +171,9 @@ func (dsld *documentSLD) Mac(key id.ID, macKey []byte) ([]byte, error) {
 }
 
 func (dsld *documentSLD) Delete(key id.ID) error {
-	valueBytes, err := dsld.sld.Load(key.Bytes())
-	if err != nil {
-		return err
-	}
 	if err := dsld.sld.Delete(key.Bytes()); err != nil {
 		return err
 	}
-	dsld.mu.Lock()
-	defer dsld.mu.Unlock()
-	dsld.metrics.NDocuments--
-	dsld.metrics.TotalSize -= uint64(len(valueBytes))
 	return nil
 }
 
@@ -216,11 +191,4 @@ func (dsld *documentSLD) loadCheckBytes(key id.ID) ([]byte, error) {
 		return nil, err
 	}
 	return valueBytes, nil
-}
-
-func (dm *DocumentMetrics) clone() *DocumentMetrics {
-	return &DocumentMetrics{
-		NDocuments: dm.NDocuments,
-		TotalSize:  dm.TotalSize,
-	}
 }

@@ -2,20 +2,21 @@ package routing
 
 import (
 	"github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/common/storage"
+	cstorage "github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/server/peer"
+	sstorage "github.com/drausin/libri/libri/librarian/server/storage"
 	"github.com/golang/protobuf/proto"
 )
 
 var tableKey = []byte("RoutingTable")
 
 // Load retrieves the routing table form the KV DB.
-func Load(nl storage.Loader, params *Parameters) (Table, error) {
+func Load(nl cstorage.Loader, params *Parameters) (Table, error) {
 	bytes, err := nl.Load(tableKey)
 	if bytes == nil || err != nil {
 		return nil, err
 	}
-	stored := &storage.RoutingTable{}
+	stored := &sstorage.RoutingTable{}
 	err = proto.Unmarshal(bytes, stored)
 	if err != nil {
 		return nil, err
@@ -24,7 +25,7 @@ func Load(nl storage.Loader, params *Parameters) (Table, error) {
 }
 
 // Save stores a representation of the routing table to the KV DB.
-func (rt *table) Save(ns storage.Storer) error {
+func (rt *table) Save(ns cstorage.Storer) error {
 	bytes, err := proto.Marshal(toStored(rt))
 	if err != nil {
 		return err
@@ -33,7 +34,7 @@ func (rt *table) Save(ns storage.Storer) error {
 }
 
 // fromStored returns a new Table instance from a StoredRoutingTable instance.
-func fromStored(stored *storage.RoutingTable, params *Parameters) Table {
+func fromStored(stored *sstorage.RoutingTable, params *Parameters) Table {
 	peers := make([]peer.Peer, len(stored.Peers))
 	for i, sp := range stored.Peers {
 		peers[i] = peer.FromStored(sp)
@@ -43,14 +44,14 @@ func fromStored(stored *storage.RoutingTable, params *Parameters) Table {
 }
 
 // toStored creates a new StoredRoutingTable instance from the Table instance.
-func toStored(rt Table) *storage.RoutingTable {
-	storedPeers := make([]*storage.Peer, len(rt.(*table).peers))
+func toStored(rt Table) *sstorage.RoutingTable {
+	storedPeers := make([]*sstorage.Peer, len(rt.(*table).peers))
 	i := 0
 	for _, p := range rt.(*table).peers {
 		storedPeers[i] = p.ToStored()
 		i++
 	}
-	return &storage.RoutingTable{
+	return &sstorage.RoutingTable{
 		SelfId: rt.SelfID().Bytes(),
 		Peers:  storedPeers,
 	}

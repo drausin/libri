@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/common/storage"
+	"github.com/drausin/libri/libri/librarian/server/storage"
 )
 
 // FromStored creates a new peer.Peer instance from a storage.Peer instance.
