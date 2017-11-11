@@ -130,6 +130,10 @@ spec:
         volumeMounts:
         - name: data
           mountPath: /data
+        resources:
+          limits:
+            memory:
+            cpu:
 
       initContainers:
       - image: devth/k8s-labeler
