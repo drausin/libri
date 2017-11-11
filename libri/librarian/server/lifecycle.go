@@ -164,6 +164,12 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 		}()
 	}
 
+	// aux routines handle:
+	// - listening to SIGTERM (and friends) signals from outside world
+	// - sending publications to subscribed peers
+	// - document replication
+	l.startAuxRoutines()
+
 	// handle stop signal
 	go func() {
 		<-l.stop
@@ -173,33 +179,6 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 			l.storageMetrics.unregister()
 		}
 		close(l.stopped)
-	}()
-
-	// handle stop stopSignals from outside world
-	stopSignals := make(chan os.Signal, 3)
-	signal.Notify(stopSignals, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
-	go func() {
-		<-stopSignals
-		cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
-	}()
-
-	// long-running goroutine managing subscriptions from other peers
-	go l.subscribeFrom.Fanout()
-
-	// long-running goroutine managing subscriptions to other peers
-	go func() {
-		if err := l.subscribeTo.Begin(); err != nil && !l.config.isBootstrap() {
-			l.logger.Error("fatal subscriptionTo error", zap.Error(err))
-			cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
-		}
-	}()
-
-	// long-running goroutine replicating documents
-	go func() {
-		if err := l.replicator.Start(); err != nil {
-			l.logger.Error("fatal replicator error", zap.Error(err))
-			cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
-		}
 	}()
 
 	// notify up channel shortly after starting to serve requests
@@ -226,6 +205,35 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 		return err
 	}
 	return nil
+}
+
+func (l *Librarian) startAuxRoutines() {
+	// handle stop stopSignals from outside world
+	stopSignals := make(chan os.Signal, 3)
+	signal.Notify(stopSignals, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+	go func() {
+		<-stopSignals
+		cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
+	}()
+
+	// long-running goroutine managing subscriptions from other peers
+	go l.subscribeFrom.Fanout()
+
+	// long-running goroutine managing subscriptions to other peers
+	go func() {
+		if err := l.subscribeTo.Begin(); err != nil && !l.config.isBootstrap() {
+			l.logger.Error("fatal subscriptionTo error", zap.Error(err))
+			cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
+		}
+	}()
+
+	// long-running goroutine replicating documents
+	go func() {
+		if err := l.replicator.Start(); err != nil {
+			l.logger.Error("fatal replicator error", zap.Error(err))
+			cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
+		}
+	}()
 }
 
 // StopAuxRoutines ends the replicator and subscriptions auxiliary routines.
