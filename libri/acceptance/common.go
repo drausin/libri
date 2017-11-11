@@ -291,13 +291,12 @@ func averageSubsamples(
 func newLibrarianConfigs(dataDir string, nSeeds, nPeers int, maxBucketPeers uint,
 	logLevel zapcore.Level) ([]*server.Config, []*server.Config, []*net.TCPAddr) {
 	seedStartPort, peerStartPort := 12000, 13000
-	metricsPortOffset := 500
 
 	seedConfigs := make([]*server.Config, nSeeds)
 	bootstrapAddrs := make([]*net.TCPAddr, nSeeds)
 	for c := 0; c < nSeeds; c++ {
-		localPort, metricsPort := seedStartPort+c, seedStartPort+metricsPortOffset+c
-		seedConfigs[c] = newConfig(dataDir, localPort, metricsPort, maxBucketPeers, logLevel)
+		localPort := seedStartPort + c
+		seedConfigs[c] = newConfig(dataDir, localPort, maxBucketPeers, logLevel)
 		bootstrapAddrs[c] = seedConfigs[c].PublicAddr
 	}
 	for c := 0; c < nSeeds; c++ {
@@ -307,8 +306,8 @@ func newLibrarianConfigs(dataDir string, nSeeds, nPeers int, maxBucketPeers uint
 	peerConfigs := make([]*server.Config, nPeers)
 	peerAddrs := make([]*net.TCPAddr, nPeers)
 	for c := 0; c < nPeers; c++ {
-		localPort, metricsPort := peerStartPort+c, peerStartPort+metricsPortOffset+c
-		peerConfigs[c] = newConfig(dataDir, localPort, metricsPort, maxBucketPeers, logLevel).
+		localPort := peerStartPort + c
+		peerConfigs[c] = newConfig(dataDir, localPort, maxBucketPeers, logLevel).
 			WithBootstrapAddrs(bootstrapAddrs)
 		peerAddrs[c] = peerConfigs[c].PublicAddr
 	}
@@ -339,7 +338,7 @@ func newAuthorConfigs(dataDir string, nAuthors int, librarianAddrs []*net.TCPAdd
 }
 
 func newConfig(
-	dataDir string, port, metricsPort int, maxBucketPeers uint, logLevel zapcore.Level,
+	dataDir string, port int, maxBucketPeers uint, logLevel zapcore.Level,
 ) *server.Config {
 
 	rtParams := routing.NewDefaultParameters()
@@ -359,7 +358,7 @@ func newConfig(
 
 	return server.NewDefaultConfig().
 		WithLocalPort(port).
-		WithLocalMetricsPort(metricsPort).
+		WithReportMetrics(false).
 		WithDefaultPublicAddr().
 		WithDefaultPublicName().
 		WithDataDir(peerDataDir).

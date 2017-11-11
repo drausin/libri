@@ -3,11 +3,9 @@ package server
 import (
 	"encoding/binary"
 	"errors"
-	"math/rand"
-
-	"net/http"
-
 	"fmt"
+	"math/rand"
+	"net/http"
 
 	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/common/ecid"
@@ -90,6 +88,8 @@ type Librarian struct {
 	// routing table of peers
 	rt routing.Table
 
+	storageMetrics *storageMetrics
+
 	// logger for this instance
 	logger *zap.Logger
 
@@ -165,30 +165,31 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 	)
 
 	return &Librarian{
-		selfID:        selfID,
-		config:        config,
-		apiSelf:       peer.FromAddress(selfID.ID(), config.PublicName, config.PublicAddr),
-		introducer:    introduce.NewDefaultIntroducer(signer, selfID.ID()),
-		searcher:      searcher,
-		replicator:    replicator,
-		storer:        storer,
-		subscribeFrom: subscribe.NewFrom(config.SubscribeFrom, logger, newPubs),
-		subscribeTo:   subscribeTo,
-		RecentPubs:    recentPubs,
-		rqv:           NewRequestVerifier(),
-		db:            rdb,
-		serverSL:      serverSL,
-		documentSL:    documentSL,
-		kc:            storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		kvc:           storage.NewHashKeyValueChecker(),
-		fromer:        peer.NewFromer(),
-		signer:        signer,
-		rt:            rt,
-		logger:        selfLogger,
-		health:        health.NewServer(),
-		metrics:       metrics,
-		stop:          make(chan struct{}),
-		stopped:       make(chan struct{}),
+		selfID:         selfID,
+		config:         config,
+		apiSelf:        peer.FromAddress(selfID.ID(), config.PublicName, config.PublicAddr),
+		introducer:     introduce.NewDefaultIntroducer(signer, selfID.ID()),
+		searcher:       searcher,
+		replicator:     replicator,
+		storer:         storer,
+		subscribeFrom:  subscribe.NewFrom(config.SubscribeFrom, logger, newPubs),
+		subscribeTo:    subscribeTo,
+		RecentPubs:     recentPubs,
+		rqv:            NewRequestVerifier(),
+		db:             rdb,
+		serverSL:       serverSL,
+		documentSL:     documentSL,
+		kc:             storage.NewExactLengthChecker(storage.EntriesKeyLength),
+		kvc:            storage.NewHashKeyValueChecker(),
+		fromer:         peer.NewFromer(),
+		signer:         signer,
+		rt:             rt,
+		storageMetrics: newStorageMetrics(),
+		logger:         selfLogger,
+		health:         health.NewServer(),
+		metrics:        metrics,
+		stop:           make(chan struct{}),
+		stopped:        make(chan struct{}),
 	}, nil
 }
 
@@ -328,6 +329,7 @@ func (l *Librarian) Store(ctx context.Context, rq *api.StoreRequest) (
 	if err := l.documentSL.Store(id.FromBytes(rq.Key), rq.Value); err != nil {
 		return nil, logAndReturnErr(logger, "error storing document", err)
 	}
+	l.storageMetrics.Add(rq.Value)
 	if err := l.subscribeTo.Send(api.GetPublication(rq.Key, rq.Value)); err != nil {
 		return nil, logAndReturnErr(logger, "error sending publication", err)
 	}
