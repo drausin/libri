@@ -488,17 +488,19 @@ func TestLibrarian_Store_ok(t *testing.T) {
 	assert.Nil(t, err)
 
 	l := &Librarian{
-		selfID:      peerID,
-		rt:          rt,
-		db:          kvdb,
-		serverSL:    storage.NewServerSL(kvdb),
-		documentSL:  storage.NewDocumentSLD(kvdb),
-		subscribeTo: &fixedTo{},
-		kc:          storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		kvc:         storage.NewHashKeyValueChecker(),
-		rqv:         &alwaysRequestVerifier{},
-		logger:      zap.NewNop(), // clogging.NewDevInfoLogger(),
+		selfID:         peerID,
+		rt:             rt,
+		db:             kvdb,
+		serverSL:       storage.NewServerSL(kvdb),
+		documentSL:     storage.NewDocumentSLD(kvdb),
+		subscribeTo:    &fixedTo{},
+		kc:             storage.NewExactLengthChecker(storage.EntriesKeyLength),
+		kvc:            storage.NewHashKeyValueChecker(),
+		rqv:            &alwaysRequestVerifier{},
+		storageMetrics: newStorageMetrics(),
+		logger:         zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
+	defer l.storageMetrics.unregister()
 
 	// create key-value
 	value, key := api.NewTestDocument(rng)

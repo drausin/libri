@@ -148,23 +148,30 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 
 	api.RegisterLibrarianServer(s, l)
 	healthpb.RegisterHealthServer(s, l.health)
-	grpc_prometheus.Register(s)
-	grpc_prometheus.EnableHandlingTimeHistogram()
-	l.storageMetrics = registerStorageMetrics()
+	if l.config.ReportMetrics {
+		grpc_prometheus.Register(s)
+		grpc_prometheus.EnableHandlingTimeHistogram()
+		l.storageMetrics.register()
+	}
 	reflection.Register(s)
 
-	go func() {
-		if err := l.metrics.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			l.logger.Error("error serving Prometheus metrics", zap.Error(err))
-			cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
-		}
-	}()
+	if l.config.ReportMetrics {
+		go func() {
+			if err := l.metrics.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				l.logger.Error("error serving Prometheus metrics", zap.Error(err))
+				cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
+			}
+		}()
+	}
 
 	// handle stop signal
 	go func() {
 		<-l.stop
 		l.logger.Info("gracefully stopping server", zap.Int(LoggerPortKey, l.config.LocalPort))
 		s.GracefulStop()
+		if l.config.ReportMetrics {
+			l.storageMetrics.unregister()
+		}
 		close(l.stopped)
 	}()
 

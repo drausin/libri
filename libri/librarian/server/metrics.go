@@ -18,7 +18,7 @@ type storageMetrics struct {
 	size  *prom.CounterVec
 }
 
-func registerStorageMetrics() *storageMetrics {
+func newStorageMetrics() *storageMetrics {
 	count := prom.NewCounterVec(
 		prom.CounterOpts{
 			Namespace: "grpc",
@@ -37,8 +37,6 @@ func registerStorageMetrics() *storageMetrics {
 		},
 		[]string{"doc_type"},
 	)
-	prom.MustRegister(count)
-	prom.MustRegister(size)
 	return &storageMetrics{
 		count: count,
 		size:  size,
@@ -59,4 +57,14 @@ func (sm *storageMetrics) Add(doc *api.Document) {
 		sm.count.WithLabelValues(pageLabel).Inc()
 		sm.size.WithLabelValues(pageLabel).Add(float64(len(bytes)))
 	}
+}
+
+func (sm *storageMetrics) register() {
+	prom.MustRegister(sm.count)
+	prom.MustRegister(sm.size)
+}
+
+func (sm *storageMetrics) unregister() {
+	_ = prom.Unregister(sm.count)
+	_ = prom.Unregister(sm.size)
 }

@@ -80,6 +80,9 @@ type Config struct {
 	// SubscribeFrom defines parameters for subscriptions to other peers.
 	SubscribeFrom *subscribe.FromParameters
 
+	// ReportMetrics determines whether the server reports Prometheus metrics.
+	ReportMetrics bool
+
 	// LogLevel is the log level
 	LogLevel zapcore.Level
 }
@@ -103,6 +106,7 @@ func NewDefaultConfig() *Config {
 	config.WithDefaultStore()
 	config.WithDefaultSubscribeTo()
 	config.WithDefaultSubscribeFrom()
+	config.WithDefaultReportMetrics()
 	config.WithDefaultLogLevel()
 
 	return config
@@ -321,6 +325,18 @@ func (c *Config) WithSubscribeFrom(params *subscribe.FromParameters) *Config {
 // WithDefaultSubscribeFrom sets the subscription from parameters to the default.
 func (c *Config) WithDefaultSubscribeFrom() *Config {
 	c.SubscribeFrom = subscribe.NewDefaultFromParameters()
+	return c
+}
+
+// WithDefaultReportMetrics sets the default state for whether to report metrics.
+func (c *Config) WithDefaultReportMetrics() *Config {
+	c.ReportMetrics = true
+	return c
+}
+
+// WithReportMetrics sets whether to report metrics or not.
+func (c *Config) WithReportMetrics(reportMetrics bool) *Config {
+	c.ReportMetrics = reportMetrics
 	return c
 }
 

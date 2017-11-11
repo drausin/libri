@@ -12,7 +12,8 @@ import (
 
 func TestStorageMetrics_Add(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	sm := registerStorageMetrics()
+	sm := newStorageMetrics()
+	defer sm.unregister()
 	envDoc := &api.Document{
 		Contents: &api.Document_Envelope{
 			Envelope: api.NewTestEnvelope(rng),
