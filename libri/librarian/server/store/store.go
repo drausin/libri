@@ -23,10 +23,10 @@ const (
 	DefaultNMaxErrors = uint(3)
 
 	// DefaultConcurrency is the number of parallel store workers.
-	DefaultConcurrency = uint(1)
+	DefaultConcurrency = uint(3)
 
 	// DefaultQueryTimeout is the timeout for each query to a peer.
-	DefaultQueryTimeout = 10 * time.Second
+	DefaultQueryTimeout = 3 * time.Second
 
 	logSearch      = "search"
 	logNReplicas   = "n_replicas"
@@ -161,6 +161,7 @@ func NewStore(
 	// closest peers found during search
 	updatedSearchParams := *searchParams // by value to avoid change original search params
 	updatedSearchParams.NClosestResponses = storeParams.NReplicas + storeParams.NMaxErrors
+	updatedSearchParams.Concurrency = storeParams.Concurrency
 	return &Store{
 		Request: client.NewStoreRequest(peerID, key, value),
 		Search:  search.NewSearch(peerID, key, &updatedSearchParams),
@@ -218,13 +219,9 @@ func (s *Store) Finished() bool {
 }
 
 func (s *Store) moreUnqueried() bool {
-	return len(s.Result.Unqueried) > 0
-}
-
-func (s *Store) safeMoreUnqueried() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.moreUnqueried()
+	return len(s.Result.Unqueried) > 0
 }
 
 func (s *Store) wrapLock(operation func()) {

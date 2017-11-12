@@ -25,7 +25,7 @@ const (
 	DefaultConcurrency = uint(1)
 
 	// DefaultQueryTimeout is the timeout for each query to a peer.
-	DefaultQueryTimeout = 5 * time.Second
+	DefaultQueryTimeout = 3 * time.Second
 
 	// logging keys
 	logKey               = "key"

@@ -3,6 +3,8 @@ package peer
 import (
 	"time"
 
+	"sync"
+
 	"github.com/drausin/libri/libri/librarian/server/storage"
 )
 
@@ -88,6 +90,8 @@ type queryTypeOutcomes struct {
 
 	// number of queries that resulted an in error
 	nErrors uint64
+
+	mu sync.Mutex
 }
 
 func newQueryTypeOutcomes() *queryTypeOutcomes {
@@ -100,6 +104,8 @@ func newQueryTypeOutcomes() *queryTypeOutcomes {
 }
 
 func (qto *queryTypeOutcomes) Record(o Outcome) {
+	qto.mu.Lock()
+	defer qto.mu.Unlock()
 	if o == Error {
 		qto.nErrors++
 	}
@@ -111,6 +117,8 @@ func (qto *queryTypeOutcomes) Record(o Outcome) {
 }
 
 func (qto *queryTypeOutcomes) Merge(other *queryTypeOutcomes) {
+	qto.mu.Lock()
+	defer qto.mu.Unlock()
 	if qto.earliest.After(other.earliest) {
 		qto.earliest = other.earliest
 	}
