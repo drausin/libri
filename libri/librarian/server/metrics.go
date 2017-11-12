@@ -62,6 +62,10 @@ func (sm *storageMetrics) Add(doc *api.Document) {
 func (sm *storageMetrics) register() {
 	prom.MustRegister(sm.count)
 	prom.MustRegister(sm.size)
+	for _, docType := range []string{entryLabel, entryLabel, pageLabel} {
+		sm.count.GetMetricWithLabelValues(docType)
+		sm.size.GetMetricWithLabelValues(docType)
+	}
 }
 
 func (sm *storageMetrics) unregister() {
