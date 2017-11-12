@@ -82,6 +82,8 @@ metadata:
 spec:
   serviceName: libri
   replicas: {{ .Librarians | len }}
+  updateStrategy:
+    type: RollingUpdate
   template:
     metadata:
       labels:
@@ -90,7 +92,6 @@ spec:
         prometheus.io/scrape: "true"
         prometheus.io/port: "{{ $localMetricsPort }}"
     spec:
-
       containers:
       - name: libriarian
         image: daedalus2718/libri:snapshot  # develop branch
@@ -132,8 +133,8 @@ spec:
           mountPath: /data
         resources:
           limits:
-            memory:
-            cpu:
+            memory: 300M
+            cpu: 250m
 
       initContainers:
       - image: devth/k8s-labeler
@@ -175,6 +176,10 @@ spec:
         - containerPort: 9100
           hostPort: 9100
           name: scrape
+        resources:
+          limits:
+            memory: 100M
+            cpu: 100m
       hostNetwork: true
       hostPID: true
 ---
@@ -236,6 +241,10 @@ spec:
 #          mountPath: /etc/prometheus-rules
 #        - name: prometheus-data
 #          mountPath: /prometheus
+        resources:
+          limits:
+            memory: 250M
+            cpu: 100m
       volumes:
       - name: prometheus-config
         configMap:
@@ -281,7 +290,6 @@ spec:
       containers:
       - image: grafana/grafana:4.4.1
         name: grafana
-        resources:
         env:
             # The following env variables are required to make Grafana accessible via
             # the kubernetes api-server proxy. On production clusters, we recommend
@@ -295,6 +303,10 @@ spec:
             value: Admin
           # - name: GF_SERVER_ROOT_URL
           #   value: /api/v1/proxy/namespaces/kube-system/services/monitoring-grafana/
+        resources:
+          limits:
+            memory: 250M
+            cpu: 100m
 
         lifecycle:
           postStart:
