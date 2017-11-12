@@ -1,9 +1,14 @@
 {{/* the next line is obviously just for the generated file, not this template */}}
 # This file is generated from libri.template.yml. Please edit that instead!
+{{ $libriVersion := .LibriVersion -}}
 {{ $localPort := .LocalPort -}}
 {{ $localMetricsPort := .LocalMetricsPort -}}
+{{ $grafanaPort := .GrafanaPort -}}
+{{ $prometheusPort := .PrometheusPort -}}
 {{ $gceCluster := .GCECluster -}}
 {{ $localCluster := .LocalCluster -}}
+{{ $librarianCPULimit := .LibrarianCPULimit -}}
+{{ $librarianRAMLimit := .LibrarianRAMLimit -}}
 ---
 # headless service for internal DNS networking
 kind: Service
@@ -94,7 +99,7 @@ spec:
     spec:
       containers:
       - name: libriarian
-        image: daedalus2718/libri:snapshot  # develop branch
+        image: daedalus2718/libri:{{ $libriVersion }}
         args: [
           "librarian", "start",
           "--nSubscriptions", "2",
@@ -133,8 +138,8 @@ spec:
           mountPath: /data
         resources:
           limits:
-            memory: 300M
-            cpu: 250m
+            memory: {{ $librarianRAMLimit }}
+            cpu: {{ $librarianCPULimit }}
 
       initContainers:
       - image: devth/k8s-labeler
@@ -200,7 +205,7 @@ spec:
     protocol: TCP
     port: 9090
     targetPort: 9090
-    nodePort: 30090
+    nodePort: {{ $prometheusPort }}
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -272,7 +277,7 @@ spec:
     protocol: TCP
     port: 3000
     targetPort: 3000
-    nodePort: 30300
+    nodePort: {{ $grafanaPort }}
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
