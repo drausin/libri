@@ -12,7 +12,6 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/pkg/errors"
-	"container/heap"
 )
 
 const verifierVerifyRetryTimeout = 25 * time.Millisecond

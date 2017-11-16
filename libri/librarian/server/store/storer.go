@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"time"
+	"sync"
 
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -68,8 +69,11 @@ func (s *storer) Store(store *Store, seeds []peer.Peer) error {
 	}
 	finished := make(chan struct{})
 
+	var wg1 sync.WaitGroup
 	for c := uint(0); c < store.Params.Concurrency; c++ {
-		go func() {
+		wg1.Add(1)
+		go func(wg2 *sync.WaitGroup) {
+			defer wg2.Done()
 			for next := range storePeers {
 				ok := s.storePeer(store, next)
 				if store.Finished() {
@@ -83,7 +87,7 @@ func (s *storer) Store(store *Store, seeds []peer.Peer) error {
 					})
 				}
 			}
-		}()
+		}(&wg1)
 	}
 
 	select {
