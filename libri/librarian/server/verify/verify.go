@@ -247,12 +247,6 @@ func (v *Verify) AddQueried(p peer.Peer) {
 	v.Result.Queried[p.ID().String()] = struct{}{}
 }
 
-func (v *Verify) AddErrored(p peer.Peer, err error) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	v.Result.Errored[p.ID().String()] = err
-}
-
 func (v *Verify) wrapLock(operation func()) {
 	v.mu.Lock()
 	defer v.mu.Unlock()

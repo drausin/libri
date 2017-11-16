@@ -217,12 +217,6 @@ func (s *Search) AddQueried(p peer.Peer) {
 	s.Result.Queried[p.ID().String()] = struct{}{}
 }
 
-func (s *Search) AddErrored(p peer.Peer, err error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.Result.Errored[p.ID().String()] = err
-}
-
 func (s *Search) wrapLock(operation func()) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
