@@ -14,7 +14,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const verifierVerifyRetryTimeout = 100 * time.Millisecond
+const verifierVerifyRetryTimeout = 25 * time.Millisecond
 
 var (
 	errInvalidResponse     = errors.New("VerifyResponse contains neither MAC nor peer addresses")
@@ -61,44 +61,26 @@ type peerResponse struct {
 }
 
 func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
+	toQuery := make(chan peer.Peer, verify.Params.Concurrency)
+	peerResponses := make(chan *peerResponse, verify.Params.Concurrency)
+
+	// add seeds and queue some of them for querying
 	err := verify.Result.Unqueried.SafePushMany(seeds)
 	cerrors.MaybePanic(err)
+	for c := uint(0); c < verify.Params.Concurrency; c++ {
+		next := getNextToQuery(verify)
+		if next != nil {
+			toQuery <- next
+		}
+	}
 
-	toQuery := make(chan peer.Peer, 1)
-	peerResponses := make(chan peerResponse, verify.Params.Concurrency)
-
-	// goroutine that queues up next peer to query from unqueried heap
+	// goroutine that processes responses and queues up next peer to query
 	go func() {
 		for peerResponse := range peerResponses {
-			p := peerResponse.peer
-			response := peerResponse.response
-			if peerResponse.err != nil {
-				recordError(p, peerResponse.err, verify)
-			} else if err := v.rp.Process(response, p, verify.ExpectedMAC, verify); err != nil {
-				recordError(peerResponse.peer, err, verify)
-			} else {
-				recordSuccess(peerResponse.peer, verify)
-			}
-			if verify.Finished() {
+			if finished := processAnyReponse(peerResponse, v.rp, verify); finished {
 				break
 			}
-
-			verify.mu.Lock()
-			next := heap.Pop(verify.Result.Unqueried).(peer.Peer)
-			_, alreadyQueried := verify.Result.Queried[next.ID().String()]
-			verify.mu.Unlock()
-			if alreadyQueried {
-				continue
-			}
-			verify.wrapLock(func() {
-				select {
-				case <-toQuery:
-					// already closed
-					break
-				case toQuery <- next:
-				}
-			})
-			if verify.Finished() {
+			if finished := sendNextToQuery(toQuery, verify); finished {
 				break
 			}
 		}
@@ -108,9 +90,6 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 	var wg1 sync.WaitGroup
 	for c := uint(0); c < verify.Params.Concurrency; c++ {
 		wg1.Add(1)
-		verify.wrapLock(func() {
-			toQuery <- heap.Pop(verify.Result.Unqueried).(peer.Peer)
-		})
 		go func(wg2 *sync.WaitGroup) {
 			defer wg2.Done()
 			for next := range toQuery {
@@ -119,7 +98,7 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 				}
 				verify.AddQueried(next)
 				response, err := v.query(next.Connector(), verify)
-				peerResponses <- peerResponse{
+				peerResponses <- &peerResponse{
 					peer:     next,
 					response: response,
 					err:      err,
@@ -131,31 +110,6 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 
 	wg1.Wait()
 	return verify.Result.FatalErr
-}
-
-func maybeClose(toQuery chan peer.Peer) {
-	select {
-	case <-toQuery:
-	default:
-		close(toQuery)
-	}
-}
-
-func recordError(p peer.Peer, err error, v *Verify) {
-	v.wrapLock(func() {
-		v.Result.Errored[p.ID().String()] = err
-		if v.Errored() {
-			v.Result.FatalErr = errTooManyVerifyErrors
-		}
-	})
-	p.Recorder().Record(peer.Response, peer.Error)
-}
-
-func recordSuccess(p peer.Peer, v *Verify) {
-	v.wrapLock(func() {
-		v.Result.Responded[p.ID().String()] = p
-	})
-	p.Recorder().Record(peer.Response, peer.Success)
 }
 
 func (v *verifier) query(pConn peer.Connector, verify *Verify) (*api.VerifyResponse, error) {
@@ -179,6 +133,72 @@ func (v *verifier) query(pConn peer.Connector, verify *Verify) (*api.VerifyRespo
 	}
 
 	return rp, nil
+}
+
+func maybeClose(toQuery chan peer.Peer) {
+	select {
+	case <-toQuery:
+	default:
+		close(toQuery)
+	}
+}
+
+func getNextToQuery(verify *Verify) peer.Peer {
+	if verify.Finished() {
+		return nil
+	}
+	var next peer.Peer
+	var alreadyQueried bool
+	verify.wrapLock(func() {
+		next = heap.Pop(verify.Result.Unqueried).(peer.Peer)
+		_, alreadyQueried = verify.Result.Queried[next.ID().String()]
+	})
+	if alreadyQueried {
+		return nil
+	}
+	return next
+}
+
+func sendNextToQuery(toQuery chan peer.Peer, verify *Verify) bool {
+	next := getNextToQuery(verify)
+	if next != nil {
+		verify.wrapLock(func() {
+			select {
+			case <-toQuery: // already closed
+			case toQuery <- next:
+			}
+		})
+	}
+	return verify.Finished()
+}
+
+func processAnyReponse(pr *peerResponse, rp ResponseProcessor, verify *Verify) bool {
+
+	if pr.err != nil {
+		recordError(pr.peer, pr.err, verify)
+	} else if err := rp.Process(pr.response, pr.peer, verify.ExpectedMAC, verify); err != nil {
+		recordError(pr.peer, err, verify)
+	} else {
+		recordSuccess(pr.peer, verify)
+	}
+	return verify.Finished()
+}
+
+func recordError(p peer.Peer, err error, v *Verify) {
+	v.wrapLock(func() {
+		v.Result.Errored[p.ID().String()] = err
+		if v.Errored() {
+			v.Result.FatalErr = errTooManyVerifyErrors
+		}
+	})
+	p.Recorder().Record(peer.Response, peer.Error)
+}
+
+func recordSuccess(p peer.Peer, v *Verify) {
+	v.wrapLock(func() {
+		v.Result.Responded[p.ID().String()] = p
+	})
+	p.Recorder().Record(peer.Response, peer.Success)
 }
 
 // ResponseProcessor handles api.VerifyResponses.

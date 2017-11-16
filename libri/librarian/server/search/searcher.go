@@ -61,58 +61,33 @@ type peerResponse struct {
 }
 
 func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
+	toQuery := make(chan peer.Peer, search.Params.Concurrency)
+	peerResponses := make(chan *peerResponse, search.Params.Concurrency)
+
+	// add seeds and queue some of them for querying
 	err := search.Result.Unqueried.SafePushMany(seeds)
 	cerrors.MaybePanic(err)
-
-	toQuery := make(chan peer.Peer, search.Params.Concurrency)
-	peerResponses := make(chan peerResponse, search.Params.Concurrency)
-
-	nToQueryInitially := search.Params.Concurrency
-	if nToQueryInitially > uint(search.Result.Unqueried.Len()) {
-		nToQueryInitially = uint(search.Result.Unqueried.Len())
-	}
-	for c := uint(0); c < nToQueryInitially; c++ {
-		search.wrapLock(func() {
-			toQuery <- heap.Pop(search.Result.Unqueried).(peer.Peer)
-		})
+	for c := uint(0); c < search.Params.Concurrency; c++ {
+		next := getNextToQuery(search)
+		if next != nil {
+			toQuery <- next
+		}
 	}
 
-	// goroutine that queues up next peer to query from unqueried heap
+	// goroutine that processes responses and queues up next peer to query
 	go func() {
 		for peerResponse := range peerResponses {
-			if peerResponse.err != nil {
-				recordError(peerResponse.peer, peerResponse.err, search)
-			} else if err := s.rp.Process(peerResponse.response, search); err != nil {
-				recordError(peerResponse.peer, err, search)
-			} else {
-				recordSuccess(peerResponse.peer, search)
-			}
-			if search.Finished() {
+			if finished := processAnyReponse(peerResponse, s.rp, search); finished {
 				break
 			}
-
-			search.mu.Lock()
-			next := heap.Pop(search.Result.Unqueried).(peer.Peer)
-			_, alreadyQueried := search.Result.Queried[next.ID().String()]
-			search.mu.Unlock()
-			if alreadyQueried {
-				continue
-			}
-			search.wrapLock(func() {
-				select {
-				case <-toQuery:
-					// already closed
-					break
-				case toQuery <- next:
-				}
-			})
-			if search.Finished() {
+			if finished := sendNextToQuery(toQuery, search); finished {
 				break
 			}
 		}
 		search.wrapLock(func() { maybeClose(toQuery) })
 	}()
 
+	// concurrent goroutines that issue queries to peers
 	var wg1 sync.WaitGroup
 	for c := uint(0); c < search.Params.Concurrency; c++ {
 		wg1.Add(1)
@@ -124,7 +99,7 @@ func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
 				}
 				search.AddQueried(next)
 				response, err := s.query(next, search)
-				peerResponses <- peerResponse{
+				peerResponses <- &peerResponse{
 					peer:     next,
 					response: response,
 					err:      err,
@@ -166,6 +141,46 @@ func maybeClose(toQuery chan peer.Peer) {
 	default:
 		close(toQuery)
 	}
+}
+
+func getNextToQuery(search *Search) peer.Peer {
+	if search.Finished() {
+		return nil
+	}
+	var next peer.Peer
+	var alreadyQueried bool
+	search.wrapLock(func() {
+		next = heap.Pop(search.Result.Unqueried).(peer.Peer)
+		_, alreadyQueried = search.Result.Queried[next.ID().String()]
+	})
+	if alreadyQueried {
+		return nil
+	}
+	return next
+}
+
+func sendNextToQuery(toQuery chan peer.Peer, search *Search) bool {
+	next := getNextToQuery(search)
+	if next != nil {
+		search.wrapLock(func() {
+			select {
+			case toQuery <- next:
+			case <-toQuery: // already closed
+			}
+		})
+	}
+	return search.Finished()
+}
+
+func processAnyReponse(pr *peerResponse, rp ResponseProcessor, search *Search) bool {
+	if pr.err != nil {
+		recordError(pr.peer, pr.err, search)
+	} else if err := rp.Process(pr.response, search); err != nil {
+		recordError(pr.peer, err, search)
+	} else {
+		recordSuccess(pr.peer, search)
+	}
+	return search.Finished()
 }
 
 func recordError(p peer.Peer, err error, s *Search) {
