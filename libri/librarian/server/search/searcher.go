@@ -63,6 +63,7 @@ type peerResponse struct {
 func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
 	toQuery := make(chan peer.Peer, search.Params.Concurrency)
 	peerResponses := make(chan *peerResponse, search.Params.Concurrency)
+	var wg1 sync.WaitGroup
 
 	// add seeds and queue some of them for querying
 	err := search.Result.Unqueried.SafePushMany(seeds)
@@ -75,7 +76,9 @@ func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
 	}
 
 	// goroutine that processes responses and queues up next peer to query
-	go func() {
+	go func(wg2 *sync.WaitGroup) {
+		wg2.Add(1)
+		defer wg2.Done()
 		for peerResponse := range peerResponses {
 			if finished := processAnyReponse(peerResponse, s.rp, search); finished {
 				break
@@ -85,10 +88,9 @@ func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
 			}
 		}
 		search.wrapLock(func() { maybeClose(toQuery) })
-	}()
+	}(&wg1)
 
 	// concurrent goroutines that issue queries to peers
-	var wg1 sync.WaitGroup
 	for c := uint(0); c < search.Params.Concurrency; c++ {
 		wg1.Add(1)
 		go func(wg2 *sync.WaitGroup) {

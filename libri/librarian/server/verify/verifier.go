@@ -63,6 +63,7 @@ type peerResponse struct {
 func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 	toQuery := make(chan peer.Peer, verify.Params.Concurrency)
 	peerResponses := make(chan *peerResponse, verify.Params.Concurrency)
+	var wg1 sync.WaitGroup
 
 	// add seeds and queue some of them for querying
 	err := verify.Result.Unqueried.SafePushMany(seeds)
@@ -75,7 +76,9 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 	}
 
 	// goroutine that processes responses and queues up next peer to query
-	go func() {
+	go func(wg2 *sync.WaitGroup) {
+		wg2.Add(1)
+		defer wg2.Done()
 		for peerResponse := range peerResponses {
 			if finished := processAnyReponse(peerResponse, v.rp, verify); finished {
 				break
@@ -85,9 +88,8 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 			}
 		}
 		verify.wrapLock(func() { maybeClose(toQuery) })
-	}()
+	}(&wg1)
 
-	var wg1 sync.WaitGroup
 	for c := uint(0); c < verify.Params.Concurrency; c++ {
 		wg1.Add(1)
 		go func(wg2 *sync.WaitGroup) {
