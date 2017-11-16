@@ -2,6 +2,7 @@ package verify
 
 import (
 	"bytes"
+	"container/heap"
 	"sync"
 	"time"
 
@@ -53,68 +54,108 @@ func NewDefaultVerifier(signer client.Signer) Verifier {
 	)
 }
 
+type peerResponse struct {
+	peer     peer.Peer
+	response *api.VerifyResponse
+	err      error
+}
+
 func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
-	cerrors.MaybePanic(verify.Result.Unqueried.SafePushMany(seeds))
+	err := verify.Result.Unqueried.SafePushMany(seeds)
+	cerrors.MaybePanic(err)
 
-	var wg sync.WaitGroup
+	toQuery := make(chan peer.Peer, 1)
+	peerResponses := make(chan peerResponse, verify.Params.Concurrency)
+
+	// goroutine that queues up next peer to query from unqueried heap
+	go func() {
+		for peerResponse := range peerResponses {
+			p := peerResponse.peer
+			response := peerResponse.response
+			if peerResponse.err != nil {
+				recordError(p, peerResponse.err, verify)
+			} else if err := v.rp.Process(response, p, verify.ExpectedMAC, verify); err != nil {
+				recordError(peerResponse.peer, err, verify)
+			} else {
+				recordSuccess(peerResponse.peer, verify)
+			}
+			if verify.Finished() {
+				break
+			}
+
+			verify.mu.Lock()
+			next := heap.Pop(verify.Result.Unqueried).(peer.Peer)
+			_, alreadyQueried := verify.Result.Queried[next.ID().String()]
+			verify.mu.Unlock()
+			if alreadyQueried {
+				continue
+			}
+			verify.wrapLock(func() {
+				select {
+				case <-toQuery:
+					// already closed
+					break
+				case toQuery <- next:
+				}
+			})
+			if verify.Finished() {
+				break
+			}
+		}
+		verify.wrapLock(func() { maybeClose(toQuery) })
+	}()
+
+	var wg1 sync.WaitGroup
 	for c := uint(0); c < verify.Params.Concurrency; c++ {
-		wg.Add(1)
-		go v.verifyWork(verify, &wg)
+		wg1.Add(1)
+		verify.wrapLock(func() {
+			toQuery <- heap.Pop(verify.Result.Unqueried).(peer.Peer)
+		})
+		go func(wg2 *sync.WaitGroup) {
+			defer wg2.Done()
+			for next := range toQuery {
+				if verify.Finished() {
+					break
+				}
+				verify.AddQueried(next)
+				response, err := v.query(next.Connector(), verify)
+				peerResponses <- peerResponse{
+					peer:     next,
+					response: response,
+					err:      err,
+				}
+			}
+			verify.wrapLock(func() { maybeClose(toQuery) })
+		}(&wg1)
 	}
-	wg.Wait()
 
+	wg1.Wait()
 	return verify.Result.FatalErr
 }
 
-func (v *verifier) verifyWork(verify *Verify, wg *sync.WaitGroup) {
-	defer wg.Done()
-	result := verify.Result
-
-	for !verify.Finished() {
-
-		// get next peer to query
-		verify.mu.Lock()
-		next, nextIDStr := search.NextPeerToQuery(
-			result.Unqueried,
-			result.Responded,
-			result.Errored,
-		)
-		verify.mu.Unlock()
-		if next == nil {
-			// next peer has already responded or errored
-			continue
-		}
-
-		// do the query
-		response, err := v.query(next.Connector(), verify)
-		if err != nil {
-			// if we had an issue querying, skip to next peer
-			verify.wrapLock(func() { recordError(nextIDStr, next, err, verify) })
-			continue
-		}
-
-		// process the response
-		verify.wrapLock(func() { err = v.rp.Process(response, next, verify.ExpectedMAC, result) })
-		if err != nil {
-			verify.wrapLock(func() { recordError(nextIDStr, next, err, verify) })
-			continue
-		}
-
-		// bookkeep ok response
-		verify.wrapLock(func() {
-			next.Recorder().Record(peer.Response, peer.Success)
-			result.Responded[nextIDStr] = next
-		})
-
+func maybeClose(toQuery chan peer.Peer) {
+	select {
+	case <-toQuery:
+	default:
+		close(toQuery)
 	}
 }
 
-func recordError(nextIDStr string, p peer.Peer, err error, v *Verify) {
-	v.Result.Errored[nextIDStr] = err
+func recordError(p peer.Peer, err error, v *Verify) {
+	v.wrapLock(func() {
+		v.Result.Errored[p.ID().String()] = err
+		if v.Errored() {
+			v.Result.FatalErr = errTooManyVerifyErrors
+		}
+	})
 	p.Recorder().Record(peer.Response, peer.Error)
-	if v.Errored() {
-		v.Result.FatalErr = errTooManyVerifyErrors
-	}
+}
+
+func recordSuccess(p peer.Peer, v *Verify) {
+	v.wrapLock(func() {
+		v.Result.Responded[p.ID().String()] = p
+	})
+	p.Recorder().Record(peer.Response, peer.Success)
 }
 
 func (v *verifier) query(pConn peer.Connector, verify *Verify) (*api.VerifyResponse, error) {
@@ -145,7 +186,7 @@ type ResponseProcessor interface {
 	// Process handles an api.VerifyResponse, adding newly discovered peers to the unqueried
 	// ClosestPeers heap and adding from to the list of replicas when its MAC matches the expected
 	// value.
-	Process(response *api.VerifyResponse, from peer.Peer, expectedMAC []byte, result *Result) error
+	Process(response *api.VerifyResponse, from peer.Peer, expectedMAC []byte, verify *Verify) error
 }
 
 type responseProcessor struct {
@@ -158,13 +199,13 @@ func NewResponseProcessor(fromer peer.Fromer) ResponseProcessor {
 }
 
 func (vrp *responseProcessor) Process(
-	rp *api.VerifyResponse, from peer.Peer, expectedMAC []byte, result *Result,
+	rp *api.VerifyResponse, from peer.Peer, expectedMAC []byte, verify *Verify,
 ) error {
 	if rp.Mac != nil {
 		// peer claims to have the value
 		if bytes.Equal(expectedMAC, rp.Mac) {
 			// they do!
-			result.Replicas[from.ID().String()] = from
+			verify.Result.Replicas[from.ID().String()] = from
 			return nil
 		}
 		// they don't
@@ -173,8 +214,11 @@ func (vrp *responseProcessor) Process(
 
 	if rp.Peers != nil {
 		// response has peer addresses close to key
-		search.AddPeers(result.Responded, result.Unqueried, rp.Peers, vrp.fromer)
-		cerrors.MaybePanic(result.Closest.SafePush(from))
+		verify.wrapLock(func() {
+			search.AddPeers(verify.Result.Queried, verify.Result.Unqueried, rp.Peers, vrp.fromer)
+			err := verify.Result.Closest.SafePush(from)
+			cerrors.MaybePanic(err) // should never happen
+		})
 		return nil
 	}
 
