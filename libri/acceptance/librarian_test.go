@@ -114,7 +114,6 @@ func testIntroduce(t *testing.T, params *params, state *state) {
 	// introduce oneself to a number of peers and ensure that each returns the requisite
 	// number of new peers
 	for c := 0; c < params.nIntroductions; c++ {
-		start := time.Now()
 
 		// issue Introduce query to random peer
 		i := state.rng.Int31n(int32(nPeers))
@@ -128,12 +127,14 @@ func testIntroduce(t *testing.T, params *params, state *state) {
 		)
 		introducer, err := ic.Create(conn)
 		assert.Nil(t, err)
+		start := time.Now()
 		rp, err := introducer.Introduce(ctx, rq)
 		cancel()
+		benchResults[c] = testing.BenchmarkResult{
+			N: 1,
+			T: time.Now().Sub(start),
+		}
 
-		// check everything went fine
-		assert.Nil(t, err)
-		assert.Equal(t, int(rq.NumPeers), len(rp.Peers))
 		if rp != nil {
 			state.client.logger.Debug("received Introduce response",
 				zap.String("from_peer", conn.Address().String()),
@@ -141,10 +142,9 @@ func testIntroduce(t *testing.T, params *params, state *state) {
 			)
 		}
 
-		benchResults[c] = testing.BenchmarkResult{
-			N: 1,
-			T: time.Now().Sub(start),
-		}
+		// check everything went fine
+		assert.Nil(t, err)
+		assert.Equal(t, int(rq.NumPeers), len(rp.Peers))
 
 		// add peers to self RT
 		for _, p := range rp.Peers {
@@ -169,7 +169,6 @@ func testPut(t *testing.T, params *params, state *state) {
 
 	// create a bunch of random putDocs to put
 	for c := 0; c < params.nPuts; c++ {
-		start := time.Now()
 
 		value, key := newTestDocument(state.rng, putPageSize)
 		putDocs[c] = value
@@ -179,6 +178,7 @@ func testPut(t *testing.T, params *params, state *state) {
 		ctx, cancel, err := lclient.NewSignedTimeoutContext(state.client.signer, rq,
 			store.DefaultQueryTimeout)
 		assert.Nil(t, err)
+		start := time.Now()
 		state.client.logger.Debug("issuing Put request", zap.String("key", key.String()))
 		rp, err := rlc.Put(ctx, rq)
 		cancel()
@@ -187,16 +187,16 @@ func testPut(t *testing.T, params *params, state *state) {
 			T:     time.Now().Sub(start),
 			Bytes: int64(putPageSize),
 		}
-
-		// check everything went fine
-		assert.Nil(t, err)
-		assert.Equal(t, api.PutOperation_STORED, rp.Operation)
 		if rp != nil {
 			state.client.logger.Debug("received Put response",
 				zap.String("operation", rp.Operation.String()),
 				zap.Int("n_replicas", int(rp.NReplicas)),
 			)
 		}
+
+		// check everything went fine
+		assert.Nil(t, err)
+		assert.Equal(t, api.PutOperation_STORED, rp.Operation)
 	}
 
 	state.benchResults = append(state.benchResults, &benchmarkObs{
@@ -216,7 +216,6 @@ func testGet(t *testing.T, params *params, state *state) {
 
 	// create a bunch of random values to put
 	for c := 0; c < len(state.putDocs); c++ {
-		start := time.Now()
 
 		// create Get request for value
 		value := state.putDocs[c]
@@ -227,13 +226,14 @@ func testGet(t *testing.T, params *params, state *state) {
 		ctx, err := lclient.NewSignedContext(state.client.signer, rq)
 		assert.Nil(t, err)
 		state.client.logger.Debug("issuing Get request", zap.String("key", key.String()))
+		start := time.Now()
 		rp, err := rlc.Get(ctx, rq)
-		state.client.logger.Debug("received Get response", zap.String("key", key.String()))
 		benchResults[c] = testing.BenchmarkResult{
 			N:     1,
 			T:     time.Now().Sub(start),
 			Bytes: int64(putPageSize),
 		}
+		state.client.logger.Debug("received Get response", zap.String("key", key.String()))
 
 		// check everything went fine
 		assert.Nil(t, err)
@@ -362,7 +362,9 @@ func testReplicate(t *testing.T, _ *params, state *state) {
 			break
 		}
 	}
-	assert.True(t, nUnderReplicated3 < nUnderReplicated2)
+	info := fmt.Sprintf("nUnderReplicated2: %d, nUnderReplicated3: %d", nUnderReplicated2,
+		nUnderReplicated3)
+	assert.True(t, nUnderReplicated3 < nUnderReplicated2, info)
 	state.logger.Info("finished replica audit 2", zap.Int("n_under_replicated", nUnderReplicated3))
 }
 

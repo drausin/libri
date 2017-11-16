@@ -21,8 +21,7 @@ const (
 	// DefaultNMaxErrors is the default maximum number of errors tolerated during a search.
 	DefaultNMaxErrors = uint(3)
 
-	// DefaultConcurrency is the default number of parallel search workers. Currently 1 for
-	// simplicity and because bumping to 3 doesn't seem to improve get performance at all.
+	// DefaultConcurrency is the default number of parallel search workers.
 	DefaultConcurrency = uint(1)
 
 	// DefaultQueryTimeout is the timeout for each query to a peer.
@@ -94,6 +93,10 @@ type Result struct {
 	// Unqueried is a heap of peers that were not yet queried
 	Unqueried ClosestPeers
 
+	// Queried is a set of all peers (keyed by peer.ID().String()) that have been queried (but
+	// haven't yet necessarily responded or errored)
+	Queried map[string]struct{}
+
 	// Responded is a map of all peers that responded during search
 	Responded map[string]peer.Peer
 
@@ -110,6 +113,7 @@ func NewInitialResult(key id.ID, params *Parameters) *Result {
 		Value:     nil,
 		Closest:   NewFarthestPeers(key, params.NClosestResponses),
 		Unqueried: NewClosestPeers(key, params.NClosestResponses*params.Concurrency),
+		Queried:   make(map[string]struct{}),
 		Responded: make(map[string]peer.Peer),
 		Errored:   make(map[string]error),
 	}
@@ -205,6 +209,12 @@ func (s *Search) Finished() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.FoundValue() || s.FoundClosestPeers() || s.Errored() || s.Exhausted()
+}
+
+func (s *Search) AddQueried(p peer.Peer) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.Result.Queried[p.ID().String()] = struct{}{}
 }
 
 func (s *Search) wrapLock(operation func()) {
