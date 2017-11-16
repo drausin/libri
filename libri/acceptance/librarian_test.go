@@ -63,7 +63,7 @@ func TestLibrarianCluster(t *testing.T) {
 		nSeeds:         3,
 		nPeers:         32,
 		nAuthors:       3,
-		logLevel:       zapcore.DebugLevel,
+		logLevel:       zapcore.InfoLevel,
 		nIntroductions: 32,
 		nPuts:          128,
 		nUploads:       16,
