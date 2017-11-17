@@ -338,15 +338,15 @@ func testReplicate(t *testing.T, _ *params, state *state) {
 	}
 
 	// verify each doc, seeing which are under-replicated
-	nReplicas2 := countDocReplicas(t, state)
-	nUnderReplicated2 := 0
-	for _, keyNReplicas := range nReplicas2 {
+	nReplicas1 := countDocReplicas(t, state)
+	nUnderReplicated1 := 0
+	for _, keyNReplicas := range nReplicas1 {
 		if keyNReplicas < int(store.DefaultNReplicas) {
-			nUnderReplicated2++
+			nUnderReplicated1++
 		}
 	}
-	assert.True(t, nUnderReplicated2 > 0)
-	state.logger.Info("finished replica audit 1", zap.Int("n_under_replicated", nUnderReplicated2))
+	assert.True(t, nUnderReplicated1 > 0)
+	state.logger.Info("finished replica audit 1", zap.Int("n_under_replicated", nUnderReplicated1))
 
 	rereplicateWaitSecs := 10
 	state.logger.Info("waiting for re-replication to happen",
@@ -354,18 +354,18 @@ func testReplicate(t *testing.T, _ *params, state *state) {
 	)
 	time.Sleep(time.Duration(rereplicateWaitSecs) * time.Second)
 
-	nReplicas3 := countDocReplicas(t, state)
-	nUnderReplicated3 := 0
-	for _, keyNReplicas := range nReplicas3 {
+	nReplicas2 := countDocReplicas(t, state)
+	nUnderReplicated2 := 0
+	for _, keyNReplicas := range nReplicas2 {
 		if keyNReplicas < int(store.DefaultNReplicas) {
-			nUnderReplicated3++
+			nUnderReplicated2++
 			break
 		}
 	}
-	info := fmt.Sprintf("nUnderReplicated2: %d, nUnderReplicated3: %d", nUnderReplicated2,
-		nUnderReplicated3)
-	assert.True(t, nUnderReplicated3 < nUnderReplicated2, info)
-	state.logger.Info("finished replica audit 2", zap.Int("n_under_replicated", nUnderReplicated3))
+	info := fmt.Sprintf("nUnderReplicated1: %d, nUnderReplicated2: %d", nUnderReplicated1,
+		nUnderReplicated2)
+	assert.True(t, nUnderReplicated2 < nUnderReplicated1, info)
+	state.logger.Info("finished replica audit 2", zap.Int("n_under_replicated", nUnderReplicated2))
 }
 
 func countDocReplicas(t *testing.T, state *state) map[string]int {

@@ -2,14 +2,15 @@ package store
 
 import (
 	"bytes"
-	"time"
+	"errors"
 	"sync"
+	"time"
+
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
-	"errors"
 )
 
 const storerStoreRetryTimeout = 25 * time.Millisecond
@@ -142,7 +143,7 @@ func (s *storer) query(pConn peer.Connector, store *Store) (*api.StoreResponse, 
 
 func maybeClose(toQuery chan peer.Peer) {
 	select {
-	case <- toQuery:
+	case <-toQuery:
 	default:
 		close(toQuery)
 	}

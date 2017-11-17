@@ -142,7 +142,7 @@ func (s *searcher) query(pConn peer.Connector, search *Search) (*api.FindRespons
 
 func maybeClose(toQuery chan peer.Peer) {
 	select {
-	case <- toQuery:
+	case <-toQuery:
 	default:
 		close(toQuery)
 	}

@@ -116,7 +116,7 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 
 func maybeClose(toQuery chan peer.Peer) {
 	select {
-	case <- toQuery:
+	case <-toQuery:
 	default:
 		close(toQuery)
 	}
