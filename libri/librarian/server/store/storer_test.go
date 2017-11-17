@@ -97,8 +97,8 @@ func TestStorer_Store_queryErr(t *testing.T) {
 	assert.False(t, store.Stored())
 
 	assert.Equal(t, 0, len(store.Result.Responded))
-	assert.Equal(t, 3, len(store.Result.Unqueried))
-	assert.Equal(t, int(store.Params.NMaxErrors), len(store.Result.Errors))
+	assert.True(t, 3 >= len(store.Result.Unqueried))
+	assert.True(t, int(store.Params.NMaxErrors) <= len(store.Result.Errors))
 	assert.Equal(t, ErrTooManyStoreErrors, store.Result.FatalErr)
 }
 
