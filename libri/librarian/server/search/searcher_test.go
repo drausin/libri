@@ -155,14 +155,14 @@ func TestSearcher_query_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	peerID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
 	search := NewSearch(peerID, key, &Parameters{})
+	pConn := &peer.TestConnector{}
 	s := &searcher{
 		signer:        &client.TestNoOpSigner{},
 		finderCreator: &TestFinderCreator{},
 		rp:            nil,
 	}
-	p := peer.New(id.NewPseudoRandom(rng), "", &peer.TestConnector{})
 
-	rp, err := s.query(p, search)
+	rp, err := s.query(pConn, search)
 	assert.Nil(t, err)
 	assert.NotNil(t, rp.Metadata.RequestId)
 	assert.Nil(t, rp.Value)
@@ -170,7 +170,7 @@ func TestSearcher_query_ok(t *testing.T) {
 
 func TestSearcher_query_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	p := peer.New(id.NewPseudoRandom(rng), "", &peer.TestConnector{})
+	pConn := &peer.TestConnector{}
 	peerID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
 	search := NewSearch(peerID, key, &Parameters{Timeout: 1 * time.Second})
 
@@ -206,7 +206,7 @@ func TestSearcher_query_err(t *testing.T) {
 
 	for i, c := range cases {
 		info := fmt.Sprintf("case %d", i)
-		rp, err := c.query(p, search)
+		rp, err := c.query(pConn, search)
 		assert.Nil(t, rp, info)
 		assert.NotNil(t, err, info)
 	}

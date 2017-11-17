@@ -63,7 +63,6 @@ type peerResponse struct {
 func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
 	toQuery := make(chan peer.Peer, search.Params.Concurrency)
 	peerResponses := make(chan *peerResponse, search.Params.Concurrency)
-	var wg1 sync.WaitGroup
 
 	// add seeds and queue some of them for querying
 	err := search.Result.Unqueried.SafePushMany(seeds)
@@ -76,23 +75,25 @@ func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
 	}
 
 	// goroutine that processes responses and queues up next peer to query
+	var wg1 sync.WaitGroup
+	wg1.Add(1)
 	go func(wg2 *sync.WaitGroup) {
-		wg2.Add(1)
 		defer wg2.Done()
-		for peerResponse := range peerResponses {
-			if finished := processAnyReponse(peerResponse, s.rp, search); finished {
-				break
-			}
-			if finished := sendNextToQuery(toQuery, search); finished {
-				break
+		toQueryClosed := false
+		for pr := range peerResponses {
+			if finished := processAnyReponse(pr, s.rp, search); !finished && !toQueryClosed {
+				sendNextToQuery(toQuery, search)
+			} else {
+				maybeClose(toQuery)
+				toQueryClosed = true
 			}
 		}
-		search.wrapLock(func() { maybeClose(toQuery) })
 	}(&wg1)
 
 	// concurrent goroutines that issue queries to peers
+	var wg3 sync.WaitGroup
 	for c := uint(0); c < search.Params.Concurrency; c++ {
-		wg1.Add(1)
+		wg3.Add(1)
 		go func(wg2 *sync.WaitGroup) {
 			defer wg2.Done()
 			for next := range toQuery {
@@ -100,22 +101,24 @@ func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
 					break
 				}
 				search.AddQueried(next)
-				response, err := s.query(next, search)
+				response, err := s.query(next.Connector(), search)
 				peerResponses <- &peerResponse{
 					peer:     next,
 					response: response,
 					err:      err,
 				}
 			}
-		}(&wg1)
+		}(&wg3)
 	}
+	wg3.Wait()
+	close(peerResponses)
 
 	wg1.Wait()
 	return search.Result.FatalErr
 }
 
-func (s *searcher) query(p peer.Peer, search *Search) (*api.FindResponse, error) {
-	findClient, err := s.finderCreator.Create(p.Connector())
+func (s *searcher) query(pConn peer.Connector, search *Search) (*api.FindResponse, error) {
+	findClient, err := s.finderCreator.Create(pConn)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +142,7 @@ func (s *searcher) query(p peer.Peer, search *Search) (*api.FindResponse, error)
 
 func maybeClose(toQuery chan peer.Peer) {
 	select {
-	case <-toQuery:
+	case <- toQuery:
 	default:
 		close(toQuery)
 	}
@@ -166,8 +169,8 @@ func sendNextToQuery(toQuery chan peer.Peer, search *Search) bool {
 	if next != nil {
 		search.wrapLock(func() {
 			select {
-			case toQuery <- next:
 			case <-toQuery: // already closed
+			case toQuery <- next:
 			}
 		})
 	}

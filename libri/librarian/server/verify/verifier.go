@@ -63,7 +63,6 @@ type peerResponse struct {
 func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 	toQuery := make(chan peer.Peer, verify.Params.Concurrency)
 	peerResponses := make(chan *peerResponse, verify.Params.Concurrency)
-	var wg1 sync.WaitGroup
 
 	// add seeds and queue some of them for querying
 	err := verify.Result.Unqueried.SafePushMany(seeds)
@@ -76,24 +75,24 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 	}
 
 	// goroutine that processes responses and queues up next peer to query
+	var wg1 sync.WaitGroup
+	wg1.Add(1)
 	go func(wg2 *sync.WaitGroup) {
-		wg2.Add(1)
 		defer wg2.Done()
 		for peerResponse := range peerResponses {
-			if finished := processAnyReponse(peerResponse, v.rp, verify); finished {
-				break
-			}
-			if finished := sendNextToQuery(toQuery, verify); finished {
-				break
+			if finished := processAnyReponse(peerResponse, v.rp, verify); !finished {
+				sendNextToQuery(toQuery, verify)
+			} else {
+				maybeClose(toQuery)
 			}
 		}
-		verify.wrapLock(func() { maybeClose(toQuery) })
 	}(&wg1)
 
+	var wg3 sync.WaitGroup
 	for c := uint(0); c < verify.Params.Concurrency; c++ {
-		wg1.Add(1)
-		go func(wg2 *sync.WaitGroup) {
-			defer wg2.Done()
+		wg3.Add(1)
+		go func(wg4 *sync.WaitGroup) {
+			defer wg4.Done()
 			for next := range toQuery {
 				if verify.Finished() {
 					break
@@ -106,12 +105,21 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 					err:      err,
 				}
 			}
-			verify.wrapLock(func() { maybeClose(toQuery) })
-		}(&wg1)
+		}(&wg3)
 	}
+	wg3.Wait()
+	close(peerResponses)
 
 	wg1.Wait()
 	return verify.Result.FatalErr
+}
+
+func maybeClose(toQuery chan peer.Peer) {
+	select {
+	case <- toQuery:
+	default:
+		close(toQuery)
+	}
 }
 
 func (v *verifier) query(pConn peer.Connector, verify *Verify) (*api.VerifyResponse, error) {
@@ -135,14 +143,6 @@ func (v *verifier) query(pConn peer.Connector, verify *Verify) (*api.VerifyRespo
 	}
 
 	return rp, nil
-}
-
-func maybeClose(toQuery chan peer.Peer) {
-	select {
-	case <-toQuery:
-	default:
-		close(toQuery)
-	}
 }
 
 func getNextToQuery(verify *Verify) peer.Peer {

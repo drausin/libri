@@ -71,7 +71,7 @@ func TestStorer_Store_ok(t *testing.T) {
 		assert.False(t, store.Errored())
 
 		assert.Equal(t, nReplicas, uint(len(store.Result.Responded)))
-		assert.Equal(t, storeParams.NMaxErrors, uint(len(store.Result.Unqueried)))
+		assert.True(t, storeParams.NMaxErrors >= uint(len(store.Result.Unqueried)))
 		assert.Equal(t, 0, len(store.Result.Errors))
 		assert.Nil(t, store.Result.FatalErr)
 	}
@@ -90,16 +90,16 @@ func TestStorer_Store_queryErr(t *testing.T) {
 	err := storerImpl.Store(store, seeds)
 
 	// checks
-	assert.Nil(t, err)
+	assert.NotNil(t, err)
 	assert.True(t, store.Finished())
 	assert.True(t, store.Errored())    // since all of the queries return errors
 	assert.False(t, store.Exhausted()) // since NMaxErrors < len(Unqueried)
 	assert.False(t, store.Stored())
 
 	assert.Equal(t, 0, len(store.Result.Responded))
-	assert.Equal(t, 1, len(store.Result.Unqueried))
+	assert.Equal(t, 3, len(store.Result.Unqueried))
 	assert.Equal(t, int(store.Params.NMaxErrors), len(store.Result.Errors))
-	assert.Nil(t, store.Result.FatalErr)
+	assert.Equal(t, ErrTooManyStoreErrors, store.Result.FatalErr)
 }
 
 func TestStorer_Store_err(t *testing.T) {
