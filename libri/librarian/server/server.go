@@ -411,6 +411,7 @@ func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutRespon
 		l.config.Search,
 		l.config.Store,
 	)
+	logger.Debug("beginning store queries", zap.String(logKey, id.Hex(rq.Key)))
 	seeds := l.rt.Peak(key, s.Search.Params.NClosestResponses)
 	if err = l.storer.Store(s, seeds); err != nil {
 		return nil, logFieldsAndReturnErr(logger, errStoreErr, storeDetailFields(s))

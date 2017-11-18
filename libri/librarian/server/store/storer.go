@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"log"
+
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
@@ -82,10 +84,12 @@ func (s *storer) Store(store *Store, seeds []peer.Peer) error {
 	go func(wg2 *sync.WaitGroup) {
 		defer wg2.Done()
 		for peerResponse := range peerResponses {
+			log.Println("processing")
 			errored, finished := processAnyReponse(peerResponse, store)
 			if errored && !finished {
 				// since we've aleady queue NReplicas into toQuery above, only queue more
 				// if we get an error
+				log.Println("adding new peer to query")
 				sendNextToQuery(toQuery, store)
 			} else if finished {
 				maybeClose(toQuery)
@@ -102,6 +106,7 @@ func (s *storer) Store(store *Store, seeds []peer.Peer) error {
 				if store.Finished() {
 					break
 				}
+				log.Println("querying")
 				response, err := s.query(next.Connector(), store)
 				peerResponses <- &peerResponse{
 					peer:     next,
