@@ -3,6 +3,10 @@
 set -eou pipefail
 #set -x  # useful for debugging
 
+# optional settings (generally defaults should be fine)
+LIBRI_LOG_LEVEL="${LIBRI_LOG_LEVEL:-INFO}"
+LIBRI_TIMEOUT="${LIBRI_TIMEOUT:5}"
+
 # local and filesystem constants
 LOCAL_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 LOCAL_TEST_DATA_DIR="${LOCAL_DIR}/data"
@@ -42,6 +46,7 @@ for c in $(seq 0 $((${N_LIBRARIANS} - 1))); do
     docker run --name "${name}" --net=libri -d -p ${port}:${port} ${IMAGE} \
         librarian start \
         --nSubscriptions 2 \
+        --logLevel "${LIBRI_LOG_LEVEL}" \
         --publicPort ${port} \
         --publicHost ${name} \
         --localPort ${port} \
@@ -55,11 +60,18 @@ sleep 5  # TODO (drausin) add retry to healthcheck
 
 echo
 echo "testing librarians health..."
-docker run --rm --net=libri ${IMAGE} test health -a "${librarian_addrs}"
+docker run --rm --net=libri ${IMAGE} test health \
+    -a "${librarian_addrs}" \
+    --logLevel "${LIBRI_LOG_LEVEL}" \
+    --timeout "${LIBRI_TIMEOUT}"
 
 echo
 echo "testing librarians upload/download..."
-docker run --rm --net=libri ${IMAGE} test io -a "${librarian_addrs}" -n 4
+docker run --rm --net=libri ${IMAGE} test io \
+    -a "${librarian_addrs}" \
+    -n 4 \
+    --logLevel "${LIBRI_LOG_LEVEL}" \
+    --timeout "${LIBRI_TIMEOUT}"
 
 echo
 echo "initializing author..."
@@ -88,7 +100,12 @@ for file in $(ls ${LOCAL_TEST_DATA_DIR}); do
         --volumes-from author-data \
         -e LIBRI_PASSPHRASE="${LIBRI_PASSPHRASE}" \
         ${IMAGE} \
-        author upload -k "${KEYCHAIN_DIR}" -a "${librarian_addrs}" -f "${up_file}" |& \
+        author upload \
+        -k "${KEYCHAIN_DIR}" \
+        -a "${librarian_addrs}" \
+        -f "${up_file}"  \
+        --timeout "${LIBRI_TIMEOUT}" \
+        --logLevel "${LIBRI_LOG_LEVEL}" |& \
         tee ${LOCAL_TEST_LOGS_DIR}/${file}.log
 
     log_file="${LOCAL_TEST_LOGS_DIR}/${file}.log"
