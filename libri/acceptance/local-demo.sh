@@ -3,9 +3,9 @@
 set -eou pipefail
 #set -x  # useful for debugging
 
-# optional settings (generally defaults should be fine)
-LIBRI_LOG_LEVEL="${LIBRI_LOG_LEVEL:-INFO}"
-LIBRI_TIMEOUT="${LIBRI_TIMEOUT:5}"
+# optional settings (generally defaults should be fine, but sometimes useful for debugging)
+LIBRI_LOG_LEVEL="${LIBRI_LOG_LEVEL:-INFO}"  # or DEBUG
+LIBRI_TIMEOUT="${LIBRI_TIMEOUT:-5}"  # 10, or 20 for really sketchy network
 
 # local and filesystem constants
 LOCAL_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
