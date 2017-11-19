@@ -94,18 +94,18 @@ func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
 	var wg3 sync.WaitGroup
 	for c := uint(0); c < search.Params.Concurrency; c++ {
 		wg3.Add(1)
-		go func(wg2 *sync.WaitGroup) {
-			defer wg2.Done()
+		go func(wg4 *sync.WaitGroup) {
+			defer wg4.Done()
 			for next := range toQuery {
-				if search.Finished() {
-					break
-				}
 				search.AddQueried(next)
 				response, err := s.query(next.Connector(), search)
 				peerResponses <- &peerResponse{
 					peer:     next,
 					response: response,
 					err:      err,
+				}
+				if search.Finished() {
+					break
 				}
 			}
 		}(&wg3)

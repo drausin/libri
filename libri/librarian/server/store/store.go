@@ -193,29 +193,35 @@ func (s *Store) MarshalLogObject(oe zapcore.ObjectEncoder) error {
 
 // Stored returns whether the store has stored sufficient replicas.
 func (s *Store) Stored() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return uint(len(s.Result.Responded)) >= s.Params.NReplicas
 }
 
 // Exists returns whether the value already exists (and the search has found it).
 func (s *Store) Exists() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return s.Result.Search.Value != nil
 }
 
 // Errored returns whether the store has encountered too many errors when querying the peers.
 func (s *Store) Errored() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return len(s.Result.Errors) >= int(s.Params.NMaxErrors) || s.Result.FatalErr != nil
 }
 
 // Exhausted returns whether the store has exhausted all peers to store the value in.
 func (s *Store) Exhausted() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return len(s.Result.Unqueried) == 0
 }
 
 // Finished returns whether the store operation has finished.
 func (s *Store) Finished() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.Stored() || s.Errored() || s.Exists() || s.Exhausted()
+	return s.Stored() || s.Errored() || s.Exists()
 }
 
 func (s *Store) moreUnqueried() bool {

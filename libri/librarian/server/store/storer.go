@@ -6,8 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"log"
-
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
@@ -65,6 +63,13 @@ type peerResponse struct {
 }
 
 func (s *storer) Store(store *Store, seeds []peer.Peer) error {
+	if len(seeds) < int(store.Params.Concurrency) {
+		// fall back to single worker when we have insufficient seeds (usually only the case for
+		// demo clusters with 3 or so peers)
+		store.Params.Concurrency = 1
+		store.Search.Params.Concurrency = 1
+	}
+
 	if err := s.searcher.Search(store.Search, seeds); err != nil {
 		store.Result = NewFatalResult(err)
 		return err
@@ -73,7 +78,7 @@ func (s *storer) Store(store *Store, seeds []peer.Peer) error {
 
 	// queue of peers to send Store requests to
 	toQuery := make(chan peer.Peer, store.Params.NReplicas)
-	peerResponses := make(chan *peerResponse, store.Params.Concurrency)
+	peerResponses := make(chan *peerResponse, store.Params.NReplicas)
 
 	for c := uint(0); c < store.Params.NReplicas; c++ {
 		sendNextToQuery(toQuery, store)
@@ -84,12 +89,10 @@ func (s *storer) Store(store *Store, seeds []peer.Peer) error {
 	go func(wg2 *sync.WaitGroup) {
 		defer wg2.Done()
 		for peerResponse := range peerResponses {
-			log.Println("processing")
 			errored, finished := processAnyReponse(peerResponse, store)
 			if errored && !finished {
-				// since we've aleady queue NReplicas into toQuery above, only queue more
+				// since we've already queue NReplicas into toQuery above, only queue more
 				// if we get an error
-				log.Println("adding new peer to query")
 				sendNextToQuery(toQuery, store)
 			} else if finished {
 				maybeClose(toQuery)
@@ -103,10 +106,6 @@ func (s *storer) Store(store *Store, seeds []peer.Peer) error {
 		go func(wg4 *sync.WaitGroup) {
 			defer wg4.Done()
 			for next := range toQuery {
-				if store.Finished() {
-					break
-				}
-				log.Println("querying")
 				response, err := s.query(next.Connector(), store)
 				peerResponses <- &peerResponse{
 					peer:     next,
@@ -179,10 +178,12 @@ func processAnyReponse(pr *peerResponse, store *Store) (bool, bool) {
 		// if we had an issue querying, skip to next peer
 		store.wrapLock(func() {
 			store.Result.Errors = append(store.Result.Errors, pr.err)
-			if store.Errored() {
-				store.Result.FatalErr = ErrTooManyStoreErrors
-			}
 		})
+		if store.Errored() {
+			store.wrapLock(func() {
+				store.Result.FatalErr = ErrTooManyStoreErrors
+			})
+		}
 		pr.peer.Recorder().Record(peer.Response, peer.Error)
 		errored = true
 	} else {
