@@ -25,7 +25,7 @@ func TestNewDefaultSearcher(t *testing.T) {
 }
 
 func TestSearcher_Search_ok(t *testing.T) {
-	n, nClosestResponses := 32, uint(8)
+	n, nClosestResponses := 32, uint(6)
 	rng := rand.New(rand.NewSource(int64(n)))
 	peers, peersMap, selfPeerIdxs, selfID := NewTestPeers(rng, n)
 
@@ -53,12 +53,13 @@ func TestSearcher_Search_ok(t *testing.T) {
 		assert.Nil(t, err)
 
 		if !search.FoundClosestPeers() {
-			// very occasionally, this test will fail b/c we get a new unqueried peer closer then
-			// the farthest queried peer after the searcher has already declared the search
-			// finished; this only very rarely happens in the wild, so just hack around it here
+			// very occasionally, this test will fail b/c we get one or more new unqueried peer(s)
+			// closer than the farthest queried peer after the searcher has already declared the
+			// search finished; this only very rarely happens in the wild, so just hack around it
+			// here
 			//
-			// after removing closest unqueried peer, everything should be back to normal/finished
-			search.Result.Unqueried.Pop()
+			// after removing closest peer, everything should be back to normal/finished
+			heap.Pop(search.Result.Unqueried)
 		}
 
 		// this is the "main" case we expect to get 97% of the time
