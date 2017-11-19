@@ -1,3 +1,6 @@
+// nolint
+// unconvert has problems with the gorocksdb export types, so just skip this file
+
 package db
 
 import (
