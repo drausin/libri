@@ -330,6 +330,14 @@ func safeCloseErrChan(ch chan error) {
 	}
 }
 
+func safeCloseVerifyChan(ch chan *verify.Verify) {
+	select {
+	case <-ch: // already closed
+	default:
+		close(ch)
+	}
+}
+
 func maybeSendErrChan(ch chan error, err error) {
 	select {
 	case <-ch: // already closed
@@ -343,13 +351,5 @@ func maybeSendVerifyChan(ch chan *verify.Verify, v *verify.Verify) {
 	case <-ch: // already closed
 	default:
 		ch <- v
-	}
-}
-
-func safeCloseVerifyChan(ch chan *verify.Verify) {
-	select {
-	case <-ch: // already closed
-	default:
-		close(ch)
 	}
 }

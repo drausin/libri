@@ -63,7 +63,7 @@ func TestLibrarianCluster(t *testing.T) {
 		nSeeds:         3,
 		nPeers:         32,
 		nAuthors:       3,
-		logLevel:       zapcore.InfoLevel,
+		logLevel:       zapcore.DebugLevel,
 		nIntroductions: 32,
 		nPuts:          128,
 		nUploads:       16,
@@ -81,22 +81,22 @@ func TestLibrarianCluster(t *testing.T) {
 	testPut(t, params, state)
 
 	// get that same data from random peers
-	testGet(t, params, state)
+	//testGet(t, params, state)
 
 	// upload a bunch of random documents
-	testUpload(t, params, state)
+	//testUpload(t, params, state)
 
 	// check that every peer received the publications of those documents
-	checkPublications(t, params, state)
+	//checkPublications(t, params, state)
 
 	// down the same ones
-	testDownload(t, params, state)
+	//testDownload(t, params, state)
 
 	// share the uploaded docs with other author and download
-	testShare(t, params, state)
+	//testShare(t, params, state)
 
 	// delete some peers and confirm that their docs get replicated
-	testReplicate(t, params, state)
+	//testReplicate(t, params, state)
 
 	tearDown(state)
 

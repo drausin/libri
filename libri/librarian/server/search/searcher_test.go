@@ -33,7 +33,7 @@ func TestSearcher_Search_ok(t *testing.T) {
 	key := id.NewPseudoRandom(rng)
 	searcher := NewTestSearcher(peersMap)
 
-	for concurrency := uint(1); concurrency <= 3; concurrency++ {
+	for concurrency := uint(3); concurrency <= 3; concurrency++ {
 		info := fmt.Sprintf("concurrency: %d", concurrency)
 		//log.Printf("running: %s", info)  // sometimes handy for debugging
 

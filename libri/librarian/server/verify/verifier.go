@@ -61,18 +61,18 @@ type peerResponse struct {
 }
 
 func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
-	toQuery := make(chan peer.Peer, verify.Params.Concurrency)
-	peerResponses := make(chan *peerResponse, verify.Params.Concurrency)
+	toQuery := make(chan peer.Peer, 1)
+	peerResponses := make(chan *peerResponse, 1)
 
 	// add seeds and queue some of them for querying
 	err := verify.Result.Unqueried.SafePushMany(seeds)
 	cerrors.MaybePanic(err)
-	for c := uint(0); c < verify.Params.Concurrency; c++ {
-		next := getNextToQuery(verify)
-		if next != nil {
-			toQuery <- next
-		}
+	//for c := uint(0); c < verify.Params.Concurrency; c++ {
+	next := getNextToQuery(verify)
+	if next != nil {
+		toQuery <- next
 	}
+	//}
 
 	// goroutine that processes responses and queues up next peer to query
 	var wg1 sync.WaitGroup
@@ -80,18 +80,13 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 	go func(wg2 *sync.WaitGroup) {
 		defer wg2.Done()
 		toQueryClosed := false
-		finished := false
 		for pr := range peerResponses {
-			if !finished {
-				// stop processing responses as soon as verify is finished (even though perhaps
-				// unprocessed responses may contain a closer unqueried peer that would put move
-				// search state from finished back to unfinished)
-				finished = processAnyReponse(pr, v.rp, verify)
-			}
-			if !finished && !toQueryClosed {
+			processAnyReponse(pr, v.rp, verify)
+			stopQuerying := verify.Finished() || verify.Exhausted()
+			if !stopQuerying && !toQueryClosed {
 				sendNextToQuery(toQuery, verify)
 			}
-			if finished && !toQueryClosed {
+			if stopQuerying && !toQueryClosed {
 				close(toQuery)
 				toQueryClosed = true
 			}
@@ -111,9 +106,9 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 					response: response,
 					err:      err,
 				}
-				if verify.Finished() {
-					break
-				}
+				//if verify.Finished() {
+				//	break
+				//}
 			}
 		}(&wg3)
 	}

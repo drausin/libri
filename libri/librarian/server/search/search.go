@@ -214,7 +214,7 @@ func (s *Search) Exhausted() bool {
 // closest peers or errored or exhausted the list of peers to query. This operation is concurrency
 // safe.
 func (s *Search) Finished() bool {
-	return s.FoundValue() || s.FoundClosestPeers() || s.Errored() || s.Exhausted()
+	return s.FoundValue() || s.FoundClosestPeers() || s.Errored()
 }
 
 func (s *Search) AddQueried(p peer.Peer) {

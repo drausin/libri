@@ -61,18 +61,18 @@ type peerResponse struct {
 }
 
 func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
-	toQuery := make(chan peer.Peer, search.Params.Concurrency)
-	peerResponses := make(chan *peerResponse, search.Params.Concurrency)
+	toQuery := make(chan peer.Peer, 1)
+	peerResponses := make(chan *peerResponse, 1)
 
 	// add seeds and queue some of them for querying
 	err := search.Result.Unqueried.SafePushMany(seeds)
 	cerrors.MaybePanic(err)
-	for c := uint(0); c < search.Params.Concurrency; c++ {
-		next := getNextToQuery(search)
-		if next != nil {
-			toQuery <- next
-		}
+	//for c := uint(0); c < search.Params.Concurrency; c++ {
+	next := getNextToQuery(search)
+	if next != nil {
+		toQuery <- next
 	}
+	//}
 
 	// goroutine that processes responses and queues up next peer to query
 	var wg1 sync.WaitGroup
@@ -80,18 +80,13 @@ func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
 	go func(wg2 *sync.WaitGroup) {
 		defer wg2.Done()
 		toQueryClosed := false
-		finished := false
 		for pr := range peerResponses {
-			if !finished {
-				// stop processing responses as soon as search is finished (even though perhaps
-				// unproessed responses may contain a closer unqueried peer that would put move
-				// search state from finished back to unfinished)
-				finished = processAnyReponse(pr, s.rp, search)
-			}
-			if !finished && !toQueryClosed {
+			processAnyReponse(pr, s.rp, search)
+			stopQuerying := search.Finished() || search.Exhausted()
+			if !stopQuerying && !toQueryClosed {
 				sendNextToQuery(toQuery, search)
 			}
-			if finished && !toQueryClosed {
+			if stopQuerying && !toQueryClosed {
 				close(toQuery)
 				toQueryClosed = true
 			}
@@ -112,9 +107,10 @@ func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
 					response: response,
 					err:      err,
 				}
-				if search.Finished() {
-					break
-				}
+				//if search.Finished() {
+				//	log.Println("breaking from worker loop")
+				//	break
+				//}
 			}
 		}(&wg3)
 	}
