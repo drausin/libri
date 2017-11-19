@@ -71,6 +71,8 @@ func (s *storer) Store(store *Store, seeds []peer.Peer) error {
 	}
 
 	if !store.Search.Finished() {
+		// sometimes the search has been pre-populated (e.g., by a verification) and is already
+		// finished, so only do search if that's not the case
 		if err := s.searcher.Search(store.Search, seeds); err != nil {
 			store.Result = NewFatalResult(err)
 			return err
@@ -91,14 +93,7 @@ func (s *storer) Store(store *Store, seeds []peer.Peer) error {
 	go func(wg2 *sync.WaitGroup) {
 		defer wg2.Done()
 		for peerResponse := range peerResponses {
-			errored, finished := processAnyReponse(peerResponse, store)
-			if errored && !finished {
-				// since we've already queue NReplicas into toQuery above, only queue more
-				// if we get an error
-				sendNextToQuery(toQuery, store)
-			} else if finished {
-				maybeClose(toQuery)
-			}
+			processAnyReponse(peerResponse, toQuery, store)
 		}
 	}(&wg1)
 
@@ -176,7 +171,7 @@ func sendNextToQuery(toQuery chan peer.Peer, store *Store) bool {
 	return store.Finished()
 }
 
-func processAnyReponse(pr *peerResponse, store *Store) (bool, bool) {
+func processAnyReponse(pr *peerResponse, toQuery chan peer.Peer, store *Store) {
 	errored := false
 	if pr.err != nil {
 		// if we had an issue querying, skip to next peer
@@ -196,5 +191,13 @@ func processAnyReponse(pr *peerResponse, store *Store) (bool, bool) {
 		})
 		pr.peer.Recorder().Record(peer.Response, peer.Success)
 	}
-	return errored, store.Finished()
+
+	finished := store.Finished()
+	if errored && !finished {
+		// since we've already queue NReplicas into toQuery above, only queue more
+		// if we get an error
+		sendNextToQuery(toQuery, store)
+	} else if finished {
+		maybeClose(toQuery)
+	}
 }
