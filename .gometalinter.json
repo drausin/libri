@@ -17,6 +17,9 @@
   "Concurrency": 4,
   "LineLength": 100,
   "Format": "({{.Linter}}): {{.Severity}}: {{.Path}}:{{.Line}}:{{if .Col}}{{.Col}}{{end}}: {{.Message}}",
+  "Exclude": [
+    ".+libri/common/db/kvdb.go.+"
+  ],
   "Linters": {
     "errcheck": "errcheck -abspath {path}:^(?P<path>.*?[^pb\\.]{3}\\.go):(?P<line>\\d+):(?P<col>\\d+):\\s*(?P<message>.*)$",
     "golint": "golint -min_confidence {min_confidence} {path}:^(?P<path>.*?[^pb\\.]{3}\\.go):(?P<line>\\d+):(?P<col>\\d+):\\s*(?P<message>.*)$",
