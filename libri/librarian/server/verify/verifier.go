@@ -103,9 +103,6 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 					response: response,
 					err:      err,
 				}
-				//if verify.Finished() {
-				//	break
-				//}
 			}
 		}(&wg3)
 	}
@@ -156,7 +153,11 @@ func getNextToQuery(verify *Verify) peer.Peer {
 }
 
 func maybeSendNextToQuery(toQuery chan peer.Peer, verify *Verify) bool {
-	if stopQuerying := verify.Finished() || verify.Exhausted(); stopQuerying {
+	var exhausted bool
+	verify.wrapLock(func() {
+		exhausted = verify.Exhausted()
+	})
+	if stopQuerying := verify.Finished() || exhausted; stopQuerying {
 		close(toQuery)
 		return true
 	}
@@ -167,7 +168,6 @@ func maybeSendNextToQuery(toQuery chan peer.Peer, verify *Verify) bool {
 }
 
 func processAnyReponse(pr *peerResponse, rp ResponseProcessor, verify *Verify) {
-
 	if pr.err != nil {
 		recordError(pr.peer, pr.err, verify)
 	} else if err := rp.Process(pr.response, pr.peer, verify.ExpectedMAC, verify); err != nil {
