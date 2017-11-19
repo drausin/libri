@@ -74,11 +74,6 @@ func NewDefaultParameters() *Parameters {
 	}
 }
 
-// NewVerifyDefaultParameters returns default verify parameters.
-func NewVerifyDefaultParameters() *verify.Parameters {
-	return verify.NewDefaultParameters()
-}
-
 // Replicator is a long-running routine that iterates through stored documents and verified that
 // they are fully replicated. When they are not, it issues Store requests to close peers to
 // bring their replication up to the desired level.

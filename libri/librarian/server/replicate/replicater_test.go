@@ -30,14 +30,6 @@ func TestNewDefaultParameters(t *testing.T) {
 	assert.NotZero(t, p.MaxErrRate)
 }
 
-func TestVerifyDefaultParameters(t *testing.T) {
-	p1 := verify.NewDefaultParameters()
-	p2 := NewVerifyDefaultParameters()
-	assert.True(t, p1.NReplicas == p2.NReplicas+1)
-	assert.True(t, p1.NClosestResponses == p2.NClosestResponses+1)
-	assert.True(t, p2.ExcludeSelf)
-}
-
 func TestReplicator_StartStop(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	kvdb, cleanup, err := db.NewTempDirRocksDB()

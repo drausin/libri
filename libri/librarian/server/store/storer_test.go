@@ -108,17 +108,17 @@ func TestStorer_Store_queryErr(t *testing.T) {
 }
 
 func TestStorer_Store_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(int64(0)))
 	s := &storer{
 		searcher: &errSearcher{},
 	}
 
 	// check that Store() surfaces searcher error
+	selfID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
 	store := &Store{
 		Result: &Result{},
 		Params: NewDefaultParameters(),
-		Search: &ssearch.Search{
-			Params: ssearch.NewDefaultParameters(),
-		},
+		Search: ssearch.NewSearch(selfID, key, ssearch.NewDefaultParameters()),
 	}
 	assert.NotNil(t, s.Store(store, []peer.Peer{}))
 }

@@ -70,10 +70,7 @@ func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
 
 	go func() {
 		for c := uint(0); c < search.Params.Concurrency; c++ {
-			next := getNextToQuery(search)
-			if next != nil {
-				toQuery <- next
-			}
+			sendNextToQuery(toQuery, search)
 		}
 	}()
 
@@ -85,11 +82,14 @@ func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
 		toQueryClosed := false
 		for pr := range peerResponses {
 			processAnyReponse(pr, s.rp, search)
-			stopQuerying := search.Finished() || search.Exhausted()
-			if !stopQuerying && !toQueryClosed {
-				sendNextToQuery(toQuery, search)
+			if toQueryClosed{
+				// don't queue any more peers to query since chan has already been closed
+				continue
 			}
-			if stopQuerying && !toQueryClosed {
+			stopQuerying := search.Finished() || search.Exhausted()
+			if !stopQuerying {
+				sendNextToQuery(toQuery, search)
+			} else {
 				close(toQuery)
 				toQueryClosed = true
 			}
