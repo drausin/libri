@@ -79,11 +79,21 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 	wg1.Add(1)
 	go func(wg2 *sync.WaitGroup) {
 		defer wg2.Done()
-		for peerResponse := range peerResponses {
-			if finished := processAnyReponse(peerResponse, v.rp, verify); !finished {
+		toQueryClosed := false
+		finished := false
+		for pr := range peerResponses {
+			if !finished {
+				// stop processing responses as soon as verify is finished (even though perhaps
+				// unprocessed responses may contain a closer unqueried peer that would put move
+				// search state from finished back to unfinished)
+				finished = processAnyReponse(pr, v.rp, verify)
+			}
+			if !finished && !toQueryClosed {
 				sendNextToQuery(toQuery, verify)
-			} else {
-				maybeClose(toQuery)
+			}
+			if finished && !toQueryClosed {
+				close(toQuery)
+				toQueryClosed = true
 			}
 		}
 	}(&wg1)
@@ -94,15 +104,15 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 		go func(wg4 *sync.WaitGroup) {
 			defer wg4.Done()
 			for next := range toQuery {
-				if verify.Finished() {
-					break
-				}
 				verify.AddQueried(next)
 				response, err := v.query(next.Connector(), verify)
 				peerResponses <- &peerResponse{
 					peer:     next,
 					response: response,
 					err:      err,
+				}
+				if verify.Finished() {
+					break
 				}
 			}
 		}(&wg3)
@@ -112,14 +122,6 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 
 	wg1.Wait()
 	return verify.Result.FatalErr
-}
-
-func maybeClose(toQuery chan peer.Peer) {
-	select {
-	case <-toQuery:
-	default:
-		close(toQuery)
-	}
 }
 
 func (v *verifier) query(pConn peer.Connector, verify *Verify) (*api.VerifyResponse, error) {
@@ -162,8 +164,7 @@ func getNextToQuery(verify *Verify) peer.Peer {
 }
 
 func sendNextToQuery(toQuery chan peer.Peer, verify *Verify) bool {
-	next := getNextToQuery(verify)
-	if next != nil {
+	if next := getNextToQuery(verify); next != nil {
 		verify.wrapLock(func() {
 			select {
 			case <-toQuery: // already closed

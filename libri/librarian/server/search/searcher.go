@@ -80,11 +80,19 @@ func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
 	go func(wg2 *sync.WaitGroup) {
 		defer wg2.Done()
 		toQueryClosed := false
+		finished := false
 		for pr := range peerResponses {
-			if finished := processAnyReponse(pr, s.rp, search); !finished && !toQueryClosed {
+			if !finished {
+				// stop processing responses as soon as search is finished (even though perhaps
+				// unproessed responses may contain a closer unqueried peer that would put move
+				// search state from finished back to unfinished)
+				finished = processAnyReponse(pr, s.rp, search)
+			}
+			if !finished && !toQueryClosed {
 				sendNextToQuery(toQuery, search)
-			} else {
-				maybeClose(toQuery)
+			}
+			if finished && !toQueryClosed {
+				close(toQuery)
 				toQueryClosed = true
 			}
 		}
@@ -140,39 +148,25 @@ func (s *searcher) query(pConn peer.Connector, search *Search) (*api.FindRespons
 	return rp, nil
 }
 
-func maybeClose(toQuery chan peer.Peer) {
-	select {
-	case <-toQuery:
-	default:
-		close(toQuery)
-	}
-}
-
 func getNextToQuery(search *Search) peer.Peer {
 	if search.Finished() {
 		return nil
 	}
-	var next peer.Peer
-	var alreadyQueried bool
-	search.wrapLock(func() {
-		next = heap.Pop(search.Result.Unqueried).(peer.Peer)
-		_, alreadyQueried = search.Result.Queried[next.ID().String()]
-	})
-	if alreadyQueried {
+	search.mu.Lock()
+	defer search.mu.Unlock()
+	if search.Result.Unqueried.Len() == 0 {
+		return nil
+	}
+	next := heap.Pop(search.Result.Unqueried).(peer.Peer)
+	if _, alreadyQueried := search.Result.Queried[next.ID().String()]; alreadyQueried {
 		return nil
 	}
 	return next
 }
 
 func sendNextToQuery(toQuery chan peer.Peer, search *Search) bool {
-	next := getNextToQuery(search)
-	if next != nil {
-		search.wrapLock(func() {
-			select {
-			case <-toQuery: // already closed
-			case toQuery <- next:
-			}
-		})
+	if next := getNextToQuery(search); next != nil {
+		toQuery <- next
 	}
 	return search.Finished()
 }
@@ -191,10 +185,12 @@ func processAnyReponse(pr *peerResponse, rp ResponseProcessor, search *Search) b
 func recordError(p peer.Peer, err error, s *Search) {
 	s.wrapLock(func() {
 		s.Result.Errored[p.ID().String()] = err
-		if s.Errored() {
-			s.Result.FatalErr = ErrTooManyFindErrors
-		}
 	})
+	if s.Errored() {
+		s.wrapLock(func() {
+			s.Result.FatalErr = ErrTooManyFindErrors
+		})
+	}
 	p.Recorder().Record(peer.Response, peer.Error)
 }
 

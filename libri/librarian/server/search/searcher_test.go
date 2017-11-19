@@ -34,6 +34,8 @@ func TestSearcher_Search_ok(t *testing.T) {
 	searcher := NewTestSearcher(peersMap)
 
 	for concurrency := uint(1); concurrency <= 3; concurrency++ {
+		info := fmt.Sprintf("concurrency: %d", concurrency)
+		//log.Printf("running: %s", info)  // sometimes handy for debugging
 
 		search := NewSearch(selfID, key, &Parameters{
 			NClosestResponses: nClosestResponses,
@@ -49,13 +51,13 @@ func TestSearcher_Search_ok(t *testing.T) {
 
 		// checks
 		assert.Nil(t, err)
-		assert.True(t, search.Finished())
-		assert.True(t, search.FoundClosestPeers())
-		assert.False(t, search.Errored())
-		assert.False(t, search.Exhausted())
-		assert.Equal(t, 0, len(search.Result.Errored))
-		assert.Equal(t, int(nClosestResponses), search.Result.Closest.Len())
-		assert.True(t, search.Result.Closest.Len() <= len(search.Result.Responded))
+		assert.True(t, search.Finished(), info)
+		assert.True(t, search.FoundClosestPeers(), info)
+		assert.False(t, search.Errored(), info)
+		assert.False(t, search.Exhausted(), info)
+		assert.Equal(t, 0, len(search.Result.Errored), info)
+		assert.Equal(t, int(nClosestResponses), search.Result.Closest.Len(), info)
+		assert.True(t, search.Result.Closest.Len() <= len(search.Result.Responded), info)
 
 		// build set of closest peers by iteratively looking at all of them
 		expectedClosestsPeers := make(map[string]struct{})
@@ -72,7 +74,7 @@ func TestSearcher_Search_ok(t *testing.T) {
 		for search.Result.Closest.Len() > 0 {
 			p := heap.Pop(search.Result.Closest).(peer.Peer)
 			_, in := expectedClosestsPeers[p.ID().String()]
-			assert.True(t, in)
+			assert.True(t, in, info)
 		}
 	}
 }

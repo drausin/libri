@@ -209,17 +209,15 @@ func (v *Verify) UnderReplicated() bool {
 	}
 
 	nResponses := uint(len(v.Result.Replicas) + v.Result.Closest.Len())
+	if nResponses < v.Params.NClosestResponses {
+		return false
+	}
 	if v.Result.Unqueried.Len() == 0 {
-		// if we have no unqueried peers, just make sure replicas + closest peers should be
-		// greater or equal to desired number of closest responses
-		return nResponses >= v.Params.NClosestResponses
+		return true
 	}
 
-	// number of replicas + closest peers should be greater or equal to desired number of closest
-	// responses, and the max closest peers distance should be smaller than the min unqueried peers
-	// distance
-	return nResponses >= v.Params.NClosestResponses &&
-		v.Result.Closest.PeakDistance().Cmp(v.Result.Unqueried.PeakDistance()) <= 0
+	// max closest peers distance should be smaller than the min unqueried peers distance
+	return v.Result.Closest.PeakDistance().Cmp(v.Result.Unqueried.PeakDistance()) <= 0
 }
 
 // Errored returns whether the verify has encountered too many errors when querying the peers.
@@ -238,7 +236,7 @@ func (v *Verify) Exhausted() bool {
 func (v *Verify) Finished() bool {
 	v.mu.Lock()
 	defer v.mu.Unlock()
-	return v.FullyReplicated() || v.UnderReplicated() || v.Errored() || v.Exhausted()
+	return v.FullyReplicated() || v.UnderReplicated() || v.Errored()
 }
 
 func (v *Verify) AddQueried(p peer.Peer) {

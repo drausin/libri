@@ -159,14 +159,16 @@ func getNextToQuery(store *Store) peer.Peer {
 	}
 	store.mu.Lock()
 	defer store.mu.Unlock()
+	if len(store.Result.Unqueried) == 0 {
+		return nil
+	}
 	next := store.Result.Unqueried[0]
 	store.Result.Unqueried = store.Result.Unqueried[1:]
 	return next
 }
 
 func sendNextToQuery(toQuery chan peer.Peer, store *Store) bool {
-	next := getNextToQuery(store)
-	if next != nil {
+	if next := getNextToQuery(store); next != nil {
 		toQuery <- next
 	}
 	return store.Finished()
