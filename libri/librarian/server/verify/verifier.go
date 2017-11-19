@@ -70,7 +70,9 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 
 	go func() {
 		for c := uint(0); c < verify.Params.Concurrency; c++ {
-			maybeSendNextToQuery(toQuery, verify)
+			if next := getNextToQuery(verify); next != nil {
+				toQuery <- next
+			}
 		}
 	}()
 
@@ -82,11 +84,9 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 		toQueryClosed := false
 		for pr := range peerResponses {
 			processAnyReponse(pr, v.rp, verify)
-			if toQueryClosed {
-				// don't queue any more peers to query since chan has already been closed
-				continue
+			if !toQueryClosed {
+				toQueryClosed = maybeSendNextToQuery(toQuery, verify)
 			}
-			toQueryClosed = maybeSendNextToQuery(toQuery, verify)
 		}
 	}(&wg1)
 
