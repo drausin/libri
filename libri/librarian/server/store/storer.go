@@ -70,9 +70,11 @@ func (s *storer) Store(store *Store, seeds []peer.Peer) error {
 		store.Search.Params.Concurrency = 1
 	}
 
-	if err := s.searcher.Search(store.Search, seeds); err != nil {
-		store.Result = NewFatalResult(err)
-		return err
+	if !store.Search.Finished() {
+		if err := s.searcher.Search(store.Search, seeds); err != nil {
+			store.Result = NewFatalResult(err)
+			return err
+		}
 	}
 	store.Result = NewInitialResult(store.Search.Result)
 

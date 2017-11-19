@@ -67,12 +67,15 @@ func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
 	// add seeds and queue some of them for querying
 	err := search.Result.Unqueried.SafePushMany(seeds)
 	cerrors.MaybePanic(err)
-	//for c := uint(0); c < search.Params.Concurrency; c++ {
-	next := getNextToQuery(search)
-	if next != nil {
-		toQuery <- next
-	}
-	//}
+
+	go func() {
+		for c := uint(0); c < search.Params.Concurrency; c++ {
+			next := getNextToQuery(search)
+			if next != nil {
+				toQuery <- next
+			}
+		}
+	}()
 
 	// goroutine that processes responses and queues up next peer to query
 	var wg1 sync.WaitGroup
@@ -107,10 +110,6 @@ func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
 					response: response,
 					err:      err,
 				}
-				//if search.Finished() {
-				//	log.Println("breaking from worker loop")
-				//	break
-				//}
 			}
 		}(&wg3)
 	}
@@ -160,14 +159,13 @@ func getNextToQuery(search *Search) peer.Peer {
 	return next
 }
 
-func sendNextToQuery(toQuery chan peer.Peer, search *Search) bool {
+func sendNextToQuery(toQuery chan peer.Peer, search *Search) {
 	if next := getNextToQuery(search); next != nil {
 		toQuery <- next
 	}
-	return search.Finished()
 }
 
-func processAnyReponse(pr *peerResponse, rp ResponseProcessor, search *Search) bool {
+func processAnyReponse(pr *peerResponse, rp ResponseProcessor, search *Search) {
 	if pr.err != nil {
 		recordError(pr.peer, pr.err, search)
 	} else if err := rp.Process(pr.response, search); err != nil {
@@ -175,7 +173,6 @@ func processAnyReponse(pr *peerResponse, rp ResponseProcessor, search *Search) b
 	} else {
 		recordSuccess(pr.peer, search)
 	}
-	return search.Finished()
 }
 
 func recordError(p peer.Peer, err error, s *Search) {

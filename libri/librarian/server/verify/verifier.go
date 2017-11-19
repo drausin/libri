@@ -67,12 +67,15 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 	// add seeds and queue some of them for querying
 	err := verify.Result.Unqueried.SafePushMany(seeds)
 	cerrors.MaybePanic(err)
-	//for c := uint(0); c < verify.Params.Concurrency; c++ {
-	next := getNextToQuery(verify)
-	if next != nil {
-		toQuery <- next
-	}
-	//}
+
+	go func() {
+		for c := uint(0); c < verify.Params.Concurrency; c++ {
+			next := getNextToQuery(verify)
+			if next != nil {
+				toQuery <- next
+			}
+		}
+	}()
 
 	// goroutine that processes responses and queues up next peer to query
 	var wg1 sync.WaitGroup
