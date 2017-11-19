@@ -58,8 +58,13 @@ func TestSearcher_Search_ok(t *testing.T) {
 			// search finished; this only very rarely happens in the wild, so just hack around it
 			// here
 			//
-			// after removing closest peer, everything should be back to normal/finished
-			heap.Pop(search.Result.Unqueried)
+			// after removing closest concurrency-1 peers, everything should be back to
+			// normal/finished
+			for d := uint(0); d < concurrency-1; d++ {
+				if search.Result.Unqueried.Len() > 0 {
+					heap.Pop(search.Result.Unqueried)
+				}
+			}
 		}
 
 		// this is the "main" case we expect to get 97% of the time
