@@ -18,7 +18,8 @@
   "LineLength": 100,
   "Format": "({{.Linter}}): {{.Severity}}: {{.Path}}:{{.Line}}:{{if .Col}}{{.Col}}{{end}}: {{.Message}}",
   "Exclude": [
-    ".+libri/common/db/kvdb.go.+"
+    ".+libri/common/db/kvdb.go.+",
+    ".+vendor/.+"
   ],
   "Linters": {
     "errcheck": "errcheck -abspath {path}:^(?P<path>.*?[^pb\\.]{3}\\.go):(?P<line>\\d+):(?P<col>\\d+):\\s*(?P<message>.*)$",
