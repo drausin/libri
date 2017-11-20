@@ -212,18 +212,26 @@ func NewResponseProcessor(f peer.Fromer) ResponseProcessor {
 }
 
 // Process processes an api.FindResponse, updating the result with the newly found peers.
-func (frp *responseProcessor) Process(rp *api.FindResponse, search *Search) error {
+func (frp *responseProcessor) Process(rp *api.FindResponse, s *Search) error {
 	if rp.Value != nil {
 		// response has value we're searching for
-		search.Result.Value = rp.Value
+		s.Result.Value = rp.Value
 		return nil
 	}
 
 	if rp.Peers != nil {
-		// response has peer addresses close to key
-		search.wrapLock(func() {
-			AddPeers(search.Result.Queried, search.Result.Unqueried, rp.Peers, frp.fromer)
-		})
+		// response has peer addresses close to keys
+		if !s.Finished() {
+			// don't add peers to unqueried if the search is already finished and we're not going
+			// to query those peers; there's a small chance that one of the peer that would be added
+			// to unqueried would be closer than farthest closest peer, which would be then move the
+			// search state back from finished -> not finished, a potentially confusing change
+			// that we choose to avoid altogether at the expense of (very) occasionally missing a
+			// closer peer
+			s.wrapLock(func() {
+				AddPeers(s.Result.Queried, s.Result.Unqueried, rp.Peers, frp.fromer)
+			})
+		}
 		return nil
 	}
 

@@ -51,26 +51,8 @@ func TestSearcher_Search_ok(t *testing.T) {
 
 		// checks
 		assert.Nil(t, err)
-
-		if !search.FoundClosestPeers() {
-			// very occasionally, this test will fail b/c we get one or more new unqueried peer(s)
-			// closer than the farthest queried peer after the searcher has already declared the
-			// search finished; this only very rarely happens in the wild, so just hack around it
-			// here
-			//
-			// after removing closest concurrency-1 peers, everything should be back to
-			// normal/finished
-			for d := uint(0); d < concurrency-1; d++ {
-				if search.Result.Unqueried.Len() > 0 {
-					heap.Pop(search.Result.Unqueried)
-				}
-			}
-		}
-
-		// this is the "main" case we expect to get 97% of the time
 		assert.True(t, search.Finished(), info)
 		assert.True(t, search.FoundClosestPeers(), info)
-
 		assert.False(t, search.Errored(), info)
 		assert.False(t, search.Exhausted(), info)
 		assert.Equal(t, 0, len(search.Result.Errored), info)
@@ -262,11 +244,9 @@ func TestResponseProcessor_Process_Addresses(t *testing.T) {
 	nAddresses := 6
 	peerAddresses := newPeerAddresses(rng, nAddresses)
 
-	key := id.NewPseudoRandom(rng)
+	selfID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
 	rp := NewResponseProcessor(peer.NewFromer())
-	s := &Search{
-		Result: NewInitialResult(key, NewDefaultParameters()),
-	}
+	s := NewSearch(selfID, key, NewDefaultParameters())
 
 	// create response or nAddresses and process it
 	response := &api.FindResponse{

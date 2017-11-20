@@ -55,22 +55,6 @@ func TestVerifier_Verify_ok(t *testing.T) {
 
 		// checks
 		assert.Nil(t, err)
-
-		if !v.UnderReplicated() {
-			// very occasionally, this test will fail b/c we get one or more new unqueried peer(s)
-			// closer than the farthest queried peer after the searcher has already declared the
-			// search finished; this only very rarely happens in the wild, so just hack around it
-			// here
-			//
-			// after removing closest concurrency-1 peers, everything should be back to
-			// normal/finished
-			for d := uint(0); d < concurrency-1; d++ {
-				if v.Result.Unqueried.Len() > 0 {
-					heap.Pop(v.Result.Unqueried)
-				}
-			}
-		}
-
 		assert.True(t, v.Finished(), info)
 		assert.True(t, v.UnderReplicated(), info)
 		assert.False(t, v.Errored(), info)
