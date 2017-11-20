@@ -229,13 +229,11 @@ func TestResponseProcessor_Process_MAC(t *testing.T) {
 func TestResponseProcessor_Process_Addresses(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	nAddresses := 6
-	key := id.NewPseudoRandom(rng)
+	selfID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
 	rp := NewResponseProcessor(peer.NewFromer())
 	params := NewDefaultParameters()
-	v := &Verify{
-		Result: NewInitialResult(key, params),
-	}
-	expectedMAC := api.RandBytes(rng, 32)
+	value, expectedMAC := api.RandBytes(rng, 128), api.RandBytes(rng, 32) // arbitrary
+	v := NewVerify(selfID, key, value, expectedMAC, params)
 	from := peer.NewTestPeer(rng, 0)
 	peerAddresses := newPeerAddresses(rng, nAddresses)
 
