@@ -92,12 +92,12 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "histogram_quantile(0.99, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"[[ $endpoint ]]\"}[5m])) by (pod_name, le)) * 1000",
+              "expr": "histogram_quantile(0.95, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"[[ $endpoint ]]\"}[5m])) by (pod_name, le)) * 1000",
               "format": "time_series",
               "interval": "10s",
               "intervalFactor": 2,
               "legendFormat": "{{ pod_name }}",
-              "metric": "[[ $endpoint ]]_latency_p99",
+              "metric": "[[ $endpoint ]]_latency_p95",
               "refId": "C",
               "step": 20
             }
@@ -105,7 +105,7 @@
           "thresholds": [],
           "timeFrom": null,
           "timeShift": null,
-          "title": "[[ $endpoint ]] p99 Latency",
+          "title": "[[ $endpoint ]] p95 Latency",
           "tooltip": {
             "msResolution": true,
             "shared": true,

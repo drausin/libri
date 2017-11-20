@@ -91,12 +91,12 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "histogram_quantile(0.99, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"Get\"}[5m])) by (pod_name, le)) * 1000",
+              "expr": "histogram_quantile(0.95, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"Get\"}[5m])) by (pod_name, le)) * 1000",
               "format": "time_series",
               "interval": "10s",
               "intervalFactor": 2,
               "legendFormat": "{{ pod_name }}",
-              "metric": "Get_latency_p99",
+              "metric": "Get_latency_p95",
               "refId": "C",
               "step": 20
             }
@@ -104,7 +104,7 @@
           "thresholds": [],
           "timeFrom": null,
           "timeShift": null,
-          "title": "Get p99 Latency",
+          "title": "Get p95 Latency",
           "tooltip": {
             "msResolution": true,
             "shared": true,
@@ -450,12 +450,12 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "histogram_quantile(0.99, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"Put\"}[5m])) by (pod_name, le)) * 1000",
+              "expr": "histogram_quantile(0.95, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"Put\"}[5m])) by (pod_name, le)) * 1000",
               "format": "time_series",
               "interval": "10s",
               "intervalFactor": 2,
               "legendFormat": "{{ pod_name }}",
-              "metric": "Put_latency_p99",
+              "metric": "Put_latency_p95",
               "refId": "C",
               "step": 20
             }
@@ -463,7 +463,7 @@
           "thresholds": [],
           "timeFrom": null,
           "timeShift": null,
-          "title": "Put p99 Latency",
+          "title": "Put p95 Latency",
           "tooltip": {
             "msResolution": true,
             "shared": true,
@@ -809,12 +809,12 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "histogram_quantile(0.99, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"Find\"}[5m])) by (pod_name, le)) * 1000",
+              "expr": "histogram_quantile(0.95, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"Find\"}[5m])) by (pod_name, le)) * 1000",
               "format": "time_series",
               "interval": "10s",
               "intervalFactor": 2,
               "legendFormat": "{{ pod_name }}",
-              "metric": "Find_latency_p99",
+              "metric": "Find_latency_p95",
               "refId": "C",
               "step": 20
             }
@@ -822,7 +822,7 @@
           "thresholds": [],
           "timeFrom": null,
           "timeShift": null,
-          "title": "Find p99 Latency",
+          "title": "Find p95 Latency",
           "tooltip": {
             "msResolution": true,
             "shared": true,
@@ -1168,12 +1168,12 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "histogram_quantile(0.99, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"Store\"}[5m])) by (pod_name, le)) * 1000",
+              "expr": "histogram_quantile(0.95, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"Store\"}[5m])) by (pod_name, le)) * 1000",
               "format": "time_series",
               "interval": "10s",
               "intervalFactor": 2,
               "legendFormat": "{{ pod_name }}",
-              "metric": "Store_latency_p99",
+              "metric": "Store_latency_p95",
               "refId": "C",
               "step": 20
             }
@@ -1181,7 +1181,7 @@
           "thresholds": [],
           "timeFrom": null,
           "timeShift": null,
-          "title": "Store p99 Latency",
+          "title": "Store p95 Latency",
           "tooltip": {
             "msResolution": true,
             "shared": true,
@@ -1527,12 +1527,12 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "histogram_quantile(0.99, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"Verify\"}[5m])) by (pod_name, le)) * 1000",
+              "expr": "histogram_quantile(0.95, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"Verify\"}[5m])) by (pod_name, le)) * 1000",
               "format": "time_series",
               "interval": "10s",
               "intervalFactor": 2,
               "legendFormat": "{{ pod_name }}",
-              "metric": "Verify_latency_p99",
+              "metric": "Verify_latency_p95",
               "refId": "C",
               "step": 20
             }
@@ -1540,7 +1540,7 @@
           "thresholds": [],
           "timeFrom": null,
           "timeShift": null,
-          "title": "Verify p99 Latency",
+          "title": "Verify p95 Latency",
           "tooltip": {
             "msResolution": true,
             "shared": true,
