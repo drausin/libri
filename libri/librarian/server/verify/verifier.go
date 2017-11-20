@@ -212,13 +212,13 @@ func NewResponseProcessor(fromer peer.Fromer) ResponseProcessor {
 }
 
 func (vrp *responseProcessor) Process(
-	rp *api.VerifyResponse, from peer.Peer, expectedMAC []byte, verify *Verify,
+	rp *api.VerifyResponse, from peer.Peer, expectedMAC []byte, v *Verify,
 ) error {
 	if rp.Mac != nil {
 		// peer claims to have the value
 		if bytes.Equal(expectedMAC, rp.Mac) {
 			// they do!
-			verify.Result.Replicas[from.ID().String()] = from
+			v.Result.Replicas[from.ID().String()] = from
 			return nil
 		}
 		// they don't
@@ -227,11 +227,21 @@ func (vrp *responseProcessor) Process(
 
 	if rp.Peers != nil {
 		// response has peer addresses close to key
-		verify.wrapLock(func() {
-			search.AddPeers(verify.Result.Queried, verify.Result.Unqueried, rp.Peers, vrp.fromer)
-			err := verify.Result.Closest.SafePush(from)
+		v.wrapLock(func() {
+			err := v.Result.Closest.SafePush(from)
 			cerrors.MaybePanic(err) // should never happen
 		})
+		if !v.Finished() {
+			// don't add peers to unqueried if the verify is already finished and we're not going
+			// to query those peers; there's a small chance that one of the peer that would be added
+			// to unqueried would be closer than farthest closest peer, which would be then move the
+			// verify state back from finished -> not finished, a potentially confusing change
+			// that we choose to avoid altogether at the expense of (very) occasionally missing a
+			// closer peer
+			v.wrapLock(func() {
+				search.AddPeers(v.Result.Queried, v.Result.Unqueried, rp.Peers, vrp.fromer)
+			})
+		}
 		return nil
 	}
 
