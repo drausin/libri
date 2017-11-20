@@ -25,7 +25,7 @@ const (
 	DefaultConcurrency = uint(1)
 
 	// DefaultQueryTimeout is the timeout for each query to a peer.
-	DefaultQueryTimeout = 5 * time.Second
+	DefaultQueryTimeout = 3 * time.Second
 
 	// logging keys
 	logKey               = "key"
@@ -176,29 +176,37 @@ func (s *Search) MarshalLogObject(oe zapcore.ObjectEncoder) error {
 // occurs when it has received responses from the required number of peers, and the max distance of
 // those peers to the target is less than the min distance of the peers we haven't queried yet.
 func (s *Search) FoundClosestPeers() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if uint(s.Result.Closest.Len()) < s.Params.NClosestResponses {
+		return false
+	}
 	if s.Result.Unqueried.Len() == 0 {
-		// if we have no unqueried peers, just make sure closest peers heap is full
-		return uint(s.Result.Closest.Len()) >= s.Params.NClosestResponses
+		return true
 	}
 
-	// closest peers heap should be full and have a max distance less than the min unqueried
-	// distance
-	return uint(s.Result.Closest.Len()) >= s.Params.NClosestResponses &&
-		s.Result.Closest.PeakDistance().Cmp(s.Result.Unqueried.PeakDistance()) <= 0
+	// closest peers heap should have a max distance less than the min unqueried distance
+	return s.Result.Closest.PeakDistance().Cmp(s.Result.Unqueried.PeakDistance()) <= 0
 }
 
 // FoundValue returns whether the search has found the target value.
 func (s *Search) FoundValue() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return s.Result.Value != nil
 }
 
 // Errored returns whether the search has encountered too many errors when querying the peers.
 func (s *Search) Errored() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return uint(len(s.Result.Errored)) > s.Params.NMaxErrors || s.Result.FatalErr != nil
 }
 
 // Exhausted returns whether the search has exhausted all unqueried peers close to the target.
 func (s *Search) Exhausted() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return s.Result.Unqueried.Len() == 0
 }
 
@@ -206,9 +214,7 @@ func (s *Search) Exhausted() bool {
 // closest peers or errored or exhausted the list of peers to query. This operation is concurrency
 // safe.
 func (s *Search) Finished() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.FoundValue() || s.FoundClosestPeers() || s.Errored() || s.Exhausted()
+	return s.FoundValue() || s.FoundClosestPeers() || s.Errored()
 }
 
 func (s *Search) AddQueried(p peer.Peer) {

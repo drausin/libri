@@ -74,16 +74,6 @@ func NewDefaultParameters() *Parameters {
 	}
 }
 
-// NewVerifyDefaultParameters returns default verify parameters that exclude the replica stored by
-// the replicator.
-func NewVerifyDefaultParameters() *verify.Parameters {
-	p := verify.NewDefaultParameters()
-	p.NReplicas--
-	p.NClosestResponses--
-	p.ExcludeSelf = true
-	return p
-}
-
 // Replicator is a long-running routine that iterates through stored documents and verified that
 // they are fully replicated. When they are not, it issues Store requests to close peers to
 // bring their replication up to the desired level.
@@ -233,12 +223,12 @@ func (r *replicator) verifyValue(key id.ID, value []byte) {
 	err = backoff.Retry(operation, client.NewExpBackoff(r.replicatorParams.VerifyTimeout))
 
 	if err != nil { // implies v.Errored()
-		r.logger.Debug("document verification errored", zap.Object(logVerify, v))
+		r.logger.Error("document verification errored", zap.Object(logVerify, v))
 		r.wrapLock(func() { maybeSendErrChan(r.errs, err) })
 		return
 	}
 	if v.Exhausted() {
-		r.logger.Debug("verify exhausted peers", zap.Object(logVerify, v))
+		r.logger.Error("verify exhausted peers", zap.Object(logVerify, v))
 		r.wrapLock(func() { maybeSendErrChan(r.errs, errVerifyExhausted) })
 		return
 	}
@@ -270,11 +260,14 @@ func (r *replicator) replicate(wg *sync.WaitGroup) {
 		// empty seeds b/c verification has already, in effect, replaced the search component of
 		// the store operation
 		if err := r.storer.Store(s, []peer.Peer{}); err != nil {
+			r.logger.Error("replication store failed", zap.Object(logStore, s))
 			maybeSendErrChan(r.errs, err)
 			continue
 		}
 		if s.Stored() {
-			r.logger.Info("stored additional document replicas", zap.Object(logStore, s))
+			r.logger.Info("stored additional replicas", zap.Object(logStore, s))
+		} else {
+			r.logger.Error("failed to store additional replicas", zap.Object(logStore, s))
 		}
 		// for all other non-Stored outcomes for the store, we basically give up and hope to
 		// replicate on next pass
@@ -330,9 +323,21 @@ func safeCloseErrChan(ch chan error) {
 	}
 }
 
-func maybeSendErrChan(ch chan error, err error) {
+func safeCloseVerifyChan(ch chan *verify.Verify) {
 	select {
 	case <-ch: // already closed
+	default:
+		close(ch)
+	}
+}
+
+func maybeSendErrChan(ch chan error, err error) {
+	select {
+	case prev, open := <-ch:
+		if open {
+			ch <- prev
+			ch <- err
+		}
 	default:
 		ch <- err
 	}
@@ -340,16 +345,12 @@ func maybeSendErrChan(ch chan error, err error) {
 
 func maybeSendVerifyChan(ch chan *verify.Verify, v *verify.Verify) {
 	select {
-	case <-ch: // already closed
+	case prev, open := <-ch:
+		if open {
+			ch <- prev
+			ch <- v
+		}
 	default:
 		ch <- v
-	}
-}
-
-func safeCloseVerifyChan(ch chan *verify.Verify) {
-	select {
-	case <-ch: // already closed
-	default:
-		close(ch)
 	}
 }

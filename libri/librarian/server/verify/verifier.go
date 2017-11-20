@@ -61,43 +61,41 @@ type peerResponse struct {
 }
 
 func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
-	toQuery := make(chan peer.Peer, verify.Params.Concurrency)
-	peerResponses := make(chan *peerResponse, verify.Params.Concurrency)
-	var wg1 sync.WaitGroup
+	toQuery := make(chan peer.Peer, 1)
+	peerResponses := make(chan *peerResponse, 1)
 
 	// add seeds and queue some of them for querying
 	err := verify.Result.Unqueried.SafePushMany(seeds)
 	cerrors.MaybePanic(err)
-	for c := uint(0); c < verify.Params.Concurrency; c++ {
-		next := getNextToQuery(verify)
-		if next != nil {
-			toQuery <- next
+
+	go func() {
+		for c := uint(0); c < verify.Params.Concurrency; c++ {
+			if next := getNextToQuery(verify); next != nil {
+				toQuery <- next
+			}
 		}
-	}
+	}()
 
 	// goroutine that processes responses and queues up next peer to query
+	var wg1 sync.WaitGroup
+	wg1.Add(1)
 	go func(wg2 *sync.WaitGroup) {
-		wg2.Add(1)
 		defer wg2.Done()
-		for peerResponse := range peerResponses {
-			if finished := processAnyReponse(peerResponse, v.rp, verify); finished {
-				break
-			}
-			if finished := sendNextToQuery(toQuery, verify); finished {
-				break
+		toQueryClosed := false
+		for pr := range peerResponses {
+			processAnyReponse(pr, v.rp, verify)
+			if !toQueryClosed {
+				toQueryClosed = maybeSendNextToQuery(toQuery, verify)
 			}
 		}
-		verify.wrapLock(func() { maybeClose(toQuery) })
 	}(&wg1)
 
+	var wg3 sync.WaitGroup
 	for c := uint(0); c < verify.Params.Concurrency; c++ {
-		wg1.Add(1)
-		go func(wg2 *sync.WaitGroup) {
-			defer wg2.Done()
+		wg3.Add(1)
+		go func(wg4 *sync.WaitGroup) {
+			defer wg4.Done()
 			for next := range toQuery {
-				if verify.Finished() {
-					break
-				}
 				verify.AddQueried(next)
 				response, err := v.query(next.Connector(), verify)
 				peerResponses <- &peerResponse{
@@ -106,9 +104,10 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 					err:      err,
 				}
 			}
-			verify.wrapLock(func() { maybeClose(toQuery) })
-		}(&wg1)
+		}(&wg3)
 	}
+	wg3.Wait()
+	close(peerResponses)
 
 	wg1.Wait()
 	return verify.Result.FatalErr
@@ -137,14 +136,6 @@ func (v *verifier) query(pConn peer.Connector, verify *Verify) (*api.VerifyRespo
 	return rp, nil
 }
 
-func maybeClose(toQuery chan peer.Peer) {
-	select {
-	case <-toQuery:
-	default:
-		close(toQuery)
-	}
-}
-
 func getNextToQuery(verify *Verify) peer.Peer {
 	if verify.Finished() {
 		return nil
@@ -161,21 +152,22 @@ func getNextToQuery(verify *Verify) peer.Peer {
 	return next
 }
 
-func sendNextToQuery(toQuery chan peer.Peer, verify *Verify) bool {
-	next := getNextToQuery(verify)
-	if next != nil {
-		verify.wrapLock(func() {
-			select {
-			case <-toQuery: // already closed
-			case toQuery <- next:
-			}
-		})
+func maybeSendNextToQuery(toQuery chan peer.Peer, verify *Verify) bool {
+	var exhausted bool
+	verify.wrapLock(func() {
+		exhausted = verify.Exhausted()
+	})
+	if stopQuerying := verify.Finished() || exhausted; stopQuerying {
+		close(toQuery)
+		return true
 	}
-	return verify.Finished()
+	if next := getNextToQuery(verify); next != nil {
+		toQuery <- next
+	}
+	return false
 }
 
-func processAnyReponse(pr *peerResponse, rp ResponseProcessor, verify *Verify) bool {
-
+func processAnyReponse(pr *peerResponse, rp ResponseProcessor, verify *Verify) {
 	if pr.err != nil {
 		recordError(pr.peer, pr.err, verify)
 	} else if err := rp.Process(pr.response, pr.peer, verify.ExpectedMAC, verify); err != nil {
@@ -183,7 +175,6 @@ func processAnyReponse(pr *peerResponse, rp ResponseProcessor, verify *Verify) b
 	} else {
 		recordSuccess(pr.peer, verify)
 	}
-	return verify.Finished()
 }
 
 func recordError(p peer.Peer, err error, v *Verify) {
