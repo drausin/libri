@@ -184,7 +184,7 @@ spec:
         resources:
           limits:
             memory: 100M
-            cpu: 100m
+            cpu: 50m
       hostNetwork: true
       hostPID: true
 ---
