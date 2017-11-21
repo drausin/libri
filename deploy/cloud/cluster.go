@@ -25,10 +25,15 @@ const (
 	kubeConfigFilename         = "libri.yml"
 
 	// Terraform variable keys
-	tfNumLibrarians    = "num_librarians"
-	tfPublicPortStart  = "librarian_public_port_start"
-	tfLocalPort        = "librarian_local_port"
-	tfLocalMetricsPort = "librarian_local_metrics_port"
+	tfNumLibrarians         = "num_librarians"
+	tfLibrarianLibriVersion = "librarian_libri_version"
+	tfLibrarianCPULimit     = "librarian_cpu_limit"
+	tfLibrarianRAMLimit     = "librarian_ram_limit"
+	tfPublicPortStart       = "librarian_public_port_start"
+	tfLocalPort             = "librarian_local_port"
+	tfLocalMetricsPort      = "librarian_local_metrics_port"
+	tfGrafanaPort           = "grafana_port"
+	tfPrometheusPort        = "prometheus_port"
 )
 
 // TFConfig defines the configuration of the Terraform infrastructure.
@@ -42,11 +47,16 @@ type TFConfig struct {
 
 // KubeConfig contains the configuration to apply to the template.
 type KubeConfig struct {
-	LocalPort        int
-	LocalMetricsPort int
-	Librarians       []LibrarianConfig
-	LocalCluster     bool
-	GCECluster       bool
+	LibriVersion      string
+	LocalPort         int
+	LocalMetricsPort  int
+	GrafanaPort       int
+	PrometheusPort    int
+	Librarians        []LibrarianConfig
+	LibrarianCPULimit string
+	LibrarianRAMLimit string
+	LocalCluster      bool
+	GCECluster        bool
 }
 
 // LibrarianConfig contains the public-facing configuration for an individual librarian.
@@ -252,11 +262,16 @@ func writeKubeConfig(clusterDir string) {
 	maybeExit(err)
 
 	config := KubeConfig{
-		LocalPort:        tfvars[tfLocalPort].(int),
-		LocalMetricsPort: tfvars[tfLocalMetricsPort].(int),
-		Librarians:       make([]LibrarianConfig, tfvars[tfNumLibrarians].(int)),
-		LocalCluster:     minikube,
-		GCECluster:       !minikube,
+		LibriVersion:      tfvars[tfLibrarianLibriVersion].(string),
+		LocalPort:         tfvars[tfLocalPort].(int),
+		LocalMetricsPort:  tfvars[tfLocalMetricsPort].(int),
+		GrafanaPort:       tfvars[tfGrafanaPort].(int),
+		PrometheusPort:    tfvars[tfPrometheusPort].(int),
+		Librarians:        make([]LibrarianConfig, tfvars[tfNumLibrarians].(int)),
+		LibrarianCPULimit: tfvars[tfLibrarianCPULimit].(string),
+		LibrarianRAMLimit: tfvars[tfLibrarianRAMLimit].(string),
+		LocalCluster:      minikube,
+		GCECluster:        !minikube,
 	}
 	for i := range config.Librarians {
 		config.Librarians[i].PublicPort = tfvars[tfPublicPortStart].(int) + i
