@@ -67,6 +67,10 @@ func TestLibrarianCluster(t *testing.T) {
 		nIntroductions: 32,
 		nPuts:          128,
 		nUploads:       16,
+
+		// these are very long, but we want to be robust to shortlived network disruptions in CI
+		getTimeout: 20 * time.Second,
+		putTimeout: 20 * time.Second,
 	}
 	state := setUp(params)
 
@@ -165,7 +169,7 @@ func testPut(t *testing.T, params *params, state *state) {
 	librarians, err := getLibrarians(state.peerConfigs)
 	assert.Nil(t, err)
 	putters := client.NewUniformPutterBalancer(librarians)
-	rlc := lclient.NewRetryPutter(putters, store.DefaultQueryTimeout)
+	rlc := lclient.NewRetryPutter(putters, params.putTimeout)
 
 	// create a bunch of random putDocs to put
 	for c := 0; c < params.nPuts; c++ {
@@ -212,7 +216,7 @@ func testGet(t *testing.T, params *params, state *state) {
 	librarians, err := getLibrarians(state.peerConfigs)
 	assert.Nil(t, err)
 	getters := client.NewUniformGetterBalancer(librarians)
-	rlc := lclient.NewRetryGetter(getters, true, search.DefaultQueryTimeout)
+	rlc := lclient.NewRetryGetter(getters, true, params.getTimeout)
 
 	// create a bunch of random values to put
 	for c := 0; c < len(state.putDocs); c++ {

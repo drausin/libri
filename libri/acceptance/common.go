@@ -75,6 +75,8 @@ type params struct {
 	nIntroductions int
 	nPuts          int
 	nUploads       int
+	getTimeout     time.Duration
+	putTimeout     time.Duration
 }
 
 // testClient has enough info to make requests to other peers
@@ -97,7 +99,7 @@ func setUp(params *params) *state {
 		maxBucketPeers,
 		params.logLevel,
 	)
-	authorConfigs := newAuthorConfigs(dataDir, params.nAuthors, peerAddrs, params.logLevel)
+	authorConfigs := newAuthorConfigs(dataDir, peerAddrs, params)
 	seeds := make([]*server.Librarian, params.nSeeds)
 	peers := make([]*server.Librarian, params.nPeers)
 	logger := clogging.NewDevLogger(params.logLevel)
@@ -315,23 +317,23 @@ func newLibrarianConfigs(dataDir string, nSeeds, nPeers int, maxBucketPeers uint
 	return seedConfigs, peerConfigs, peerAddrs
 }
 
-func newAuthorConfigs(dataDir string, nAuthors int, librarianAddrs []*net.TCPAddr,
-	logLevel zapcore.Level) []*lauthor.Config {
-	authorConfigs := make([]*lauthor.Config, nAuthors)
-	for c := 0; c < nAuthors; c++ {
+func newAuthorConfigs(dataDir string, librarianAddrs []*net.TCPAddr, params *params,
+) []*lauthor.Config {
+	authorConfigs := make([]*lauthor.Config, params.nAuthors)
+	for c := 0; c < params.nAuthors; c++ {
 		authorDataDir := filepath.Join(dataDir, fmt.Sprintf("author-%d", c))
 		publishParams := publish.NewDefaultParameters()
 
 		// this is really long but adds robustness to our acceptance tests
-		publishParams.GetTimeout = 20 * time.Second
-		publishParams.PutTimeout = 20 * time.Second
+		publishParams.GetTimeout = params.getTimeout
+		publishParams.PutTimeout = params.putTimeout
 
 		authorConfigs[c] = lauthor.NewDefaultConfig().
 			WithLibrarianAddrs(librarianAddrs).
 			WithDataDir(authorDataDir).
 			WithDefaultDBDir().
 			WithDefaultKeychainDir().
-			WithLogLevel(logLevel).
+			WithLogLevel(params.logLevel).
 			WithPublish(publishParams)
 	}
 	return authorConfigs
