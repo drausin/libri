@@ -54,14 +54,8 @@ func NewDefaultSearcher(signer client.Signer) Searcher {
 	)
 }
 
-type peerResponse struct {
-	peer     peer.Peer
-	response *api.FindResponse
-	err      error
-}
-
 func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
-	toQuery := make(chan peer.Peer, 1)
+	toQuery := NewQueryQueue()
 	peerResponses := make(chan *peerResponse, 1)
 
 	// add seeds and queue some of them for querying
@@ -71,7 +65,7 @@ func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
 	go func() {
 		for c := uint(0); c < search.Params.Concurrency; c++ {
 			if next := getNextToQuery(search); next != nil {
-				toQuery <- next
+				toQuery.MaybeSend(next)
 			}
 		}
 	}()
@@ -81,12 +75,9 @@ func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
 	wg1.Add(1)
 	go func(wg2 *sync.WaitGroup) {
 		defer wg2.Done()
-		toQueryClosed := false
 		for pr := range peerResponses {
 			processAnyReponse(pr, s.rp, search)
-			if !toQueryClosed {
-				toQueryClosed = maybeSendNextToQuery(toQuery, search)
-			}
+			maybeSendNextToQuery(toQuery, search)
 		}
 	}(&wg1)
 
@@ -96,7 +87,7 @@ func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
 		wg3.Add(1)
 		go func(wg4 *sync.WaitGroup) {
 			defer wg4.Done()
-			for next := range toQuery {
+			for next := range toQuery.Peers {
 				search.AddQueried(next)
 				response, err := s.query(next.Connector(), search)
 				peerResponses <- &peerResponse{
@@ -137,15 +128,52 @@ func (s *searcher) query(pConn peer.Connector, search *Search) (*api.FindRespons
 	return rp, nil
 }
 
+// QueryQueue is a thin wrapper aound a Peer channel with improved concurrency robustness.
+type QueryQueue struct {
+	mu     sync.Mutex
+	Peers  chan peer.Peer
+	closed bool
+}
+
+// NewQueryQueue returns a new QueryQueue.
+func NewQueryQueue() *QueryQueue {
+	return &QueryQueue{
+		Peers:  make(chan peer.Peer, 1),
+		closed: false,
+	}
+}
+
+// MaybeSend sends a peer on the queue if it hasn't been closed.
+func (qq *QueryQueue) MaybeSend(p peer.Peer) {
+	qq.mu.Lock()
+	defer qq.mu.Unlock()
+	if !qq.closed {
+		qq.Peers <- p
+	}
+}
+
+// MaybeClose closes the queue if it hasn't already been closed.
+func (qq *QueryQueue) MaybeClose() {
+	qq.mu.Lock()
+	defer qq.mu.Unlock()
+	if !qq.closed {
+		close(qq.Peers)
+		qq.closed = true
+	}
+}
+
+type peerResponse struct {
+	peer     peer.Peer
+	response *api.FindResponse
+	err      error
+}
+
 func getNextToQuery(search *Search) peer.Peer {
-	if search.Finished() {
+	if search.Finished() || search.Exhausted() {
 		return nil
 	}
 	search.mu.Lock()
 	defer search.mu.Unlock()
-	if search.Result.Unqueried.Len() == 0 {
-		return nil
-	}
 	next := heap.Pop(search.Result.Unqueried).(peer.Peer)
 	if _, alreadyQueried := search.Result.Queried[next.ID().String()]; alreadyQueried {
 		return nil
@@ -153,15 +181,13 @@ func getNextToQuery(search *Search) peer.Peer {
 	return next
 }
 
-func maybeSendNextToQuery(toQuery chan peer.Peer, search *Search) bool {
+func maybeSendNextToQuery(toQuery *QueryQueue, search *Search) {
 	if stopQuerying := search.Finished() || search.Exhausted(); stopQuerying {
-		close(toQuery)
-		return true
+		toQuery.MaybeClose()
 	}
 	if next := getNextToQuery(search); next != nil {
-		toQuery <- next
+		toQuery.MaybeSend(next)
 	}
-	return false
 }
 
 func processAnyReponse(pr *peerResponse, rp ResponseProcessor, search *Search) {

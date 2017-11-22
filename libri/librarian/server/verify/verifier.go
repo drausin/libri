@@ -61,7 +61,7 @@ type peerResponse struct {
 }
 
 func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
-	toQuery := make(chan peer.Peer, 1)
+	toQuery := search.NewQueryQueue()
 	peerResponses := make(chan *peerResponse, 1)
 
 	// add seeds and queue some of them for querying
@@ -71,7 +71,7 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 	go func() {
 		for c := uint(0); c < verify.Params.Concurrency; c++ {
 			if next := getNextToQuery(verify); next != nil {
-				toQuery <- next
+				toQuery.MaybeSend(next)
 			}
 		}
 	}()
@@ -81,12 +81,9 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 	wg1.Add(1)
 	go func(wg2 *sync.WaitGroup) {
 		defer wg2.Done()
-		toQueryClosed := false
 		for pr := range peerResponses {
 			processAnyReponse(pr, v.rp, verify)
-			if !toQueryClosed {
-				toQueryClosed = maybeSendNextToQuery(toQuery, verify)
-			}
+			maybeSendNextToQuery(toQuery, verify)
 		}
 	}(&wg1)
 
@@ -95,7 +92,7 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 		wg3.Add(1)
 		go func(wg4 *sync.WaitGroup) {
 			defer wg4.Done()
-			for next := range toQuery {
+			for next := range toQuery.Peers {
 				verify.AddQueried(next)
 				response, err := v.query(next.Connector(), verify)
 				peerResponses <- &peerResponse{
@@ -137,34 +134,29 @@ func (v *verifier) query(pConn peer.Connector, verify *Verify) (*api.VerifyRespo
 }
 
 func getNextToQuery(verify *Verify) peer.Peer {
-	if verify.Finished() {
+	if verify.Finished() || verify.Exhausted() {
 		return nil
 	}
-	var next peer.Peer
-	var alreadyQueried bool
-	verify.wrapLock(func() {
-		next = heap.Pop(verify.Result.Unqueried).(peer.Peer)
-		_, alreadyQueried = verify.Result.Queried[next.ID().String()]
-	})
-	if alreadyQueried {
+	verify.mu.Lock()
+	defer verify.mu.Unlock()
+	next := heap.Pop(verify.Result.Unqueried).(peer.Peer)
+	if _, alreadyQueried := verify.Result.Queried[next.ID().String()]; alreadyQueried {
 		return nil
 	}
 	return next
 }
 
-func maybeSendNextToQuery(toQuery chan peer.Peer, verify *Verify) bool {
+func maybeSendNextToQuery(toQuery *search.QueryQueue, verify *Verify) {
 	var exhausted bool
 	verify.wrapLock(func() {
 		exhausted = verify.Exhausted()
 	})
 	if stopQuerying := verify.Finished() || exhausted; stopQuerying {
-		close(toQuery)
-		return true
+		toQuery.MaybeClose()
 	}
 	if next := getNextToQuery(verify); next != nil {
-		toQuery <- next
+		toQuery.MaybeSend(next)
 	}
-	return false
 }
 
 func processAnyReponse(pr *peerResponse, rp ResponseProcessor, verify *Verify) {
