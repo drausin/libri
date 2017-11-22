@@ -18,19 +18,27 @@ you can run it via minikube (currently tested with v0.22)
 
 #### Initializing
 
-Initialize the cluster with
+Clusters are hosted in (currently) one of two environments: minikube or GCP. Initialize a local
+(minikube) cluster with
 
-    go run cluster.go init \
+    go run cluster.go init minikube \
+        --outDir /path/to/clusters
+        --clusterName my-test-cluster \
+
+where `/path/to/clusters/dir` is the directory to create the cluster subdirectory in. The GCP
+cluster initialization is very similar
+
+    go run cluster.go init gcp \
         --outDir /path/to/clusters
         --clusterName my-test-cluster \
         --bucket my-bucket-name \
         --gcpProject my-gcp-project \
 
-where `/path/to/clusters/dir` is the directory to create the cluster subdirectory in.
 
 The `terraform.tfvars` file created in the cluster directory has settings (like number of
 librarians) that can you can change if you want, though the default should be reasonable
-enough to start.
+enough to start. The corresponding `variables.tf` file in the directory contains description
+of these settings.
 
 
 #### Planning
@@ -39,10 +47,8 @@ To see what would be created upon spinning up a cluster called `my-cluster`, use
 
     go run cluster.go plan -c /path/to/clusters/my-cluster
 
-You should first see Terraform plans and then planned dry run Kubernetes resources. If creating
-cluster on minikube add `--minikube`
-
-    go run cluster.go plan -c /path/to/clusters/my-cluster --minikube
+If your cluster is hosted on GCP, you should first see Terraform plans and then planned dry
+run Kubernetes resources. Minikube clusters have no Terraform component.
 
 
 #### Applying
@@ -51,13 +57,11 @@ Create the cluster and resources with
 
     go run cluster.go apply -c /path/to/clusters/my-cluster
 
-which will first create the Terraform infrastructure and the the Kubernetes resources. If using
-minikube, you can add the `--notf` as with the plan `command`.
-
-    go run cluster.go apply -c /path/to/clusters/my-cluster --minikube
+If your cluster is hosted on GCP, you should first see Terraform plans and then planned dry
+run Kubernetes resources. Minikube clusters have no Terraform component.
 
 You should see the the resources being created (Terraform resources can take up to 5 minutes). See
-the created pods with
+the created Kubernetes pods with
 
     $ kubectl get pods -o wide
     NAME                          READY     STATUS    RESTARTS   AGE       IP               NODE
@@ -90,7 +94,7 @@ If using a local cluster, get the external address for one of the services
     $ minikube service librarians-0 --url
     http://192.168.99.100:30100
 
-If using a GCE cluster, get an external address from one of the nodes
+If using a GCP cluster, get an external address from one of the nodes
 
     $ gcloud compute instances list
     NAME                                      ZONE        MACHINE_TYPE   PREEMPTIBLE  INTERNAL_IP  EXTERNAL_IP      STATUS
@@ -149,10 +153,6 @@ When you want to update the cluster (e.g., add a librarian or a node), just chan
 `terraform.tfvars` and re-apply
 
     ./libri-cluster.sh apply /path/to/clusters/my-cluster
-
-or, when using minikube,
-
-    ./libri-cluster.sh apply /path/to/clusters/my-cluster --minikube
 
 If the change you've applied involves the Prometheus or Grafana configmaps, you have to bounce the service manually
 (since configmaps aren't a formal Kubernetes resources) to pick up the new config. Do this by just deleting the pod

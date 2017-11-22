@@ -14,17 +14,20 @@ import (
 )
 
 const (
-	tfTemplateDir        = "terraform/gce"
-	mainTemplateFilename = "main.template.tf"
-	mainFilename         = "main.tf"
-	propsFilename        = "terraform.tfvars"
-	moduleSubDir         = "module"
+	tfGCETemplateDir      = "terraform/gce"
+	tfMinikubeTemplateDir = "terraform/minikube"
+	mainTemplateFilename  = "main.template.tf"
+	varsFilename          = "variables.tf"
+	mainFilename          = "main.tf"
+	flagsFilename         = "terraform.tfvars"
+	moduleSubDir          = "module"
 
 	kubeTemplateDir            = "kubernetes"
 	kubeConfigTemplateFilename = "libri.template.yml"
 	kubeConfigFilename         = "libri.yml"
 
 	// Terraform variable keys
+	tfClusterHost           = "cluster_host"
 	tfNumLibrarians         = "num_librarians"
 	tfLibrarianLibriVersion = "librarian_libri_version"
 	tfLibrarianCPULimit     = "librarian_cpu_limit"
@@ -34,6 +37,9 @@ const (
 	tfLocalMetricsPort      = "librarian_local_metrics_port"
 	tfGrafanaPort           = "grafana_port"
 	tfPrometheusPort        = "prometheus_port"
+
+	tfClusterHostGCP      = "gcp"
+	tfClusterHostMinikube = "minikube"
 )
 
 // TFConfig defines the configuration of the Terraform infrastructure.
@@ -56,7 +62,7 @@ type KubeConfig struct {
 	LibrarianCPULimit string
 	LibrarianRAMLimit string
 	LocalCluster      bool
-	GCECluster        bool
+	GCPCluster        bool
 }
 
 // LibrarianConfig contains the public-facing configuration for an individual librarian.
@@ -69,7 +75,6 @@ var (
 	clusterDir string
 	notf       bool
 	nokube     bool
-	minikube   bool
 )
 
 func main() {
@@ -82,31 +87,29 @@ func main() {
 // not to be confused with the init command
 func init() {
 	clusterCmd.AddCommand(initCmd)
-	clusterCmd.AddCommand(planCmd)
-	clusterCmd.AddCommand(applyCmd)
-
-	initCmd.Flags().StringVarP(&initFlags.OutDir, "outDir", "d", "",
+	initCmd.PersistentFlags().StringVarP(&initFlags.OutDir, "outDir", "d", "",
 		"directory to create new cluster subdirectory in")
-	initCmd.Flags().StringVarP(&initFlags.ClusterName, "clusterName", "n", "",
-		"cluster clusterName (without spaces)")
-	initCmd.Flags().StringVarP(&initFlags.Bucket, "bucket", "b", "none",
-		"bucket where cluster state will be stored")
-	initCmd.Flags().StringVarP(&initFlags.GCPProject, "gcpProject", "p", "none",
+	initCmd.PersistentFlags().StringVarP(&initFlags.ClusterName, "clusterName", "n", "",
+		"cluster name (without spaces)")
+
+	initCmd.AddCommand(minikubeCmd)
+	initCmd.AddCommand(gcpCmd)
+	gcpCmd.Flags().StringVarP(&initFlags.Bucket, "bucket", "b", "",
+		"bucket where Terraform remote cluster state will be stored")
+	gcpCmd.Flags().StringVarP(&initFlags.GCPProject, "gcpProject", "p", "",
 		"GCP project to create infrastructure in")
 
+	clusterCmd.AddCommand(planCmd)
 	planCmd.Flags().StringVarP(&clusterDir, "clusterDir", "c", "",
 		"local cluster directory (required)")
 	planCmd.Flags().BoolVarP(&notf, "notf", "", false, "skip Terraform planning")
 	planCmd.Flags().BoolVarP(&nokube, "nokube", "", false, "skip Kubernetes planning")
-	planCmd.Flags().BoolVarP(&minikube, "minikube", "", false,
-		"use local minikube instead of Terraform intrastructure")
 
+	clusterCmd.AddCommand(applyCmd)
 	applyCmd.Flags().StringVarP(&clusterDir, "clusterDir", "c", "",
 		"local cluster directory (required)")
 	applyCmd.Flags().BoolVarP(&notf, "notf", "", false, "skip Terraform applying")
 	applyCmd.Flags().BoolVarP(&nokube, "nokube", "", false, "skip Kubernetes applying")
-	applyCmd.Flags().BoolVarP(&minikube, "minikube", "", false,
-		"use local minikube instead of Terraform intrastructure")
 }
 
 var clusterCmd = &cobra.Command{
@@ -118,18 +121,40 @@ var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "initialize a new libri cluster",
 	Long:  "initialize a new libri cluster",
+}
+
+var minikubeCmd = &cobra.Command{
+	Use:   "minikube",
+	Short: "operate a local minikube cluster",
+	Long:  "operate a local minikube cluster",
 	Run: func(cmd *cobra.Command, args []string) {
 		config := initFlags
-		checkInitParams(config)
+		checkInitMinikubeParams(config)
 
 		clusterDir = filepath.Join(config.OutDir, initFlags.ClusterName)
-		if _, err := os.Stat(clusterDir); os.IsNotExist(err) {
-			err := os.Mkdir(clusterDir, os.ModePerm)
-			maybeExit(err)
-		}
+		maybeMkdir(clusterDir)
+		// TF infra can't be applied to minikube, so no main.tf is written
+		writeVarsTFFile(config, clusterDir, tfMinikubeTemplateDir)
+		writePropsFile(config, clusterDir, tfMinikubeTemplateDir)
+		tfCommand(clusterDir, "init")
 
-		writeMainTFFile(config, clusterDir)
-		writePropsFile(config, clusterDir)
+		fmt.Printf("\n%s successfully initialized in %s\n", config.ClusterName, clusterDir)
+	},
+}
+
+var gcpCmd = &cobra.Command{
+	Use:   "gcp",
+	Short: "operate a Google Cloud Platform cluster",
+	Long:  "operate a Google Cloud Platform cluster",
+	Run: func(cmd *cobra.Command, args []string) {
+		config := initFlags
+		checkInitGCPParams(config)
+
+		clusterDir = filepath.Join(config.OutDir, initFlags.ClusterName)
+		maybeMkdir(clusterDir)
+		writeMainTFFile(config, clusterDir, tfGCETemplateDir)
+		writeVarsTFFile(config, clusterDir, tfGCETemplateDir)
+		writePropsFile(config, clusterDir, tfGCETemplateDir)
 		tfCommand(clusterDir, "init")
 
 		fmt.Printf("\n%s successfully initialized in %s\n", config.ClusterName, clusterDir)
@@ -144,7 +169,12 @@ var planCmd = &cobra.Command{
 		if clusterDir == "" {
 			maybeExit(errors.New("clusterDir param must be set"))
 		}
-		if !notf && !minikube {
+		if tfvars := getTFFlags(clusterDir); tfvars[tfClusterHost] == tfClusterHostMinikube {
+			// skip TF if it's a minikube cluster
+			notf = true
+		}
+
+		if !notf {
 			fmt.Printf("planning Terraform changes\n\n")
 			tfCommand(clusterDir, "plan")
 		}
@@ -164,7 +194,11 @@ var applyCmd = &cobra.Command{
 		if clusterDir == "" {
 			maybeExit(errors.New("clusterDir param must be set"))
 		}
-		if !notf && !minikube {
+		if tfvars := getTFFlags(clusterDir); tfvars[tfClusterHost] == tfClusterHostMinikube {
+			// skip TF if it's a minikube cluster
+			notf = true
+		}
+		if !notf {
 			fmt.Printf("applying Terraform changes\n\n")
 			tfCommand(clusterDir, "apply")
 		}
@@ -177,7 +211,7 @@ var applyCmd = &cobra.Command{
 	},
 }
 
-func checkInitParams(config TFConfig) {
+func checkInitGCPParams(config TFConfig) {
 	missingParam := false
 	if config.OutDir == "" {
 		fmt.Println("outputDir parameteter is required")
@@ -200,12 +234,27 @@ func checkInitParams(config TFConfig) {
 	}
 }
 
-func writeMainTFFile(config TFConfig, clusterDir string) {
+func checkInitMinikubeParams(config TFConfig) {
+	missingParam := false
+	if config.OutDir == "" {
+		fmt.Println("outputDir parameteter is required")
+		missingParam = true
+	}
+	if config.ClusterName == "" {
+		fmt.Println("clusterName parameter is required")
+		missingParam = true
+	}
+	if missingParam {
+		os.Exit(1)
+	}
+}
+
+func writeMainTFFile(config TFConfig, clusterDir, templateDir string) {
 	wd, err := os.Getwd()
 	maybeExit(err)
 
-	config.LocalModulePath = filepath.Join(wd, tfTemplateDir, moduleSubDir)
-	absMainTemplateFilepath := filepath.Join(wd, tfTemplateDir, mainTemplateFilename)
+	config.LocalModulePath = filepath.Join(wd, templateDir, moduleSubDir)
+	absMainTemplateFilepath := filepath.Join(wd, templateDir, mainTemplateFilename)
 	mainTmpl, err := template.New(mainTemplateFilename).ParseFiles(absMainTemplateFilepath)
 	maybeExit(err)
 
@@ -217,14 +266,30 @@ func writeMainTFFile(config TFConfig, clusterDir string) {
 	maybeExit(err)
 }
 
-func writePropsFile(config TFConfig, clusterDir string) {
+func writeVarsTFFile(config TFConfig, clusterDir, templateDir string) {
 	wd, err := os.Getwd()
 	maybeExit(err)
-	absPropsTemplateFilepath := filepath.Join(wd, tfTemplateDir, propsFilename)
-	propsTmpl, err := template.New(propsFilename).ParseFiles(absPropsTemplateFilepath)
+
+	absVarsFilepath := filepath.Join(wd, templateDir, varsFilename)
+	varsTmpl, err := template.New(varsFilename).ParseFiles(absVarsFilepath)
 	maybeExit(err)
 
-	absPropsOutFilepath := filepath.Join(clusterDir, propsFilename)
+	absVarsOutFilepath := filepath.Join(clusterDir, varsFilename)
+	varsFile, err := os.Create(absVarsOutFilepath)
+	maybeExit(err)
+
+	err = varsTmpl.Execute(varsFile, config)
+	maybeExit(err)
+}
+
+func writePropsFile(config TFConfig, clusterDir, templateDir string) {
+	wd, err := os.Getwd()
+	maybeExit(err)
+	absPropsTemplateFilepath := filepath.Join(wd, templateDir, flagsFilename)
+	propsTmpl, err := template.New(flagsFilename).ParseFiles(absPropsTemplateFilepath)
+	maybeExit(err)
+
+	absPropsOutFilepath := filepath.Join(clusterDir, flagsFilename)
 	propsFile, err := os.Create(absPropsOutFilepath)
 	maybeExit(err)
 
@@ -256,11 +321,7 @@ func kubeApply(clusterDir string, dryRun bool) {
 }
 
 func writeKubeConfig(clusterDir string) {
-	tfvarsFilepath := path.Join(clusterDir, propsFilename)
-	tfvars := make(variables.FlagFile)
-	err := tfvars.Set(tfvarsFilepath)
-	maybeExit(err)
-
+	tfvars := getTFFlags(clusterDir)
 	config := KubeConfig{
 		LibriVersion:      tfvars[tfLibrarianLibriVersion].(string),
 		LocalPort:         tfvars[tfLocalPort].(int),
@@ -270,8 +331,8 @@ func writeKubeConfig(clusterDir string) {
 		Librarians:        make([]LibrarianConfig, tfvars[tfNumLibrarians].(int)),
 		LibrarianCPULimit: tfvars[tfLibrarianCPULimit].(string),
 		LibrarianRAMLimit: tfvars[tfLibrarianRAMLimit].(string),
-		LocalCluster:      minikube,
-		GCECluster:        !minikube,
+		LocalCluster:      tfvars[tfClusterHost] == tfClusterHostMinikube,
+		GCPCluster:        tfvars[tfClusterHost] == tfClusterHostGCP,
 	}
 	for i := range config.Librarians {
 		config.Librarians[i].PublicPort = tfvars[tfPublicPortStart].(int) + i
@@ -291,6 +352,14 @@ func writeKubeConfig(clusterDir string) {
 	maybeExit(err)
 }
 
+func getTFFlags(clusterDir string) variables.FlagFile {
+	tfvarsFilepath := path.Join(clusterDir, flagsFilename)
+	tfvars := make(variables.FlagFile)
+	err := tfvars.Set(tfvarsFilepath)
+	maybeExit(err)
+	return tfvars
+}
+
 func writeKubeConfigMaps() {
 	maybeDelete := exec.Command("sh", "-c", "kubectl get configmap --no-headers | "+
 		"grep 'config' | awk '{print $1}' | xargs -I {} kubectl delete configmap {}")
@@ -305,6 +374,13 @@ func writeKubeConfigMaps() {
 		create := exec.Command("kubectl", "create", "configmap", configName, fromFile)
 		create.Stdout = os.Stdout
 		err = create.Run()
+		maybeExit(err)
+	}
+}
+
+func maybeMkdir(dir string) {
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		err := os.Mkdir(dir, os.ModePerm)
 		maybeExit(err)
 	}
 }

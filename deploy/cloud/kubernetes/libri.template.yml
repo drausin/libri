@@ -5,7 +5,7 @@
 {{ $localMetricsPort := .LocalMetricsPort -}}
 {{ $grafanaPort := .GrafanaPort -}}
 {{ $prometheusPort := .PrometheusPort -}}
-{{ $gceCluster := .GCECluster -}}
+{{ $gcpCluster := .GCPCluster -}}
 {{ $localCluster := .LocalCluster -}}
 {{ $librarianCPULimit := .LibrarianCPULimit -}}
 {{ $librarianRAMLimit := .LibrarianRAMLimit -}}
@@ -53,7 +53,7 @@ spec:
   capacity:
     storage: 2Gi
   accessModes: ["ReadWriteOnce"]
-  {{ if $gceCluster -}}
+  {{ if $gcpCluster -}}
   gcePersistentDisk:
       fsType: "ext4"
       pdName: "data-librarians-{{ $index }}"
