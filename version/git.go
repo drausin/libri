@@ -1,6 +1,6 @@
 package version
 
-// This file is modified from https://github.com/ahmetb/govvv/blob/master/git.go. The repo licese
+// This file is modified from https://github.com/ahmetb/govvv/blob/master/git.go. Its repo license
 // (Apache 2.0) is reproduced below (though happens to be the same as this libri repo's license).
 
 /*
@@ -209,9 +209,6 @@ limitations under the License.
 
 */
 
-
-
-
 import (
 	"bytes"
 	"fmt"
@@ -241,19 +238,6 @@ func (g git) Commit() (string, error) {
 	return g.exec("rev-parse", "--short", "HEAD")
 }
 
-// State returns the repository state indicating whether
-// it is "clean" or "dirty".
-func (g git) State() (string, error) {
-	out, err := g.exec("status", "--porcelain")
-	if err != nil {
-		return "", err
-	}
-	if len(out) > 0 {
-		return "dirty", nil
-	}
-	return "clean", nil
-}
-
 // Branch returns the branch name. If it is detached,
 // or an error occurs, returns "HEAD".
 func (g git) Branch() string {
@@ -264,13 +248,4 @@ func (g git) Branch() string {
 		return "HEAD"
 	}
 	return out
-}
-
-// Summary returns the output of "git describe --tags --dirty --always".
-func (g git) Summary() (string, error) {
-	out, err := g.exec("describe", "--tags", "--dirty", "--always")
-	if err != nil {
-		return "", err
-	}
-	return out, err
 }
