@@ -1,11 +1,12 @@
 package version
 
 import (
-	"github.com/blang/semver"
 	"os"
-	"github.com/drausin/libri/libri/common/errors"
-	"time"
 	"strings"
+	"time"
+
+	"github.com/blang/semver"
+	"github.com/drausin/libri/libri/common/errors"
 )
 
 var Current BuildInfo

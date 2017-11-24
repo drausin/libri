@@ -12,7 +12,7 @@ import (
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "print the libri version",
-	Long: "print the libri version",
+	Long:  "print the libri version",
 	Run: func(cmd *cobra.Command, args []string) {
 		_, err := os.Stdout.WriteString(version.Current.Version.String() + "\n")
 		errors.MaybePanic(err)
