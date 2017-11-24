@@ -41,7 +41,7 @@ func TestFromSignatureContext_missingMetadataErr(t *testing.T) {
 }
 
 func TestFromSignatureContext_missingSignatureErr(t *testing.T) {
-	ctx := metadata.NewContext(context.Background(), metadata.MD{}) // no signature key
+	ctx := metadata.NewOutgoingContext(context.Background(), metadata.MD{}) // no signature key
 	signedToken, err := FromSignatureContext(ctx)
 	assert.Zero(t, signedToken)
 	assert.NotNil(t, err)
