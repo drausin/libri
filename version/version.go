@@ -4,16 +4,17 @@ import (
 	"github.com/blang/semver"
 )
 
-// Version is the current version of this repo.
-var Version semver.Version
-
-var versionString = "0.2.0"
-var isSnapshot = true
-var snapshot = semver.PRVersion{VersionStr: "snapshot"}
+// BuildInfo contains info about the current build.
+type BuildInfo struct {
+	Version     semver.Version
+	GitBranch   string
+	GitRevision string
+	BuildDate   string
+}
 
 func init() {
-	Version = semver.MustParse(versionString)
-	if isSnapshot {
-		Version.Pre = []semver.PRVersion{snapshot}
+	Version = semver.MustParse(version)
+	if branch == "develop" {
+		Version.Pre = []semver.PRVersion{{VersionStr: "snapshot"}}
 	}
 }
