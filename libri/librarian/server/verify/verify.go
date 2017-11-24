@@ -227,6 +227,8 @@ func (v *Verify) Errored() bool {
 
 // Exhausted returns whether the verify has exhausted all unqueried peers close to the key.
 func (v *Verify) Exhausted() bool {
+	v.mu.Lock()
+	defer v.mu.Unlock()
 	return !v.FullyReplicated() && !v.UnderReplicated() && v.Result.Unqueried.Len() == 0
 }
 
