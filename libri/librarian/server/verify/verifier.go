@@ -147,11 +147,7 @@ func getNextToQuery(verify *Verify) peer.Peer {
 }
 
 func maybeSendNextToQuery(toQuery *search.QueryQueue, verify *Verify) {
-	var exhausted bool
-	verify.wrapLock(func() {
-		exhausted = verify.Exhausted()
-	})
-	if stopQuerying := verify.Finished() || exhausted; stopQuerying {
+	if verify.Finished() || verify.Exhausted() {
 		toQuery.MaybeClose()
 	}
 	if next := getNextToQuery(verify); next != nil {
