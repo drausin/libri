@@ -217,6 +217,7 @@ func (s *Search) Finished() bool {
 	return s.FoundValue() || s.FoundClosestPeers() || s.Errored()
 }
 
+// AddQueried adds a peer to the queried set.
 func (s *Search) AddQueried(p peer.Peer) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

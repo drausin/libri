@@ -34,6 +34,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// nolint: megacheck
 const (
 	authorKeychainAuth = "acceptance test passphrase"
 
@@ -45,6 +46,7 @@ const (
 	benchmarksFile   = "librarian.bench"
 )
 
+// nolint: structcheck, megacheck
 type state struct {
 	rng                 *rand.Rand
 	client              *testClient
@@ -61,12 +63,14 @@ type state struct {
 	benchResults        []*benchmarkObs
 }
 
+// nolint: megacheck
 type benchmarkObs struct {
 	name    string
 	procs   int
 	results []testing.BenchmarkResult
 }
 
+// nolint: structcheck, megacheck
 type params struct {
 	nSeeds         int
 	nPeers         int
@@ -80,6 +84,7 @@ type params struct {
 }
 
 // testClient has enough info to make requests to other peers
+// nolint: megacheck
 type testClient struct {
 	selfID  ecid.ID
 	selfAPI *api.PeerAddress
@@ -88,7 +93,8 @@ type testClient struct {
 	logger  *zap.Logger
 }
 
-func setUp(params *params) *state {
+// nolint: megacheck
+func setUp(params *params) *state { // nolint: deadcode
 	maxBucketPeers := uint(8)
 	dataDir, err := ioutil.TempDir("", "test-data-dir")
 	errors.MaybePanic(err)
@@ -186,6 +192,7 @@ func setUp(params *params) *state {
 	}
 }
 
+// nolint: megacheck
 func startLibrariansShard(
 	wg *sync.WaitGroup,
 	shardIdx int,
@@ -219,7 +226,8 @@ func startLibrariansShard(
 	}
 }
 
-func tearDown(state *state) {
+// nolint: megacheck
+func tearDown(state *state) { // nolint: deadcode
 	// disconnect from librarians and remove data dir
 	for _, author := range state.authors {
 		err := author.CloseAndRemove()
@@ -244,13 +252,14 @@ func tearDown(state *state) {
 	errors.MaybePanic(err)
 }
 
-func writeBenchmarkResults(t *testing.T, benchmarks []*benchmarkObs) {
+// nolint: megacheck
+func writeBenchmarkResults(t *testing.T, benchmarks []*benchmarkObs) { // nolint: deadcode
 	if _, err := os.Stat(artifactsDir); os.IsNotExist(err) {
-		errors.MaybePanic(os.Mkdir(artifactsDir, 0755))
+		errors.MaybePanic(os.Mkdir(artifactsDir, 0700))
 	}
 	benchmarksDir := path.Join(artifactsDir, benchmarksSubDir)
 	if _, err := os.Stat(benchmarksDir); os.IsNotExist(err) {
-		errors.MaybePanic(os.Mkdir(benchmarksDir, 0755))
+		errors.MaybePanic(os.Mkdir(benchmarksDir, 0700))
 	}
 	f, err := os.Create(path.Join(benchmarksDir, benchmarksFile))
 	defer func() {
@@ -268,6 +277,7 @@ func writeBenchmarkResults(t *testing.T, benchmarks []*benchmarkObs) {
 	}
 }
 
+// nolint: megacheck
 func averageSubsamples(
 	original []testing.BenchmarkResult, subsampleSize int,
 ) []testing.BenchmarkResult {
@@ -290,6 +300,7 @@ func averageSubsamples(
 	return averaged
 }
 
+// nolint: megacheck
 func newLibrarianConfigs(dataDir string, nSeeds, nPeers int, maxBucketPeers uint,
 	logLevel zapcore.Level) ([]*server.Config, []*server.Config, []*net.TCPAddr) {
 	seedStartPort, peerStartPort := 12000, 13000
@@ -317,6 +328,7 @@ func newLibrarianConfigs(dataDir string, nSeeds, nPeers int, maxBucketPeers uint
 	return seedConfigs, peerConfigs, peerAddrs
 }
 
+// nolint: megacheck
 func newAuthorConfigs(dataDir string, librarianAddrs []*net.TCPAddr, params *params,
 ) []*lauthor.Config {
 	authorConfigs := make([]*lauthor.Config, params.nAuthors)
@@ -339,6 +351,7 @@ func newAuthorConfigs(dataDir string, librarianAddrs []*net.TCPAddr, params *par
 	return authorConfigs
 }
 
+// nolint: megacheck
 func newConfig(
 	dataDir string, port int, maxBucketPeers uint, logLevel zapcore.Level,
 ) *server.Config {
@@ -372,7 +385,8 @@ func newConfig(
 		WithSubscribeTo(subscribeToParams)
 }
 
-func newTestDocument(rng *rand.Rand, entrySize int) (*api.Document, id.ID) {
+// nolint: megacheck
+func newTestDocument(rng *rand.Rand, entrySize int) (*api.Document, id.ID) { // nolint: deadcode
 	page := &api.Page{
 		AuthorPublicKey: api.RandBytes(rng, api.ECPubKeyLength),
 		CiphertextMac:   api.RandBytes(rng, 32),
@@ -395,7 +409,7 @@ func newTestDocument(rng *rand.Rand, entrySize int) (*api.Document, id.ID) {
 	return doc, key
 }
 
-// benchmarkName returns full name of benchmark including procs suffix.
+// nolint: megacheck
 func benchmarkName(name string, n int) string {
 	if n != 1 {
 		return fmt.Sprintf("Benchmark%s-%d", name, n)
@@ -403,7 +417,8 @@ func benchmarkName(name string, n int) string {
 	return name
 }
 
-func getLibrarians(peerConfigs []*server.Config) (client.Balancer, error) {
+// nolint: megacheck
+func getLibrarians(peerConfigs []*server.Config) (client.Balancer, error) { // nolint: deadcode
 	librarianAddrs := make([]*net.TCPAddr, len(peerConfigs))
 	for i, peerConfig := range peerConfigs {
 		librarianAddrs[i] = peerConfig.PublicAddr

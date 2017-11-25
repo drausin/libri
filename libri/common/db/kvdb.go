@@ -81,7 +81,7 @@ func (db *RocksDB) Get(key []byte) ([]byte, error) {
 	// slow for large reads we might want to add a separate method for getting the slice
 	// (or an abstraction of it) directly.
 	if db.rdb == nil {
-		return nil, errors.New("rdb is nil!")
+		return nil, errors.New("rdb is nil")
 	}
 	return db.rdb.GetBytes(db.ro, key)
 }
@@ -96,6 +96,7 @@ func (db *RocksDB) Delete(key []byte) error {
 	return db.rdb.Delete(db.wo, key)
 }
 
+// Iterate iterates over the values in the DB.
 func (db *RocksDB) Iterate(
 	keyLB, keyUB []byte, done chan struct{}, callback func(key, value []byte),
 ) error {

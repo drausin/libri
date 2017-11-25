@@ -63,10 +63,6 @@ lint-diff:
 	@echo $(GIT_STATUS_PKG_SUBDIRS) | tr " " "\n"
 	@echo $(GIT_STATUS_PKG_SUBDIRS) | xargs gometalinter --config=.gometalinter.json --deadline=15m
 
-lint-slow:
-	@echo "--> Running gometalinter slow linters"
-	@gometalinter $(LIBRI_PKG_SUBDIRS) --config=.gometalinter.slow.json --deadline=30m
-
 proto:
 	@echo "--> Running protoc"
 	@protoc ./libri/author/keychain/*.proto --go_out=plugins=grpc:.

@@ -14,6 +14,7 @@ const (
 	outputFilepath   = "dashboard.service.json"
 )
 
+// Config defines the values used in the service template.
 type Config struct {
 	Endpoints []string
 }

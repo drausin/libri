@@ -171,10 +171,7 @@ func (dsld *documentSLD) Mac(key id.ID, macKey []byte) ([]byte, error) {
 }
 
 func (dsld *documentSLD) Delete(key id.ID) error {
-	if err := dsld.sld.Delete(key.Bytes()); err != nil {
-		return err
-	}
-	return nil
+	return dsld.sld.Delete(key.Bytes())
 }
 
 func (dsld *documentSLD) loadCheckBytes(key id.ID) ([]byte, error) {

@@ -241,6 +241,7 @@ func (v *Verify) Finished() bool {
 	return v.FullyReplicated() || v.UnderReplicated() || v.Errored()
 }
 
+// AddQueried adds a peer to the queried set.
 func (v *Verify) AddQueried(p peer.Peer) {
 	v.mu.Lock()
 	defer v.mu.Unlock()

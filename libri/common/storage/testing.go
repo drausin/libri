@@ -85,7 +85,7 @@ func (f *TestDocSLD) Iterate(done chan struct{}, callback func(key id.ID, value 
 		errors.MaybePanic(err) // should never happen b/c only docs can be stored
 		select {
 		case <-done:
-			break
+			return f.IterateErr
 		default:
 			callback(key, valueBytes)
 		}

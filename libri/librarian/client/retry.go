@@ -186,6 +186,7 @@ func (r *retryPutter) Put(ctx context.Context, in *api.PutRequest, opts ...grpc.
 	return rp, nil
 }
 
+// NewExpBackoff creates a new exponential backoff retrier with default parameters.
 func NewExpBackoff(timeout time.Duration) *cbackoff.ExponentialBackOff {
 	b := &cbackoff.ExponentialBackOff{
 		InitialInterval:     defaultExpBackoffInitialInterval,

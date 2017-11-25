@@ -3,6 +3,8 @@ package common
 import (
 	"bytes"
 	"math/rand"
+
+	"github.com/drausin/libri/libri/common/errors"
 )
 
 // NewCompressableBytes generates a buffer of repeated strings with a given length.
@@ -15,10 +17,12 @@ func NewCompressableBytes(rng *rand.Rand, size int) *bytes.Buffer {
 		word := dict[int(rng.Int31n(int32(len(dict))))] + " "
 		if words.Len()+len(word) > size {
 			// pad words to exact length
-			words.Write(make([]byte, size-words.Len()))
+			_, err := words.Write(make([]byte, size-words.Len()))
+			errors.MaybePanic(err)
 			break
 		}
-		words.WriteString(word)
+		_, err := words.WriteString(word)
+		errors.MaybePanic(err)
 	}
 
 	return words

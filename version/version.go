@@ -9,6 +9,7 @@ import (
 	"github.com/drausin/libri/libri/common/errors"
 )
 
+// Current contains the current build info.
 var Current BuildInfo
 
 // these variables are populated by ldflags during builds and fall back to population from git repo

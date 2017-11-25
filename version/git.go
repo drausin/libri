@@ -222,13 +222,13 @@ type git struct {
 
 func (g git) exec(args ...string) (string, error) {
 	var errOut bytes.Buffer
-	c := exec.Command("git", args...)
+	c := exec.Command("git", args...) // #nosec
 	c.Dir = g.dir
 	c.Stderr = &errOut
 	out, err := c.Output()
 	outStr := strings.TrimSpace(string(out))
 	if err != nil {
-		err = fmt.Errorf("git: error=%q stderr=%s", err, string(errOut.Bytes()))
+		err = fmt.Errorf("git: error=%q stderr=%s", err, errOut.String())
 	}
 	return outStr, err
 }

@@ -17,12 +17,18 @@ import (
 )
 
 const (
+	// Existed denotes that the peer already existed in the table.
 	Existed PushStatus = iota
+
+	// Added denotes that the peer peer was added to the table.
 	Added
+
+	// Dropped denotes that the peer was dropped from the table.
 	Dropped
 )
 
-var (
+const (
+	// DefaultMaxActivePeers returns the default number of maximum number of peers in a bucket.
 	DefaultMaxActivePeers = uint(20)
 )
 
@@ -87,6 +93,7 @@ type Parameters struct {
 	MaxBucketPeers uint
 }
 
+// NewDefaultParameters creates a new set of default parameters.
 func NewDefaultParameters() *Parameters {
 	return &Parameters{
 		MaxBucketPeers: DefaultMaxActivePeers,
@@ -383,15 +390,15 @@ func (rt *table) splitBucket(bucketIdx int) {
 
 	// define the bounds of the two new buckets from those of the current bucket
 	middle := splitLowerBound(current.lowerBound, current.depth)
-	newIdMass := current.idMass / 2.0
+	newIDMass := current.idMass / 2.0
 
 	// create the new buckets
 	left := &bucket{
 		depth:          current.depth + 1,
 		lowerBound:     current.lowerBound,
 		upperBound:     middle,
-		idMass:         newIdMass,
-		idCumMass:      current.idCumMass - newIdMass,
+		idMass:         newIDMass,
+		idCumMass:      current.idCumMass - newIDMass,
 		maxActivePeers: current.maxActivePeers,
 		activePeers:    make([]peer.Peer, 0),
 		positions:      make(map[string]int),
@@ -402,7 +409,7 @@ func (rt *table) splitBucket(bucketIdx int) {
 		depth:          current.depth + 1,
 		lowerBound:     middle,
 		upperBound:     current.upperBound,
-		idMass:         newIdMass,
+		idMass:         newIDMass,
 		idCumMass:      current.idCumMass,
 		maxActivePeers: current.maxActivePeers,
 		activePeers:    make([]peer.Peer, 0),

@@ -63,8 +63,10 @@ func (sm *storageMetrics) register() {
 	prom.MustRegister(sm.count)
 	prom.MustRegister(sm.size)
 	for _, docType := range []string{entryLabel, entryLabel, pageLabel} {
-		sm.count.GetMetricWithLabelValues(docType)
-		sm.size.GetMetricWithLabelValues(docType)
+		_, err := sm.count.GetMetricWithLabelValues(docType)
+		errors.MaybePanic(err) // should never happen
+		_, err = sm.size.GetMetricWithLabelValues(docType)
+		errors.MaybePanic(err) // should never happen
 	}
 }
 
