@@ -187,6 +187,10 @@ func maybeSendNextToQuery(toQuery *QueryQueue, search *Search) {
 	}
 	if next := getNextToQuery(search); next != nil {
 		toQuery.MaybeSend(next)
+	} else if search.Finished() || search.Exhausted() {
+		toQuery.MaybeClose()
+	} else {
+		maybeSendNextToQuery(toQuery, search)
 	}
 }
 
