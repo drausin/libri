@@ -152,6 +152,10 @@ func maybeSendNextToQuery(toQuery *search.QueryQueue, verify *Verify) {
 	}
 	if next := getNextToQuery(verify); next != nil {
 		toQuery.MaybeSend(next)
+	} else if verify.Finished() || verify.Exhausted() {
+		toQuery.MaybeClose()
+	} else {
+		maybeSendNextToQuery(toQuery, verify)
 	}
 }
 
