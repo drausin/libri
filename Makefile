@@ -56,12 +56,12 @@ install-git-hooks:
 
 lint:
 	@echo "--> Running gometalinter"
-	@gometalinter $(LIBRI_PKG_SUBDIRS) --config=.gometalinter.json --deadline=15m
+	@gometalinter $(LIBRI_PKG_SUBDIRS) --config=.gometalinter.json --deadline=5m
 
 lint-diff:
 	@echo "--> Running gometalinter on packages with uncommitted changes"
 	@echo $(GIT_STATUS_PKG_SUBDIRS) | tr " " "\n"
-	@echo $(GIT_STATUS_PKG_SUBDIRS) | xargs gometalinter --config=.gometalinter.json --deadline=15m
+	@echo $(GIT_STATUS_PKG_SUBDIRS) | xargs gometalinter --config=.gometalinter.json --deadline=5m
 
 proto:
 	@echo "--> Running protoc"
