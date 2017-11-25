@@ -28,19 +28,6 @@ func TestNewDefaultIntroducer(t *testing.T) {
 	assert.NotNil(t, s.(*introducer).repProcessor)
 }
 
-type fixedIntroQuerier struct{}
-
-func (q *fixedIntroQuerier) Query(ctx context.Context, pConn peer.Connector,
-	rq *api.IntroduceRequest, opts ...grpc.CallOption) (*api.IntroduceResponse, error) {
-	return &api.IntroduceResponse{
-		Metadata: &api.ResponseMetadata{
-			RequestId: rq.Metadata.RequestId,
-		},
-		Self:  pConn.(*peer.TestConnector).APISelf,
-		Peers: pConn.(*peer.TestConnector).Addresses,
-	}, nil
-}
-
 func TestIntroducer_Introduce_ok(t *testing.T) {
 	for concurrency := uint(1); concurrency <= 3; concurrency++ {
 		introducer, intro, selfPeerIdxs, peers := newTestIntros(concurrency)

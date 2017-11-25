@@ -54,7 +54,10 @@ import (
 	"google.golang.org/grpc/grpclog"
 )
 
+// nolint: megacheck
 var verboseLogs = flag.Bool("verbose_logs", false, "show all grpclog output, without filtering")
+
+// nolint: megacheck
 var testLogOutput = &lockingWriter{w: os.Stderr}
 
 func init() {
@@ -72,6 +75,7 @@ func (lw *lockingWriter) Write(p []byte) (n int, err error) {
 	return lw.w.Write(p)
 }
 
+// nolint: megacheck
 func (lw *lockingWriter) setWriter(w io.Writer) {
 	lw.mu.Lock()
 	defer lw.mu.Unlock()
@@ -83,10 +87,13 @@ func (lw *lockingWriter) setWriter(w io.Writer) {
 // message.  We wait for it so our log filter is still
 // active. Otherwise the "defer restore()" at the top of various test
 // functions restores our log filter and then the goroutine spams.
-func awaitNewConnLogOutput() {
+
+// nolint: megacheck
+func awaitNewConnLogOutput() { // nolint: deadcode
 	awaitLogOutput(50*time.Millisecond, "grpc: the client connection is closing; please retry")
 }
 
+// nolint: megacheck
 func awaitLogOutput(maxWait time.Duration, phrase string) {
 	pb := []byte(phrase)
 
@@ -106,6 +113,7 @@ func awaitLogOutput(maxWait time.Duration, phrase string) {
 	}
 }
 
+// nolint: megacheck
 func logOutputHasContents(v []byte, wakeup chan<- bool) bool {
 	testLogOutput.mu.Lock()
 	defer testLogOutput.mu.Unlock()
@@ -122,6 +130,7 @@ func logOutputHasContents(v []byte, wakeup chan<- bool) bool {
 	return false
 }
 
+// nolint: megacheck
 func noop() {}
 
 // declareLogNoise declares that t is expected to emit the following noisy phrases,
@@ -129,7 +138,9 @@ func noop() {}
 // and only be shown if *verbose_logs or t ends up failing.
 // The returned restore function should be called with defer to be run
 // before the test ends.
-func declareLogNoise(t *testing.T, phrases ...string) (restore func()) {
+
+// nolint: megacheck
+func declareLogNoise(t *testing.T, phrases ...string) (restore func()) { // nolint: deadcode
 	if *verboseLogs {
 		return noop
 	}
@@ -151,6 +162,7 @@ func declareLogNoise(t *testing.T, phrases ...string) (restore func()) {
 	}
 }
 
+// nolint: megacheck
 type filterWriter struct {
 	dst    io.Writer
 	filter []string

@@ -123,7 +123,7 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 		Self:     clientImpl.ToAPI(),
 		NumPeers: numPeers,
 	}
-	rp, err := lib.Introduce(nil, rq)
+	rp, err := lib.Introduce(context.TODO(), rq)
 
 	// check response
 	assert.Nil(t, err)
@@ -143,7 +143,7 @@ func TestLibrarian_Introduce_checkRequestErr(t *testing.T) {
 	}
 	rq.Metadata.PubKey = []byte("corrupted pub key")
 
-	rp, err := l.Introduce(nil, rq)
+	rp, err := l.Introduce(context.TODO(), rq)
 	assert.Nil(t, rp)
 	assert.NotNil(t, err)
 }
@@ -174,7 +174,7 @@ func TestLibrarian_Introduce_peerIDErr(t *testing.T) {
 		Metadata: newTestRequestMetadata(rng, ecid.NewPseudoRandom(rng)),
 		Self:     client1.ToAPI(),
 	}
-	rp, err := lib.Introduce(nil, rq)
+	rp, err := lib.Introduce(context.TODO(), rq)
 
 	assert.Nil(t, rp)
 	assert.NotNil(t, err)
@@ -209,7 +209,7 @@ func TestLibrarian_Find_peers(t *testing.T) {
 				NumPeers: numClosest,
 			}
 
-			rp, err := l.Find(nil, rq)
+			rp, err := l.Find(context.TODO(), rq)
 			assert.Nil(t, err)
 
 			// check
@@ -270,7 +270,7 @@ func TestLibrarian_Find_value(t *testing.T) {
 		Key:      key.Bytes(),
 		NumPeers: numClosest,
 	}
-	rp, err := l.Find(nil, rq)
+	rp, err := l.Find(context.TODO(), rq)
 	assert.Nil(t, err)
 
 	// we should get back the value we stored
@@ -319,7 +319,7 @@ func TestLibrarian_Find_err(t *testing.T) {
 
 	for i, c := range cases {
 		info := fmt.Sprintf("case %d", i)
-		rp, err := c.l.Find(nil, c.rqCreator())
+		rp, err := c.l.Find(context.TODO(), c.rqCreator())
 		assert.Nil(t, rp, info)
 		assert.NotNil(t, err, info)
 	}
@@ -366,7 +366,7 @@ func TestLibrarian_Verify_value(t *testing.T) {
 		MacKey:   macKey,
 		NumPeers: numClosest,
 	}
-	rp, err := l.Verify(nil, rq)
+	rp, err := l.Verify(context.TODO(), rq)
 	assert.Nil(t, err)
 
 	// we should get back the expected mac
@@ -404,7 +404,7 @@ func TestLibrarian_Verify_peers(t *testing.T) {
 				NumPeers: numClosest,
 			}
 
-			rp, err := l.Verify(nil, rq)
+			rp, err := l.Verify(context.TODO(), rq)
 			assert.Nil(t, err)
 
 			// check
@@ -473,7 +473,7 @@ func TestLibrarian_Verify_err(t *testing.T) {
 
 	for i, c := range cases {
 		info := fmt.Sprintf("case %d", i)
-		rp, err := c.l.Verify(nil, c.rqCreator())
+		rp, err := c.l.Verify(context.TODO(), c.rqCreator())
 		assert.Nil(t, rp, info)
 		assert.NotNil(t, err, info)
 	}
@@ -511,7 +511,7 @@ func TestLibrarian_Store_ok(t *testing.T) {
 		Key:      key.Bytes(),
 		Value:    value,
 	}
-	rp, err := l.Store(nil, rq)
+	rp, err := l.Store(context.TODO(), rq)
 	assert.Nil(t, err)
 	assert.NotNil(t, rp)
 
@@ -537,7 +537,7 @@ func TestLibrarian_Store_checkRequestError(t *testing.T) {
 	rq := client.NewStoreRequest(ecid.NewPseudoRandom(rng), key, value)
 	rq.Metadata.PubKey = []byte("corrupted pub key")
 
-	rp, err := l.Store(nil, rq)
+	rp, err := l.Store(context.TODO(), rq)
 	assert.Nil(t, rp)
 	assert.NotNil(t, err)
 }
@@ -559,7 +559,7 @@ func TestLibrarian_Store_storeError(t *testing.T) {
 	value, key := api.NewTestDocument(rng)
 	rq := client.NewStoreRequest(ecid.NewPseudoRandom(rng), key, value)
 
-	rp, err := l.Store(nil, rq)
+	rp, err := l.Store(context.TODO(), rq)
 	assert.Nil(t, rp)
 	assert.NotNil(t, err)
 }
@@ -592,7 +592,7 @@ func TestLibrarian_Get_FoundValue(t *testing.T) {
 	rq := client.NewGetRequest(peerID, key)
 
 	// since fixedSearcher returns fixed value, should get that back in response
-	rp, err := l.Get(nil, rq)
+	rp, err := l.Get(context.TODO(), rq)
 	assert.Nil(t, err)
 	assert.Equal(t, value, rp.Value)
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
@@ -615,7 +615,7 @@ func TestLibrarian_Get_FoundClosestPeers(t *testing.T) {
 
 	// since fixedSearcher returns a Search value where UnderReplicated() is true, shouldn't
 	// have any Value
-	rp, err := l.Get(nil, rq)
+	rp, err := l.Get(context.TODO(), rq)
 	assert.Nil(t, err)
 	assert.Nil(t, rp.Value)
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
@@ -635,7 +635,7 @@ func TestLibrarian_Get_Errored(t *testing.T) {
 	rq := client.NewGetRequest(peerID, key)
 
 	// since we have a fatal search error, Get() should also return an error
-	rp, err := l.Get(nil, rq)
+	rp, err := l.Get(context.TODO(), rq)
 	assert.NotNil(t, err)
 	assert.Nil(t, rp)
 }
@@ -653,7 +653,7 @@ func TestLibrarian_Get_Exhausted(t *testing.T) {
 	rq := client.NewGetRequest(peerID, key)
 
 	// since we have a fatal search error, Get() should also return an error
-	rp, err := l.Get(nil, rq)
+	rp, err := l.Get(context.TODO(), rq)
 	assert.NotNil(t, err)
 	assert.Nil(t, rp)
 }
@@ -667,7 +667,7 @@ func TestLibrarian_Get_err(t *testing.T) {
 	rq := client.NewGetRequest(peerID, key)
 
 	// since fixedSearcher returns fixed value, should get that back in response
-	rp, err := l.Get(nil, rq)
+	rp, err := l.Get(context.TODO(), rq)
 	assert.NotNil(t, err)
 	assert.Nil(t, rp)
 }
@@ -680,7 +680,7 @@ func TestLibrarian_Get_checkRequestError(t *testing.T) {
 	rq := client.NewGetRequest(ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng))
 	rq.Metadata.PubKey = []byte("corrupted pub key")
 
-	rp, err := l.Get(nil, rq)
+	rp, err := l.Get(context.TODO(), rq)
 	assert.Nil(t, rp)
 	assert.NotNil(t, err)
 }
@@ -731,7 +731,7 @@ func TestLibrarian_Put_Stored(t *testing.T) {
 	rq := client.NewPutRequest(peerID, key, value)
 
 	// since fixedSearcher returns fixed value, should get that back in response
-	rp, err := l.Put(nil, rq)
+	rp, err := l.Put(context.TODO(), rq)
 	assert.Nil(t, err)
 	assert.Equal(t, uint32(nReplicas), rp.NReplicas)
 	assert.Equal(t, api.PutOperation_STORED, rp.Operation)
@@ -754,7 +754,7 @@ func TestLibrarian_Put_Exists(t *testing.T) {
 	rq := client.NewPutRequest(peerID, key, value)
 
 	// since fixedSearcher returns fixed value, should get that back in response
-	rp, err := l.Put(nil, rq)
+	rp, err := l.Put(context.TODO(), rq)
 	assert.Nil(t, err)
 	assert.Equal(t, api.PutOperation_LEFT_EXISTING, rp.Operation)
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
@@ -775,7 +775,7 @@ func TestLibrarian_Put_Errored(t *testing.T) {
 	rq := client.NewPutRequest(peerID, key, value)
 
 	// since fixedSearcher returns fixed value, should get that back in response
-	rp, err := l.Put(nil, rq)
+	rp, err := l.Put(context.TODO(), rq)
 	assert.NotNil(t, err)
 	assert.Nil(t, rp)
 }
@@ -790,7 +790,7 @@ func TestLibrarian_Put_err(t *testing.T) {
 	rq := client.NewPutRequest(peerID, key, value)
 
 	// since fixedSearcher returns fixed value, should get that back in response
-	rp, err := l.Put(nil, rq)
+	rp, err := l.Put(context.TODO(), rq)
 	assert.NotNil(t, err)
 	assert.Nil(t, rp)
 }
@@ -804,7 +804,7 @@ func TestLibrarian_Put_checkRequestError(t *testing.T) {
 	rq := client.NewPutRequest(ecid.NewPseudoRandom(rng), key, value)
 	rq.Metadata.PubKey = []byte("corrupted pub key")
 
-	rp, err := l.Put(nil, rq)
+	rp, err := l.Put(context.TODO(), rq)
 	assert.Nil(t, rp)
 	assert.NotNil(t, err)
 }

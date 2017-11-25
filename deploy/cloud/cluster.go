@@ -298,7 +298,7 @@ func writePropsFile(config TFConfig, clusterDir, templateDir string) {
 }
 
 func tfCommand(clusterDir string, subcommand string) {
-	tfInitCmd := exec.Command("terraform", subcommand)
+	tfInitCmd := exec.Command("terraform", subcommand) // nolint: gas
 	tfInitCmd.Stdin = os.Stdin
 	tfInitCmd.Stdout = os.Stdout
 	tfInitCmd.Stderr = os.Stderr
@@ -308,7 +308,7 @@ func tfCommand(clusterDir string, subcommand string) {
 }
 
 func kubeApply(clusterDir string, dryRun bool) {
-	tfInitCmd := exec.Command("kubectl", "apply", "-f", kubeConfigFilename)
+	tfInitCmd := exec.Command("kubectl", "apply", "-f", kubeConfigFilename) // nolint: gas
 	if dryRun {
 		tfInitCmd.Args = append(tfInitCmd.Args, "--dry-run")
 	}
@@ -361,7 +361,7 @@ func getTFFlags(clusterDir string) variables.FlagFile {
 }
 
 func writeKubeConfigMaps() {
-	maybeDelete := exec.Command("sh", "-c", "kubectl get configmap --no-headers | "+
+	maybeDelete := exec.Command("sh", "-c", "kubectl get configmap --no-headers | "+ // nolint: gas
 		"grep 'config' | awk '{print $1}' | xargs -I {} kubectl delete configmap {}")
 	maybeDelete.Stdout = os.Stdout
 	err := maybeDelete.Run()
@@ -371,7 +371,7 @@ func writeKubeConfigMaps() {
 	for _, name := range resourceNames {
 		configName := fmt.Sprintf("%s-config", name)
 		fromFile := fmt.Sprintf("--from-file=kubernetes/config/%s", name)
-		create := exec.Command("kubectl", "create", "configmap", configName, fromFile)
+		create := exec.Command("kubectl", "create", "configmap", configName, fromFile) // nolint: gas
 		create.Stdout = os.Stdout
 		err = create.Run()
 		maybeExit(err)

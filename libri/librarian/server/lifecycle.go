@@ -198,7 +198,7 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 		return err
 	}
 	if err := s.Serve(lis); err != nil {
-		if strings.Contains(fmt.Sprintf("%s", err.Error()), "use of closed network connection") {
+		if strings.Contains(err.Error(), "use of closed network connection") {
 			return nil
 		}
 		l.logger.Error("failed to serve", zap.Error(err))

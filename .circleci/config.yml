@@ -61,7 +61,6 @@ jobs:
           command: |
             if [[ ${CIRCLE_NODE_INDEX} -eq 0 ]]; then
               make lint
-              if [[ "${CIRCLE_BRANCH}" == "develop-intensive-build" ]]; then make lint-slow; fi
             fi
 
       - deploy:
