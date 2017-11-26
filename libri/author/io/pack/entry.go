@@ -8,6 +8,7 @@ import (
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/page"
 	"github.com/drausin/libri/libri/author/io/print"
+	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -18,13 +19,13 @@ type EntryPacker interface {
 	// Pack prints pages from the content, encrypts their metadata, and binds them together
 	// into an entry *api.Document.
 	Pack(content io.Reader, mediaType string, keys *enc.EEK, authorPub []byte) (
-		*api.Document, *api.Metadata, error)
+		*api.Document, *api.EntryMetadata, error)
 }
 
 // NewEntryPacker creates a new Packer instance.
 func NewEntryPacker(
 	params *print.Parameters,
-	metadataEnc enc.MetadataEncrypter,
+	metadataEnc enc.EntryMetadataEncrypter,
 	docSL storage.DocumentSLD,
 ) EntryPacker {
 	pageS := page.NewStorerLoader(docSL)
@@ -39,14 +40,14 @@ func NewEntryPacker(
 
 type entryPacker struct {
 	params      *print.Parameters
-	metadataEnc enc.MetadataEncrypter
+	metadataEnc enc.EntryMetadataEncrypter
 	printer     print.Printer
 	pageS       page.Storer
 	docL        storage.DocumentLoader
 }
 
 func (p *entryPacker) Pack(content io.Reader, mediaType string, keys *enc.EEK, authorPub []byte) (
-	*api.Document, *api.Metadata, error) {
+	*api.Document, *api.EntryMetadata, error) {
 
 	pageKeys, metadata, err := p.printer.Print(content, mediaType, keys, authorPub)
 	if err != nil {
@@ -67,7 +68,7 @@ func (p *entryPacker) Pack(content io.Reader, mediaType string, keys *enc.EEK, a
 type EntryUnpacker interface {
 	// Unpack extracts the individual pages from a document and stitches them together to write
 	// to the content io.Writer.
-	Unpack(content io.Writer, entry *api.Document, keys *enc.EEK) (*api.Metadata, error)
+	Unpack(content io.Writer, entryDoc *api.Document, keys *enc.EEK) (*api.EntryMetadata, error)
 }
 
 type entryUnpacker struct {
@@ -91,11 +92,12 @@ func NewEntryUnpacker(
 	}
 }
 
-func (u *entryUnpacker) Unpack(content io.Writer, entry *api.Document, keys *enc.EEK) (
-	*api.Metadata, error) {
+func (u *entryUnpacker) Unpack(content io.Writer, entryDoc *api.Document, keys *enc.EEK) (
+	*api.EntryMetadata, error) {
+	entry := entryDoc.Contents.(*api.Document_Entry).Entry
 	encMetadata, err := enc.NewEncryptedMetadata(
-		entry.Contents.(*api.Document_Entry).Entry.MetadataCiphertext,
-		entry.Contents.(*api.Document_Entry).Entry.MetadataCiphertextMac,
+		entry.MetadataCiphertext,
+		entry.MetadataCiphertextMac,
 	)
 	if err != nil {
 		return nil, err
@@ -106,18 +108,17 @@ func (u *entryUnpacker) Unpack(content io.Writer, entry *api.Document, keys *enc
 	}
 
 	var pageKeys []id.ID
-	switch ec := entry.Contents.(*api.Document_Entry).Entry.Contents.(type) {
-	case *api.Entry_PageKeys:
-		pageKeys, err = api.GetEntryPageKeys(entry)
-		if err != nil {
-			return nil, err
-		}
-	case *api.Entry_Page:
-		_, docKey, err := api.GetPageDocument(ec.Page)
-		if err != nil {
-			return nil, err
+	if entry.Page != nil {
+		_, docKey, err2 := api.GetPageDocument(entry.Page)
+		if err2 != nil {
+			return nil, err2
 		}
 		pageKeys = []id.ID{docKey}
+	} else if entry.PageKeys != nil {
+		pageKeys, err = api.GetEntryPageKeys(entryDoc)
+		cerrors.MaybePanic(err) // should never happen
+	} else {
+		return nil, api.ErrUnexpectedDocumentType
 	}
 	return metadata, u.scanner.Scan(content, pageKeys, keys, metadata)
 }
@@ -164,11 +165,9 @@ func newSinglePageEntry(
 		return nil, errors.New("not a page")
 	}
 	return &api.Entry{
-		AuthorPublicKey: authorPub,
-		Contents: &api.Entry_Page{
-			Page: pageContent.Page,
-		},
-		CreatedTime:           time.Now().Unix(),
+		AuthorPublicKey:       authorPub,
+		Page:                  pageContent.Page,
+		CreatedTime:           uint32(time.Now().Unix()),
 		MetadataCiphertext:    encMeta.Ciphertext,
 		MetadataCiphertextMac: encMeta.CiphertextMAC,
 	}, nil
@@ -184,11 +183,9 @@ func newMultiPageEntry(
 	}
 
 	return &api.Entry{
-		AuthorPublicKey: authorPub,
-		Contents: &api.Entry_PageKeys{
-			PageKeys: &api.PageKeys{Keys: pageKeyBytes},
-		},
-		CreatedTime:           time.Now().Unix(),
+		AuthorPublicKey:       authorPub,
+		PageKeys:              pageKeyBytes,
+		CreatedTime:           uint32(time.Now().Unix()),
 		MetadataCiphertext:    encMeta.Ciphertext,
 		MetadataCiphertextMac: encMeta.CiphertextMAC,
 	}, nil

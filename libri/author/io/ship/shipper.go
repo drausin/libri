@@ -18,7 +18,7 @@ type Shipper interface {
 		entry *api.Document, authorPub []byte, readerPub []byte, kek *enc.KEK, eek *enc.EEK,
 	) (*api.Document, id.ID, error)
 
-	ShipEnvelope(kek *enc.KEK, eek *enc.EEK, entryKey id.ID, authorPub, readerPub []byte) (
+	ShipEnvelope(entryKey id.ID, authorPub, readerPub []byte, kek *enc.KEK, eek *enc.EEK) (
 		*api.Document, id.ID, error)
 }
 
@@ -63,11 +63,11 @@ func (s *shipper) ShipEntry(
 	if err != nil {
 		return nil, nil, err
 	}
-	return s.ShipEnvelope(kek, eek, entryKey, authorPub, readerPub)
+	return s.ShipEnvelope(entryKey, authorPub, readerPub, kek, eek)
 }
 
 func (s *shipper) ShipEnvelope(
-	kek *enc.KEK, eek *enc.EEK, entryKey id.ID, authorPub, readerPub []byte,
+	entryKey id.ID, authorPub, readerPub []byte, kek *enc.KEK, eek *enc.EEK,
 ) (*api.Document, id.ID, error) {
 
 	eekCiphertext, eekCiphertextMAC, err := kek.Encrypt(eek)

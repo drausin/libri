@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"math/big"
 	mrand "math/rand"
+
+	"github.com/drausin/libri/libri/common/errors"
 )
 
 const (
@@ -108,9 +110,7 @@ func FromString(value string) (ID, error) {
 func NewRandom() ID {
 	b := make([]byte, Length)
 	_, err := crand.Read(b)
-	if err != nil {
-		panic(err)
-	}
+	errors.MaybePanic(err)
 	return FromBytes(b)
 }
 
@@ -127,10 +127,18 @@ func FromPublicKey(pubKey *ecdsa.PublicKey) ID {
 
 // Hex returns the 64-char hex value of a 32-byte values.
 func Hex(val []byte) string {
-	return fmt.Sprintf("%064x", val[:32])
+	format := "%064x"
+	if len(val) > 32 {
+		return fmt.Sprintf(format, val[:32])
+	}
+	return fmt.Sprintf("%064x", val)
 }
 
 // ShortHex returns the 16-char hex value of the first 8 butes of a value.
 func ShortHex(val []byte) string {
-	return fmt.Sprintf("%016x", val[:8])
+	format := "%016x"
+	if len(val) > 8 {
+		return fmt.Sprintf(format, val[:8])
+	}
+	return fmt.Sprintf(format, val)
 }

@@ -117,14 +117,13 @@ func TestAuthor_Healthcheck_err(t *testing.T) {
 func TestAuthor_Upload_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	a := newTestAuthor()
-	metadata, err := api.NewEntryMetadata(
-		"application/x-pdf",
-		1,
-		api.RandBytes(rng, 32),
-		2,
-		api.RandBytes(rng, 32),
-	)
-	assert.Nil(t, err)
+	metadata := &api.EntryMetadata{
+		MediaType:        "application/x-pdf",
+		CiphertextSize:   1,
+		CiphertextMac:    api.RandBytes(rng, 32),
+		UncompressedSize: 2,
+		UncompressedMac:  api.RandBytes(rng, 32),
+	}
 	a.entryPacker = &fixedEntryPacker{
 		metadata: metadata,
 	}
@@ -175,20 +174,19 @@ func TestAuthor_Upload_err(t *testing.T) {
 func TestAuthor_Download_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	doc, docKey := api.NewTestDocument(rng)
-	metadata, err := api.NewEntryMetadata(
-		"application/x-pdf",
-		1,
-		api.RandBytes(rng, 32),
-		2,
-		api.RandBytes(rng, 32),
-	)
-	assert.Nil(t, err)
+	metadata := &api.EntryMetadata{
+		MediaType:        "application/x-pdf",
+		CiphertextSize:   1,
+		CiphertextMac:    api.RandBytes(rng, 32),
+		UncompressedSize: 2,
+		UncompressedMac:  api.RandBytes(rng, 32),
+	}
 	a := &Author{
 		logger:        clogging.NewDevInfoLogger(),
 		receiver:      &fixedReceiver{entry: doc},
 		entryUnpacker: &fixedUnpacker{metadata: metadata},
 	}
-	err = a.Download(nil, docKey)
+	err := a.Download(nil, docKey)
 	assert.Nil(t, err)
 }
 
@@ -364,13 +362,13 @@ func TestAuthor_Share_err(t *testing.T) {
 
 type fixedEntryPacker struct {
 	entry    *api.Document
-	metadata *api.Metadata
+	metadata *api.EntryMetadata
 	err      error
 }
 
 func (f *fixedEntryPacker) Pack(
 	content io.Reader, mediaType string, keys *enc.EEK, authorPub []byte,
-) (*api.Document, *api.Metadata, error) {
+) (*api.Document, *api.EntryMetadata, error) {
 	return f.entry, f.metadata, f.err
 }
 
@@ -387,7 +385,7 @@ func (f *fixedShipper) ShipEntry(
 }
 
 func (f *fixedShipper) ShipEnvelope(
-	kek *enc.KEK, eek *enc.EEK, entryKey id.ID, authorPub, readerPub []byte,
+	entryKey id.ID, authorPub, readerPub []byte, kek *enc.KEK, eek *enc.EEK,
 ) (*api.Document, id.ID, error) {
 	return f.envelope, f.envelopeKey, f.err
 }
@@ -415,12 +413,12 @@ func (f *fixedReceiver) GetEEK(envelope *api.Envelope) (*enc.EEK, error) {
 }
 
 type fixedUnpacker struct {
-	metadata *api.Metadata
+	metadata *api.EntryMetadata
 	err      error
 }
 
 func (f *fixedUnpacker) Unpack(content io.Writer, entry *api.Document, keys *enc.EEK) (
-	*api.Metadata, error) {
+	*api.EntryMetadata, error) {
 	return f.metadata, f.err
 }
 
@@ -432,9 +430,7 @@ type memPublisherAcquirer struct {
 func (p *memPublisherAcquirer) Publish(doc *api.Document, authorPub []byte, lc api.Putter) (
 	id.ID, error) {
 	docKey, err := api.GetKey(doc)
-	if err != nil {
-		panic(err)
-	}
+	cerrors.MaybePanic(err)
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.docs[docKey.String()] = doc
@@ -509,15 +505,11 @@ func newTestAuthor() *Author {
 	// create keychains
 	err := CreateKeychains(logger, config.KeychainDir, testKeychainAuth,
 		veryLightScryptN, veryLightScryptP)
-	if err != nil {
-		panic(err)
-	}
+	cerrors.MaybePanic(err)
 
 	authorKeys, selfReaderKeys := keychain.New(nInitialKeys), keychain.New(nInitialKeys)
 	author, err := NewAuthor(config, authorKeys, selfReaderKeys, logger)
-	if err != nil {
-		panic(err)
-	}
+	cerrors.MaybePanic(err)
 	return author
 }
 
@@ -525,9 +517,7 @@ func newTestConfig() *Config {
 	config := NewDefaultConfig()
 	dir, err := ioutil.TempDir("", "author-test-data-dir")
 	defer func() { cerrors.MaybePanic(os.RemoveAll(dir)) }()
-	if err != nil {
-		panic(err)
-	}
+	cerrors.MaybePanic(err)
 
 	// set data dir and resets DB and Keychain dirs to use it
 	config.WithDataDir(dir).

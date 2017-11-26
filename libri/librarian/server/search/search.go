@@ -21,12 +21,11 @@ const (
 	// DefaultNMaxErrors is the default maximum number of errors tolerated during a search.
 	DefaultNMaxErrors = uint(3)
 
-	// DefaultConcurrency is the default number of parallel search workers. Currently 1 for
-	// simplicity and because bumping to 3 doesn't seem to improve get performance at all.
+	// DefaultConcurrency is the default number of parallel search workers.
 	DefaultConcurrency = uint(1)
 
 	// DefaultQueryTimeout is the timeout for each query to a peer.
-	DefaultQueryTimeout = 5 * time.Second
+	DefaultQueryTimeout = 3 * time.Second
 
 	// logging keys
 	logKey               = "key"
@@ -94,6 +93,10 @@ type Result struct {
 	// Unqueried is a heap of peers that were not yet queried
 	Unqueried ClosestPeers
 
+	// Queried is a set of all peers (keyed by peer.ID().String()) that have been queried (but
+	// haven't yet necessarily responded or errored)
+	Queried map[string]struct{}
+
 	// Responded is a map of all peers that responded during search
 	Responded map[string]peer.Peer
 
@@ -110,6 +113,7 @@ func NewInitialResult(key id.ID, params *Parameters) *Result {
 		Value:     nil,
 		Closest:   NewFarthestPeers(key, params.NClosestResponses),
 		Unqueried: NewClosestPeers(key, params.NClosestResponses*params.Concurrency),
+		Queried:   make(map[string]struct{}),
 		Responded: make(map[string]peer.Peer),
 		Errored:   make(map[string]error),
 	}
@@ -172,29 +176,37 @@ func (s *Search) MarshalLogObject(oe zapcore.ObjectEncoder) error {
 // occurs when it has received responses from the required number of peers, and the max distance of
 // those peers to the target is less than the min distance of the peers we haven't queried yet.
 func (s *Search) FoundClosestPeers() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if uint(s.Result.Closest.Len()) < s.Params.NClosestResponses {
+		return false
+	}
 	if s.Result.Unqueried.Len() == 0 {
-		// if we have no unqueried peers, just make sure closest peers heap is full
-		return uint(s.Result.Closest.Len()) >= s.Params.NClosestResponses
+		return true
 	}
 
-	// closest peers heap should be full and have a max distance less than the min unqueried
-	// distance
-	return uint(s.Result.Closest.Len()) >= s.Params.NClosestResponses &&
-		s.Result.Closest.PeakDistance().Cmp(s.Result.Unqueried.PeakDistance()) <= 0
+	// closest peers heap should have a max distance less than the min unqueried distance
+	return s.Result.Closest.PeakDistance().Cmp(s.Result.Unqueried.PeakDistance()) <= 0
 }
 
 // FoundValue returns whether the search has found the target value.
 func (s *Search) FoundValue() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return s.Result.Value != nil
 }
 
 // Errored returns whether the search has encountered too many errors when querying the peers.
 func (s *Search) Errored() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return uint(len(s.Result.Errored)) > s.Params.NMaxErrors || s.Result.FatalErr != nil
 }
 
 // Exhausted returns whether the search has exhausted all unqueried peers close to the target.
 func (s *Search) Exhausted() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return s.Result.Unqueried.Len() == 0
 }
 
@@ -202,9 +214,14 @@ func (s *Search) Exhausted() bool {
 // closest peers or errored or exhausted the list of peers to query. This operation is concurrency
 // safe.
 func (s *Search) Finished() bool {
+	return s.FoundValue() || s.FoundClosestPeers() || s.Errored()
+}
+
+// AddQueried adds a peer to the queried set.
+func (s *Search) AddQueried(p peer.Peer) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.FoundValue() || s.FoundClosestPeers() || s.Errored() || s.Exhausted()
+	s.Result.Queried[p.ID().String()] = struct{}{}
 }
 
 func (s *Search) wrapLock(operation func()) {

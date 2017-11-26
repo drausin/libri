@@ -15,8 +15,8 @@ import (
 
 func TestDefaultConfig(t *testing.T) {
 	c := NewDefaultConfig()
-	assert.NotEmpty(t, c.LocalAddr)
-	assert.NotEmpty(t, c.LocalMetricsAddr)
+	assert.NotEmpty(t, c.LocalPort)
+	assert.NotEmpty(t, c.LocalMetricsPort)
 	assert.NotEmpty(t, c.PublicAddr)
 	assert.NotEmpty(t, c.PublicName)
 	assert.NotEmpty(t, c.DataDir)
@@ -31,22 +31,20 @@ func TestDefaultConfig(t *testing.T) {
 	assert.NotEmpty(t, c.LogLevel)
 }
 
-func TestConfig_WithLocalAddr(t *testing.T) {
+func TestConfig_WithLocalPort(t *testing.T) {
 	c1, c2, c3 := &Config{}, &Config{}, &Config{}
-	c1.WithDefaultLocalAddr()
-	assert.Equal(t, c1.LocalAddr, c2.WithLocalAddr(nil).LocalAddr)
-	c3Addr, err := ParseAddr("localhost", 1234)
-	assert.Nil(t, err)
-	assert.NotEqual(t, c1.LocalAddr, c3.WithLocalAddr(c3Addr).LocalAddr)
+	c1.WithDefaultLocalPort()
+	assert.Equal(t, c1.LocalPort, c2.WithLocalPort(0).LocalPort)
+	c3Port := 1234
+	assert.NotEqual(t, c1.LocalPort, c3.WithLocalPort(c3Port).LocalPort)
 }
 
 func TestConfig_WithLocalMetricsAddr(t *testing.T) {
 	c1, c2, c3 := &Config{}, &Config{}, &Config{}
-	c1.WithDefaultLocalMetricsAddr()
-	assert.Equal(t, c1.LocalMetricsAddr, c2.WithLocalMetricsAddr(nil).LocalMetricsAddr)
-	c3Addr, err := ParseAddr("localhost", 1234)
-	assert.Nil(t, err)
-	assert.NotEqual(t, c1.LocalMetricsAddr, c3.WithLocalMetricsAddr(c3Addr).LocalMetricsAddr)
+	c1.WithDefaultLocalMetricsPort()
+	assert.Equal(t, c1.LocalMetricsPort, c2.WithLocalMetricsPort(0).LocalMetricsPort)
+	c3Port := 1234
+	assert.NotEqual(t, c1.LocalMetricsPort, c3.WithLocalMetricsPort(c3Port).LocalMetricsPort)
 }
 
 func TestConfig_WithPublicAddr(t *testing.T) {

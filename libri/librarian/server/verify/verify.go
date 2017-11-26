@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/drausin/libri/libri/common/ecid"
-	"github.com/drausin/libri/libri/common/errors"
+	errors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -98,6 +98,10 @@ type Result struct {
 	// Unqueried is a heap of peers that were not yet queried
 	Unqueried search.ClosestPeers
 
+	// Queried is a set of all peers (keyed by peer.ID().String()) that have been queried (but
+	// haven't yet necessarily responded or errored)
+	Queried map[string]struct{}
+
 	// Responded is a map of all peers that responded during verification
 	Responded map[string]peer.Peer
 
@@ -114,6 +118,7 @@ func NewInitialResult(key id.ID, params *Parameters) *Result {
 		Replicas:  make(map[string]peer.Peer),
 		Closest:   search.NewFarthestPeers(key, params.NClosestResponses),
 		Unqueried: search.NewClosestPeers(key, params.NClosestResponses*params.Concurrency),
+		Queried:   make(map[string]struct{}),
 		Responded: make(map[string]peer.Peer),
 		Errored:   make(map[string]error),
 	}
@@ -204,17 +209,15 @@ func (v *Verify) UnderReplicated() bool {
 	}
 
 	nResponses := uint(len(v.Result.Replicas) + v.Result.Closest.Len())
+	if nResponses < v.Params.NClosestResponses {
+		return false
+	}
 	if v.Result.Unqueried.Len() == 0 {
-		// if we have no unqueried peers, just make sure replicas + closest peers should be
-		// greater or equal to desired number of closest responses
-		return nResponses >= v.Params.NClosestResponses
+		return true
 	}
 
-	// number of replicas + closest peers should be greater or equal to desired number of closest
-	// responses, and the max closest peers distance should be smaller than the min unqueried peers
-	// distance
-	return nResponses >= v.Params.NClosestResponses &&
-		v.Result.Closest.PeakDistance().Cmp(v.Result.Unqueried.PeakDistance()) <= 0
+	// max closest peers distance should be smaller than the min unqueried peers distance
+	return v.Result.Closest.PeakDistance().Cmp(v.Result.Unqueried.PeakDistance()) <= 0
 }
 
 // Errored returns whether the verify has encountered too many errors when querying the peers.
@@ -224,6 +227,8 @@ func (v *Verify) Errored() bool {
 
 // Exhausted returns whether the verify has exhausted all unqueried peers close to the key.
 func (v *Verify) Exhausted() bool {
+	v.mu.Lock()
+	defer v.mu.Unlock()
 	return !v.FullyReplicated() && !v.UnderReplicated() && v.Result.Unqueried.Len() == 0
 }
 
@@ -233,7 +238,14 @@ func (v *Verify) Exhausted() bool {
 func (v *Verify) Finished() bool {
 	v.mu.Lock()
 	defer v.mu.Unlock()
-	return v.FullyReplicated() || v.UnderReplicated() || v.Errored() || v.Exhausted()
+	return v.FullyReplicated() || v.UnderReplicated() || v.Errored()
+}
+
+// AddQueried adds a peer to the queried set.
+func (v *Verify) AddQueried(p peer.Peer) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.Result.Queried[p.ID().String()] = struct{}{}
 }
 
 func (v *Verify) wrapLock(operation func()) {

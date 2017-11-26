@@ -23,10 +23,10 @@ const (
 	DefaultNMaxErrors = uint(3)
 
 	// DefaultConcurrency is the number of parallel store workers.
-	DefaultConcurrency = uint(1)
+	DefaultConcurrency = uint(3)
 
 	// DefaultQueryTimeout is the timeout for each query to a peer.
-	DefaultQueryTimeout = 10 * time.Second
+	DefaultQueryTimeout = 5 * time.Second
 
 	logSearch      = "search"
 	logNReplicas   = "n_replicas"
@@ -161,6 +161,7 @@ func NewStore(
 	// closest peers found during search
 	updatedSearchParams := *searchParams // by value to avoid change original search params
 	updatedSearchParams.NClosestResponses = storeParams.NReplicas + storeParams.NMaxErrors
+	updatedSearchParams.Concurrency = storeParams.Concurrency
 	return &Store{
 		Request: client.NewStoreRequest(peerID, key, value),
 		Search:  search.NewSearch(peerID, key, &updatedSearchParams),
@@ -192,39 +193,35 @@ func (s *Store) MarshalLogObject(oe zapcore.ObjectEncoder) error {
 
 // Stored returns whether the store has stored sufficient replicas.
 func (s *Store) Stored() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return uint(len(s.Result.Responded)) >= s.Params.NReplicas
 }
 
 // Exists returns whether the value already exists (and the search has found it).
 func (s *Store) Exists() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return s.Result.Search.Value != nil
 }
 
 // Errored returns whether the store has encountered too many errors when querying the peers.
 func (s *Store) Errored() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return len(s.Result.Errors) >= int(s.Params.NMaxErrors) || s.Result.FatalErr != nil
 }
 
 // Exhausted returns whether the store has exhausted all peers to store the value in.
 func (s *Store) Exhausted() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return len(s.Result.Unqueried) == 0
 }
 
 // Finished returns whether the store operation has finished.
 func (s *Store) Finished() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.Stored() || s.Errored() || s.Exists() || s.Exhausted()
-}
-
-func (s *Store) moreUnqueried() bool {
-	return len(s.Result.Unqueried) > 0
-}
-
-func (s *Store) safeMoreUnqueried() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.moreUnqueried()
+	return s.Stored() || s.Errored() || s.Exists()
 }
 
 func (s *Store) wrapLock(operation func()) {

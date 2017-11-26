@@ -53,8 +53,7 @@ func (l *TestSLD) Delete(key []byte) error {
 // NewTestDocSLD creates a new TestDocSLD.
 func NewTestDocSLD() *TestDocSLD {
 	return &TestDocSLD{
-		Stored:  make(map[string]*api.Document),
-		metrics: &DocumentMetrics{},
+		Stored: make(map[string]*api.Document),
 	}
 }
 
@@ -66,7 +65,6 @@ type TestDocSLD struct {
 	LoadErr    error
 	MacErr     error
 	DeleteErr  error
-	metrics    *DocumentMetrics
 	mu         sync.Mutex
 }
 
@@ -74,11 +72,7 @@ type TestDocSLD struct {
 func (f *TestDocSLD) Store(key id.ID, value *api.Document) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	valueBytes, err := proto.Marshal(value)
-	errors.MaybePanic(err) // should never happen
 	f.Stored[key.String()] = value
-	f.metrics.NDocuments++
-	f.metrics.TotalSize += uint64(len(valueBytes))
 	return f.StoreErr
 }
 
@@ -91,18 +85,12 @@ func (f *TestDocSLD) Iterate(done chan struct{}, callback func(key id.ID, value 
 		errors.MaybePanic(err) // should never happen b/c only docs can be stored
 		select {
 		case <-done:
-			break
+			return f.IterateErr
 		default:
 			callback(key, valueBytes)
 		}
 	}
 	return f.IterateErr
-}
-
-func (f *TestDocSLD) Metrics() *DocumentMetrics {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return f.metrics.clone()
 }
 
 // Load mocks DocumentSLD.Load().
@@ -122,10 +110,6 @@ func (f *TestDocSLD) Mac(key id.ID, macKey []byte) ([]byte, error) {
 func (f *TestDocSLD) Delete(key id.ID) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	valueBytes, err := proto.Marshal(f.Stored[key.String()])
-	errors.MaybePanic(err)
 	delete(f.Stored, key.String())
-	f.metrics.NDocuments--
-	f.metrics.TotalSize -= uint64(len(valueBytes))
 	return f.DeleteErr
 }

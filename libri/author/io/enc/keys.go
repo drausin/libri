@@ -3,15 +3,16 @@ package enc
 import (
 	"bytes"
 	"crypto/aes"
+	"crypto/cipher"
 	"crypto/ecdsa"
 	crand "crypto/rand"
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	mrand "math/rand"
 
-	"crypto/cipher"
-
 	"github.com/drausin/libri/libri/common/ecid"
+	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/librarian/api"
 	"golang.org/x/crypto/hkdf"
 )
@@ -71,9 +72,7 @@ func NewPseudoRandomKEK(rng *mrand.Rand) (*KEK, []byte, []byte) {
 	authorPriv := ecid.NewPseudoRandom(rng)
 	readerPriv := ecid.NewPseudoRandom(rng)
 	keys, err := NewKEK(authorPriv.Key(), &readerPriv.Key().PublicKey)
-	if err != nil {
-		panic(err)
-	}
+	cerrors.MaybePanic(err)
 	return keys, authorPriv.PublicKeyBytes(), readerPriv.PublicKeyBytes()
 }
 
@@ -172,16 +171,12 @@ func NewEEK() (*EEK, error) {
 func NewPseudoRandomEEK(rng *mrand.Rand) *EEK {
 	eekBytes := make([]byte, api.EEKLength)
 	nRead, err := rng.Read(eekBytes)
-	if err != nil {
-		panic(err)
-	}
+	cerrors.MaybePanic(err)
 	if nRead != api.EEKLength {
-		panic(err)
+		panic(fmt.Errorf("nRead (%d) != EEKLength (%d)", nRead, api.EEKLength))
 	}
 	eek, err := UnmarshalEEK(eekBytes)
-	if err != nil {
-		panic(err)
-	}
+	cerrors.MaybePanic(err)
 	return eek
 }
 
@@ -198,7 +193,7 @@ func MarshalEEK(keys *EEK) []byte {
 	)
 }
 
-// UnmarshalEEK deserializes the KEK from its byte representation.
+// UnmarshalEEK deserializes the EEK from its byte representation.
 func UnmarshalEEK(x []byte) (*EEK, error) {
 	err := api.ValidateBytes(x, api.EEKLength, "EEK byte representation")
 	if err != nil {

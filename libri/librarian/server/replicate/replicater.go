@@ -53,9 +53,7 @@ const (
 )
 
 var (
-	metricsKey              = []byte("replicationMetrics")
-	errVerifyExhausted      = errors.New("verification failed because exhausted peers to query")
-	errMissingStoredMetrics = errors.New("missing stored metrics")
+	errVerifyExhausted = errors.New("verification failed because exhausted peers to query")
 )
 
 // Parameters is the replicator parameters.
@@ -76,33 +74,6 @@ func NewDefaultParameters() *Parameters {
 	}
 }
 
-// NewVerifyDefaultParameters returns default verify parameters that exclude the replica stored by
-// the replicator.
-func NewVerifyDefaultParameters() *verify.Parameters {
-	p := verify.NewDefaultParameters()
-	p.NReplicas--
-	p.NClosestResponses--
-	p.ExcludeSelf = true
-	return p
-}
-
-// Metrics contains (monotonically increasing) counters for different replication events.
-type Metrics struct {
-	NVerified        uint64
-	NUnderreplicated uint64
-	NReplicated      uint64
-	LatestPass       int64
-}
-
-func (m *Metrics) clone() *Metrics {
-	return &Metrics{
-		NVerified:        m.NVerified,
-		NReplicated:      m.NReplicated,
-		NUnderreplicated: m.NUnderreplicated,
-		LatestPass:       m.LatestPass,
-	}
-}
-
 // Replicator is a long-running routine that iterates through stored documents and verified that
 // they are fully replicated. When they are not, it issues Store requests to close peers to
 // bring their replication up to the desired level.
@@ -112,17 +83,12 @@ type Replicator interface {
 
 	// Stop gracefully stops the replicator routines.
 	Stop()
-
-	// Metrics returns a copy of the current metrics.
-	Metrics() *Metrics
 }
 
 type replicator struct {
 	selfID           ecid.ID
 	rt               routing.Table
-	metrics          *Metrics
 	docS             storage.DocumentStorer
-	metricsSL        metricsStorerLoader
 	verifier         verify.Verifier
 	storer           store.Storer
 	replicatorParams *Parameters
@@ -143,7 +109,6 @@ func NewReplicator(
 	selfID ecid.ID,
 	rt routing.Table,
 	docS storage.DocumentStorer,
-	serverSL storage.StorerLoader,
 	verifier verify.Verifier,
 	storer store.Storer,
 	replicatorParams *Parameters,
@@ -152,20 +117,10 @@ func NewReplicator(
 	rng *rand.Rand,
 	logger *zap.Logger,
 ) Replicator {
-	metricsSL := &metricsSLImpl{serverSL}
-
-	// init metrics from stored value, if it exists
-	metrics, err := metricsSL.Load()
-	if err != nil {
-		// if missing or other error, init new metrics
-		metrics = &Metrics{}
-	}
 	return &replicator{
 		selfID:           selfID,
 		rt:               rt,
-		metrics:          metrics,
 		docS:             docS,
-		metricsSL:        metricsSL,
 		verifier:         verifier,
 		storer:           storer,
 		replicatorParams: replicatorParams,
@@ -219,37 +174,25 @@ func (r *replicator) Stop() {
 	r.logger.Debug("ended replicator")
 }
 
-func (r *replicator) Metrics() *Metrics {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.metrics.clone()
-}
-
 func (r *replicator) verify() {
 	for {
-		if r.docS.Metrics().NDocuments == 0 {
-			pause := make(chan struct{})
-			go func() {
-				intervalMaxMs := int32(r.replicatorParams.VerifyInterval / time.Millisecond)
-				waitMs := time.Duration(r.rng.Int31n(intervalMaxMs))
-				time.Sleep(waitMs * time.Millisecond)
-				close(pause)
-			}()
-			select {
-			case <-r.stop:
-			case <-pause:
-			}
-		} else {
-			if err := r.docS.Iterate(r.stop, r.verifyValue); err != nil {
-				r.fatal <- err
-			}
-			r.wrapLock(func() {
-				r.metrics.LatestPass = time.Now().Unix()
-				if err := r.metricsSL.Store(r.metrics.clone()); err != nil {
-					r.fatal <- err
-				}
-			})
+		// pause for documents to be added/things to change a bit before next verify iteration
+		pause := make(chan struct{})
+		go func() {
+			intervalMaxMs := int32(r.replicatorParams.VerifyInterval / time.Millisecond)
+			waitMs := time.Duration(r.rng.Int31n(intervalMaxMs))
+			time.Sleep(waitMs * time.Millisecond)
+			close(pause)
+		}()
+		select {
+		case <-r.stop:
+		case <-pause:
 		}
+
+		if err := r.docS.Iterate(r.stop, r.verifyValue); err != nil {
+			r.fatal <- err
+		}
+
 		select {
 		case <-r.stop: // exit if we've received stop signal
 			close(r.stopped)
@@ -280,12 +223,12 @@ func (r *replicator) verifyValue(key id.ID, value []byte) {
 	err = backoff.Retry(operation, client.NewExpBackoff(r.replicatorParams.VerifyTimeout))
 
 	if err != nil { // implies v.Errored()
-		r.logger.Debug("document verification errored", zap.Object(logVerify, v))
+		r.logger.Error("document verification errored", zap.Object(logVerify, v))
 		r.wrapLock(func() { maybeSendErrChan(r.errs, err) })
 		return
 	}
 	if v.Exhausted() {
-		r.logger.Debug("verify exhausted peers", zap.Object(logVerify, v))
+		r.logger.Error("verify exhausted peers", zap.Object(logVerify, v))
 		r.wrapLock(func() { maybeSendErrChan(r.errs, errVerifyExhausted) })
 		return
 	}
@@ -294,13 +237,11 @@ func (r *replicator) verifyValue(key id.ID, value []byte) {
 		r.logger.Debug("document fully-replicated", zap.Object(logVerify, v))
 	} else if v.UnderReplicated() {
 		r.wrapLock(func() {
-			r.metrics.NUnderreplicated++
 			maybeSendVerifyChan(r.underreplicated, v)
 		})
 		r.logger.Info("document under-replicated", zap.Object(logVerify, v))
 	}
 	r.wrapLock(func() {
-		r.metrics.NVerified++
 		maybeSendErrChan(r.errs, nil)
 	})
 	for _, p := range v.Result.Closest.Peers() {
@@ -319,16 +260,18 @@ func (r *replicator) replicate(wg *sync.WaitGroup) {
 		// empty seeds b/c verification has already, in effect, replaced the search component of
 		// the store operation
 		if err := r.storer.Store(s, []peer.Peer{}); err != nil {
-			r.errs <- err
+			r.logger.Error("replication store failed", zap.Object(logStore, s))
+			maybeSendErrChan(r.errs, err)
 			continue
 		}
 		if s.Stored() {
-			r.wrapLock(func() { r.metrics.NReplicated++ })
-			r.logger.Info("stored additional document replicas", zap.Object(logStore, s))
+			r.logger.Info("stored additional replicas", zap.Object(logStore, s))
+		} else {
+			r.logger.Error("failed to store additional replicas", zap.Object(logStore, s))
 		}
 		// for all other non-Stored outcomes for the store, we basically give up and hope to
 		// replicate on next pass
-		r.wrapLock(func() { r.errs <- nil })
+		r.wrapLock(func() { maybeSendErrChan(r.errs, nil) })
 	}
 }
 
@@ -364,45 +307,6 @@ func newStore(selfID ecid.ID, v *verify.Verify, storeParams store.Parameters) *s
 	return s
 }
 
-type metricsStorerLoader interface {
-	Store(m *Metrics) error
-	Load() (*Metrics, error)
-}
-
-type metricsSLImpl struct {
-	inner storage.StorerLoader
-}
-
-func (sl *metricsSLImpl) Store(m *Metrics) error {
-	storageMetrics := &storage.ReplicationMetrics{
-		NVerified:        m.NVerified,
-		NReplicated:      m.NReplicated,
-		NUnderreplicated: m.NUnderreplicated,
-		LatestPass:       m.LatestPass,
-	}
-	metricsBytes, err := proto.Marshal(storageMetrics)
-	cerrors.MaybePanic(err) // should never happen
-	return sl.inner.Store(metricsKey, metricsBytes)
-}
-
-func (sl *metricsSLImpl) Load() (*Metrics, error) {
-	storageMetricsBytes, err := sl.inner.Load(metricsKey)
-	if err != nil {
-		return nil, err
-	}
-	if storageMetricsBytes == nil {
-		return nil, errMissingStoredMetrics
-	}
-	stored := &storage.ReplicationMetrics{}
-	cerrors.MaybePanic(proto.Unmarshal(storageMetricsBytes, stored)) // should never happen
-	return &Metrics{
-		NVerified:        stored.NVerified,
-		NReplicated:      stored.NReplicated,
-		NUnderreplicated: stored.NUnderreplicated,
-		LatestPass:       stored.LatestPass,
-	}, nil
-}
-
 func safeClose(ch chan struct{}) {
 	select {
 	case <-ch: // already closed
@@ -419,9 +323,21 @@ func safeCloseErrChan(ch chan error) {
 	}
 }
 
-func maybeSendErrChan(ch chan error, err error) {
+func safeCloseVerifyChan(ch chan *verify.Verify) {
 	select {
 	case <-ch: // already closed
+	default:
+		close(ch)
+	}
+}
+
+func maybeSendErrChan(ch chan error, err error) {
+	select {
+	case prev, open := <-ch:
+		if open {
+			ch <- prev
+			ch <- err
+		}
 	default:
 		ch <- err
 	}
@@ -429,16 +345,12 @@ func maybeSendErrChan(ch chan error, err error) {
 
 func maybeSendVerifyChan(ch chan *verify.Verify, v *verify.Verify) {
 	select {
-	case <-ch: // already closed
+	case prev, open := <-ch:
+		if open {
+			ch <- prev
+			ch <- v
+		}
 	default:
 		ch <- v
-	}
-}
-
-func safeCloseVerifyChan(ch chan *verify.Verify) {
-	select {
-	case <-ch: // already closed
-	default:
-		close(ch)
 	}
 }

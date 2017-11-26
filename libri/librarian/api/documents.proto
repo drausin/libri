@@ -48,16 +48,16 @@ message Entry {
     // ECDSA public key of the entry author
     bytes author_public_key = 1;
 
-    // contents of the entry, either a single Page or a list of page keys
-    oneof contents {
-        Page page = 2;
-        PageKeys page_keys = 3;
-    }
+    // single-page contents of the entry, set when page_keys is not set
+    Page page = 2;
+
+    // multi-page contents of the entry, set when page is not set
+    repeated bytes page_keys = 3;
 
     // created epoch time (seconds since 1970-01-01)
-    int64 created_time = 4;
+    uint32 created_time = 4;
 
-    // ciphertext of marshalled Metadata message properties
+    // ciphertext of marshalled EntryMetadata message properties
     bytes metadata_ciphertext = 5;
 
     // 32-byte MAC of metatadata ciphertext, encrypted with the 32-byte Entry AES-256 key and
@@ -65,14 +65,89 @@ message Entry {
     bytes metadata_ciphertext_mac = 6;
 }
 
-// Metadata is a map of (property, value) combinations.
-message Metadata {
-    map<string, bytes> properties = 1;
+// EntryMetadata contains metadata for an entry.
+message EntryMetadata {
+
+    // media/MIME type of the data
+    string media_type = 1;
+
+    // codec used to compress the data
+    CompressionCodec compression_codec = 2;
+
+    // total ciphertext size across all pages
+    uint64 ciphertext_size = 3;
+
+    // MAC of the entire ciphertext
+    bytes ciphertext_mac = 4;
+
+    // total size of the entire uncompressed entry
+    uint64 uncompressed_size = 5;
+
+    // MAC of the entire uncompressed entry
+    bytes uncompressed_mac = 6;
+
+    // -----------------------------
+    // properties below are optional
+    // -----------------------------
+
+    // domain-specific metadata
+    map<string, bytes> properties = 7;
+
+    // (relative) filepath of the data contained in the entry
+    string filepath = 8;
+
+    // schema of the entry plaintext
+    SchemaArtifact schema = 9;
+
+    // data dictionary of the entry plaintext
+    SchemaArtifact dataDictionary = 10;
 }
 
-// PageKeys is an ordered list of keys to Page documents that comprise an Entry document.
-message PageKeys {
-    repeated bytes keys = 1;
+// CompressionCodec denotes whether and how the plaintext is compressed before encryption.
+enum CompressionCodec {
+    NONE = 0;
+    GZIP = 1;
+}
+
+// SchemaArtifact denotes the schema artifact associated with the serialized plaintext of a
+// particular entry. Artifacts can mainly be two separate types:
+//
+// - schema: can be of any type (e.g., proto, avro, json, XML, XSD, etc) that minimally describe the
+// format of the data and optionally/preferably also include the data dictionary (i.e., the
+// semantic meaning of the schema components) as well.
+//
+// - data dictionary: when the schema is broad/loose (as is the case in some standard data formats
+// like HL7), this additional documentation adds clarity about the semantic meaning/use of each
+// field. For example, a schema may contain two similar fields, A1 and A2, and one entry
+// data producer may store a value in A1, whereas another producer may store the same semantic
+// value in A2. The schema for both messages is the same, but the schema interpretation is
+// different.
+//
+// New schemas should obviously be as well-defined and unambiguous as possible, but many legacy
+// data formats require additional interpretation. Clients can choose to do what they want with
+// the schema and data dictionary, but commonly they will have combinations of these that they
+// know how to handle explicitly.
+//
+// Preferred formats:
+//  - schema: Protobuf
+//  - data dictionary: Markdown
+//
+message SchemaArtifact {
+
+    // group owning the schema (commonly a Github user, e.g., 'drausin')
+    string group = 1;
+
+    // project in which schema resides (commonly a Github project, e.g., 'libri')
+    string project = 2;
+
+    // path to schema file within project (e.g., 'libri/librarian/api/documents.proto')
+    string path = 3;
+
+    // (optional) name of schema within file (e.g., 'EntrySchema')
+    string name = 4;
+
+    // version of schema (commonly a semver tag, e.g., '0.1.0')
+    string version = 5;
 }
 
 // Page is a portion (possibly all) of an Entry document.

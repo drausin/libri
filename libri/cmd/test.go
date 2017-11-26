@@ -25,7 +25,7 @@ func init() {
 
 	testCmd.PersistentFlags().StringSliceP(testLibrariansFlag, "a", nil,
 		"comma-separated addresses (IPv4:Port) of librarian(s)")
-	testCmd.PersistentFlags().Int(timeoutFlag, 5,
+	testCmd.PersistentFlags().Int(timeoutFlag, 10,
 		"timeout (seconds) for requests to librarians")
 
 	// bind viper flags

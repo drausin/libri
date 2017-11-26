@@ -40,7 +40,7 @@ func TestStart_ok(t *testing.T) {
 	librarian := <-up
 
 	// set up clients
-	conn, err := grpc.Dial(config.LocalAddr.String(), grpc.WithInsecure())
+	conn, err := grpc.Dial(fmt.Sprintf(":%d", config.LocalPort), grpc.WithInsecure())
 	assert.NotNil(t, conn)
 	assert.Nil(t, err)
 	clientHealth := healthpb.NewHealthClient(conn)
@@ -53,7 +53,7 @@ func TestStart_ok(t *testing.T) {
 	assert.Equal(t, healthpb.HealthCheckResponse_SERVING, rp.Status)
 
 	// confirm ok metrics
-	metricsAddr := fmt.Sprintf("http://%s/metrics", config.LocalMetricsAddr)
+	metricsAddr := fmt.Sprintf("http://localhost:%d/metrics", config.LocalMetricsPort)
 	resp, err := http.Get(metricsAddr)
 	assert.Nil(t, err)
 	assert.Equal(t, "200 OK", resp.Status)
@@ -79,7 +79,7 @@ func TestStart_bootstrapPeersErr(t *testing.T) {
 	config.WithBootstrapAddrs(make([]*net.TCPAddr, 0))
 
 	// configure bootstrap peer to be non-existent peer
-	publicAddr, err := ParseAddr(DefaultIP, DefaultPort+1)
+	publicAddr, err := ParseAddr(DefaultIP, DefaultPort-1)
 	assert.Nil(t, err)
 	config.BootstrapAddrs = append(config.BootstrapAddrs, publicAddr)
 

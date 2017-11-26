@@ -15,7 +15,6 @@ import (
 
 const (
 	bootstrapsFlag       = "bootstraps"
-	localHostFlag        = "localHost"
 	localPortFlag        = "localPort"
 	localMetricsPortFlag = "localMetricsPort"
 	publicHostFlag       = "publicHost"
@@ -24,8 +23,8 @@ const (
 	nSubscriptionsFlag   = "nSubscriptions"
 	fpRateFlag           = "fpRate"
 
-	logLocalAddr        = "localAddr"
-	logLocalMetricsAddr = "localMetricsAddr"
+	logLocalPort        = "localPort"
+	logLocalMetricsPort = "localMetricsPort"
 	logPublicAddr       = "publicAddr"
 )
 
@@ -40,18 +39,13 @@ var startLibrarianCmd = &cobra.Command{
 			return err
 		}
 		up := make(chan *server.Librarian, 1)
-		if err = server.Start(logger, config, up); err != nil {
-			return err
-		}
-		return nil
+		return server.Start(logger, config, up)
 	},
 }
 
 func init() {
 	librarianCmd.AddCommand(startLibrarianCmd)
 
-	startLibrarianCmd.Flags().String(localHostFlag, server.DefaultIP,
-		"local host (IPv4 or URL)")
 	startLibrarianCmd.Flags().Int(localPortFlag, server.DefaultPort,
 		"local port")
 	startLibrarianCmd.Flags().Int(localMetricsPortFlag, server.DefaultMetricsPort,
@@ -79,22 +73,8 @@ func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
 	logLevel := getLogLevel()
 	logger := clogging.NewDevLogger(logLevel)
 
-	localAddr, err := server.ParseAddr(
-		viper.GetString(localHostFlag),
-		viper.GetInt(localPortFlag),
-	)
-	if err != nil {
-		logger.Error("fatal error parsing local address", zap.Error(err))
-		return nil, nil, err
-	}
-	localMetricsAddr, err := server.ParseAddr(
-		viper.GetString(localHostFlag),
-		viper.GetInt(localMetricsPortFlag),
-	)
-	if err != nil {
-		logger.Error("fatal error parsing local metrics address", zap.Error(err))
-		return nil, nil, err
-	}
+	localPort := viper.GetInt(localPortFlag)
+	localMetricsPort := viper.GetInt(localMetricsPortFlag)
 	publicAddr, err := server.ParseAddr(
 		viper.GetString(publicHostFlag),
 		viper.GetInt(publicPortFlag),
@@ -104,8 +84,8 @@ func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
 		return nil, nil, err
 	}
 	config := server.NewDefaultConfig().
-		WithLocalAddr(localAddr).
-		WithLocalMetricsAddr(localMetricsAddr).
+		WithLocalPort(localPort).
+		WithLocalMetricsPort(localMetricsPort).
 		WithPublicAddr(publicAddr).
 		WithPublicName(viper.GetString(publicNameFlag)).
 		WithDataDir(viper.GetString(dataDirFlag)).
@@ -124,8 +104,8 @@ func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
 
 	WriteLibrarianBanner(os.Stdout)
 	logger.Info("librarian configuration",
-		zap.Stringer(logLocalAddr, config.LocalAddr),
-		zap.Stringer(logLocalMetricsAddr, config.LocalMetricsAddr),
+		zap.Int(logLocalPort, config.LocalPort),
+		zap.Int(logLocalMetricsPort, config.LocalMetricsPort),
 		zap.Stringer(logPublicAddr, config.PublicAddr),
 		zap.String(bootstrapsFlag, fmt.Sprintf("%v", config.BootstrapAddrs)),
 		zap.String(publicNameFlag, config.PublicName),

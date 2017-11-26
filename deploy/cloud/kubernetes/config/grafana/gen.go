@@ -14,12 +14,13 @@ const (
 	outputFilepath   = "dashboard.service.json"
 )
 
+// Config defines the values used in the service template.
 type Config struct {
 	Endpoints []string
 }
 
 var config = Config{
-	Endpoints: []string{"Find", "Store", "Get", "Put", "Verify"},
+	Endpoints: []string{"Get", "Put", "Find", "Store", "Verify"},
 }
 
 func main() {

@@ -30,25 +30,6 @@ func TestNewDefaultParameters(t *testing.T) {
 	assert.NotZero(t, p.MaxErrRate)
 }
 
-func TestVerifyDefaultParameters(t *testing.T) {
-	p1 := verify.NewDefaultParameters()
-	p2 := NewVerifyDefaultParameters()
-	assert.True(t, p1.NReplicas == p2.NReplicas+1)
-	assert.True(t, p1.NClosestResponses == p2.NClosestResponses+1)
-	assert.True(t, p2.ExcludeSelf)
-}
-
-func TestMetrics_clone(t *testing.T) {
-	m1 := &Metrics{
-		NVerified:        2,
-		NUnderreplicated: 2,
-		NReplicated:      2,
-		LatestPass:       time.Now().Unix(),
-	}
-	m2 := m1.clone()
-	assert.Equal(t, m1, m2)
-}
-
 func TestReplicator_StartStop(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	kvdb, cleanup, err := db.NewTempDirRocksDB()
@@ -58,7 +39,6 @@ func TestReplicator_StartStop(t *testing.T) {
 
 	rt, selfID, _ := routing.NewTestWithPeers(rng, 10)
 	docS := storage.NewDocumentSLD(kvdb)
-	serverSL := storage.NewServerSL(kvdb)
 	verifyParams := verify.NewDefaultParameters()
 	replicatorParams := &Parameters{
 		VerifyInterval:       10 * time.Millisecond,
@@ -106,7 +86,6 @@ func TestReplicator_StartStop(t *testing.T) {
 		selfID,
 		rt,
 		docS,
-		serverSL,
 		verifier,
 		storer,
 		replicatorParams,
@@ -127,13 +106,6 @@ func TestReplicator_StartStop(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 	r.Stop()
 
-	m := r.Metrics()
-	assert.True(t, m.NVerified > 0)
-	assert.True(t, m.NReplicated > 0)
-	assert.True(t, m.NUnderreplicated > 0)
-	assert.True(t, m.NVerified >= m.NReplicated)
-	assert.True(t, m.LatestPass > 0)
-
 	wg.Wait()
 
 	// now make the storer only error
@@ -144,7 +116,6 @@ func TestReplicator_StartStop(t *testing.T) {
 		selfID,
 		rt,
 		docS,
-		serverSL,
 		verifier,
 		storer,
 		replicatorParams,
@@ -165,21 +136,19 @@ func TestReplicator_StartStop(t *testing.T) {
 func TestReplicator_verify(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	rt, selfID, _ := routing.NewTestWithPeers(rng, 10)
-	innerMetricsSL := &storage.TestSLD{}
 	r := replicator{
 		selfID:           selfID,
 		verifyParams:     verify.NewDefaultParameters(),
 		replicatorParams: &Parameters{VerifyInterval: 10 * time.Millisecond},
 		storeParams:      store.NewDefaultParameters(),
-		metrics:          &Metrics{},
 		docS:             storage.NewTestDocSLD(),
-		metricsSL:        &metricsSLImpl{inner: innerMetricsSL},
 		underreplicated:  make(chan *verify.Verify, 1),
 		errs:             make(chan error, 8),
 		stop:             make(chan struct{}),
 		stopped:          make(chan struct{}),
 		fatal:            make(chan error, 1),
 		rt:               rt,
+		rng:              rng,
 		logger:           zap.NewNop(), // server.NewDevLogger(zap.DebugLevel),
 	}
 
@@ -190,7 +159,6 @@ func TestReplicator_verify(t *testing.T) {
 		err := r.docS.Store(key, value)
 		assert.Nil(t, err)
 	}
-	assert.Equal(t, uint64(nDocs), r.docS.Metrics().NDocuments)
 
 	// verifier always returns results where FullyReplicated() == true
 	key := id.NewPseudoRandom(rng) // arbitrary, but just need something
@@ -224,29 +192,6 @@ func TestReplicator_verify(t *testing.T) {
 		r.verify()
 	}(wg)
 
-	passComplete := false
-	for c := 0; c < 10 && !passComplete; c++ {
-		r.wrapLock(func() {
-			if r.metrics.LatestPass > 0 {
-				passComplete = true
-			}
-		})
-		time.Sleep(100 * time.Millisecond)
-	}
-	assert.True(t, passComplete)
-	m1, err := r.metricsSL.Load()
-	assert.Nil(t, err)
-	assert.True(t, m1.NVerified > 0)
-	assert.Zero(t, m1.NUnderreplicated)
-	assert.Zero(t, m1.NReplicated)
-	assert.True(t, m1.LatestPass > 0)
-
-	m2 := r.Metrics()
-	assert.Equal(t, m1.LatestPass, m2.LatestPass)
-	assert.True(t, m2.NVerified >= m1.NVerified)
-	assert.Zero(t, m2.NUnderreplicated)
-	assert.Zero(t, m2.NReplicated)
-
 	close(r.stop)
 
 	// wait for verify loop to finish
@@ -268,10 +213,10 @@ func TestReplicator_verifyValue(t *testing.T) {
 		verifyParams:     verify.NewDefaultParameters(),
 		replicatorParams: replicatorParams,
 		storeParams:      store.NewDefaultParameters(),
-		metrics:          &Metrics{},
 		underreplicated:  make(chan *verify.Verify, 1),
 		errs:             make(chan error, 1),
 		rt:               rt,
+		rng:              rng,
 		logger:           zap.NewNop(),
 	}
 	unqueried := search.NewClosestPeers(key, 10)
@@ -290,8 +235,6 @@ func TestReplicator_verifyValue(t *testing.T) {
 	r.verifyValue(key, valueBytes)
 	err = <-r.errs
 	assert.Nil(t, err)
-	r.wrapLock(func() { assert.Zero(t, r.metrics.NUnderreplicated) })
-	r.wrapLock(func() { assert.Equal(t, uint64(1), r.metrics.NVerified) })
 	select {
 	case <-r.underreplicated:
 		assert.True(t, false) // should't get message in underreplicated
@@ -314,8 +257,6 @@ func TestReplicator_verifyValue(t *testing.T) {
 	r.verifyValue(key, valueBytes)
 	err = <-r.errs
 	assert.Nil(t, err)
-	r.wrapLock(func() { assert.Equal(t, uint64(1), r.metrics.NUnderreplicated) })
-	r.wrapLock(func() { assert.Equal(t, uint64(2), r.metrics.NVerified) })
 	v := <-r.underreplicated
 	assert.Equal(t, key, v.Key)
 
@@ -333,8 +274,6 @@ func TestReplicator_verifyValue(t *testing.T) {
 	r.verifyValue(key, valueBytes)
 	err = <-r.errs
 	assert.Equal(t, errVerifyExhausted, err)
-	r.wrapLock(func() { assert.Equal(t, uint64(1), r.metrics.NUnderreplicated) })
-	r.wrapLock(func() { assert.Equal(t, uint64(2), r.metrics.NVerified) })
 	select {
 	case <-r.underreplicated:
 		assert.True(t, false) // should't get message in underreplicated
@@ -349,8 +288,6 @@ func TestReplicator_verifyValue(t *testing.T) {
 	r.verifyValue(key, valueBytes)
 	err = <-r.errs
 	assert.NotNil(t, err)
-	r.wrapLock(func() { assert.Equal(t, uint64(1), r.metrics.NUnderreplicated) })
-	r.wrapLock(func() { assert.Equal(t, uint64(2), r.metrics.NVerified) })
 	select {
 	case <-r.underreplicated:
 		assert.True(t, false) // should't get message in underreplicated
@@ -386,7 +323,6 @@ func TestReplicator_replicate(t *testing.T) {
 	verifyParams := verify.NewDefaultParameters()
 	r := replicator{
 		selfID:          selfID,
-		metrics:         &Metrics{},
 		storeParams:     store.NewDefaultParameters(),
 		underreplicated: make(chan *verify.Verify, 1),
 		errs:            make(chan error, 1),
@@ -403,7 +339,6 @@ func TestReplicator_replicate(t *testing.T) {
 	r.underreplicated <- verify.NewVerify(selfID, key, valueBytes, macKey, verifyParams)
 	err = <-r.errs
 	assert.Nil(t, err)
-	r.wrapLock(func() { assert.Equal(t, uint64(1), r.metrics.NReplicated) })
 
 	// check that when storer returns result where Stored() == false, NReplicated does not increase
 	r.storer = &fixedStorer{
@@ -412,14 +347,12 @@ func TestReplicator_replicate(t *testing.T) {
 	r.underreplicated <- verify.NewVerify(selfID, key, valueBytes, macKey, verifyParams)
 	err = <-r.errs
 	assert.Nil(t, err)
-	r.wrapLock(func() { assert.Equal(t, uint64(1), r.metrics.NReplicated) })
 
 	// check that when storer returns an error, it gets passed to the errs channel
 	r.storer = &fixedStorer{err: errors.New("some Store error")}
 	r.underreplicated <- verify.NewVerify(selfID, key, valueBytes, macKey, verifyParams)
 	err = <-r.errs
 	assert.NotNil(t, err)
-	r.wrapLock(func() { assert.Equal(t, uint64(1), r.metrics.NReplicated) })
 }
 
 type fixedStorer struct {
@@ -469,50 +402,4 @@ func TestNewStore(t *testing.T) {
 	assert.Equal(t, v.Result.Responded, s.Search.Result.Responded)
 	assert.Equal(t, v.Result.Errored, s.Search.Result.Errored)
 	assert.True(t, s.Search.FoundClosestPeers())
-}
-
-func TestMetricsSL_StoreLoad_ok(t *testing.T) {
-	msl := metricsSLImpl{
-		inner: &storage.TestSLD{},
-	}
-	m1 := &Metrics{
-		NVerified:        2,
-		NUnderreplicated: 2,
-		NReplicated:      2,
-		LatestPass:       time.Now().Unix(),
-	}
-
-	err := msl.Store(m1)
-	assert.Nil(t, err)
-
-	m2, err := msl.Load()
-	assert.Nil(t, err)
-	assert.Equal(t, m1, m2)
-}
-
-func TestMetricsSL_Store_err(t *testing.T) {
-	msl := metricsSLImpl{
-		inner: &storage.TestSLD{StoreErr: errors.New("some Store error")},
-	}
-	m := &Metrics{
-		NVerified:        2,
-		NUnderreplicated: 2,
-		NReplicated:      2,
-		LatestPass:       time.Now().Unix(),
-	}
-
-	err := msl.Store(m)
-	assert.NotNil(t, err)
-}
-
-func TestMetricsSL_Load_err(t *testing.T) {
-	cases := []metricsSLImpl{
-		{inner: &storage.TestSLD{LoadErr: errors.New("some Load error")}},
-		{inner: &storage.TestSLD{}}, // missing doc
-	}
-
-	for _, c := range cases {
-		_, err := c.Load()
-		assert.NotNil(t, err)
-	}
 }

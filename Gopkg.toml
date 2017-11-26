@@ -21,7 +21,6 @@
 #  version = "2.4.0"
 
 
-# support only up to RocksDB v5.4.6
 [[constraint]]
   name = "github.com/tecbot/gorocksdb"
-  revision = "943ff5745db7e1765b5723f2deec783f4803918e"
+  revision = "57a309fefefb9c03d6dcc11a0e5705fc4711b46d"

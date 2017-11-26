@@ -7,6 +7,7 @@ import (
 	"github.com/drausin/libri/libri/author/io/comp"
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/io/page"
+	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 )
@@ -50,10 +51,7 @@ func NewParameters(
 // NewDefaultParameters creates a default *Parameters instance.
 func NewDefaultParameters() *Parameters {
 	params, err := NewParameters(comp.DefaultBufferSize, page.DefaultSize, DefaultParallelism)
-	if err != nil {
-		// should never happen; if does, it's programmer error
-		panic(err)
-	}
+	cerrors.MaybePanic(err) // should never happen; if does, it's programmer error
 	return params
 }
 
@@ -61,7 +59,7 @@ func NewDefaultParameters() *Parameters {
 type Printer interface {
 	// Print creates pages from the given content and stores them via an internal page.Storer.
 	Print(content io.Reader, mediaType string, keys *enc.EEK, authorPub []byte) (
-		[]id.ID, *api.Metadata, error)
+		[]id.ID, *api.EntryMetadata, error)
 }
 
 type printer struct {
@@ -85,10 +83,14 @@ func NewPrinter(
 }
 
 func (p *printer) Print(content io.Reader, mediaType string, keys *enc.EEK, authorPub []byte) (
-	[]id.ID, *api.Metadata, error) {
+	[]id.ID, *api.EntryMetadata, error) {
 
 	pages := make(chan *api.Page, int(p.params.Parallelism))
-	compressor, paginator, err := p.init.Initialize(content, mediaType, keys, authorPub, pages)
+	codec, err := comp.GetCompressionCodec(mediaType)
+	if err != nil {
+		return nil, nil, err
+	}
+	compressor, paginator, err := p.init.Initialize(content, codec, keys, authorPub, pages)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -112,14 +114,15 @@ func (p *printer) Print(content io.Reader, mediaType string, keys *enc.EEK, auth
 	default:
 	}
 
-	metadata, err := api.NewEntryMetadata(
-		mediaType,
-		paginator.CiphertextMAC().MessageSize(),
-		paginator.CiphertextMAC().Sum(nil),
-		compressor.UncompressedMAC().MessageSize(),
-		compressor.UncompressedMAC().Sum(nil),
-	)
-	if err != nil {
+	metadata := &api.EntryMetadata{
+		MediaType:        mediaType,
+		CompressionCodec: codec,
+		CiphertextSize:   paginator.CiphertextMAC().MessageSize(),
+		CiphertextMac:    paginator.CiphertextMAC().Sum(nil),
+		UncompressedSize: compressor.UncompressedMAC().MessageSize(),
+		UncompressedMac:  compressor.UncompressedMAC().Sum(nil),
+	}
+	if err := api.ValidateEntryMetadata(metadata); err != nil {
 		return nil, nil, err
 	}
 
@@ -127,7 +130,7 @@ func (p *printer) Print(content io.Reader, mediaType string, keys *enc.EEK, auth
 }
 
 type printInitializer interface {
-	Initialize(content io.Reader, mediaType string, keys *enc.EEK, authorPub []byte,
+	Initialize(content io.Reader, codec api.CompressionCodec, keys *enc.EEK, authorPub []byte,
 		pages chan *api.Page) (comp.Compressor, page.Paginator, error)
 }
 
@@ -136,13 +139,13 @@ type printInitializerImpl struct {
 }
 
 func (pi *printInitializerImpl) Initialize(
-	content io.Reader, mediaType string, keys *enc.EEK, authorPub []byte, pages chan *api.Page,
+	content io.Reader,
+	codec api.CompressionCodec,
+	keys *enc.EEK,
+	authorPub []byte,
+	pages chan *api.Page,
 ) (comp.Compressor, page.Paginator, error) {
 
-	codec, err := comp.GetCompressionCodec(mediaType)
-	if err != nil {
-		return nil, nil, err
-	}
 	compressor, err := comp.NewCompressor(content, codec, keys,
 		pi.params.CompressionBufferSize)
 	if err != nil {

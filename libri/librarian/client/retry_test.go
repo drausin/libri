@@ -43,7 +43,7 @@ func TestRetryFinder_Find_ok(t *testing.T) {
 	for i, c := range cases {
 		info := fmt.Sprintf("case %d", i)
 		rg := NewRetryFinder(c, timeout)
-		rp, err := rg.Find(nil, nil) // since .Find() is mocked, inputs don't matter
+		rp, err := rg.Find(context.TODO(), nil) // since .Find() is mocked, inputs don't matter
 		assert.Nil(t, err, info)
 		assert.Equal(t, doc, rp.Value, info)
 	}
@@ -86,7 +86,7 @@ func TestRetryFinder_Find_err(t *testing.T) {
 	for i, c := range cases {
 		info := fmt.Sprintf("case %d", i)
 		rg := NewRetryFinder(c, timeout)
-		rp, err := rg.Find(nil, nil) // since .Find() is mocked, inputs don't matter
+		rp, err := rg.Find(context.TODO(), nil) // since .Find() is mocked, inputs don't matter
 		assert.NotNil(t, err, info)
 		assert.Nil(t, rp, info)
 	}
@@ -122,7 +122,7 @@ func TestRetryVerifier_Verify_ok(t *testing.T) {
 	for i, c := range cases {
 		info := fmt.Sprintf("case %d", i)
 		rg := NewRetryVerifier(c, timeout)
-		rp, err := rg.Verify(nil, nil) // since Verify() is mocked, inputs don't matter
+		rp, err := rg.Verify(context.TODO(), nil) // since Verify() is mocked, inputs don't matter
 		assert.Nil(t, err, info)
 		assert.Equal(t, mac, rp.Mac, info)
 	}
@@ -165,7 +165,7 @@ func TestRetryVerifier_Verify_err(t *testing.T) {
 	for i, c := range cases {
 		info := fmt.Sprintf("case %d", i)
 		rg := NewRetryVerifier(c, timeout)
-		rp, err := rg.Verify(nil, nil) // since Verify() is mocked, inputs don't matter
+		rp, err := rg.Verify(context.TODO(), nil) // since Verify() is mocked, inputs don't matter
 		assert.NotNil(t, err, info)
 		assert.Nil(t, rp, info)
 	}
@@ -199,7 +199,7 @@ func TestRetryStorer_Store_ok(t *testing.T) {
 	for i, c := range cases {
 		info := fmt.Sprintf("case %d", i)
 		rg := NewRetryStorer(c, timeout)
-		rp, err := rg.Store(nil, nil) // since .Store() is mocked, inputs don't matter
+		rp, err := rg.Store(context.TODO(), nil) // since .Store() is mocked, inputs don't matter
 		assert.Nil(t, err, info)
 		assert.Equal(t, &api.StoreResponse{}, rp, info)
 	}
@@ -240,7 +240,7 @@ func TestRetryStorer_Store_err(t *testing.T) {
 	for i, c := range cases {
 		info := fmt.Sprintf("case %d", i)
 		rg := NewRetryStorer(c, timeout)
-		rp, err := rg.Store(nil, nil) // since .Store() is mocked, inputs don't matter
+		rp, err := rg.Store(context.TODO(), nil) // since .Store() is mocked, inputs don't matter
 		assert.NotNil(t, err, info)
 		assert.Nil(t, rp, info)
 	}
@@ -281,7 +281,7 @@ func TestRetryGetter_Get_ok(t *testing.T) {
 	for i, c := range cases {
 		info := fmt.Sprintf("case %d", i)
 		rg := NewRetryGetter(c, true, timeout)
-		rp, err := rg.Get(nil, nil) // since .Get() is mocked, inputs don't matter
+		rp, err := rg.Get(context.TODO(), nil) // since .Get() is mocked, inputs don't matter
 		assert.Nil(t, err, info)
 		assert.Equal(t, doc, rp.Value, info)
 	}
@@ -339,7 +339,7 @@ func TestRetryGetter_Get_err(t *testing.T) {
 	for i, c := range cases {
 		info := fmt.Sprintf("case %d", i)
 		rg := NewRetryGetter(c, true, timeout)
-		rp, err := rg.Get(nil, nil) // since .Get() is mocked, inputs don't matter
+		rp, err := rg.Get(context.TODO(), nil) // since .Get() is mocked, inputs don't matter
 		assert.NotNil(t, err, info)
 		assert.Nil(t, rp, info)
 	}
@@ -379,7 +379,7 @@ func TestRetryPutter_Put_ok(t *testing.T) {
 	for i, c := range cases {
 		info := fmt.Sprintf("case %d", i)
 		rg := NewRetryPutter(c, timeout)
-		rp, err := rg.Put(nil, nil) // since .Put() is mocked, inputs don't matter
+		rp, err := rg.Put(context.TODO(), nil) // since .Put() is mocked, inputs don't matter
 		assert.Nil(t, err, info)
 		assert.Equal(t, response, rp, info)
 	}
@@ -436,7 +436,7 @@ func TestRetryPutter_Put_err(t *testing.T) {
 	for i, c := range cases {
 		info := fmt.Sprintf("case %d", i)
 		rg := NewRetryPutter(c, timeout)
-		rp, err := rg.Put(nil, nil) // since .Put() is mocked, inputs don't matter
+		rp, err := rg.Put(context.TODO(), nil) // since .Put() is mocked, inputs don't matter
 		assert.NotNil(t, err, info)
 		assert.Nil(t, rp, info)
 	}

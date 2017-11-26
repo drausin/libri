@@ -1,12 +1,10 @@
 package store
 
 import (
+	"errors"
+	"fmt"
 	"math/rand"
 	"testing"
-
-	"errors"
-
-	"fmt"
 
 	"github.com/drausin/libri/libri/common/ecid"
 	cid "github.com/drausin/libri/libri/common/id"
@@ -28,52 +26,59 @@ func TestNewDefaultStorer(t *testing.T) {
 }
 
 func TestStorer_Store_ok(t *testing.T) {
-	n, nReplicas := 32, uint(3)
-	rng := rand.New(rand.NewSource(int64(n)))
-	peers, peersMap, selfPeerIdxs, selfID := ssearch.NewTestPeers(rng, n)
+	rng := rand.New(rand.NewSource(0))
+	nReplicas := uint(3)
+	nPeers := []int{3, 8, 16, 32}
+	concurrencies := []uint{1, 2, 3}
 
-	// create our searcher
-	value, key := api.NewTestDocument(rng)
-	storer := &storer{
-		searcher:      ssearch.NewTestSearcher(peersMap),
-		storerCreator: &fixedStorerCreator{},
-		signer:        &client.TestNoOpSigner{},
-	}
+	for _, n := range nPeers {
+		peers, peersMap, selfPeerIdxs, selfID := ssearch.NewTestPeers(rng, n)
 
-	for concurrency := uint(1); concurrency <= 3; concurrency++ {
-
-		searchParams := &ssearch.Parameters{
-			NMaxErrors:  DefaultNMaxErrors,
-			Concurrency: concurrency,
-			Timeout:     DefaultQueryTimeout,
-		}
-		storeParams := &Parameters{
-			NReplicas:   nReplicas,
-			NMaxErrors:  DefaultNMaxErrors,
-			Concurrency: concurrency,
-		}
-		store := NewStore(selfID, key, value, searchParams, storeParams)
-
-		// init the seeds of our search: usually this comes from the routing.Table.Peak()
-		// method, but we'll just allocate directly
-		seeds := make([]peer.Peer, len(selfPeerIdxs))
-		for i := 0; i < len(selfPeerIdxs); i++ {
-			seeds[i] = peers[selfPeerIdxs[i]]
+		// create our searcher
+		value, key := api.NewTestDocument(rng)
+		storer := &storer{
+			searcher:      ssearch.NewTestSearcher(peersMap),
+			storerCreator: &fixedStorerCreator{},
+			signer:        &client.TestNoOpSigner{},
 		}
 
-		// do the search!
-		err := storer.Store(store, seeds)
+		for _, concurrency := range concurrencies {
+			info := fmt.Sprintf("nPeers: %d, concurrency: %d", n, concurrency)
+			//log.Printf("current case: %s", info)  // sometimes helpful for debugging
 
-		// checks
-		assert.Nil(t, err)
-		assert.True(t, store.Finished())
-		assert.True(t, store.Stored())
-		assert.False(t, store.Errored())
+			searchParams := &ssearch.Parameters{
+				NMaxErrors:  DefaultNMaxErrors,
+				Concurrency: concurrency,
+				Timeout:     DefaultQueryTimeout,
+			}
+			storeParams := &Parameters{
+				NReplicas:   nReplicas,
+				NMaxErrors:  DefaultNMaxErrors,
+				Concurrency: concurrency,
+			}
+			store := NewStore(selfID, key, value, searchParams, storeParams)
 
-		assert.True(t, uint(len(store.Result.Responded)) >= nReplicas)
-		assert.True(t, uint(len(store.Result.Unqueried)) <= storeParams.NMaxErrors)
-		assert.Equal(t, 0, len(store.Result.Errors))
-		assert.Nil(t, store.Result.FatalErr)
+			// init the seeds of our search: usually this comes from the routing.Table.Peak()
+			// method, but we'll just allocate directly
+			seeds := make([]peer.Peer, len(selfPeerIdxs))
+			for i := 0; i < len(selfPeerIdxs); i++ {
+				seeds[i] = peers[selfPeerIdxs[i]]
+			}
+
+			// do the search!
+			err := storer.Store(store, seeds)
+
+			// checks
+			assert.Nil(t, err, info)
+			assert.True(t, store.Finished(), info)
+			assert.True(t, store.Stored(), info)
+			assert.False(t, store.Errored(), info)
+
+			assert.Equal(t, nReplicas, uint(len(store.Result.Responded)), info)
+			assert.True(t, storeParams.NMaxErrors >= uint(len(store.Result.Unqueried)), info)
+			assert.Equal(t, 0, len(store.Result.Errors), info)
+			assert.Nil(t, store.Result.FatalErr, info)
+		}
 	}
 }
 
@@ -90,28 +95,32 @@ func TestStorer_Store_queryErr(t *testing.T) {
 	err := storerImpl.Store(store, seeds)
 
 	// checks
-	assert.Nil(t, err)
+	assert.NotNil(t, err)
+	assert.True(t, store.Finished())
 	assert.True(t, store.Errored())    // since all of the queries return errors
 	assert.False(t, store.Exhausted()) // since NMaxErrors < len(Unqueried)
 	assert.False(t, store.Stored())
-	assert.True(t, store.Finished())
 
 	assert.Equal(t, 0, len(store.Result.Responded))
-	assert.True(t, 0 < len(store.Result.Unqueried))
-	assert.Equal(t, int(store.Params.NMaxErrors), len(store.Result.Errors))
-	assert.Nil(t, store.Result.FatalErr)
+	assert.True(t, 3 >= len(store.Result.Unqueried))
+	assert.True(t, int(store.Params.NMaxErrors) <= len(store.Result.Errors))
+	assert.Equal(t, ErrTooManyStoreErrors, store.Result.FatalErr)
 }
 
 func TestStorer_Store_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(int64(0)))
 	s := &storer{
 		searcher: &errSearcher{},
 	}
 
 	// check that Store() surfaces searcher error
+	selfID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
 	store := &Store{
 		Result: &Result{},
+		Params: NewDefaultParameters(),
+		Search: ssearch.NewSearch(selfID, key, ssearch.NewDefaultParameters()),
 	}
-	assert.NotNil(t, s.Store(store, nil))
+	assert.NotNil(t, s.Store(store, []peer.Peer{}))
 }
 
 func TestStorer_query_err(t *testing.T) {

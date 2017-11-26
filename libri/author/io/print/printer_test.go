@@ -78,10 +78,8 @@ func TestPrinter_Print_ok(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.Equal(t, fixedPageKeys, pageKeys)
-	actualCiphertextSize, _ := entryMetadata.GetCiphertextSize()
-	assert.Equal(t, uint64(readCiphertextN), actualCiphertextSize)
-	actualCiphertextSum, _ := entryMetadata.GetCiphertextMAC()
-	assert.Equal(t, ciphertextSum, actualCiphertextSum)
+	assert.Equal(t, uint64(readCiphertextN), entryMetadata.CiphertextSize)
+	assert.Equal(t, ciphertextSum, entryMetadata.CiphertextMac)
 }
 
 func TestPrinter_Print_err(t *testing.T) {
@@ -92,31 +90,38 @@ func TestPrinter_Print_err(t *testing.T) {
 	keys := enc.NewPseudoRandomEEK(rng)
 	content, mediaType := bytes.NewReader(api.RandBytes(rng, 64)), "application/x-pdf"
 
+	// check get compression codec error bubbles up
 	printer1 := NewPrinter(params, &fixedStorer{})
-	printer1.(*printer).init = &fixedPrintInitializer{
+	pageKeys, entryMetadata, err := printer1.Print(content, "application/", keys, authorPub)
+	assert.NotNil(t, err)
+	assert.Nil(t, pageKeys)
+	assert.Nil(t, entryMetadata)
+
+	printer2 := NewPrinter(params, &fixedStorer{})
+	printer2.(*printer).init = &fixedPrintInitializer{
 		initCompressor: nil,
 		initPaginator:  &fixedPaginator{},
 		initErr:        errors.New("some Initialize error"),
 	}
 
 	// check that init error bubbles up
-	pageKeys, entryMetadata, err := printer1.Print(content, mediaType, keys, authorPub)
+	pageKeys, entryMetadata, err = printer2.Print(content, mediaType, keys, authorPub)
 	assert.NotNil(t, err)
 	assert.Nil(t, pageKeys)
 	assert.Nil(t, entryMetadata)
 
-	storer2 := &fixedStorer{
+	storer3 := &fixedStorer{
 		storeErr: errors.New("some Store error"),
 	}
-	printer2 := NewPrinter(params, storer2)
-	printer2.(*printer).init = &fixedPrintInitializer{
+	printer3 := NewPrinter(params, storer3)
+	printer3.(*printer).init = &fixedPrintInitializer{
 		initCompressor: nil,
 		initPaginator:  &fixedPaginator{},
 		initErr:        nil,
 	}
 
 	// check that store error bubbles up
-	pageKeys, entryMetadata, err = printer2.Print(content, mediaType, keys, authorPub)
+	pageKeys, entryMetadata, err = printer3.Print(content, mediaType, keys, authorPub)
 	assert.NotNil(t, err)
 	assert.Nil(t, pageKeys)
 	assert.Nil(t, entryMetadata)
@@ -126,15 +131,15 @@ func TestPrinter_Print_err(t *testing.T) {
 		readErr: errors.New("some ReadFrom error"),
 	}
 
-	printer3 := NewPrinter(params, &fixedStorer{})
-	printer3.(*printer).init = &fixedPrintInitializer{
+	printer4 := NewPrinter(params, &fixedStorer{})
+	printer4.(*printer).init = &fixedPrintInitializer{
 		initCompressor: nil,
 		initPaginator:  paginator3,
 		initErr:        nil,
 	}
 
 	// check that paginator.ReadFrom error bubbles up
-	pageKeys, entryMetadata, err = printer3.Print(content, mediaType, keys, authorPub)
+	pageKeys, entryMetadata, err = printer4.Print(content, mediaType, keys, authorPub)
 	assert.NotNil(t, err)
 	assert.Nil(t, pageKeys)
 	assert.Nil(t, entryMetadata)
@@ -151,15 +156,15 @@ func TestPrinter_Print_err(t *testing.T) {
 			sum:         []byte{},
 		},
 	}
-	printer4 := NewPrinter(params, &fixedStorer{})
-	printer4.(*printer).init = &fixedPrintInitializer{
+	printer5 := NewPrinter(params, &fixedStorer{})
+	printer5.(*printer).init = &fixedPrintInitializer{
 		initCompressor: compressor,
 		initPaginator:  paginator,
 		initErr:        nil,
 	}
 
 	// check that api.NewEntryMetadata error bubbles up
-	pageKeys, entryMetadata, err = printer4.Print(content, mediaType, keys, authorPub)
+	pageKeys, entryMetadata, err = printer5.Print(content, mediaType, keys, authorPub)
 	assert.NotNil(t, err)
 	assert.Nil(t, pageKeys)
 	assert.Nil(t, entryMetadata)
@@ -201,14 +206,14 @@ func TestPrintInitializerImpl_Initialize_ok(t *testing.T) {
 	params, err := NewParameters(comp.MinBufferSize, page.MinSize, DefaultParallelism)
 	assert.Nil(t, err)
 	authorPub := api.RandBytes(rng, api.ECPubKeyLength)
-	keys := enc.NewPseudoRandomEEK(rng)
-	content, mediaType := bytes.NewReader(api.RandBytes(rng, 64)), "application/x-pdf"
+	codec, keys := api.CompressionCodec_GZIP, enc.NewPseudoRandomEEK(rng)
+	content := bytes.NewReader(api.RandBytes(rng, 64))
 	pages := make(chan *api.Page)
 
 	printInit := &printInitializerImpl{
 		params: params,
 	}
-	compressor, paginator, err := printInit.Initialize(content, mediaType, keys, authorPub,
+	compressor, paginator, err := printInit.Initialize(content, codec, keys, authorPub,
 		pages)
 	assert.Nil(t, err)
 	assert.NotNil(t, compressor)
@@ -220,22 +225,11 @@ func TestPrintInitializerImpl_Initialize_err(t *testing.T) {
 	params, err := NewParameters(comp.MinBufferSize, page.MinSize, DefaultParallelism)
 	assert.Nil(t, err)
 	authorPub := api.RandBytes(rng, api.ECPubKeyLength)
-	keys := enc.NewPseudoRandomEEK(rng)
-	content, mediaType := bytes.NewReader(api.RandBytes(rng, 64)), "application/x-pdf"
+	codec, keys := api.CompressionCodec_GZIP, enc.NewPseudoRandomEEK(rng)
+	content := bytes.NewReader(api.RandBytes(rng, 64))
 	pages := make(chan *api.Page)
 
 	printInit1 := &printInitializerImpl{
-		params: params,
-	}
-
-	// check that bad media type triggers error
-	compressor, paginator, err := printInit1.Initialize(content, "application/", keys,
-		authorPub, pages)
-	assert.NotNil(t, err)
-	assert.Nil(t, compressor)
-	assert.Nil(t, paginator)
-
-	printInit2 := &printInitializerImpl{
 		params: &Parameters{
 			CompressionBufferSize: 0, // will trigger error when creating compressor
 			PageSize:              page.MinSize,
@@ -244,30 +238,27 @@ func TestPrintInitializerImpl_Initialize_err(t *testing.T) {
 	}
 
 	// check that error creating new compressor bubbles up
-	compressor, paginator, err = printInit2.Initialize(content, mediaType, keys, authorPub,
-		pages)
+	compressor, paginator, err := printInit1.Initialize(content, codec, keys, authorPub, pages)
+	assert.NotNil(t, err)
+	assert.Nil(t, compressor)
+	assert.Nil(t, paginator)
+
+	keys2 := enc.NewPseudoRandomEEK(rng)
+	keys2.AESKey = []byte{} // will trigger error when creating encrypter
+	printInit2 := &printInitializerImpl{params}
+
+	// check that error creating new encrypter triggers error
+	compressor, paginator, err = printInit2.Initialize(content, codec, keys2, authorPub, pages)
 	assert.NotNil(t, err)
 	assert.Nil(t, compressor)
 	assert.Nil(t, paginator)
 
 	keys3 := enc.NewPseudoRandomEEK(rng)
-	keys3.AESKey = []byte{} // will trigger error when creating encrypter
+	keys3.HMACKey = []byte{} // will trigger error when creating paginator
 	printInit3 := &printInitializerImpl{params}
 
 	// check that error creating new encrypter triggers error
-	compressor, paginator, err = printInit3.Initialize(content, mediaType, keys3, authorPub,
-		pages)
-	assert.NotNil(t, err)
-	assert.Nil(t, compressor)
-	assert.Nil(t, paginator)
-
-	keys4 := enc.NewPseudoRandomEEK(rng)
-	keys4.HMACKey = []byte{} // will trigger error when creating paginator
-	printInit4 := &printInitializerImpl{params}
-
-	// check that error creating new encrypter triggers error
-	compressor, paginator, err = printInit4.Initialize(content, mediaType, keys4, authorPub,
-		pages)
+	compressor, paginator, err = printInit3.Initialize(content, codec, keys3, authorPub, pages)
 	assert.NotNil(t, err)
 	assert.Nil(t, compressor)
 	assert.Nil(t, paginator)
@@ -333,7 +324,11 @@ type fixedPrintInitializer struct {
 }
 
 func (f *fixedPrintInitializer) Initialize(
-	content io.Reader, mediaType string, keys *enc.EEK, authorPub []byte, pages chan *api.Page,
+	content io.Reader,
+	codec api.CompressionCodec,
+	keys *enc.EEK,
+	authorPub []byte,
+	pages chan *api.Page,
 ) (comp.Compressor, page.Paginator, error) {
 
 	f.initPaginator.pages = pages

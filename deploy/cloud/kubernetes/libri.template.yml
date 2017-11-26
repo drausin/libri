@@ -1,9 +1,14 @@
 {{/* the next line is obviously just for the generated file, not this template */}}
 # This file is generated from libri.template.yml. Please edit that instead!
+{{ $libriVersion := .LibriVersion -}}
 {{ $localPort := .LocalPort -}}
 {{ $localMetricsPort := .LocalMetricsPort -}}
-{{ $gceCluster := .GCECluster -}}
+{{ $grafanaPort := .GrafanaPort -}}
+{{ $prometheusPort := .PrometheusPort -}}
+{{ $gcpCluster := .GCPCluster -}}
 {{ $localCluster := .LocalCluster -}}
+{{ $librarianCPULimit := .LibrarianCPULimit -}}
+{{ $librarianRAMLimit := .LibrarianRAMLimit -}}
 ---
 # headless service for internal DNS networking
 kind: Service
@@ -48,7 +53,7 @@ spec:
   capacity:
     storage: 2Gi
   accessModes: ["ReadWriteOnce"]
-  {{ if $gceCluster -}}
+  {{ if $gcpCluster -}}
   gcePersistentDisk:
       fsType: "ext4"
       pdName: "data-librarians-{{ $index }}"
@@ -82,6 +87,8 @@ metadata:
 spec:
   serviceName: libri
   replicas: {{ .Librarians | len }}
+  updateStrategy:
+    type: RollingUpdate
   template:
     metadata:
       labels:
@@ -90,10 +97,9 @@ spec:
         prometheus.io/scrape: "true"
         prometheus.io/port: "{{ $localMetricsPort }}"
     spec:
-
       containers:
       - name: libriarian
-        image: daedalus2718/libri:latest  # develop branch
+        image: daedalus2718/libri:{{ $libriVersion }}
         args: [
           "librarian", "start",
           "--nSubscriptions", "2",
@@ -130,6 +136,10 @@ spec:
         volumeMounts:
         - name: data
           mountPath: /data
+        resources:
+          limits:
+            memory: {{ $librarianRAMLimit }}
+            cpu: {{ $librarianCPULimit }}
 
       initContainers:
       - image: devth/k8s-labeler
@@ -152,3 +162,169 @@ spec:
   volumeClaimTemplates:
   - metadata:
       name: data
+---
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: node-exporter
+spec:
+  template:
+    metadata:
+      labels:
+        app: node-exporter
+      name: node-exporter
+    spec:
+      containers:
+      - image: prom/node-exporter:v0.15.0
+        name: node-exporter
+        ports:
+        - containerPort: 9100
+          hostPort: 9100
+          name: scrape
+        resources:
+          limits:
+            memory: 100M
+            cpu: 50m
+      hostNetwork: true
+      hostPID: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  labels:
+    name: prometheus
+  annotations:
+      prometheus.io/scrape: 'true'
+spec:
+  selector:
+    app: prometheus
+  type: NodePort  # prob want to move behind LB at some point
+  ports:
+  - name: prometheus
+    protocol: TCP
+    port: 9090
+    targetPort: 9090
+    nodePort: {{ $prometheusPort }}
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: prometheus
+spec:
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      name: prometheus
+      labels:
+        app: prometheus
+    spec:
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v1.8.2
+        args:
+          - '-storage.local.retention=360h'
+          - '-storage.local.memory-chunks=1048576'
+          - '-config.file=/etc/prometheus/prometheus.yml'
+#          - '-alertmanager.url=http://alertmanager:9093/alertmanager'
+#          - '-web.external-url=$(EXTERNAL_URL)'
+        ports:
+        - name: web
+          containerPort: 9090
+        volumeMounts:
+        - name: prometheus-config
+          mountPath: /etc/prometheus
+#        - name: rules-volume
+#          mountPath: /etc/prometheus-rules
+#        - name: prometheus-data
+#          mountPath: /prometheus
+        resources:
+          limits:
+            memory: 250M
+            cpu: 100m
+      volumes:
+      - name: prometheus-config
+        configMap:
+          name: prometheus-config
+#      - name: rules-volume
+#        configMap:
+#          name: prometheus-rules
+#      - name: prometheus-data
+#        emptyDir: {}  # TODO (drausin) PeristentVolume
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  labels:
+    app: grafana
+  annotations:
+      prometheus.io/scrape: 'false'
+spec:
+  selector:
+    app: grafana
+  type: NodePort  # prob want to move behind LB at some point
+  ports:
+  - name: grafana
+    protocol: TCP
+    port: 3000
+    targetPort: 3000
+    nodePort: {{ $grafanaPort }}
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: grafana
+  labels:
+    app: grafana
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+      - image: grafana/grafana:4.6.2
+        name: grafana
+        env:
+            # The following env variables are required to make Grafana accessible via
+            # the kubernetes api-server proxy. On production clusters, we recommend
+            # removing these env variables, setup auth for grafana, and expose the grafana
+            # service using a LoadBalancer or a public IP.
+          - name: GF_AUTH_BASIC_ENABLED
+            value: "false"
+          - name: GF_AUTH_ANONYMOUS_ENABLED
+            value: "true"
+          - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+            value: Admin
+          # - name: GF_SERVER_ROOT_URL
+          #   value: /api/v1/proxy/namespaces/kube-system/services/monitoring-grafana/
+        resources:
+          limits:
+            memory: 250M
+            cpu: 100m
+
+        lifecycle:
+          postStart:
+            exec:
+              command: [
+                "sh", "/opt/grafana/post-start.sh", "http://localhost:3000"
+              ]
+
+        volumeMounts:
+        - name: grafana-config
+          mountPath: /opt/grafana
+
+      volumes:
+      - name: grafana-config
+        configMap:
+          name: grafana-config

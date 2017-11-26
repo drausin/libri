@@ -5,8 +5,8 @@ import (
 	"net"
 
 	"github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/server/storage"
 )
 
 const (

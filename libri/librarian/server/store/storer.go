@@ -2,6 +2,7 @@ package store
 
 import (
 	"bytes"
+	"errors"
 	"sync"
 	"time"
 
@@ -12,7 +13,12 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/search"
 )
 
-const storerStoreRetryTimeout = 100 * time.Millisecond
+const storerStoreRetryTimeout = 25 * time.Millisecond
+
+var (
+	// ErrTooManyStoreErrors indicates when a store has encountered too many Store request errors.
+	ErrTooManyStoreErrors = errors.New("too many Find errors")
+)
 
 // Storer executes store operations.
 type Storer interface {
@@ -50,57 +56,67 @@ func NewDefaultStorer(peerID ecid.ID) Storer {
 	)
 }
 
+type peerResponse struct {
+	peer     peer.Peer
+	response *api.StoreResponse
+	err      error
+}
+
 func (s *storer) Store(store *Store, seeds []peer.Peer) error {
-	if err := s.searcher.Search(store.Search, seeds); err != nil {
-		store.Result = NewFatalResult(err)
-		return err
+	if len(seeds) < int(store.Params.Concurrency) {
+		// fall back to single worker when we have insufficient seeds (usually only the case for
+		// demo clusters with 3 or so peers)
+		store.Params.Concurrency = 1
+		store.Search.Params.Concurrency = 1
+	}
+
+	if !store.Search.Finished() {
+		// sometimes the search has been pre-populated (e.g., by a verification) and is already
+		// finished, so only do search if that's not the case
+		if err := s.searcher.Search(store.Search, seeds); err != nil {
+			store.Result = NewFatalResult(err)
+			return err
+		}
 	}
 	store.Result = NewInitialResult(store.Search.Result)
 
-	var wg sync.WaitGroup
+	// queue of peers to send Store requests to
+	toQuery := make(chan peer.Peer, store.Params.NReplicas)
+	peerResponses := make(chan *peerResponse, store.Params.NReplicas)
+
+	for c := uint(0); c < store.Params.NReplicas; c++ {
+		sendNextToQuery(toQuery, store)
+	}
+
+	var wg1 sync.WaitGroup
+	wg1.Add(1)
+	go func(wg2 *sync.WaitGroup) {
+		defer wg2.Done()
+		for peerResponse := range peerResponses {
+			processAnyReponse(peerResponse, toQuery, store)
+		}
+	}(&wg1)
+
+	var wg3 sync.WaitGroup
 	for c := uint(0); c < store.Params.Concurrency; c++ {
-		wg.Add(1)
-		go s.storeWork(store, &wg)
+		wg3.Add(1)
+		go func(wg4 *sync.WaitGroup) {
+			defer wg4.Done()
+			for next := range toQuery {
+				response, err := s.query(next.Connector(), store)
+				peerResponses <- &peerResponse{
+					peer:     next,
+					response: response,
+					err:      err,
+				}
+			}
+		}(&wg3)
 	}
-	wg.Wait()
+	wg3.Wait()
+	close(peerResponses)
 
+	wg1.Wait()
 	return store.Result.FatalErr
-}
-
-func (s *storer) storeWork(store *Store, wg *sync.WaitGroup) {
-	defer wg.Done()
-	// work is finished when either the store is finished or we have no more unqueried peers
-	// (but the final, remaining queried peers may not have responded yet)
-	for !store.Finished() && store.safeMoreUnqueried() {
-
-		// get next peer to query
-		store.mu.Lock()
-		if !store.moreUnqueried() {
-			// also check for empty unqueried peers here in case anything has changed
-			// since loop condition
-			store.mu.Unlock()
-			break
-		}
-		next := store.Result.Unqueried[0]
-		store.Result.Unqueried = store.Result.Unqueried[1:]
-		store.mu.Unlock()
-
-		// do the query
-		if _, err := s.query(next.Connector(), store); err != nil {
-			// if we had an issue querying, skip to next peer
-			store.wrapLock(func() {
-				store.Result.Errors = append(store.Result.Errors, err)
-				next.Recorder().Record(peer.Response, peer.Error)
-			})
-			continue
-		}
-		store.wrapLock(func() { next.Recorder().Record(peer.Response, peer.Success) })
-
-		// add to slice of responded peers
-		store.wrapLock(func() {
-			store.Result.Responded = append(store.Result.Responded, next)
-		})
-	}
 }
 
 func (s *storer) query(pConn peer.Connector, store *Store) (*api.StoreResponse, error) {
@@ -124,4 +140,64 @@ func (s *storer) query(pConn peer.Connector, store *Store) (*api.StoreResponse, 
 	}
 
 	return rp, nil
+}
+
+func maybeClose(toQuery chan peer.Peer) {
+	select {
+	case <-toQuery:
+	default:
+		close(toQuery)
+	}
+}
+
+func getNextToQuery(store *Store) peer.Peer {
+	if store.Finished() {
+		return nil
+	}
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	if len(store.Result.Unqueried) == 0 {
+		return nil
+	}
+	next := store.Result.Unqueried[0]
+	store.Result.Unqueried = store.Result.Unqueried[1:]
+	return next
+}
+
+func sendNextToQuery(toQuery chan peer.Peer, store *Store) bool {
+	if next := getNextToQuery(store); next != nil {
+		toQuery <- next
+	}
+	return store.Finished()
+}
+
+func processAnyReponse(pr *peerResponse, toQuery chan peer.Peer, store *Store) {
+	errored := false
+	if pr.err != nil {
+		// if we had an issue querying, skip to next peer
+		store.wrapLock(func() {
+			store.Result.Errors = append(store.Result.Errors, pr.err)
+		})
+		if store.Errored() {
+			store.wrapLock(func() {
+				store.Result.FatalErr = ErrTooManyStoreErrors
+			})
+		}
+		pr.peer.Recorder().Record(peer.Response, peer.Error)
+		errored = true
+	} else {
+		store.wrapLock(func() {
+			store.Result.Responded = append(store.Result.Responded, pr.peer)
+		})
+		pr.peer.Recorder().Record(peer.Response, peer.Success)
+	}
+
+	finished := store.Finished()
+	if errored && !finished {
+		// since we've already queue NReplicas into toQuery above, only queue more
+		// if we get an error
+		sendNextToQuery(toQuery, store)
+	} else if finished {
+		maybeClose(toQuery)
+	}
 }

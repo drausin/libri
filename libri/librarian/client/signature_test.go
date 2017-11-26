@@ -4,7 +4,10 @@ import (
 	"math/rand"
 	"testing"
 
+	"fmt"
+
 	"github.com/drausin/libri/libri/common/ecid"
+	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/golang/protobuf/proto"
@@ -103,9 +106,7 @@ func TestEcdsaVerifer_Verify_err(t *testing.T) {
 
 	assert.Panics(t, func() {
 		err := verifier.Verify(encToken, nil, message) // can't have nil key
-		if err != nil {
-			panic(err)
-		}
+		errors.MaybePanic(err)
 	})
 }
 
@@ -121,4 +122,37 @@ func TestTestErrSigner_Sign(t *testing.T) {
 	token, err := s.Sign(nil)
 	assert.Equal(t, "", token)
 	assert.NotNil(t, err)
+}
+
+// TestEntryBytes is mostly used for confirming that certain messages are serialized to the same
+// binary representation in this Go implementation as in the Javascript one.
+func TestEntryBytes(t *testing.T) {
+	dummy := []byte{0, 1, 2}
+	page := &api.Page{
+		AuthorPublicKey: dummy,
+		Index:           0,
+		Ciphertext:      dummy,
+		CiphertextMac:   dummy,
+	}
+	pageBytes, err := proto.Marshal(page)
+	assert.Nil(t, err)
+	assert.Equal(t, "0a030001021a030001022203000102", fmt.Sprintf("%x", pageBytes))
+
+	entry1 := &api.Entry{
+		AuthorPublicKey:       dummy,
+		CreatedTime:           1,
+		MetadataCiphertext:    dummy,
+		MetadataCiphertextMac: dummy,
+	}
+	entry1Bytes, err := proto.Marshal(entry1)
+	assert.Nil(t, err)
+	assert.Equal(t, "0a0300010220012a030001023203000102", fmt.Sprintf("%x", entry1Bytes))
+
+	entry2 := &api.Entry{
+		CreatedTime: 1,
+		Page:        page,
+	}
+	entry2Bytes, err := proto.Marshal(entry2)
+	assert.Nil(t, err)
+	assert.Equal(t, "120f0a030001021a0300010222030001022001", fmt.Sprintf("%x", entry2Bytes))
 }

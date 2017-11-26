@@ -34,6 +34,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// nolint: megacheck
 const (
 	authorKeychainAuth = "acceptance test passphrase"
 
@@ -45,6 +46,7 @@ const (
 	benchmarksFile   = "librarian.bench"
 )
 
+// nolint: structcheck, megacheck
 type state struct {
 	rng                 *rand.Rand
 	client              *testClient
@@ -61,12 +63,14 @@ type state struct {
 	benchResults        []*benchmarkObs
 }
 
+// nolint: megacheck
 type benchmarkObs struct {
 	name    string
 	procs   int
 	results []testing.BenchmarkResult
 }
 
+// nolint: structcheck, megacheck
 type params struct {
 	nSeeds         int
 	nPeers         int
@@ -75,9 +79,12 @@ type params struct {
 	nIntroductions int
 	nPuts          int
 	nUploads       int
+	getTimeout     time.Duration
+	putTimeout     time.Duration
 }
 
 // testClient has enough info to make requests to other peers
+// nolint: megacheck
 type testClient struct {
 	selfID  ecid.ID
 	selfAPI *api.PeerAddress
@@ -86,12 +93,11 @@ type testClient struct {
 	logger  *zap.Logger
 }
 
-func setUp(params *params) *state {
+// nolint: megacheck
+func setUp(params *params) *state { // nolint: deadcode
 	maxBucketPeers := uint(8)
 	dataDir, err := ioutil.TempDir("", "test-data-dir")
-	if err != nil {
-		panic(err)
-	}
+	errors.MaybePanic(err)
 	seedConfigs, peerConfigs, peerAddrs := newLibrarianConfigs(
 		dataDir,
 		params.nSeeds,
@@ -99,7 +105,7 @@ func setUp(params *params) *state {
 		maxBucketPeers,
 		params.logLevel,
 	)
-	authorConfigs := newAuthorConfigs(dataDir, params.nAuthors, peerAddrs, params.logLevel)
+	authorConfigs := newAuthorConfigs(dataDir, peerAddrs, params)
 	seeds := make([]*server.Librarian, params.nSeeds)
 	peers := make([]*server.Librarian, params.nPeers)
 	logger := clogging.NewDevLogger(params.logLevel)
@@ -159,23 +165,17 @@ func setUp(params *params) *state {
 		// create keychains
 		err := lauthor.CreateKeychains(logger, authorConfig.KeychainDir, authorKeychainAuth,
 			veryLightScryptN, veryLightScryptP)
-		if err != nil {
-			panic(err)
-		}
+		errors.MaybePanic(err)
 
 		// load keychains
 		authorKCs, selfReaderKCs, err := lauthor.LoadKeychains(authorConfig.KeychainDir,
 			authorKeychainAuth)
-		if err != nil {
-			panic(err)
-		}
+		errors.MaybePanic(err)
 		authorKeys[i] = authorKCs
 
 		// create author
 		authors[i], err = lauthor.NewAuthor(authorConfig, authorKCs, selfReaderKCs, logger)
-		if err != nil {
-			panic(err)
-		}
+		errors.MaybePanic(err)
 	}
 
 	return &state{
@@ -192,6 +192,7 @@ func setUp(params *params) *state {
 	}
 }
 
+// nolint: megacheck
 func startLibrariansShard(
 	wg *sync.WaitGroup,
 	shardIdx int,
@@ -225,7 +226,8 @@ func startLibrariansShard(
 	}
 }
 
-func tearDown(state *state) {
+// nolint: megacheck
+func tearDown(state *state) { // nolint: deadcode
 	// disconnect from librarians and remove data dir
 	for _, author := range state.authors {
 		err := author.CloseAndRemove()
@@ -250,13 +252,14 @@ func tearDown(state *state) {
 	errors.MaybePanic(err)
 }
 
-func writeBenchmarkResults(t *testing.T, benchmarks []*benchmarkObs) {
+// nolint: megacheck
+func writeBenchmarkResults(t *testing.T, benchmarks []*benchmarkObs) { // nolint: deadcode
 	if _, err := os.Stat(artifactsDir); os.IsNotExist(err) {
-		errors.MaybePanic(os.Mkdir(artifactsDir, 0755))
+		errors.MaybePanic(os.Mkdir(artifactsDir, 0700))
 	}
 	benchmarksDir := path.Join(artifactsDir, benchmarksSubDir)
 	if _, err := os.Stat(benchmarksDir); os.IsNotExist(err) {
-		errors.MaybePanic(os.Mkdir(benchmarksDir, 0755))
+		errors.MaybePanic(os.Mkdir(benchmarksDir, 0700))
 	}
 	f, err := os.Create(path.Join(benchmarksDir, benchmarksFile))
 	defer func() {
@@ -274,6 +277,7 @@ func writeBenchmarkResults(t *testing.T, benchmarks []*benchmarkObs) {
 	}
 }
 
+// nolint: megacheck
 func averageSubsamples(
 	original []testing.BenchmarkResult, subsampleSize int,
 ) []testing.BenchmarkResult {
@@ -296,16 +300,16 @@ func averageSubsamples(
 	return averaged
 }
 
+// nolint: megacheck
 func newLibrarianConfigs(dataDir string, nSeeds, nPeers int, maxBucketPeers uint,
 	logLevel zapcore.Level) ([]*server.Config, []*server.Config, []*net.TCPAddr) {
 	seedStartPort, peerStartPort := 12000, 13000
-	metricsPortOffset := 500
 
 	seedConfigs := make([]*server.Config, nSeeds)
 	bootstrapAddrs := make([]*net.TCPAddr, nSeeds)
 	for c := 0; c < nSeeds; c++ {
-		localPort, metricsPort := seedStartPort+c, seedStartPort+metricsPortOffset+c
-		seedConfigs[c] = newConfig(dataDir, localPort, metricsPort, maxBucketPeers, logLevel)
+		localPort := seedStartPort + c
+		seedConfigs[c] = newConfig(dataDir, localPort, maxBucketPeers, logLevel)
 		bootstrapAddrs[c] = seedConfigs[c].PublicAddr
 	}
 	for c := 0; c < nSeeds; c++ {
@@ -315,8 +319,8 @@ func newLibrarianConfigs(dataDir string, nSeeds, nPeers int, maxBucketPeers uint
 	peerConfigs := make([]*server.Config, nPeers)
 	peerAddrs := make([]*net.TCPAddr, nPeers)
 	for c := 0; c < nPeers; c++ {
-		localPort, metricsPort := peerStartPort+c, peerStartPort+metricsPortOffset+c
-		peerConfigs[c] = newConfig(dataDir, localPort, metricsPort, maxBucketPeers, logLevel).
+		localPort := peerStartPort + c
+		peerConfigs[c] = newConfig(dataDir, localPort, maxBucketPeers, logLevel).
 			WithBootstrapAddrs(bootstrapAddrs)
 		peerAddrs[c] = peerConfigs[c].PublicAddr
 	}
@@ -324,30 +328,32 @@ func newLibrarianConfigs(dataDir string, nSeeds, nPeers int, maxBucketPeers uint
 	return seedConfigs, peerConfigs, peerAddrs
 }
 
-func newAuthorConfigs(dataDir string, nAuthors int, librarianAddrs []*net.TCPAddr,
-	logLevel zapcore.Level) []*lauthor.Config {
-	authorConfigs := make([]*lauthor.Config, nAuthors)
-	for c := 0; c < nAuthors; c++ {
+// nolint: megacheck
+func newAuthorConfigs(dataDir string, librarianAddrs []*net.TCPAddr, params *params,
+) []*lauthor.Config {
+	authorConfigs := make([]*lauthor.Config, params.nAuthors)
+	for c := 0; c < params.nAuthors; c++ {
 		authorDataDir := filepath.Join(dataDir, fmt.Sprintf("author-%d", c))
 		publishParams := publish.NewDefaultParameters()
 
 		// this is really long but adds robustness to our acceptance tests
-		publishParams.GetTimeout = 20 * time.Second
-		publishParams.PutTimeout = 20 * time.Second
+		publishParams.GetTimeout = params.getTimeout
+		publishParams.PutTimeout = params.putTimeout
 
 		authorConfigs[c] = lauthor.NewDefaultConfig().
 			WithLibrarianAddrs(librarianAddrs).
 			WithDataDir(authorDataDir).
 			WithDefaultDBDir().
 			WithDefaultKeychainDir().
-			WithLogLevel(logLevel).
+			WithLogLevel(params.logLevel).
 			WithPublish(publishParams)
 	}
 	return authorConfigs
 }
 
+// nolint: megacheck
 func newConfig(
-	dataDir string, port, metricsPort int, maxBucketPeers uint, logLevel zapcore.Level,
+	dataDir string, port int, maxBucketPeers uint, logLevel zapcore.Level,
 ) *server.Config {
 
 	rtParams := routing.NewDefaultParameters()
@@ -365,12 +371,9 @@ func newConfig(
 	errors.MaybePanic(err) // should never happen
 	peerDataDir := filepath.Join(dataDir, server.NameFromAddr(localAddr))
 
-	localMetricsAddr, err := server.ParseAddr("localhost", metricsPort)
-	errors.MaybePanic(err) // should never happen
-
 	return server.NewDefaultConfig().
-		WithLocalAddr(localAddr).
-		WithLocalMetricsAddr(localMetricsAddr).
+		WithLocalPort(port).
+		WithReportMetrics(false).
 		WithDefaultPublicAddr().
 		WithDefaultPublicName().
 		WithDataDir(peerDataDir).
@@ -382,7 +385,8 @@ func newConfig(
 		WithSubscribeTo(subscribeToParams)
 }
 
-func newTestDocument(rng *rand.Rand, entrySize int) (*api.Document, id.ID) {
+// nolint: megacheck
+func newTestDocument(rng *rand.Rand, entrySize int) (*api.Document, id.ID) { // nolint: deadcode
 	page := &api.Page{
 		AuthorPublicKey: api.RandBytes(rng, api.ECPubKeyLength),
 		CiphertextMac:   api.RandBytes(rng, 32),
@@ -393,7 +397,7 @@ func newTestDocument(rng *rand.Rand, entrySize int) (*api.Document, id.ID) {
 		CreatedTime:           1,
 		MetadataCiphertext:    api.RandBytes(rng, 64),
 		MetadataCiphertextMac: api.RandBytes(rng, api.HMAC256Length),
-		Contents:              &api.Entry_Page{Page: page},
+		Page: page,
 	}
 	doc := &api.Document{
 		Contents: &api.Document_Entry{
@@ -401,13 +405,11 @@ func newTestDocument(rng *rand.Rand, entrySize int) (*api.Document, id.ID) {
 		},
 	}
 	key, err := api.GetKey(doc)
-	if err != nil {
-		panic(err)
-	}
+	errors.MaybePanic(err)
 	return doc, key
 }
 
-// benchmarkName returns full name of benchmark including procs suffix.
+// nolint: megacheck
 func benchmarkName(name string, n int) string {
 	if n != 1 {
 		return fmt.Sprintf("Benchmark%s-%d", name, n)
@@ -415,7 +417,8 @@ func benchmarkName(name string, n int) string {
 	return name
 }
 
-func getLibrarians(peerConfigs []*server.Config) (client.Balancer, error) {
+// nolint: megacheck
+func getLibrarians(peerConfigs []*server.Config) (client.Balancer, error) { // nolint: deadcode
 	librarianAddrs := make([]*net.TCPAddr, len(peerConfigs))
 	for i, peerConfig := range peerConfigs {
 		librarianAddrs[i] = peerConfig.PublicAddr

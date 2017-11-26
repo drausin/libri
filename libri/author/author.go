@@ -281,7 +281,7 @@ func (a *Author) Share(envKey id.ID, readerPub *ecdsa.PublicKey) (*api.Document,
 	}
 	entryKey := id.FromBytes(env.EntryKey)
 	authKeyBs, readKeyBs := authorKey.PublicKeyBytes(), ecid.ToPublicKeyBytes(readerPub)
-	sharedEnv, sharedEnvKey, err := a.shipper.ShipEnvelope(kek, eek, entryKey, authKeyBs, readKeyBs)
+	sharedEnv, sharedEnvKey, err := a.shipper.ShipEnvelope(entryKey, authKeyBs, readKeyBs, kek, eek)
 	if err != nil {
 		return nil, nil, a.logAndReturnErr("error shipping envelope", err)
 	}

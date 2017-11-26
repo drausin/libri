@@ -9,6 +9,7 @@ import (
 	"regexp"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/drausin/libri/libri/common/errors"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -19,14 +20,12 @@ func init() {
 	// base-64 encoded 256-bit values have 43 chars followed by an =
 	var err error
 	b64url256bit, err = regexp.Compile(`^[A-Za-z0-9\-_]{43}=$`)
-	if err != nil {
-		panic(err)
-	}
+	errors.MaybePanic(err)
 }
 
 // Claims holds the claims associated with a message signature.
 type Claims struct {
-	// base-64-url encoded string of the hash of the message being signed
+	// Hash is the base-64-url encoded string of the hash of the message being signed
 	Hash string `json:"hash"`
 }
 
@@ -34,7 +33,7 @@ type Claims struct {
 func (c *Claims) Valid() error {
 	// check that message hash looks like a base-64-url encoded string
 	if !b64url256bit.MatchString(c.Hash) {
-		return fmt.Errorf("%v does not looks like a base-64-url encoded 32-byte number",
+		return fmt.Errorf("%v does not look like a base-64-url encoded 32-byte number",
 			c.Hash)
 	}
 	return nil
@@ -117,7 +116,7 @@ func verifyMessageHash(m proto.Message, encClaimedHash string) error {
 		return err
 	}
 	if !bytes.Equal(messageHash[:], claimedHash) {
-		return fmt.Errorf("token claim hash %064X does not match actual hash %064X",
+		return fmt.Errorf("token claim hash %064x does not match actual hash %064x",
 			claimedHash, messageHash[:])
 	}
 	return nil

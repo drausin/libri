@@ -67,6 +67,10 @@ func TestLibrarianCluster(t *testing.T) {
 		nIntroductions: 32,
 		nPuts:          128,
 		nUploads:       16,
+
+		// these are very long, but we want to be robust to shortlived network disruptions in CI
+		getTimeout: 20 * time.Second,
+		putTimeout: 20 * time.Second,
 	}
 	state := setUp(params)
 
@@ -114,7 +118,6 @@ func testIntroduce(t *testing.T, params *params, state *state) {
 	// introduce oneself to a number of peers and ensure that each returns the requisite
 	// number of new peers
 	for c := 0; c < params.nIntroductions; c++ {
-		start := time.Now()
 
 		// issue Introduce query to random peer
 		i := state.rng.Int31n(int32(nPeers))
@@ -128,12 +131,14 @@ func testIntroduce(t *testing.T, params *params, state *state) {
 		)
 		introducer, err := ic.Create(conn)
 		assert.Nil(t, err)
+		start := time.Now()
 		rp, err := introducer.Introduce(ctx, rq)
 		cancel()
+		benchResults[c] = testing.BenchmarkResult{
+			N: 1,
+			T: time.Now().Sub(start),
+		}
 
-		// check everything went fine
-		assert.Nil(t, err)
-		assert.Equal(t, int(rq.NumPeers), len(rp.Peers))
 		if rp != nil {
 			state.client.logger.Debug("received Introduce response",
 				zap.String("from_peer", conn.Address().String()),
@@ -141,10 +146,9 @@ func testIntroduce(t *testing.T, params *params, state *state) {
 			)
 		}
 
-		benchResults[c] = testing.BenchmarkResult{
-			N: 1,
-			T: time.Now().Sub(start),
-		}
+		// check everything went fine
+		assert.Nil(t, err)
+		assert.Equal(t, int(rq.NumPeers), len(rp.Peers))
 
 		// add peers to self RT
 		for _, p := range rp.Peers {
@@ -165,11 +169,10 @@ func testPut(t *testing.T, params *params, state *state) {
 	librarians, err := getLibrarians(state.peerConfigs)
 	assert.Nil(t, err)
 	putters := client.NewUniformPutterBalancer(librarians)
-	rlc := lclient.NewRetryPutter(putters, store.DefaultQueryTimeout)
+	rlc := lclient.NewRetryPutter(putters, params.putTimeout)
 
 	// create a bunch of random putDocs to put
 	for c := 0; c < params.nPuts; c++ {
-		start := time.Now()
 
 		value, key := newTestDocument(state.rng, putPageSize)
 		putDocs[c] = value
@@ -179,6 +182,7 @@ func testPut(t *testing.T, params *params, state *state) {
 		ctx, cancel, err := lclient.NewSignedTimeoutContext(state.client.signer, rq,
 			store.DefaultQueryTimeout)
 		assert.Nil(t, err)
+		start := time.Now()
 		state.client.logger.Debug("issuing Put request", zap.String("key", key.String()))
 		rp, err := rlc.Put(ctx, rq)
 		cancel()
@@ -187,16 +191,16 @@ func testPut(t *testing.T, params *params, state *state) {
 			T:     time.Now().Sub(start),
 			Bytes: int64(putPageSize),
 		}
-
-		// check everything went fine
-		assert.Nil(t, err)
-		assert.Equal(t, api.PutOperation_STORED, rp.Operation)
 		if rp != nil {
 			state.client.logger.Debug("received Put response",
 				zap.String("operation", rp.Operation.String()),
 				zap.Int("n_replicas", int(rp.NReplicas)),
 			)
 		}
+
+		// check everything went fine
+		assert.Nil(t, err)
+		assert.Equal(t, api.PutOperation_STORED, rp.Operation)
 	}
 
 	state.benchResults = append(state.benchResults, &benchmarkObs{
@@ -212,11 +216,10 @@ func testGet(t *testing.T, params *params, state *state) {
 	librarians, err := getLibrarians(state.peerConfigs)
 	assert.Nil(t, err)
 	getters := client.NewUniformGetterBalancer(librarians)
-	rlc := lclient.NewRetryGetter(getters, true, search.DefaultQueryTimeout)
+	rlc := lclient.NewRetryGetter(getters, true, params.getTimeout)
 
 	// create a bunch of random values to put
 	for c := 0; c < len(state.putDocs); c++ {
-		start := time.Now()
 
 		// create Get request for value
 		value := state.putDocs[c]
@@ -227,13 +230,14 @@ func testGet(t *testing.T, params *params, state *state) {
 		ctx, err := lclient.NewSignedContext(state.client.signer, rq)
 		assert.Nil(t, err)
 		state.client.logger.Debug("issuing Get request", zap.String("key", key.String()))
+		start := time.Now()
 		rp, err := rlc.Get(ctx, rq)
-		state.client.logger.Debug("received Get response", zap.String("key", key.String()))
 		benchResults[c] = testing.BenchmarkResult{
 			N:     1,
 			T:     time.Now().Sub(start),
 			Bytes: int64(putPageSize),
 		}
+		state.client.logger.Debug("received Get response", zap.String("key", key.String()))
 
 		// check everything went fine
 		assert.Nil(t, err)
@@ -298,7 +302,7 @@ func checkPublications(t *testing.T, params *params, state *state) {
 
 	// check all peers have publications for all docs
 	for i, p := range state.peers {
-		info := fmt.Sprintf("peer %d", i)
+		info := fmt.Sprintf("peer %d, nRecenptPubs: %d", i, p.RecentPubs.Len())
 		assert.True(t, p.RecentPubs.Len() >= params.nUploads-acceptableNMissing, info)
 	}
 }
@@ -338,15 +342,15 @@ func testReplicate(t *testing.T, _ *params, state *state) {
 	}
 
 	// verify each doc, seeing which are under-replicated
-	nReplicas2 := countDocReplicas(t, state)
-	nUnderReplicated2 := 0
-	for _, keyNReplicas := range nReplicas2 {
+	nReplicas1 := countDocReplicas(t, state)
+	nUnderReplicated1 := 0
+	for _, keyNReplicas := range nReplicas1 {
 		if keyNReplicas < int(store.DefaultNReplicas) {
-			nUnderReplicated2++
+			nUnderReplicated1++
 		}
 	}
-	assert.True(t, nUnderReplicated2 > 0)
-	state.logger.Info("finished replica audit 1", zap.Int("n_under_replicated", nUnderReplicated2))
+	assert.True(t, nUnderReplicated1 > 0)
+	state.logger.Info("finished replica audit 1", zap.Int("n_under_replicated", nUnderReplicated1))
 
 	rereplicateWaitSecs := 10
 	state.logger.Info("waiting for re-replication to happen",
@@ -354,16 +358,18 @@ func testReplicate(t *testing.T, _ *params, state *state) {
 	)
 	time.Sleep(time.Duration(rereplicateWaitSecs) * time.Second)
 
-	nReplicas3 := countDocReplicas(t, state)
-	nUnderReplicated3 := 0
-	for _, keyNReplicas := range nReplicas3 {
+	nReplicas2 := countDocReplicas(t, state)
+	nUnderReplicated2 := 0
+	for _, keyNReplicas := range nReplicas2 {
 		if keyNReplicas < int(store.DefaultNReplicas) {
-			nUnderReplicated3++
+			nUnderReplicated2++
 			break
 		}
 	}
-	assert.True(t, nUnderReplicated3 < nUnderReplicated2)
-	state.logger.Info("finished replica audit 2", zap.Int("n_under_replicated", nUnderReplicated3))
+	info := fmt.Sprintf("nUnderReplicated1: %d, nUnderReplicated2: %d", nUnderReplicated1,
+		nUnderReplicated2)
+	assert.True(t, nUnderReplicated2 < nUnderReplicated1, info)
+	state.logger.Info("finished replica audit 2", zap.Int("n_under_replicated", nUnderReplicated2))
 }
 
 func countDocReplicas(t *testing.T, state *state) map[string]int {

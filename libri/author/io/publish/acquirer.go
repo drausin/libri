@@ -141,6 +141,6 @@ func (a *multiStoreAcquirer) Acquire(
 	}
 }
 
-func (p *multiStoreAcquirer) GetRetryGetter(cb client.GetterBalancer) api.Getter {
-	return lclient.NewRetryGetter(cb, true, p.params.GetTimeout)
+func (a *multiStoreAcquirer) GetRetryGetter(cb client.GetterBalancer) api.Getter {
+	return lclient.NewRetryGetter(cb, true, a.params.GetTimeout)
 }

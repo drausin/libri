@@ -38,6 +38,8 @@ func TestVerifier_Verify_ok(t *testing.T) {
 	verifier := newTestVerifier(peersMap)
 
 	for concurrency := uint(1); concurrency <= 3; concurrency++ {
+		info := fmt.Sprintf("concurrency: %d", concurrency)
+		//log.Printf("running: %s", info) // sometimes handy for debugging
 
 		v := NewVerify(selfID, key, macKey, mac, &Parameters{
 			NReplicas:         nReplicas,
@@ -53,13 +55,13 @@ func TestVerifier_Verify_ok(t *testing.T) {
 
 		// checks
 		assert.Nil(t, err)
-		assert.True(t, v.Finished())
-		assert.True(t, v.UnderReplicated())
-		assert.False(t, v.Errored())
-		assert.False(t, v.Exhausted())
-		assert.Equal(t, 0, len(v.Result.Errored))
-		assert.Equal(t, int(nClosestResponses), v.Result.Closest.Len())
-		assert.True(t, v.Result.Closest.Len() <= len(v.Result.Responded))
+		assert.True(t, v.Finished(), info)
+		assert.True(t, v.UnderReplicated(), info)
+		assert.False(t, v.Errored(), info)
+		assert.False(t, v.Exhausted(), info)
+		assert.Equal(t, 0, len(v.Result.Errored), info)
+		assert.Equal(t, int(nClosestResponses), v.Result.Closest.Len(), info)
+		assert.True(t, v.Result.Closest.Len() <= len(v.Result.Responded), info)
 
 		// build set of closest peers by iteratively looking at all of them
 		expectedClosestsPeers := make(map[string]struct{})
@@ -200,37 +202,38 @@ func TestResponseProcessor_Process_MAC(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	key := id.NewPseudoRandom(rng)
 	rp := NewResponseProcessor(peer.NewFromer())
-	result := NewInitialResult(key, NewDefaultParameters())
+	v := &Verify{
+		Result: NewInitialResult(key, NewDefaultParameters()),
+	}
 	expectedMAC := api.RandBytes(rng, 32)
 	from := peer.NewTestPeer(rng, 0)
 
 	// check that peer is added to replicas
 	response1 := &api.VerifyResponse{Mac: expectedMAC}
-	err := rp.Process(response1, from, expectedMAC, result)
+	err := rp.Process(response1, from, expectedMAC, v)
 	assert.Nil(t, err)
-	assert.Zero(t, result.Unqueried.Len())
-	assert.Equal(t, 1, len(result.Replicas))
+	assert.Zero(t, v.Result.Unqueried.Len())
+	assert.Equal(t, 1, len(v.Result.Replicas))
 
 	// check error on unexpected MAC
 	response2 := &api.VerifyResponse{Mac: api.RandBytes(rng, 32)}
-	err = rp.Process(response2, from, expectedMAC, result)
+	err = rp.Process(response2, from, expectedMAC, v)
 	assert.Equal(t, errUnexpectedVerifyMAC, err)
 
 	// check error on invalid response
 	response3 := &api.VerifyResponse{}
-	err = rp.Process(response3, from, expectedMAC, result)
+	err = rp.Process(response3, from, expectedMAC, v)
 	assert.Equal(t, errInvalidResponse, err)
 }
 
 func TestResponseProcessor_Process_Addresses(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	nAddresses := 6
-	key := id.NewPseudoRandom(rng)
+	selfID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
 	rp := NewResponseProcessor(peer.NewFromer())
 	params := NewDefaultParameters()
-	result := NewInitialResult(key, params)
-	result.Unqueried = search.NewClosestPeers(key, 9)
-	expectedMAC := api.RandBytes(rng, 32)
+	value, expectedMAC := api.RandBytes(rng, 128), api.RandBytes(rng, 32) // arbitrary
+	v := NewVerify(selfID, key, value, expectedMAC, params)
 	from := peer.NewTestPeer(rng, 0)
 	peerAddresses := newPeerAddresses(rng, nAddresses)
 
@@ -238,11 +241,9 @@ func TestResponseProcessor_Process_Addresses(t *testing.T) {
 	response := &api.VerifyResponse{
 		Peers: peerAddresses,
 	}
-	err := rp.Process(response, from, expectedMAC, result)
+	err := rp.Process(response, from, expectedMAC, v)
 	assert.Nil(t, err)
-	assert.Equal(t, nAddresses, result.Unqueried.Len())
-	assert.True(t, result.Closest.In(from.ID()))
-	assert.Equal(t, 1, result.Closest.Len())
+	assert.Equal(t, nAddresses, v.Result.Unqueried.Len())
 }
 
 func newTestVerify() (Verifier, *Verify, []int, []peer.Peer) {
@@ -279,7 +280,7 @@ func newTestVerifier(peersMap map[string]peer.Peer) Verifier {
 type errResponseProcessor struct{}
 
 func (erp *errResponseProcessor) Process(
-	rp *api.VerifyResponse, from peer.Peer, expectedMAC []byte, result *Result,
+	rp *api.VerifyResponse, from peer.Peer, expectedMAC []byte, verify *Verify,
 ) error {
 	return errors.New("some processing error")
 }

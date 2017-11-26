@@ -8,8 +8,9 @@ import (
 
 	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/common/storage"
+	cstorage "github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/server/peer"
+	sstorage "github.com/drausin/libri/libri/librarian/server/storage"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -31,7 +32,7 @@ func TestRoutingTable_SaveLoad(t *testing.T) {
 	defer cleanup()
 	defer kvdb.Close()
 	assert.Nil(t, err)
-	ssl := storage.NewServerSL(kvdb)
+	ssl := cstorage.NewServerSL(kvdb)
 
 	err = rt1.Save(ssl)
 	assert.Nil(t, err)
@@ -65,10 +66,10 @@ func TestRoutingTable_SaveLoad(t *testing.T) {
 	}
 }
 
-func newTestStoredTable(rng *rand.Rand, n int) *storage.RoutingTable {
-	rt := &storage.RoutingTable{
+func newTestStoredTable(rng *rand.Rand, n int) *sstorage.RoutingTable {
+	rt := &sstorage.RoutingTable{
 		SelfId: id.NewPseudoRandom(rng).Bytes(),
-		Peers:  make([]*storage.Peer, n),
+		Peers:  make([]*sstorage.Peer, n),
 	}
 	for i := 0; i < n; i++ {
 		rt.Peers[i] = peer.NewTestStoredPeer(rng, i)
@@ -76,7 +77,7 @@ func newTestStoredTable(rng *rand.Rand, n int) *storage.RoutingTable {
 	return rt
 }
 
-func assertRoutingTablesEqual(t *testing.T, rt Table, srt *storage.RoutingTable) {
+func assertRoutingTablesEqual(t *testing.T, rt Table, srt *sstorage.RoutingTable) {
 	assert.Equal(t, srt.SelfId, rt.SelfID().Bytes())
 	for _, sp := range srt.Peers {
 		spIDStr := id.FromBytes(sp.Id).String()
@@ -89,13 +90,13 @@ func assertRoutingTablesEqual(t *testing.T, rt Table, srt *storage.RoutingTable)
 func TestLoad_err(t *testing.T) {
 
 	// simulates missing/not stored table
-	rt1, err := Load(&storage.TestSLD{}, NewDefaultParameters())
+	rt1, err := Load(&cstorage.TestSLD{}, NewDefaultParameters())
 	assert.Nil(t, rt1)
 	assert.Nil(t, err)
 
 	// simulates loading error
 	rt2, err := Load(
-		&storage.TestSLD{
+		&cstorage.TestSLD{
 			Bytes:   []byte("some random bytes"),
 			LoadErr: errors.New("some random error"),
 		},
@@ -106,7 +107,7 @@ func TestLoad_err(t *testing.T) {
 
 	// simulates bad stored table
 	rt3, err := Load(
-		&storage.TestSLD{
+		&cstorage.TestSLD{
 			Bytes:   []byte("the wrong bytes"),
 			LoadErr: nil,
 		},

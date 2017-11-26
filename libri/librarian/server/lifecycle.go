@@ -148,25 +148,66 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 
 	api.RegisterLibrarianServer(s, l)
 	healthpb.RegisterHealthServer(s, l.health)
-	grpc_prometheus.Register(s)
-	grpc_prometheus.EnableHandlingTimeHistogram()
+	if l.config.ReportMetrics {
+		grpc_prometheus.Register(s)
+		grpc_prometheus.EnableHandlingTimeHistogram()
+		l.storageMetrics.register()
+	}
 	reflection.Register(s)
 
-	go func() {
-		if err := l.metrics.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			l.logger.Error("error serving Prometheus metrics", zap.Error(err))
-			cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
-		}
-	}()
+	if l.config.ReportMetrics {
+		go func() {
+			if err := l.metrics.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				l.logger.Error("error serving Prometheus metrics", zap.Error(err))
+				cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
+			}
+		}()
+	}
+
+	// aux routines handle:
+	// - listening to SIGTERM (and friends) signals from outside world
+	// - sending publications to subscribed peers
+	// - document replication
+	l.startAuxRoutines()
 
 	// handle stop signal
 	go func() {
 		<-l.stop
-		l.logger.Info("gracefully stopping server", zap.Int(LoggerPortKey, l.config.LocalAddr.Port))
+		l.logger.Info("gracefully stopping server", zap.Int(LoggerPortKey, l.config.LocalPort))
 		s.GracefulStop()
+		if l.config.ReportMetrics {
+			l.storageMetrics.unregister()
+		}
 		close(l.stopped)
 	}()
 
+	// notify up channel shortly after starting to serve requests
+	go func() {
+		time.Sleep(postListenNotifyWait)
+		l.logger.Info("listening for requests", zap.Int(LoggerPortKey, l.config.LocalPort))
+
+		// set top-level health status
+		l.health.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
+
+		up <- l
+	}()
+
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", l.config.LocalPort))
+	if err != nil {
+		l.logger.Error("failed to listen", zap.Error(err))
+		return err
+	}
+	if err := s.Serve(lis); err != nil {
+		if strings.Contains(err.Error(), "use of closed network connection") {
+			return nil
+		}
+		l.logger.Error("failed to serve", zap.Error(err))
+		return err
+	}
+	return nil
+}
+
+func (l *Librarian) startAuxRoutines() {
 	// handle stop stopSignals from outside world
 	stopSignals := make(chan os.Signal, 3)
 	signal.Notify(stopSignals, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
@@ -193,32 +234,6 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 			cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
 		}
 	}()
-
-	// notify up channel shortly after starting to serve requests
-	go func() {
-		time.Sleep(postListenNotifyWait)
-		l.logger.Info("listening for requests", zap.Int(LoggerPortKey,
-			l.config.LocalAddr.Port))
-
-		// set top-level health status
-		l.health.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
-
-		up <- l
-	}()
-
-	lis, err := net.Listen("tcp", l.config.LocalAddr.String())
-	if err != nil {
-		l.logger.Error("failed to listen", zap.Error(err))
-		return err
-	}
-	if err := s.Serve(lis); err != nil {
-		if strings.Contains(fmt.Sprintf("%s", err.Error()), "use of closed network connection") {
-			return nil
-		}
-		l.logger.Error("failed to serve", zap.Error(err))
-		return err
-	}
-	return nil
 }
 
 // StopAuxRoutines ends the replicator and subscriptions auxiliary routines.

@@ -1,30 +1,51 @@
-variable "gcp_project" {}
+
+############
+# Required #
+############
+
+variable "credentials_file" {
+  description = "GCP JSON credentials filepath"
+}
+
+variable "gcp_project" {
+  description = "GCP project owning the cluster"
+}
+
+variable "gcs_clusters_bucket" {
+  description = "GCS bucket for cluster state and backups"
+}
+
+variable "cluster_name" {
+  description = "name of the libri cluster"
+}
+
+
+############
+# Optional #
+############
 
 variable "gce_node_region" {
   default = "us-east1"
 }
 
 variable "gce_node_zone" {
-  description = "cluster node zone"
   default = "us-east1-b"
 }
 
-variable "cluster_name" {
-  default = "libri"
-}
-
 variable "gce_node_network" {
-  description = "cluster node network"
   default = "default"
 }
 
+variable "num_cluster_nodes" {
+  description = "current number of cluster nodes"
+  default = 3
+}
+
 variable "gce_node_image_type" {
-  description = "cluster node disk image"
   default = "ubuntu-1604-xenial-v20170125"
 }
 
 variable "gce_node_machine_type" {
-  description = "cluster node machine type "
   default = "n1-standard-1"
 }
 
@@ -33,22 +54,23 @@ variable "node_disk_size_gb" {
   default = 25
 }
 
+variable "num_librarians" {
+  description = "current number of librarian peers in cluster"
+  default = 3
+}
+
 variable "librarian_disk_size_gb" {
   description = "size (GB) of persistant disk used by each librarian"
   default = 10
 }
 
-variable "num_nodes" {
-  description = "number of cluster nodes"
-  default = 3
+variable "librarian_disk_type" {
+  description = "type of persistent disk used by each librarian"
+  default = "pd-standard"
 }
 
 variable "min_libri_port" {
   default = 30100
-}
-
-variable "max_libri_port" {
-  default = 30102
 }
 
 # Name of the ssh key pair to use for GCE instances.
@@ -62,4 +84,3 @@ variable "max_libri_port" {
 variable "key_name" {
   default = "google_compute_engine"
 }
-

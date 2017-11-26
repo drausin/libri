@@ -40,11 +40,11 @@ const (
 
 // Config is used to configure a Librarian server
 type Config struct {
-	// LocalAddr is the local address the main grpc server listens to.
-	LocalAddr *net.TCPAddr
+	// LocalPort is the local port the main grpc server listens to.
+	LocalPort int
 
-	// LocalMetricsAddr is the local address the metrics server listens to.
-	LocalMetricsAddr *net.TCPAddr
+	// LocalMetricsPort is the local port the metrics server listens to.
+	LocalMetricsPort int
 
 	// PublicAddr is the public address clients make requests to.
 	PublicAddr *net.TCPAddr
@@ -80,6 +80,9 @@ type Config struct {
 	// SubscribeFrom defines parameters for subscriptions to other peers.
 	SubscribeFrom *subscribe.FromParameters
 
+	// ReportMetrics determines whether the server reports Prometheus metrics.
+	ReportMetrics bool
+
 	// LogLevel is the log level
 	LogLevel zapcore.Level
 }
@@ -90,8 +93,8 @@ func NewDefaultConfig() *Config {
 
 	// set defaults via zero values; in cases where the config B depends on config A, config A
 	// should be set before config B
-	config.WithDefaultLocalAddr()
-	config.WithDefaultLocalMetricsAddr()
+	config.WithDefaultLocalPort()
+	config.WithDefaultLocalMetricsPort()
 	config.WithDefaultPublicAddr()
 	config.WithDefaultPublicName()
 	config.WithDefaultDataDir()
@@ -103,47 +106,41 @@ func NewDefaultConfig() *Config {
 	config.WithDefaultStore()
 	config.WithDefaultSubscribeTo()
 	config.WithDefaultSubscribeFrom()
+	config.WithDefaultReportMetrics()
 	config.WithDefaultLogLevel()
 
 	return config
 }
 
-// WithLocalAddr sets config's local address to the given value or to the default if the given
+// WithLocalPort sets config's local address to the given value or to the default if the given
 // value is nil.
-func (c *Config) WithLocalAddr(localAddr *net.TCPAddr) *Config {
-	if localAddr == nil {
-		return c.WithDefaultLocalAddr()
+func (c *Config) WithLocalPort(localPort int) *Config {
+	if localPort == 0 {
+		return c.WithDefaultLocalPort()
 	}
-	c.LocalAddr = localAddr
+	c.LocalPort = localPort
 	return c
 }
 
-// WithDefaultLocalAddr sets the local address to the default value.
-func (c *Config) WithDefaultLocalAddr() *Config {
-	addr, err := ParseAddr(DefaultIP, DefaultPort)
-	if err != nil {
-		// should never happen with default
-		panic(err)
-	}
-	c.LocalAddr = addr
+// WithDefaultLocalPort sets the local address to the default value.
+func (c *Config) WithDefaultLocalPort() *Config {
+	c.LocalPort = DefaultPort
 	return c
 }
 
-// WithLocalMetricsAddr sets config's local metrics address to the given value or to the default
+// WithLocalMetricsPort sets config's local metrics address to the given value or to the default
 // if the given value is nil.
-func (c *Config) WithLocalMetricsAddr(localMetricsAddr *net.TCPAddr) *Config {
-	if localMetricsAddr == nil {
-		return c.WithDefaultLocalMetricsAddr()
+func (c *Config) WithLocalMetricsPort(localMetricsPort int) *Config {
+	if localMetricsPort == 0 {
+		return c.WithDefaultLocalMetricsPort()
 	}
-	c.LocalMetricsAddr = localMetricsAddr
+	c.LocalMetricsPort = localMetricsPort
 	return c
 }
 
-// WithDefaultLocalMetricsAddr sets the local address to the default value.
-func (c *Config) WithDefaultLocalMetricsAddr() *Config {
-	addr, err := ParseAddr(DefaultIP, DefaultMetricsPort)
-	errors.MaybePanic(err) // should never happen with default
-	c.LocalMetricsAddr = addr
+// WithDefaultLocalMetricsPort sets the local address to the default value.
+func (c *Config) WithDefaultLocalMetricsPort() *Config {
+	c.LocalMetricsPort = DefaultMetricsPort
 	return c
 }
 
@@ -160,7 +157,9 @@ func (c *Config) WithPublicAddr(publicAddr *net.TCPAddr) *Config {
 // WithDefaultPublicAddr sets the public address to the local address, useful when just running
 // a cluster locally.
 func (c *Config) WithDefaultPublicAddr() *Config {
-	c.PublicAddr = c.LocalAddr
+	addr, err := ParseAddr(DefaultIP, c.LocalPort)
+	errors.MaybePanic(err) // should never happen with default
+	c.PublicAddr = addr
 	return c
 }
 
@@ -193,9 +192,7 @@ func (c *Config) WithDataDir(dataDir string) *Config {
 // WithDefaultDataDir sets the data dir to a 'data' subdir of the current working directory..
 func (c *Config) WithDefaultDataDir() *Config {
 	cwd, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
+	errors.MaybePanic(err)
 	c.DataDir = filepath.Join(cwd, DataSubdir)
 	return c
 }
@@ -230,10 +227,7 @@ func (c *Config) WithBootstrapAddrs(bootstrapAddrs []*net.TCPAddr) *Config {
 func (c *Config) WithDefaultBootstrapAddrs() *Config {
 	// default is itself
 	addr, err := ParseAddr(DefaultIP, DefaultPort)
-	if err != nil {
-		// should never happen with default
-		panic(err)
-	}
+	errors.MaybePanic(err) // should never happen with default
 	c.BootstrapAddrs = []*net.TCPAddr{addr}
 	return c
 }
@@ -331,6 +325,18 @@ func (c *Config) WithSubscribeFrom(params *subscribe.FromParameters) *Config {
 // WithDefaultSubscribeFrom sets the subscription from parameters to the default.
 func (c *Config) WithDefaultSubscribeFrom() *Config {
 	c.SubscribeFrom = subscribe.NewDefaultFromParameters()
+	return c
+}
+
+// WithDefaultReportMetrics sets the default state for whether to report metrics.
+func (c *Config) WithDefaultReportMetrics() *Config {
+	c.ReportMetrics = true
+	return c
+}
+
+// WithReportMetrics sets whether to report metrics or not.
+func (c *Config) WithReportMetrics(reportMetrics bool) *Config {
+	c.ReportMetrics = reportMetrics
 	return c
 }
 

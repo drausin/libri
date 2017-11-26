@@ -151,12 +151,23 @@ func TestID_Bytes(t *testing.T) {
 	}
 }
 
+func TestHex(t *testing.T) {
+	cases := [][]byte{
+		{0},
+		bytes.Repeat([]byte{1}, 32),
+		bytes.Repeat([]byte{1}, 64),
+	}
+	for _, c := range cases {
+		assert.True(t, len(ShortHex(c)) <= 64)
+	}
+}
 func TestShortHex(t *testing.T) {
 	cases := [][]byte{
+		{0},
 		bytes.Repeat([]byte{1}, 8),
 		bytes.Repeat([]byte{1}, 16),
 	}
 	for _, c := range cases {
-		assert.Equal(t, 16, len(ShortHex(c)))
+		assert.True(t, len(ShortHex(c)) <= 16)
 	}
 }

@@ -37,7 +37,7 @@ docker-build-image:
 
 docker-image:
 	@echo "--> Building docker image"
-	@docker build --rm=false -t daedalus2718/libri:latest deploy
+	@docker build --rm=false -t daedalus2718/libri:snapshot deploy
 
 fix:
 	@echo "--> Running goimports"
@@ -56,16 +56,12 @@ install-git-hooks:
 
 lint:
 	@echo "--> Running gometalinter"
-	@gometalinter $(LIBRI_PKG_SUBDIRS) --config=.gometalinter.json --deadline=15m
+	@gometalinter $(LIBRI_PKG_SUBDIRS) --config=.gometalinter.json --deadline=5m
 
 lint-diff:
 	@echo "--> Running gometalinter on packages with uncommitted changes"
 	@echo $(GIT_STATUS_PKG_SUBDIRS) | tr " " "\n"
-	@echo $(GIT_STATUS_PKG_SUBDIRS) | xargs gometalinter --config=.gometalinter.json --deadline=15m
-
-lint-slow:
-	@echo "--> Running gometalinter slow linters"
-	@gometalinter $(LIBRI_PKG_SUBDIRS) --config=.gometalinter.slow.json --deadline=30m
+	@echo $(GIT_STATUS_PKG_SUBDIRS) | xargs gometalinter --config=.gometalinter.json --deadline=5m
 
 proto:
 	@echo "--> Running protoc"
