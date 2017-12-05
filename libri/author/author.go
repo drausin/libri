@@ -267,13 +267,12 @@ func (a *Author) Share(envKey id.ID, readerPub *ecdsa.PublicKey) (*api.Document,
 	if err != nil {
 		return nil, nil, a.logAndReturnErr("error receiving envelope", err)
 	}
-	return a.ShareEnvelope(envKey, env, readerPub)
+	return a.ShareEnvelope(env, readerPub)
 }
 
 // ShareEnvelope creates and uploads a new envelope with the given reader public key. The new
 // envelope has the same entry and entry encryption key as the envelope passed in.
-func (a *Author) ShareEnvelope(envKey id.ID, env *api.Envelope, readerPub *ecdsa.PublicKey) (
-	*api.Document, id.ID, error) {
+func (a *Author) ShareEnvelope(env *api.Envelope, readerPub *ecdsa.PublicKey) (*api.Document, id.ID, error) {
 	eek, err := a.receiver.GetEEK(env)
 	if err != nil {
 		return nil, nil, a.logAndReturnErr("error getting EEK", err)
@@ -294,7 +293,7 @@ func (a *Author) ShareEnvelope(envKey id.ID, env *api.Envelope, readerPub *ecdsa
 	}
 
 	a.logger.Info("successfully shared document",
-		sharedDocFields(envKey, entryKey, authKeyBs, readKeyBs)...,
+		sharedDocFields(sharedKeyKey, entryKey, authKeyBs, readKeyBs)...,
 	)
 	return sharedEnv, sharedEnvKey, nil
 }
