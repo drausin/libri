@@ -47,7 +47,7 @@ func TestNewAuthor(t *testing.T) {
 
 	a1 := newTestAuthor()
 
-	clientID1 := a1.clientID
+	clientID1 := a1.ClientID
 	err := a1.Close()
 	assert.Nil(t, err)
 
@@ -59,7 +59,7 @@ func TestNewAuthor(t *testing.T) {
 	)
 
 	assert.Nil(t, err)
-	assert.Equal(t, clientID1, a2.clientID)
+	assert.Equal(t, clientID1, a2.ClientID)
 	err = a2.CloseAndRemove()
 	assert.Nil(t, err)
 }

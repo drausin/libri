@@ -29,8 +29,8 @@ var (
 // Author is the main client of the libri network. It can upload, download, and share documents with
 // other author clients.
 type Author struct {
-	// selfID is ID of this author client
-	clientID ecid.ID
+	// ClientID is ID of this author client
+	ClientID ecid.ID
 
 	// Config holds the configuration parameters of the server
 	config *Config
@@ -142,7 +142,7 @@ func NewAuthor(
 	entryUnpacker := pack.NewEntryUnpacker(config.Print, mdEncDec, documentSL)
 
 	author := &Author{
-		clientID:         clientID,
+		ClientID:         clientID,
 		config:           config,
 		authorKeys:       authorKeys,
 		selfReaderKeys:   selfReaderKeys,
@@ -267,6 +267,13 @@ func (a *Author) Share(envKey id.ID, readerPub *ecdsa.PublicKey) (*api.Document,
 	if err != nil {
 		return nil, nil, a.logAndReturnErr("error receiving envelope", err)
 	}
+	return a.ShareEnvelope(envKey, env, readerPub)
+}
+
+// ShareEnvelope creates and uploads a new envelope with the given reader public key. The new
+// envelope has the same entry and entry encryption key as the envelope passed in.
+func (a *Author) ShareEnvelope(envKey id.ID, env *api.Envelope, readerPub *ecdsa.PublicKey) (
+	*api.Document, id.ID, error) {
 	eek, err := a.receiver.GetEEK(env)
 	if err != nil {
 		return nil, nil, a.logAndReturnErr("error getting EEK", err)
