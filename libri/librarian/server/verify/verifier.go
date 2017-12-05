@@ -139,6 +139,9 @@ func getNextToQuery(verify *Verify) peer.Peer {
 	}
 	verify.mu.Lock()
 	defer verify.mu.Unlock()
+	if verify.Result.Unqueried.Len() == 0 {
+		return nil
+	}
 	next := heap.Pop(verify.Result.Unqueried).(peer.Peer)
 	if _, alreadyQueried := verify.Result.Queried[next.ID().String()]; alreadyQueried {
 		return nil

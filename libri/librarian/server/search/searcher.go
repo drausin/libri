@@ -174,6 +174,9 @@ func getNextToQuery(search *Search) peer.Peer {
 	}
 	search.mu.Lock()
 	defer search.mu.Unlock()
+	if search.Result.Unqueried.Len() == 0 {
+		return nil
+	}
 	next := heap.Pop(search.Result.Unqueried).(peer.Peer)
 	if _, alreadyQueried := search.Result.Queried[next.ID().String()]; alreadyQueried {
 		return nil
