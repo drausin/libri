@@ -293,7 +293,7 @@ func (a *Author) ShareEnvelope(env *api.Envelope, readerPub *ecdsa.PublicKey) (*
 	}
 
 	a.logger.Info("successfully shared document",
-		sharedDocFields(sharedKeyKey, entryKey, authKeyBs, readKeyBs)...,
+		sharedDocFields(sharedEnvKey, entryKey, authKeyBs, readKeyBs)...,
 	)
 	return sharedEnv, sharedEnvKey, nil
 }
