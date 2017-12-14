@@ -419,9 +419,10 @@ func benchmarkName(name string, n int) string {
 
 // nolint: megacheck
 func getLibrarians(peerConfigs []*server.Config) (client.Balancer, error) { // nolint: deadcode
+	rng := rand.New(rand.NewSource(0))
 	librarianAddrs := make([]*net.TCPAddr, len(peerConfigs))
 	for i, peerConfig := range peerConfigs {
 		librarianAddrs[i] = peerConfig.PublicAddr
 	}
-	return client.NewUniformBalancer(librarianAddrs)
+	return client.NewUniformBalancer(librarianAddrs, rng)
 }
