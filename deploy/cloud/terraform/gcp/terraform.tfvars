@@ -1,14 +1,11 @@
 cluster_host = "gcp"
 
-# GCP credentials
-# credentials_file = "/path/to/local-creds.json"
-
 # librarians
 num_librarians = 8
-librarian_libri_version = "snapshot"
+librarian_libri_version = "0.2.0"
 librarian_disk_size_gb = 10
-librarian_cpu_limit = "100m"
-librarian_ram_limit = "1G"
+librarian_cpu_limit = "200m"
+librarian_ram_limit = "2G"
 
 librarian_public_port_start = 30100
 librarian_local_port = 20100
