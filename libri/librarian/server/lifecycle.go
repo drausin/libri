@@ -4,13 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
+	_ "net/http/pprof" // pprof doc calls for black import
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
-
-	"net/http"
 
 	cbackoff "github.com/cenkalti/backoff"
 	cerrors "github.com/drausin/libri/libri/common/errors"
@@ -155,16 +155,9 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 	}
 	reflection.Register(s)
 
-	if l.config.ReportMetrics {
-		go func() {
-			if err := l.metrics.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				l.logger.Error("error serving Prometheus metrics", zap.Error(err))
-				cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
-			}
-		}()
-	}
-
 	// aux routines handle:
+	// - (maybe) start Prometheus metrics endpoint
+	// - (maybe) start pprof profiler endpoint
 	// - listening to SIGTERM (and friends) signals from outside world
 	// - sending publications to subscribed peers
 	// - document replication
@@ -208,6 +201,25 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 }
 
 func (l *Librarian) startAuxRoutines() {
+	if l.config.ReportMetrics {
+		go func() {
+			if err := l.metrics.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				l.logger.Error("error serving Prometheus metrics", zap.Error(err))
+				cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
+			}
+		}()
+	}
+
+	if l.config.Profile {
+		go func() {
+			profilerAddr := fmt.Sprintf(":%d", l.config.LocalProfilerPort)
+			if err := http.ListenAndServe(profilerAddr, nil); err != nil {
+				l.logger.Error("error serving profiler", zap.Error(err))
+				cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
+			}
+		}()
+	}
+
 	// handle stop stopSignals from outside world
 	stopSignals := make(chan os.Signal, 3)
 	signal.Notify(stopSignals, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)

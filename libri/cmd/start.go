@@ -14,14 +14,16 @@ import (
 )
 
 const (
-	bootstrapsFlag       = "bootstraps"
-	localPortFlag        = "localPort"
-	localMetricsPortFlag = "localMetricsPort"
-	publicHostFlag       = "publicHost"
-	publicNameFlag       = "publicName"
-	publicPortFlag       = "publicPort"
-	nSubscriptionsFlag   = "nSubscriptions"
-	fpRateFlag           = "fpRate"
+	bootstrapsFlag        = "bootstraps"
+	localPortFlag         = "localPort"
+	localMetricsPortFlag  = "localMetricsPort"
+	localProfilerPortFlag = "localProfilerPort"
+	publicHostFlag        = "publicHost"
+	publicNameFlag        = "publicName"
+	publicPortFlag        = "publicPort"
+	nSubscriptionsFlag    = "nSubscriptions"
+	fpRateFlag            = "fpRate"
+	profileFlag           = "profile"
 
 	logLocalPort        = "localPort"
 	logLocalMetricsPort = "localMetricsPort"
@@ -50,6 +52,8 @@ func init() {
 		"local port")
 	startLibrarianCmd.Flags().Int(localMetricsPortFlag, server.DefaultMetricsPort,
 		"local metrics port")
+	startLibrarianCmd.Flags().Int(localProfilerPortFlag, server.DefaultProfilerPort,
+		"local profiler port (when --profile is set)")
 	startLibrarianCmd.Flags().StringP(publicHostFlag, "i", server.DefaultIP,
 		"public host (IPv4 or URL)")
 	startLibrarianCmd.Flags().IntP(publicPortFlag, "p", server.DefaultPort,
@@ -62,6 +66,8 @@ func init() {
 		"number of active subscriptions to other peers to maintain")
 	startLibrarianCmd.Flags().Float32P(fpRateFlag, "f", subscribe.DefaultFPRate,
 		"false positive rate for subscriptions to other peers")
+	startLibrarianCmd.Flags().Bool(profileFlag, false,
+		"enable /debug/pprof profiler endpoint")
 
 	// bind viper flags
 	viper.SetEnvPrefix("LIBRI") // look for env vars with "LIBRI_" prefix
@@ -75,6 +81,8 @@ func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
 
 	localPort := viper.GetInt(localPortFlag)
 	localMetricsPort := viper.GetInt(localMetricsPortFlag)
+	localProfilerPort := viper.GetInt(localProfilerPortFlag)
+	profile := viper.GetBool(profileFlag)
 	publicAddr, err := server.ParseAddr(
 		viper.GetString(publicHostFlag),
 		viper.GetInt(publicPortFlag),
@@ -86,6 +94,8 @@ func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
 	config := server.NewDefaultConfig().
 		WithLocalPort(localPort).
 		WithLocalMetricsPort(localMetricsPort).
+		WithLocalProfilerPort(localProfilerPort).
+		WithProfile(profile).
 		WithPublicAddr(publicAddr).
 		WithPublicName(viper.GetString(publicNameFlag)).
 		WithDataDir(viper.GetString(dataDirFlag)).

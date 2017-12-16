@@ -27,6 +27,7 @@ import (
 func TestStart_ok(t *testing.T) {
 	// start a single librarian server
 	config := newTestConfig()
+	config.WithProfile(true)
 	assert.True(t, config.isBootstrap())
 
 	var err error
@@ -55,6 +56,12 @@ func TestStart_ok(t *testing.T) {
 	// confirm ok metrics
 	metricsAddr := fmt.Sprintf("http://localhost:%d/metrics", config.LocalMetricsPort)
 	resp, err := http.Get(metricsAddr)
+	assert.Nil(t, err)
+	assert.Equal(t, "200 OK", resp.Status)
+
+	// confirm ok debug pprof info
+	profilerAddr := fmt.Sprintf("http://localhost:%d/debug/pprof", config.LocalProfilerPort)
+	resp, err = http.Get(profilerAddr)
 	assert.Nil(t, err)
 	assert.Equal(t, "200 OK", resp.Status)
 
