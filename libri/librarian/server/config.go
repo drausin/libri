@@ -22,8 +22,11 @@ const (
 	// DefaultPort is the default port of both local and public addresses.
 	DefaultPort = 20100
 
-	// DefaultMetricsPort is the default port to service metrics from.
+	// DefaultMetricsPort is the default port to serve metrics from.
 	DefaultMetricsPort = 20200
+
+	// DefaultProfilerPort is the default port to serve profiling from.
+	DefaultProfilerPort = 20300
 
 	// DefaultIP is the default IP of both local and public addresses.
 	DefaultIP = "localhost"
@@ -45,6 +48,9 @@ type Config struct {
 
 	// LocalMetricsPort is the local port the metrics server listens to.
 	LocalMetricsPort int
+
+	// LocalProfilerPort is the local port the profile server listens to (when it is enabled).
+	LocalProfilerPort int
 
 	// PublicAddr is the public address clients make requests to.
 	PublicAddr *net.TCPAddr
@@ -83,6 +89,9 @@ type Config struct {
 	// ReportMetrics determines whether the server reports Prometheus metrics.
 	ReportMetrics bool
 
+	// Profile determines whether the profiler endpoint (/debug/pprof) is enabled.
+	Profile bool
+
 	// LogLevel is the log level
 	LogLevel zapcore.Level
 }
@@ -95,6 +104,7 @@ func NewDefaultConfig() *Config {
 	// should be set before config B
 	config.WithDefaultLocalPort()
 	config.WithDefaultLocalMetricsPort()
+	config.WithDefaultLocalProfilerPort()
 	config.WithDefaultPublicAddr()
 	config.WithDefaultPublicName()
 	config.WithDefaultDataDir()
@@ -107,6 +117,7 @@ func NewDefaultConfig() *Config {
 	config.WithDefaultSubscribeTo()
 	config.WithDefaultSubscribeFrom()
 	config.WithDefaultReportMetrics()
+	config.WithDefaultProfile()
 	config.WithDefaultLogLevel()
 
 	return config
@@ -141,6 +152,22 @@ func (c *Config) WithLocalMetricsPort(localMetricsPort int) *Config {
 // WithDefaultLocalMetricsPort sets the local address to the default value.
 func (c *Config) WithDefaultLocalMetricsPort() *Config {
 	c.LocalMetricsPort = DefaultMetricsPort
+	return c
+}
+
+// WithLocalProfilerPort sets config's local profiler address to the given value or to the default
+// if the given value is nil.
+func (c *Config) WithLocalProfilerPort(localProfilerPort int) *Config {
+	if localProfilerPort == 0 {
+		return c.WithDefaultLocalProfilerPort()
+	}
+	c.LocalProfilerPort = localProfilerPort
+	return c
+}
+
+// WithDefaultLocalProfilerPort sets the local address to the default value.
+func (c *Config) WithDefaultLocalProfilerPort() *Config {
+	c.LocalProfilerPort = DefaultProfilerPort
 	return c
 }
 
@@ -337,6 +364,18 @@ func (c *Config) WithDefaultReportMetrics() *Config {
 // WithReportMetrics sets whether to report metrics or not.
 func (c *Config) WithReportMetrics(reportMetrics bool) *Config {
 	c.ReportMetrics = reportMetrics
+	return c
+}
+
+// WithDefaultProfile sets the default state for whether to enable the profiler.
+func (c *Config) WithDefaultProfile() *Config {
+	c.Profile = false
+	return c
+}
+
+// WithProfile sets whether to report metrics or not.
+func (c *Config) WithProfile(profile bool) *Config {
+	c.Profile = profile
 	return c
 }
 

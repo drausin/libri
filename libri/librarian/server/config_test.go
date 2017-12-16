@@ -47,6 +47,14 @@ func TestConfig_WithLocalMetricsAddr(t *testing.T) {
 	assert.NotEqual(t, c1.LocalMetricsPort, c3.WithLocalMetricsPort(c3Port).LocalMetricsPort)
 }
 
+func TestConfig_WithLocalProfilerPort(t *testing.T) {
+	c1, c2, c3 := &Config{}, &Config{}, &Config{}
+	c1.WithDefaultLocalProfilerPort()
+	assert.Equal(t, c1.LocalProfilerPort, c2.WithLocalProfilerPort(0).LocalProfilerPort)
+	c3Port := 1234
+	assert.NotEqual(t, c1.LocalProfilerPort, c3.WithLocalProfilerPort(c3Port).LocalProfilerPort)
+}
+
 func TestConfig_WithPublicAddr(t *testing.T) {
 	c1, c2, c3 := &Config{}, &Config{}, &Config{}
 	c1.WithDefaultPublicAddr()
@@ -150,6 +158,26 @@ func TestConfig_WithSubscribeFrom(t *testing.T) {
 		c1.SubscribeFrom,
 		c3.WithSubscribeFrom(&subscribe.FromParameters{NMaxSubscriptions: 0}).SubscribeFrom,
 	)
+}
+
+func TestConfig_WithReportMetrics(t *testing.T) {
+	c1, c2, c3 := &Config{}, &Config{}, &Config{}
+	c1.WithDefaultReportMetrics()
+	assert.True(t, c1.ReportMetrics)
+	c2.WithReportMetrics(true)
+	assert.True(t, c2.ReportMetrics)
+	c3.WithReportMetrics(false)
+	assert.False(t, c3.ReportMetrics)
+}
+
+func TestConfig_WithProfile(t *testing.T) {
+	c1, c2, c3 := &Config{}, &Config{}, &Config{}
+	c1.WithDefaultProfile()
+	assert.False(t, c1.Profile)
+	c2.WithProfile(true)
+	assert.True(t, c2.Profile)
+	c3.WithProfile(false)
+	assert.False(t, c3.Profile)
 }
 
 func TestConfig_WithLogLevel(t *testing.T) {

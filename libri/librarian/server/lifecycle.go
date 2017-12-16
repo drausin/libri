@@ -4,13 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
-
-	"net/http"
 
 	cbackoff "github.com/cenkalti/backoff"
 	cerrors "github.com/drausin/libri/libri/common/errors"
@@ -159,6 +159,16 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 		go func() {
 			if err := l.metrics.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 				l.logger.Error("error serving Prometheus metrics", zap.Error(err))
+				cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
+			}
+		}()
+	}
+
+	if l.config.Profile {
+		go func() {
+			profilerAddr := fmt.Sprintf(":%d", l.config.LocalProfilerPort)
+			if err := http.ListenAndServe(profilerAddr, nil); err != nil {
+				l.logger.Error("error serving profiler", zap.Error(err))
 				cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
 			}
 		}()
