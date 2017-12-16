@@ -45,7 +45,7 @@ of these settings.
 
 To see what would be created upon spinning up a cluster called `my-cluster`, use
 
-    go run cluster.go plan -c /path/to/clusters/my-cluster
+    go run cluster.go plan -d /path/to/clusters/my-cluster
 
 If your cluster is hosted on GCP, you should first see Terraform plans and then planned dry
 run Kubernetes resources. Minikube clusters have no Terraform component.
@@ -55,7 +55,7 @@ run Kubernetes resources. Minikube clusters have no Terraform component.
 
 Create the cluster and resources with
 
-    go run cluster.go apply -c /path/to/clusters/my-cluster
+    go run cluster.go apply -d /path/to/clusters/my-cluster
 
 If your cluster is hosted on GCP, you should first see Terraform plans and then planned dry
 run Kubernetes resources. Minikube clusters have no Terraform component.
