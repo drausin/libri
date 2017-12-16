@@ -7,21 +7,24 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"math/rand"
 )
 
 func TestNewUniformBalancer_err(t *testing.T) {
-	b, err := NewUniformBalancer([]*net.TCPAddr{})
+	rng := rand.New(rand.NewSource(0))
+	b, err := NewUniformBalancer([]*net.TCPAddr{}, rng)
 	assert.Equal(t, ErrEmptyLibrarianAddresses, err)
 	assert.Nil(t, b)
 }
 
 func TestUniformRandBalancer_Next(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
 	addrs := []*net.TCPAddr{
 		{IP: net.ParseIP("1.2.3.4"), Port: 8080},
 		{IP: net.ParseIP("1.2.3.4"), Port: 8081},
 		{IP: net.ParseIP("1.2.3.4"), Port: 8082},
 	}
-	b, err := NewUniformBalancer(addrs)
+	b, err := NewUniformBalancer(addrs, rng)
 	assert.Nil(t, err)
 	assert.NotNil(t, b)
 
@@ -38,12 +41,13 @@ func TestUniformRandBalancer_Next(t *testing.T) {
 }
 
 func TestUniformRandBalancer_CloseAll(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
 	addrs := []*net.TCPAddr{
 		{IP: net.ParseIP("1.2.3.4"), Port: 8080},
 		{IP: net.ParseIP("1.2.3.4"), Port: 8081},
 		{IP: net.ParseIP("1.2.3.4"), Port: 8082},
 	}
-	b, err := NewUniformBalancer(addrs)
+	b, err := NewUniformBalancer(addrs, rng)
 	assert.Nil(t, err)
 	assert.NotNil(t, b)
 

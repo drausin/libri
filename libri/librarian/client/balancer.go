@@ -55,13 +55,13 @@ type uniformRandBalancer struct {
 
 // NewUniformBalancer creates a new Balancer that selects the next client
 // uniformly at random.
-func NewUniformBalancer(libAddrs []*net.TCPAddr) (Balancer, error) {
+func NewUniformBalancer(libAddrs []*net.TCPAddr, rng *rand.Rand) (Balancer, error) {
 	conns := make([]peer.Connector, len(libAddrs))
 	if len(libAddrs) == 0 {
 		return nil, ErrEmptyLibrarianAddresses
 	}
 	return &uniformRandBalancer{
-		rng:   rand.New(rand.NewSource(int64(len(conns)))),
+		rng:   rng,
 		conns: conns,
 		addrs: libAddrs,
 	}, nil

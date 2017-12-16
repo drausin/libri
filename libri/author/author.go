@@ -20,6 +20,7 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+	"math/rand"
 )
 
 var (
@@ -116,7 +117,10 @@ func NewAuthor(
 		authorKeys:     authorKeys,
 		selfReaderKeys: selfReaderKeys,
 	}
-	librarians, err := client.NewUniformBalancer(config.LibrarianAddrs)
+
+	// use client ID for rng seed so search client queries librarians in different order
+	rng := rand.New(rand.NewSource(clientID.Int().Int64()))
+	librarians, err := client.NewUniformBalancer(config.LibrarianAddrs, rng)
 	if err != nil {
 		return nil, err
 	}
