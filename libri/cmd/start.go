@@ -53,7 +53,7 @@ func init() {
 	startLibrarianCmd.Flags().Int(localMetricsPortFlag, server.DefaultMetricsPort,
 		"local metrics port")
 	startLibrarianCmd.Flags().Int(localProfilerPortFlag, server.DefaultProfilerPort,
-		"local profiler port (when profile = True)")
+		"local profiler port (when --profile is set)")
 	startLibrarianCmd.Flags().StringP(publicHostFlag, "i", server.DefaultIP,
 		"public host (IPv4 or URL)")
 	startLibrarianCmd.Flags().IntP(publicPortFlag, "p", server.DefaultPort,
