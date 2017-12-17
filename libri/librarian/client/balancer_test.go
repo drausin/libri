@@ -1,13 +1,13 @@
 package client
 
 import (
+	"math/rand"
 	"net"
 	"testing"
 
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"math/rand"
 )
 
 func TestNewUniformBalancer_err(t *testing.T) {

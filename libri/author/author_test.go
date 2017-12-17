@@ -9,10 +9,9 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net"
+	"os"
 	"sync"
 	"testing"
-
-	"os"
 
 	"github.com/drausin/libri/libri/author/io/common"
 	"github.com/drausin/libri/libri/author/io/enc"
