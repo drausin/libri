@@ -103,7 +103,11 @@ func NewAuthor(
 		return nil, err
 	}
 	clientSL := storage.NewClientSL(rdb)
-	documentSL := storage.NewDocumentSLD(rdb)
+
+	// documentSL behaves more like a cache (i.e., everything is cleaned up), so ok for it to be
+	// complete in-memory
+	mdb := db.NewMemoryDB()
+	documentSL := storage.NewDocumentSLD(mdb)
 
 	// get client ID and immediately save it so subsequent restarts have it
 	clientID, err := loadOrCreateClientID(logger, clientSL)
