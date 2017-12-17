@@ -3,6 +3,7 @@ package author
 import (
 	"crypto/ecdsa"
 	"io"
+	"math/rand"
 	"time"
 
 	"github.com/drausin/libri/libri/author/io/enc"
@@ -20,7 +21,6 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
-	"math/rand"
 )
 
 var (
