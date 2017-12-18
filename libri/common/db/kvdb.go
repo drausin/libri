@@ -50,7 +50,7 @@ func NewRocksDB(dbDir string) (*RocksDB, error) {
 	if err != nil {
 		return nil, err
 	}
-	options := NewRocksDBOptimizedOptions()
+	options := newRocksDBOptimizedOptions()
 	db, err := gorocksdb.OpenDb(options, dbDir)
 	if err != nil {
 		return nil, err
@@ -63,15 +63,15 @@ func NewRocksDB(dbDir string) (*RocksDB, error) {
 	}, nil
 }
 
-func NewRocksDBDefaultOptions() *gorocksdb.Options {
+func newRocksDBDefaultOptions() *gorocksdb.Options {
 	opts := gorocksdb.NewDefaultOptions()
 	opts.SetCreateIfMissing(true)
 	return opts
 }
 
-func NewRocksDBOptimizedOptions() *gorocksdb.Options {
+func newRocksDBOptimizedOptions() *gorocksdb.Options {
 	// TODO (drausin) figure out best way to parameterize this
-	opts := NewRocksDBDefaultOptions()
+	opts := newRocksDBDefaultOptions()
 	opts.IncreaseParallelism(4)
 	opts.OptimizeForPointLookup(1024) // 1024 MB = 1 GB
 	opts.SetAllowConcurrentMemtableWrites(true)
