@@ -16,4 +16,5 @@ module "{{ .ClusterName }}" {
   num_librarians = "${var.num_librarians}"
   num_cluster_nodes = "${var.num_cluster_nodes}"
   gce_node_machine_type = "${var.cluster_node_machine_type}"
+  librarian_disk_type = "${var.librarian_disk_type}"
 }

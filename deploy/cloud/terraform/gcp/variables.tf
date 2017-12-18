@@ -15,6 +15,11 @@ variable "librarian_disk_size_gb" {
   description = "size (GB) of persistant disk used by each librarian"
 }
 
+variable "librarian_disk_type" {
+  description = "type of persistent disk used by each librarian"
+  default = "pd-standard"
+}
+
 variable "librarian_libri_version" {
   description = "libri version (e.g., 0.1.0, latest, snapshot) to use for librarian container"
 }
