@@ -50,8 +50,7 @@ func NewRocksDB(dbDir string) (*RocksDB, error) {
 	if err != nil {
 		return nil, err
 	}
-	options := gorocksdb.NewDefaultOptions()
-	options.SetCreateIfMissing(true)
+	options := NewRocksDBOptimizedOptions()
 	db, err := gorocksdb.OpenDb(options, dbDir)
 	if err != nil {
 		return nil, err
@@ -62,6 +61,23 @@ func NewRocksDB(dbDir string) (*RocksDB, error) {
 		ro:  gorocksdb.NewDefaultReadOptions(),
 		wo:  gorocksdb.NewDefaultWriteOptions(),
 	}, nil
+}
+
+func NewRocksDBDefaultOptions() *gorocksdb.Options {
+	opts := gorocksdb.NewDefaultOptions()
+	opts.SetCreateIfMissing(true)
+	return opts
+}
+
+func NewRocksDBOptimizedOptions() *gorocksdb.Options {
+	// TODO (drausin) figure out best way to parameterize this
+	opts := NewRocksDBDefaultOptions()
+	opts.IncreaseParallelism(4)
+	opts.OptimizeForPointLookup(1024) // 1024 MB = 1 GB
+	opts.SetAllowConcurrentMemtableWrites(true)
+	opts.OptimizeLevelStyleCompaction(500 * 1024 * 1024) // 500 MB
+	opts.SetStatsDumpPeriodSec(10 * 60)
+	return opts
 }
 
 // NewTempDirRocksDB creates a new RocksDB instance (used mostly for local testing) in a local

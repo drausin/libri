@@ -4,6 +4,7 @@ cluster_host = "gcp"
 num_librarians = 8
 librarian_libri_version = "0.2.0"
 librarian_disk_size_gb = 10
+librarian_disk_type = "pd-standard"
 librarian_cpu_limit = "200m"
 librarian_ram_limit = "2G"
 
