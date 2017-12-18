@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"strings"
 	"sync"
@@ -73,9 +72,15 @@ func newRocksDBOptimizedOptions() *gorocksdb.Options {
 	// TODO (drausin) figure out best way to parameterize this
 	opts := newRocksDBDefaultOptions()
 	opts.IncreaseParallelism(4)
-	opts.OptimizeForPointLookup(1024) // 1024 MB = 1 GB
+
+	bbtOpts := gorocksdb.NewDefaultBlockBasedTableOptions()
+	bbtOpts.SetBlockCache(gorocksdb.NewLRUCache(1024 * 1024 * 1024)) // 1 GB
+	bbtOpts.SetBlockSize(32 * 1024)                                  // 32K
+	bbtOpts.SetFilterPolicy(gorocksdb.NewBloomFilter(10))
+	opts.SetBlockBasedTableFactory(bbtOpts)
+
 	opts.SetAllowConcurrentMemtableWrites(true)
-	opts.OptimizeLevelStyleCompaction(500 * 1024 * 1024) // 500 MB
+	opts.OptimizeLevelStyleCompaction(500 * 1024 * 1024) // 500 MB memtable
 	opts.SetStatsDumpPeriodSec(10 * 60)
 	return opts
 }
@@ -190,7 +195,6 @@ func (db *Memory) Iterate(
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	for key, value := range db.data {
-		log.Printf("%s, %s, %s\n", dataKeyLB, dataKeyUB, key)
 		if strings.Compare(key, dataKeyLB) >= 0 && strings.Compare(key, dataKeyUB) < 0 {
 			keyBytes, err := hex.DecodeString(key)
 			errors2.MaybePanic(err)
