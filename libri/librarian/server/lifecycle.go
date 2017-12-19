@@ -29,6 +29,7 @@ import (
 const (
 	postListenNotifyWait  = 100 * time.Millisecond
 	backoffMaxElapsedTime = 5 * time.Second
+	maxConcurrentStreams  = 128
 )
 
 const (
@@ -144,6 +145,7 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 	s := grpc.NewServer(
 		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
 		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
+		grpc.MaxConcurrentStreams(maxConcurrentStreams),
 	)
 
 	api.RegisterLibrarianServer(s, l)
