@@ -3,6 +3,7 @@ package peer
 import (
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,20 +25,9 @@ func TestTestConnector_Address(t *testing.T) {
 	assert.Nil(t, c1.Address())
 }
 
-func TestTestErrConnector_Connect(t *testing.T) {
-	c := &TestErrConnector{}
+func TestTestConnector_Connect_error(t *testing.T) {
+	c := &TestConnector{ConnectErr: errors.New("some connect error")}
 	client, err := c.Connect()
 	assert.NotNil(t, err)
 	assert.Nil(t, client)
-}
-
-func TestTestErrConnector_Disconnect(t *testing.T) {
-	c := &TestErrConnector{}
-	err := c.Disconnect()
-	assert.Nil(t, err)
-}
-
-func TestTestErrConnector_Address(t *testing.T) {
-	c1 := &TestErrConnector{}
-	assert.Nil(t, c1.Address())
 }

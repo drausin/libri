@@ -120,14 +120,6 @@ func TestPeer_Merge_ok(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, p1Name, p1.(*peer).name)
 
-	// p2's empty connector should not replace p1's
-	p1 = NewTestPeer(rng, 0)
-	p1Conn := p1.(*peer).conn
-	p2 = New(p1.ID(), p1.(*peer).name, nil)
-	err = p1.Merge(p2)
-	assert.Nil(t, err)
-	assert.Equal(t, p1Conn, p1.(*peer).conn)
-
 	// p2's connector should replace p1's
 	p1ID = id.NewPseudoRandom(rng)
 	p1 = New(p1ID, "p1", NewConnector(&net.TCPAddr{

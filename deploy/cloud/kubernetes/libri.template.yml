@@ -108,6 +108,7 @@ spec:
           "--localPort", "{{ $localPort }}",
           "--localMetricsPort", "{{ $localMetricsPort }}",
           "--bootstraps", "librarians-0.libri.default.svc.cluster.local:{{ $localPort }}",
+          "--profile"
         ]
         env:
         - name: GODEBUG         # ensure we use the pure Go (rather than CGO) DNS

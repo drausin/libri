@@ -36,7 +36,7 @@ type Recorder interface {
 	// Record an outcome for a particular query type.
 	Record(t QueryType, o Outcome)
 
-	// Merge combines the stats of the other and current recorder instances.
+	// merge combines the stats of the other and current recorder instances.
 	Merge(other Recorder)
 
 	// ToStored creates a storage.ResponseStats.

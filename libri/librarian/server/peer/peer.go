@@ -30,7 +30,7 @@ type Peer interface {
 	// query. Currently, it just uses whether p's latest response time is before q's.
 	Before(other Peer) bool
 
-	// Merge merges another peer into the existing peer. If there is any conflicting information
+	// merge merges another peer into the existing peer. If there is any conflicting information
 	// between the two, the merge returns an error.
 	Merge(other Peer) error
 
@@ -92,8 +92,8 @@ func (p *peer) Merge(other Peer) error {
 	if other.(*peer).name != "" {
 		p.name = other.(*peer).name
 	}
-	if other.Connector() != nil {
-		p.conn = other.Connector()
+	if err := p.conn.merge(other.Connector()); err != nil {
+		return err
 	}
 	p.recorder.Merge(other.Recorder())
 	return nil

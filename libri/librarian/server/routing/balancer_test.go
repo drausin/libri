@@ -2,7 +2,6 @@ package routing
 
 import (
 	"math/rand"
-	"net"
 	"testing"
 	"time"
 
@@ -20,7 +19,7 @@ func TestTableUniqueBalancer_Next_ok(t *testing.T) {
 		peer.New(
 			id.NewPseudoRandom(rng),
 			"test-peer-1",
-			&fixedConnector{connectLC: origLC},
+			&peer.TestConnector{Client: origLC},
 		),
 	)
 	csb := NewClientBalancer(rt)
@@ -43,7 +42,7 @@ func TestTableUniqueBalancer_Next_ok(t *testing.T) {
 		peer.New(
 			id.NewPseudoRandom(rng),
 			"test-peer-2",
-			&fixedConnector{connectLC: origLC},
+			&peer.TestConnector{Client: origLC},
 		),
 	)
 	lc, peerID, err = csb.AddNext()
@@ -68,8 +67,8 @@ func TestTableUniqueBalancer_Next_err(t *testing.T) {
 		peer.New(
 			id.NewPseudoRandom(rng),
 			"test-peer",
-			&fixedConnector{
-				connectLC: api.NewLibrarianClient(nil),
+			&peer.TestConnector{
+				Client: api.NewLibrarianClient(nil),
 			},
 		),
 	)
@@ -87,7 +86,7 @@ func TestRoutingTableBalancer_Remove(t *testing.T) {
 		peer.New(
 			id.NewPseudoRandom(rng),
 			"test-peer-1",
-			&fixedConnector{connectLC: lc1},
+			&peer.TestConnector{Client: lc1},
 		),
 	)
 	csb := NewClientBalancer(rt)
@@ -106,23 +105,4 @@ func TestRoutingTableBalancer_Remove(t *testing.T) {
 	// check removing peer not in set errors
 	err = csb.Remove(id.NewPseudoRandom(rng))
 	assert.Equal(t, ErrClientMissingFromSet, err)
-}
-
-type fixedConnector struct {
-	connectLC  api.LibrarianClient
-	connectErr error
-}
-
-func (fc *fixedConnector) Connect() (api.LibrarianClient, error) {
-	return fc.connectLC, fc.connectErr
-}
-
-// Disconnect closes the connection with the peer.
-func (fc *fixedConnector) Disconnect() error {
-	return nil
-}
-
-// Address returns the TCP address used by the Connector.
-func (fc *fixedConnector) Address() *net.TCPAddr {
-	return nil
 }
