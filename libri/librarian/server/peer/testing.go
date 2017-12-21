@@ -1,7 +1,6 @@
 package peer
 
 import (
-	"errors"
 	"fmt"
 	"math/rand"
 	"net"
@@ -94,14 +93,15 @@ func AssertPeersEqual(t *testing.T, sp *storage.Peer, p Peer) {
 // TestConnector mocks the peer.Connector interface. The Connect() method returns a fixed client
 // instead of creating one from the peer's address.
 type TestConnector struct {
-	APISelf   *api.PeerAddress
-	Addresses []*api.PeerAddress
-	Client    api.LibrarianClient
+	APISelf    *api.PeerAddress
+	Addresses  []*api.PeerAddress
+	Client     api.LibrarianClient
+	ConnectErr error
 }
 
 // Connect is a no-op stub to satisfy the interface's signature.
 func (c *TestConnector) Connect() (api.LibrarianClient, error) {
-	return c.Client, nil
+	return c.Client, c.ConnectErr
 }
 
 // Disconnect is a no-op stub to satisfy the interface's signature.
@@ -114,21 +114,14 @@ func (c *TestConnector) Address() *net.TCPAddr {
 	return nil
 }
 
-// TestErrConnector mocks the peer.Connector interface. The Connect() methods always returns an
-// error.
-type TestErrConnector struct{}
-
-// Connect is stub that always returns an error.
-func (ec *TestErrConnector) Connect() (api.LibrarianClient, error) {
-	return nil, errors.New("some connect error")
-}
-
-// Disconnect is a no-op stub to satisfy the interface's signature.
-func (ec *TestErrConnector) Disconnect() error {
+func (c *TestConnector) merge(other Connector) error {
 	return nil
 }
 
-// Address is a stub that always returns false.
-func (ec *TestErrConnector) Address() *net.TCPAddr {
-	return nil
+func (c *TestConnector) connected() bool {
+	return true
+}
+
+func (c *TestConnector) ready() bool {
+	return true
 }

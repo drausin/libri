@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 )
 
 func TestConnector_Connect_ok(t *testing.T) {
@@ -45,6 +46,59 @@ func TestConnector_Address(t *testing.T) {
 	assert.Equal(t, conn.Address(), addr)
 }
 
+func TestConnector_merge_diffAddress(t *testing.T) {
+	a1 := &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 20100}
+	a2 := &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 20101}
+	c1 := &connector{publicAddress: a1}
+	c2 := &connector{publicAddress: a2}
+
+	// c1 should not have c2's address (a2)
+	c1.merge(c2)
+	assert.Equal(t, a2, c1.publicAddress)
+}
+
+func TestConnector_merge_connected(t *testing.T) {
+	a := &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 20100}
+
+	// when c1 is not connected and c2 is, c1 should get c2's clientConn
+	c1 := &connector{
+		publicAddress: a,
+		clientConn:    nil,
+	}
+	c2 := &connector{
+		publicAddress: a,
+		clientConn:    &grpc.ClientConn{},
+	}
+	c1.merge(c2)
+	assert.Equal(t, c2.clientConn, c1.clientConn)
+
+	// when c2 is not connected and c1 is, c1 should keep it's clientConn
+	c1 = &connector{
+		publicAddress: a,
+		clientConn:    &grpc.ClientConn{},
+	}
+	c2 = &connector{
+		publicAddress: a,
+		clientConn:    nil,
+	}
+	c1.merge(c2)
+	assert.NotNil(t, c1.clientConn)
+
+	// when neither is connected, there's nothing to do
+	c1 = &connector{
+		publicAddress: a,
+		clientConn:    nil,
+	}
+	c2 = &connector{
+		publicAddress: a,
+		clientConn:    nil,
+	}
+	c1.merge(c2)
+	assert.NotNil(t, c1.clientConn)
+
+	// TODO (drausin) finish writing tests
+}
+
 type fixedDialer struct {
 	clientConn *grpc.ClientConn
 	dialErr    error
@@ -52,4 +106,12 @@ type fixedDialer struct {
 
 func (f *fixedDialer) Dial(addr *net.TCPAddr) (*grpc.ClientConn, error) {
 	return f.clientConn, f.dialErr
+}
+
+type fixedClientConnStateGetter struct {
+	state connectivity.State
+}
+
+func (sg fixedClientConnStateGetter) get(cc *grpc.ClientConn) connectivity.State {
+	return sg.state
 }
