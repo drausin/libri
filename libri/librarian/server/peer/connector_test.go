@@ -6,6 +6,8 @@ import (
 
 	"errors"
 
+	"sync"
+
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 )
@@ -48,8 +50,8 @@ func TestConnector_Address(t *testing.T) {
 func TestConnector_merge_diffAddress(t *testing.T) {
 	a1 := &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 20100}
 	a2 := &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 20101}
-	c1 := &connector{publicAddress: a1}
-	c2 := &connector{publicAddress: a2}
+	c1 := &connector{publicAddress: a1, mu: new(sync.Mutex)}
+	c2 := &connector{publicAddress: a2, mu: new(sync.Mutex)}
 
 	// c1 should not have c2's address (a2)
 	c1.merge(c2)
@@ -63,10 +65,12 @@ func TestConnector_merge_connected(t *testing.T) {
 	c1 := &connector{
 		publicAddress: a,
 		clientConn:    nil,
+		mu:            new(sync.Mutex),
 	}
 	c2 := &connector{
 		publicAddress: a,
 		clientConn:    &grpc.ClientConn{},
+		mu:            new(sync.Mutex),
 	}
 	c1.merge(c2)
 	assert.Equal(t, c2.clientConn, c1.clientConn)
@@ -75,10 +79,12 @@ func TestConnector_merge_connected(t *testing.T) {
 	c1 = &connector{
 		publicAddress: a,
 		clientConn:    &grpc.ClientConn{},
+		mu:            new(sync.Mutex),
 	}
 	c2 = &connector{
 		publicAddress: a,
 		clientConn:    nil,
+		mu:            new(sync.Mutex),
 	}
 	c1.merge(c2)
 	assert.NotNil(t, c1.clientConn)
@@ -87,13 +93,15 @@ func TestConnector_merge_connected(t *testing.T) {
 	c1 = &connector{
 		publicAddress: a,
 		clientConn:    nil,
+		mu:            new(sync.Mutex),
 	}
 	c2 = &connector{
 		publicAddress: a,
 		clientConn:    nil,
+		mu:            new(sync.Mutex),
 	}
 	c1.merge(c2)
-	assert.NotNil(t, c1.clientConn)
+	assert.Nil(t, c1.clientConn)
 
 	// TODO (drausin) finish writing tests
 }
