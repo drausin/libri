@@ -91,28 +91,15 @@ func (c *connector) merge(other Connector) error {
 		return c.replaceWith(other)
 	}
 
-	// prefer the more connected/ready of the two connectors
-	selfConnected, otherConnected := c.connected(), other.connected()
-	if !selfConnected && otherConnected {
-		return c.replaceWith(other)
-	}
-	if selfConnected && !otherConnected {
-		return nil
-	}
-	if !selfConnected && !otherConnected {
-		// no need to do anything if neither is connected
-		return nil
-	}
-	if selfConnected && otherConnected {
-		if !c.ready() && other.ready() {
-			// only replace if other's ready and we're not
+	// replace current connecter with other if it's more connected/ready
+	if other.connected() {
+		otherMoreConnected, otherMoreReady := !c.connected(), !c.ready() && c.ready()
+		if otherMoreConnected || otherMoreReady {
 			return c.replaceWith(other)
 		}
-		// keep existing and clean up other
-		return other.Disconnect()
 	}
 
-	// should only get here in weird race conditions; disconnect other just to be safe
+	// no-op if other is already disconnected
 	return other.Disconnect()
 }
 

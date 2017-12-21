@@ -92,7 +92,9 @@ func (p *peer) Merge(other Peer) error {
 	if other.(*peer).name != "" {
 		p.name = other.(*peer).name
 	}
-	p.conn.merge(other.Connector())
+	if err := p.conn.merge(other.Connector()); err != nil {
+		return err
+	}
 	p.recorder.Merge(other.Recorder())
 	return nil
 }

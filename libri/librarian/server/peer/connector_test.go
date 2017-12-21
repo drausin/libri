@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
 )
 
 func TestConnector_Connect_ok(t *testing.T) {
@@ -108,6 +107,7 @@ func (f *fixedDialer) Dial(addr *net.TCPAddr) (*grpc.ClientConn, error) {
 	return f.clientConn, f.dialErr
 }
 
+/*
 type fixedClientConnStateGetter struct {
 	state connectivity.State
 }
@@ -115,3 +115,4 @@ type fixedClientConnStateGetter struct {
 func (sg fixedClientConnStateGetter) get(cc *grpc.ClientConn) connectivity.State {
 	return sg.state
 }
+*/
