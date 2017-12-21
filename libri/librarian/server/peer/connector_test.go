@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 )
 
 func TestConnector_Connect_ok(t *testing.T) {
@@ -47,6 +48,17 @@ func TestConnector_Address(t *testing.T) {
 	assert.Equal(t, conn.Address(), addr)
 }
 
+func TestConnector_merge_otherNil(t *testing.T) {
+	// when other is nil, c1 should keep its clientConn
+	c1 := &connector{
+		publicAddress: &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 20100},
+		clientConn:    &grpc.ClientConn{},
+		mu:            new(sync.Mutex),
+	}
+	c1.merge(nil)
+	assert.NotNil(t, c1.clientConn)
+
+}
 func TestConnector_merge_diffAddress(t *testing.T) {
 	a1 := &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 20100}
 	a2 := &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 20101}
@@ -75,6 +87,25 @@ func TestConnector_merge_connected(t *testing.T) {
 	c1.merge(c2)
 	assert.Equal(t, c2.clientConn, c1.clientConn)
 
+	// when both c1 & c2 are connected, but only c2 is ready, c1 should get c2's connection
+	cc1, cc2 := &grpc.ClientConn{}, &grpc.ClientConn{}
+	c1 = &connector{
+		publicAddress: a,
+		clientConn:    cc1,
+		stateGetter:   fixedClientConnStateGetter{connectivity.Idle},
+		mu:            new(sync.Mutex),
+	}
+	c2 = &connector{
+		publicAddress: a,
+		clientConn:    cc2,
+		stateGetter:   fixedClientConnStateGetter{connectivity.Ready},
+		mu:            new(sync.Mutex),
+	}
+	c1.merge(c2)
+	assert.Equal(t, cc2, c1.clientConn)
+	// ideally would test that cc1 has been disconnected, but hard to do since grpc.ClientConn
+	// is a struct and not an interface :(
+
 	// when c2 is not connected and c1 is, c1 should keep it's clientConn
 	c1 = &connector{
 		publicAddress: a,
@@ -102,8 +133,6 @@ func TestConnector_merge_connected(t *testing.T) {
 	}
 	c1.merge(c2)
 	assert.Nil(t, c1.clientConn)
-
-	// TODO (drausin) finish writing tests
 }
 
 type fixedDialer struct {
@@ -115,7 +144,6 @@ func (f *fixedDialer) Dial(addr *net.TCPAddr) (*grpc.ClientConn, error) {
 	return f.clientConn, f.dialErr
 }
 
-/*
 type fixedClientConnStateGetter struct {
 	state connectivity.State
 }
@@ -123,4 +151,3 @@ type fixedClientConnStateGetter struct {
 func (sg fixedClientConnStateGetter) get(cc *grpc.ClientConn) connectivity.State {
 	return sg.state
 }
-*/

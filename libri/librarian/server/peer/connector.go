@@ -130,7 +130,7 @@ func (c *connector) connected() bool {
 func (c *connector) ready() bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.clientConn != nil && c.clientConn.GetState() == connectivity.Ready
+	return c.clientConn != nil && c.stateGetter.get(c.clientConn) == connectivity.Ready
 }
 
 func (c *connector) Address() *net.TCPAddr {
