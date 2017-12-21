@@ -86,6 +86,9 @@ func (c *connector) Disconnect() error {
 }
 
 func (c *connector) merge(other Connector) error {
+	if other == nil {
+		return nil
+	}
 	if c.Address().String() != other.Address().String() {
 		// replace if address is different
 		return c.replaceWith(other)
