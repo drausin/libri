@@ -27,13 +27,8 @@ type Storer interface {
 }
 
 type storer struct {
-	// signs queries
 	signer client.Signer
-
-	// searcher is used for the first search half of the store operation
 	searcher search.Searcher
-
-	// issues store queries to the peers
 	storerCreator client.StorerCreator
 }
 
@@ -47,12 +42,12 @@ func NewStorer(signer client.Signer, searcher search.Searcher, c client.StorerCr
 }
 
 // NewDefaultStorer creates a new Storer with default Searcher and StoreQuerier instances.
-func NewDefaultStorer(peerID ecid.ID) Storer {
+func NewDefaultStorer(peerID ecid.ID, clients client.Pool) Storer {
 	signer := client.NewSigner(peerID.Key())
 	return NewStorer(
 		signer,
-		search.NewDefaultSearcher(signer),
-		client.NewStorerCreator(),
+		search.NewDefaultSearcher(signer, clients),
+		client.NewStorerCreator(clients),
 	)
 }
 
@@ -103,7 +98,7 @@ func (s *storer) Store(store *Store, seeds []peer.Peer) error {
 		go func(wg4 *sync.WaitGroup) {
 			defer wg4.Done()
 			for next := range toQuery {
-				response, err := s.query(next.Connector(), store)
+				response, err := s.query(next, store)
 				peerResponses <- &peerResponse{
 					peer:     next,
 					response: response,
@@ -119,8 +114,8 @@ func (s *storer) Store(store *Store, seeds []peer.Peer) error {
 	return store.Result.FatalErr
 }
 
-func (s *storer) query(pConn peer.Connector, store *Store) (*api.StoreResponse, error) {
-	storeClient, err := s.storerCreator.Create(pConn)
+func (s *storer) query(next peer.Peer, store *Store) (*api.StoreResponse, error) {
+	lc, err := s.storerCreator.Create(next.Address().String())
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +124,7 @@ func (s *storer) query(pConn peer.Connector, store *Store) (*api.StoreResponse, 
 	if err != nil {
 		return nil, err
 	}
-	retryStoreClient := client.NewRetryStorer(storeClient, storerStoreRetryTimeout)
+	retryStoreClient := client.NewRetryStorer(lc, storerStoreRetryTimeout)
 	rp, err := retryStoreClient.Store(ctx, store.Request)
 	cancel()
 	if err != nil {

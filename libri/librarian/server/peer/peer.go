@@ -16,12 +16,11 @@ const (
 
 // Peer represents a peer in the network.
 type Peer interface {
-
 	// ID returns the peer ID.
 	ID() id.ID
 
-	// Connector returns the Connector instance for connecting to the peer.
-	Connector() Connector
+	// Address returns the public address of the peer.
+	Address() *net.TCPAddr
 
 	// Recorder returns the Recorder instance for recording query outcomes.
 	Recorder() Recorder
@@ -30,7 +29,7 @@ type Peer interface {
 	// query. Currently, it just uses whether p's latest response time is before q's.
 	Before(other Peer) bool
 
-	// merge merges another peer into the existing peer. If there is any conflicting information
+	// Merge merges another peer into the existing peer. If there is any conflicting information
 	// between the two, the merge returns an error.
 	Merge(other Peer) error
 
@@ -45,22 +44,21 @@ type peer struct {
 	// 256-bit ID
 	id id.ID
 
+	address *net.TCPAddr
+
 	// self-reported name
 	name string
-
-	// Connector instance for the peer
-	conn Connector
 
 	// tracks query outcomes from the peer
 	recorder Recorder
 }
 
 // New creates a new Peer instance with empty response stats.
-func New(id id.ID, name string, conn Connector) Peer {
+func New(id id.ID, name string, address *net.TCPAddr) Peer {
 	return &peer{
 		id:       id,
+		address:  address,
 		name:     name,
-		conn:     conn,
 		recorder: newQueryRecorder(),
 	}
 }
@@ -79,6 +77,10 @@ func (p *peer) ID() id.ID {
 	return p.id
 }
 
+func (p *peer) Address() *net.TCPAddr {
+	return p.address
+}
+
 func (p *peer) Before(q Peer) bool {
 	pr, qr := p.recorder.(*queryRecorder), q.(*peer).recorder.(*queryRecorder)
 	return pr.responses.latest.Before(qr.responses.latest)
@@ -92,15 +94,11 @@ func (p *peer) Merge(other Peer) error {
 	if other.(*peer).name != "" {
 		p.name = other.(*peer).name
 	}
-	if err := p.conn.merge(other.Connector()); err != nil {
-		return err
+	if p.Address().String() != other.Address().String() {
+		p.address = other.Address()
 	}
 	p.recorder.Merge(other.Recorder())
 	return nil
-}
-
-func (p *peer) Connector() Connector {
-	return p.conn
 }
 
 func (p *peer) Recorder() Recorder {
@@ -111,7 +109,7 @@ func (p *peer) ToStored() *storage.Peer {
 	return &storage.Peer{
 		Id:            p.id.Bytes(),
 		Name:          p.name,
-		PublicAddress: toStoredAddress(p.conn.Address()),
+		PublicAddress: toStoredAddress(p.Address()),
 		QueryOutcomes: p.recorder.ToStored(),
 	}
 }
@@ -120,8 +118,8 @@ func (p *peer) ToAPI() *api.PeerAddress {
 	return &api.PeerAddress{
 		PeerId:   p.id.Bytes(),
 		PeerName: p.name,
-		Ip:       p.conn.Address().IP.String(),
-		Port:     uint32(p.conn.Address().Port),
+		Ip:       p.Address().IP.String(),
+		Port:     uint32(p.Address().Port),
 	}
 }
 
@@ -151,7 +149,7 @@ func (f *fromer) FromAPI(apiAddress *api.PeerAddress) Peer {
 	return New(
 		id.FromBytes(apiAddress.PeerId),
 		apiAddress.PeerName,
-		NewConnector(ToAddress(apiAddress)),
+		ToAddress(apiAddress),
 	)
 }
 

@@ -18,20 +18,17 @@ import (
 // TestFinderCreator mocks the FindQuerier interface. The Create() method returns a fixed
 // api.FindPeersResponse, derived from a list of addresses in the client.
 type TestFinderCreator struct {
-	finder api.Finder
+	finders map[string]api.Finder
 	err    error
 }
 
 // Create creates an api.Finder that mocks a real query to a peer and returns a fixed list of
 // addresses stored in the TestConnector mock of the pConn api.Connector.
-func (c *TestFinderCreator) Create(pConn peer.Connector) (api.Finder, error) {
+func (c *TestFinderCreator) Create(address string) (api.Finder, error) {
 	if c.err != nil {
 		return nil, c.err
 	}
-	if c.finder != nil {
-		return c.finder, nil
-	}
-	return &fixedFinder{addresses: pConn.(*peer.TestConnector).Addresses}, nil
+	return c.finders[address], nil
 }
 
 type fixedFinder struct {
@@ -68,12 +65,12 @@ func (f *TestFromer) FromAPI(apiAddress *api.PeerAddress) peer.Peer {
 	return f.Peers[id.FromBytes(apiAddress.PeerId).String()]
 }
 
-// NewTestSearcher creates a new Searcher instance with a FindQuerier and FindResponseProcessor that
+// NewTestSearcher creates a new Searcher instance with a FindCreator and FindResponseProcessor that
 // each just return fixed addresses and peers, respectively.
-func NewTestSearcher(peersMap map[string]peer.Peer) Searcher {
+func NewTestSearcher(peersMap map[string]peer.Peer, addressFinders map[string]api.Finder) Searcher {
 	return NewSearcher(
 		&client.TestNoOpSigner{},
-		&TestFinderCreator{},
+		&TestFinderCreator{finders: addressFinders},
 		&responseProcessor{
 			fromer: &TestFromer{Peers: peersMap},
 		},
@@ -87,6 +84,7 @@ func NewTestPeers(rng *rand.Rand, n int) ([]peer.Peer, map[string]peer.Peer, []i
 	addresses := make([]*net.TCPAddr, n)
 	ids := make([]id.ID, n)
 	names := make([]string, n)
+	addressFinders := make(map[string]api.Finder)
 
 	// create the addresses and IDs
 	var selfID ecid.ID
@@ -120,12 +118,9 @@ func NewTestPeers(rng *rand.Rand, n int) ([]peer.Peer, map[string]peer.Peer, []i
 
 		// create test connector with a test client that returns pre-determined set of
 		// addresses
-		conn := peer.TestConnector{
-			APISelf:   peer.FromAddress(ids[i], names[i], addresses[i]),
-			Addresses: connectedAddresses,
-		}
-		peers[i] = peer.New(ids[i], names[i], &conn)
+		peers[i] = peer.New(ids[i], names[i], addresses[i])
 		peersMap[ids[i].String()] = peers[i]
+		addressFinders[addresses[i].String()] = &fixedFinder{addresses: connectedAddresses}
 	}
 
 	return peers, peersMap, selfPeerIdxs, selfID

@@ -29,28 +29,26 @@ type Verifier interface {
 }
 
 type verifier struct {
-	signer client.Signer
-
-	verifierCreator client.VerifierCreator
-
-	rp ResponseProcessor
+	signer  client.Signer
+	rp      ResponseProcessor
+	clients client.Pool
 }
 
 // NewVerifier returns a new Verifier with the given Querier and ResponseProcessor.
-func NewVerifier(s client.Signer, c client.VerifierCreator, rp ResponseProcessor) Verifier {
+func NewVerifier(s client.Signer, rp ResponseProcessor, clients client.Pool) Verifier {
 	return &verifier{
-		signer:          s,
-		verifierCreator: c,
-		rp:              rp,
+		signer:  s,
+		rp:      rp,
+		clients: clients,
 	}
 }
 
 // NewDefaultVerifier creates a new Verifier with default sub-object instantiations.
-func NewDefaultVerifier(signer client.Signer) Verifier {
+func NewDefaultVerifier(signer client.Signer, clients client.Pool) Verifier {
 	return NewVerifier(
 		signer,
-		client.NewVerifierCreator(),
 		NewResponseProcessor(peer.NewFromer()),
+		clients,
 	)
 }
 
@@ -94,7 +92,7 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 			defer wg4.Done()
 			for next := range toQuery.Peers {
 				verify.AddQueried(next)
-				response, err := v.query(next.Connector(), verify)
+				response, err := v.query(next, verify)
 				peerResponses <- &peerResponse{
 					peer:     next,
 					response: response,
@@ -110,8 +108,8 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 	return verify.Result.FatalErr
 }
 
-func (v *verifier) query(pConn peer.Connector, verify *Verify) (*api.VerifyResponse, error) {
-	verifyClient, err := v.verifierCreator.Create(pConn)
+func (v *verifier) query(next peer.Peer, verify *Verify) (*api.VerifyResponse, error) {
+	lc, err := v.clients.Get(next.Address().String())
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +118,7 @@ func (v *verifier) query(pConn peer.Connector, verify *Verify) (*api.VerifyRespo
 	if err != nil {
 		return nil, err
 	}
-	retryVerifyClient := client.NewRetryVerifier(verifyClient, verifierVerifyRetryTimeout)
+	retryVerifyClient := client.NewRetryVerifier(lc, verifierVerifyRetryTimeout)
 	rp, err := retryVerifyClient.Verify(ctx, rq)
 	cancel()
 	if err != nil {

@@ -2,24 +2,25 @@ package client
 
 import (
 	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/drausin/libri/libri/librarian/server/peer"
 )
 
 // IntroducerCreator creates api.Introducers.
 type IntroducerCreator interface {
 	// Create creates an api.Introducer from the api.Connector.
-	Create(conn peer.Connector) (api.Introducer, error)
+	Create(address string) (api.Introducer, error)
 }
 
-type introducerCreator struct{}
+type introducerCreator struct{
+	clients Pool
+}
 
 // NewIntroducerCreator creates a new IntroducerCreator.
-func NewIntroducerCreator() IntroducerCreator {
-	return &introducerCreator{}
+func NewIntroducerCreator(clients Pool) IntroducerCreator {
+	return &introducerCreator{clients}
 }
 
-func (*introducerCreator) Create(c peer.Connector) (api.Introducer, error) {
-	lc, err := c.Connect()
+func (c *introducerCreator) Create(address string) (api.Introducer, error) {
+	lc, err := c.clients.Get(address)
 	if err != nil {
 		return nil, err
 	}
@@ -29,18 +30,20 @@ func (*introducerCreator) Create(c peer.Connector) (api.Introducer, error) {
 // FinderCreator creates api.Finders.
 type FinderCreator interface {
 	// Create creates an api.Finder from the api.Connector.
-	Create(conn peer.Connector) (api.Finder, error)
+	Create(address string) (api.Finder, error)
 }
 
-type finderCreator struct{}
+type finderCreator struct{
+	clients Pool
+}
 
 // NewFinderCreator creates a new FinderCreator.
-func NewFinderCreator() FinderCreator {
-	return &finderCreator{}
+func NewFinderCreator(clients Pool) FinderCreator {
+	return &finderCreator{clients}
 }
 
-func (*finderCreator) Create(c peer.Connector) (api.Finder, error) {
-	lc, err := c.Connect()
+func (c *finderCreator) Create(address string) (api.Finder, error) {
+	lc, err := c.clients.Get(address)
 	if err != nil {
 		return nil, err
 	}
@@ -50,18 +53,20 @@ func (*finderCreator) Create(c peer.Connector) (api.Finder, error) {
 // VerifierCreator creates api.Verifiers.
 type VerifierCreator interface {
 	// Create creates an api.Verifier from the api.Connector.
-	Create(conn peer.Connector) (api.Verifier, error)
+	Create(address string) (api.Verifier, error)
 }
 
-type verifierCreator struct{}
+type verifierCreator struct{
+	clients Pool
+}
 
 // NewVerifierCreator creates a new FinderCreator.
-func NewVerifierCreator() VerifierCreator {
-	return &verifierCreator{}
+func NewVerifierCreator(clients Pool) VerifierCreator {
+	return &verifierCreator{clients}
 }
 
-func (*verifierCreator) Create(c peer.Connector) (api.Verifier, error) {
-	lc, err := c.Connect()
+func (c *verifierCreator) Create(address string) (api.Verifier, error) {
+	lc, err := c.clients.Get(address)
 	if err != nil {
 		return nil, err
 	}
@@ -71,18 +76,20 @@ func (*verifierCreator) Create(c peer.Connector) (api.Verifier, error) {
 // StorerCreator creates api.Storers.
 type StorerCreator interface {
 	// Create creates an api.Storer from the api.Connector.
-	Create(conn peer.Connector) (api.Storer, error)
+	Create(address string) (api.Storer, error)
 }
 
-type storerCreator struct{}
+type storerCreator struct{
+	clients Pool
+}
 
 // NewStorerCreator creates a new StorerCreator.
-func NewStorerCreator() StorerCreator {
-	return &storerCreator{}
+func NewStorerCreator(clients Pool) StorerCreator {
+	return &storerCreator{clients}
 }
 
-func (*storerCreator) Create(c peer.Connector) (api.Storer, error) {
-	lc, err := c.Connect()
+func (c *storerCreator) Create(address string) (api.Storer, error) {
+	lc, err := c.clients.Get(address)
 	if err != nil {
 		return nil, err
 	}

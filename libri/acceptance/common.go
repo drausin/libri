@@ -147,7 +147,7 @@ func setUp(params *params) *state { // nolint: deadcode
 	rng := rand.New(rand.NewSource(0))
 	selfID := ecid.NewPseudoRandom(rng)
 	publicAddr := peer.NewTestPublicAddr(params.nSeeds + params.nPeers + 1)
-	selfPeer := peer.New(selfID.ID(), "test client", peer.NewConnector(publicAddr))
+	selfPeer := peer.New(selfID.ID(), "test client", publicAddr)
 	signer := lclient.NewSigner(selfID.Key())
 	clientImpl := &testClient{
 		selfID:  selfID,

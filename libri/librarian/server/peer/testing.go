@@ -9,7 +9,6 @@ import (
 
 	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/storage"
 	"github.com/stretchr/testify/assert"
 )
@@ -27,7 +26,7 @@ func NewTestPeer(rng *rand.Rand, idx int) Peer {
 	return New(
 		id.NewPseudoRandom(rng),
 		fmt.Sprintf("test-peer-%d", idx+1),
-		NewTestConnector(idx),
+		NewTestPublicAddr(idx),
 	).(*peer).WithQueryRecorder(recorder)
 }
 
@@ -36,11 +35,6 @@ func NewTestPublicAddr(idx int) *net.TCPAddr {
 	address, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("127.0.0.1:%v", 20100+idx))
 	cerrors.MaybePanic(err)
 	return address
-}
-
-// NewTestConnector creates a new Connector instance for a particular peer index.
-func NewTestConnector(idx int) Connector {
-	return NewConnector(NewTestPublicAddr(idx))
 }
 
 // NewTestPeers generates n new peers suitable for testing use with random IDs and incrementing
@@ -79,7 +73,7 @@ func NewTestStoredPeer(rng *rand.Rand, idx int) *storage.Peer {
 // AssertPeersEqual checks that the stored and non-stored representations of a peer are equal.
 func AssertPeersEqual(t *testing.T, sp *storage.Peer, p Peer) {
 	assert.Equal(t, sp.Id, p.ID().Bytes())
-	publicAddres := p.(*peer).conn.Address()
+	publicAddres := p.(*peer).Address()
 	assert.Equal(t, sp.PublicAddress.Ip, publicAddres.IP.String())
 	assert.Equal(t, sp.PublicAddress.Port, uint32(publicAddres.Port))
 
@@ -88,40 +82,4 @@ func AssertPeersEqual(t *testing.T, sp *storage.Peer, p Peer) {
 	assert.Equal(t, sp.QueryOutcomes.Responses.Latest, prs.latest.Unix())
 	assert.Equal(t, sp.QueryOutcomes.Responses.NQueries, prs.nQueries)
 	assert.Equal(t, sp.QueryOutcomes.Responses.NErrors, prs.nErrors)
-}
-
-// TestConnector mocks the peer.Connector interface. The Connect() method returns a fixed client
-// instead of creating one from the peer's address.
-type TestConnector struct {
-	APISelf    *api.PeerAddress
-	Addresses  []*api.PeerAddress
-	Client     api.LibrarianClient
-	ConnectErr error
-}
-
-// Connect is a no-op stub to satisfy the interface's signature.
-func (c *TestConnector) Connect() (api.LibrarianClient, error) {
-	return c.Client, c.ConnectErr
-}
-
-// Disconnect is a no-op stub to satisfy the interface's signature.
-func (c *TestConnector) Disconnect() error {
-	return nil
-}
-
-// Address is a stub that always returns false.
-func (c *TestConnector) Address() *net.TCPAddr {
-	return nil
-}
-
-func (c *TestConnector) merge(other Connector) error {
-	return nil
-}
-
-func (c *TestConnector) connected() bool {
-	return true
-}
-
-func (c *TestConnector) ready() bool {
-	return true
 }

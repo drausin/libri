@@ -37,11 +37,12 @@ func NewClientBalancer(rt Table) client.SetBalancer {
 }
 
 type tableSetBalancer struct {
-	rt    Table
-	rng   *rand.Rand
-	set   map[string]struct{}
-	cache []peer.Peer
-	mu    sync.Mutex
+	rt      Table
+	rng     *rand.Rand
+	set     map[string]struct{}
+	cache   []peer.Peer
+	clients client.Pool
+	mu      sync.Mutex
 }
 
 func (b *tableSetBalancer) AddNext() (api.LibrarianClient, id.ID, error) {
@@ -62,7 +63,7 @@ func (b *tableSetBalancer) AddNext() (api.LibrarianClient, id.ID, error) {
 			// update current state & return connection to new peer
 			b.set[nextPeer.ID().String()] = struct{}{}
 			b.mu.Unlock()
-			lc, err := nextPeer.Connector().Connect()
+			lc, err := b.clients.Get(nextPeer.Address().String())
 			return lc, nextPeer.ID(), err
 		}
 		b.mu.Unlock()
