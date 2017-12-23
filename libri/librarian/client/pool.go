@@ -1,6 +1,8 @@
 package client
 
 import (
+	"io"
+
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/hashicorp/golang-lru"
 	"google.golang.org/grpc"
@@ -100,11 +102,11 @@ func (insecureDialer) dial(address string) (*grpc.ClientConn, error) {
 // closer is a very thin wrapper around (*grpc.ClientConn).Close() to facilitate mocking during
 // testing
 type closer interface {
-	close(conn *grpc.ClientConn) error
+	close(conn io.Closer) error
 }
 
 type closerImpl struct{}
 
-func (closerImpl) close(conn *grpc.ClientConn) error {
+func (closerImpl) close(conn io.Closer) error {
 	return conn.Close()
 }
