@@ -3,6 +3,8 @@ package client
 import (
 	"testing"
 
+	"io"
+
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
@@ -117,6 +119,6 @@ type fixedCloser struct {
 	err error
 }
 
-func (fc *fixedCloser) close(conn *grpc.ClientConn) error {
+func (fc *fixedCloser) close(conn io.Closer) error {
 	return fc.err
 }
