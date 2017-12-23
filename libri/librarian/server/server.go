@@ -149,7 +149,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 	if err != nil {
 		return nil, err
 	}
-	clientBalancer := routing.NewClientBalancer(rt)
+	clientBalancer := routing.NewClientBalancer(rt, clients)
 	subscribeTo := subscribe.NewTo(config.SubscribeTo, selfLogger, selfID, clientBalancer, signer,
 		recentPubs, newPubs)
 

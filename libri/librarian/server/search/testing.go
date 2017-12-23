@@ -19,7 +19,7 @@ import (
 // api.FindPeersResponse, derived from a list of addresses in the client.
 type TestFinderCreator struct {
 	finders map[string]api.Finder
-	err    error
+	err     error
 }
 
 // Create creates an api.Finder that mocks a real query to a peer and returns a fixed list of
@@ -67,7 +67,13 @@ func (f *TestFromer) FromAPI(apiAddress *api.PeerAddress) peer.Peer {
 
 // NewTestSearcher creates a new Searcher instance with a FindCreator and FindResponseProcessor that
 // each just return fixed addresses and peers, respectively.
-func NewTestSearcher(peersMap map[string]peer.Peer, addressFinders map[string]api.Finder) Searcher {
+func NewTestSearcher(
+	peersMap map[string]peer.Peer, peerConnectedAddrs map[string][]*api.PeerAddress,
+) Searcher {
+	addressFinders := make(map[string]api.Finder)
+	for address, connectedAddresses := range peerConnectedAddrs {
+		addressFinders[address] = &fixedFinder{addresses: connectedAddresses}
+	}
 	return NewSearcher(
 		&client.TestNoOpSigner{},
 		&TestFinderCreator{finders: addressFinders},
@@ -80,11 +86,13 @@ func NewTestSearcher(peersMap map[string]peer.Peer, addressFinders map[string]ap
 // NewTestPeers creates a collection of test peers with fixed addresses in each's routing table
 // (such that all find queries return the same addresses). It also returns the indices of the peers
 // that peer 0 has in its routing table.
-func NewTestPeers(rng *rand.Rand, n int) ([]peer.Peer, map[string]peer.Peer, []int, ecid.ID) {
+func NewTestPeers(rng *rand.Rand, n int) (
+	[]peer.Peer, map[string]peer.Peer, map[string][]*api.PeerAddress, []int, ecid.ID,
+) {
 	addresses := make([]*net.TCPAddr, n)
 	ids := make([]id.ID, n)
 	names := make([]string, n)
-	addressFinders := make(map[string]api.Finder)
+	peerConnectedAddrs := make(map[string][]*api.PeerAddress)
 
 	// create the addresses and IDs
 	var selfID ecid.ID
@@ -120,10 +128,10 @@ func NewTestPeers(rng *rand.Rand, n int) ([]peer.Peer, map[string]peer.Peer, []i
 		// addresses
 		peers[i] = peer.New(ids[i], names[i], addresses[i])
 		peersMap[ids[i].String()] = peers[i]
-		addressFinders[addresses[i].String()] = &fixedFinder{addresses: connectedAddresses}
+		peerConnectedAddrs[addresses[i].String()] = connectedAddresses
 	}
 
-	return peers, peersMap, selfPeerIdxs, selfID
+	return peers, peersMap, peerConnectedAddrs, selfPeerIdxs, selfID
 }
 
 // NewTestSeeds creates a list of peers to use as seeds for a search.

@@ -29,26 +29,22 @@ type Verifier interface {
 }
 
 type verifier struct {
-	signer  client.Signer
-	rp      ResponseProcessor
-	clients client.Pool
+	signer          client.Signer
+	verifierCreator client.VerifierCreator
+	rp              ResponseProcessor
 }
 
 // NewVerifier returns a new Verifier with the given Querier and ResponseProcessor.
-func NewVerifier(s client.Signer, rp ResponseProcessor, clients client.Pool) Verifier {
-	return &verifier{
-		signer:  s,
-		rp:      rp,
-		clients: clients,
-	}
+func NewVerifier(s client.Signer, c client.VerifierCreator, rp ResponseProcessor) Verifier {
+	return &verifier{signer: s, verifierCreator: c, rp: rp}
 }
 
 // NewDefaultVerifier creates a new Verifier with default sub-object instantiations.
 func NewDefaultVerifier(signer client.Signer, clients client.Pool) Verifier {
 	return NewVerifier(
 		signer,
+		client.NewVerifierCreator(clients),
 		NewResponseProcessor(peer.NewFromer()),
-		clients,
 	)
 }
 
@@ -109,7 +105,7 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 }
 
 func (v *verifier) query(next peer.Peer, verify *Verify) (*api.VerifyResponse, error) {
-	lc, err := v.clients.Get(next.Address().String())
+	lc, err := v.verifierCreator.Create(next.Address().String())
 	if err != nil {
 		return nil, err
 	}

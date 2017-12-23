@@ -17,6 +17,9 @@ type Pool interface {
 
 	// CloseAll closes all active connections.
 	CloseAll() error
+
+	// Len is the number of clients in the pool
+	Len() int
 }
 
 type lruPool struct {
@@ -79,7 +82,8 @@ func (p *lruPool) CloseAll() error {
 	return nil
 }
 
-func (p *lruPool) close(conn *grpc.ClientConn) {
+func (p *lruPool) Len() int {
+	return p.conns.Len()
 }
 
 type dialer interface {

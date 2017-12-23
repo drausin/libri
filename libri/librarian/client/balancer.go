@@ -46,10 +46,10 @@ type SetBalancer interface {
 }
 
 type uniformRandBalancer struct {
-	rng   *rand.Rand
-	mu    sync.Mutex
-	addrs []*net.TCPAddr
-	conns Pool
+	rng     *rand.Rand
+	mu      sync.Mutex
+	addrs   []*net.TCPAddr
+	clients Pool
 }
 
 // NewUniformBalancer creates a new Balancer that selects the next client
@@ -63,9 +63,9 @@ func NewUniformBalancer(libAddrs []*net.TCPAddr, rng *rand.Rand) (Balancer, erro
 		return nil, ErrEmptyLibrarianAddresses
 	}
 	return &uniformRandBalancer{
-		rng:   rng,
-		conns: conns,
-		addrs: libAddrs,
+		rng:     rng,
+		clients: conns,
+		addrs:   libAddrs,
 	}, nil
 }
 
@@ -74,11 +74,11 @@ func (b *uniformRandBalancer) Next() (api.LibrarianClient, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	i := b.rng.Int31n(int32(len(b.addrs)))
-	return b.conns.Get(b.addrs[i].String())
+	return b.clients.Get(b.addrs[i].String())
 }
 
 func (b *uniformRandBalancer) CloseAll() error {
-	return b.conns.CloseAll()
+	return b.clients.CloseAll()
 }
 
 type uniformGetterBalancer struct {

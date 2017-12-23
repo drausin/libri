@@ -27,12 +27,13 @@ var (
 
 // NewClientBalancer returns a new client.Balancer that uses the routing tables's Sample()
 // method and returns a unique client on every Next() call.
-func NewClientBalancer(rt Table) client.SetBalancer {
+func NewClientBalancer(rt Table, clients client.Pool) client.SetBalancer {
 	return &tableSetBalancer{
-		rt:    rt,
-		rng:   rand.New(rand.NewSource(0)),
-		set:   make(map[string]struct{}),
-		cache: make([]peer.Peer, 0),
+		rt:      rt,
+		rng:     rand.New(rand.NewSource(0)),
+		set:     make(map[string]struct{}),
+		cache:   make([]peer.Peer, 0),
+		clients: clients,
 	}
 }
 

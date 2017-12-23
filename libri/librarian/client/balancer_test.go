@@ -27,6 +27,9 @@ func TestUniformRandBalancer_Next(t *testing.T) {
 	b, err := NewUniformBalancer(addrs, rng)
 	assert.Nil(t, err)
 	assert.NotNil(t, b)
+	lc := api.NewLibrarianClient(nil)
+	clients := &fixedPool{lc: lc, getAddresses: make(map[string]struct{})}
+	b.(*uniformRandBalancer).clients = clients
 
 	for c := 0; c < 16; c++ { // should be enough trials to hit each addr at least once
 		lc, err := b.Next()
@@ -34,10 +37,7 @@ func TestUniformRandBalancer_Next(t *testing.T) {
 		assert.NotNil(t, lc)
 	}
 
-	// but all connections should be set
-	for _, conn := range b.(*uniformRandBalancer).conns {
-		assert.NotNil(t, conn)
-	}
+	assert.Len(t, clients.getAddresses, 3)
 }
 
 func TestUniformRandBalancer_CloseAll(t *testing.T) {
@@ -50,16 +50,12 @@ func TestUniformRandBalancer_CloseAll(t *testing.T) {
 	b, err := NewUniformBalancer(addrs, rng)
 	assert.Nil(t, err)
 	assert.NotNil(t, b)
-
-	var lc api.LibrarianClient
-	for c := 0; c < 16; c++ { // should be enough trials to hit each addr at least once
-		lc, err = b.Next()
-		assert.Nil(t, err)
-		assert.NotNil(t, lc)
-	}
+	clients := &fixedPool{}
+	b.(*uniformRandBalancer).clients = clients
 
 	err = b.CloseAll()
 	assert.Nil(t, err)
+	assert.True(t, clients.closed)
 }
 
 func TestUniformGetterBalancer_Next(t *testing.T) {
@@ -88,6 +84,27 @@ func TestUniformPutterBalancer_Next(t *testing.T) {
 	p, err = b2.Next()
 	assert.NotNil(t, err)
 	assert.Nil(t, p)
+}
+
+type fixedPool struct {
+	lc api.LibrarianClient
+	getErr error
+	getAddresses map[string]struct{}
+	closed bool
+}
+
+func (fp *fixedPool) Get(address string) (api.LibrarianClient, error) {
+	fp.getAddresses[address] = struct{}{}
+	return fp.lc, fp.getErr
+}
+
+func (fp *fixedPool) CloseAll() error {
+	fp.closed = true
+	return nil
+}
+
+func (fp *fixedPool) Len() int {
+	return 1
 }
 
 type fixedBalancer struct {

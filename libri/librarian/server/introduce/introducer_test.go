@@ -19,9 +19,12 @@ import (
 
 func TestNewDefaultIntroducer(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
+	p, err := lclient.NewDefaultLRUPool()
+	assert.Nil(t, err)
 	s := NewDefaultIntroducer(
 		lclient.NewSigner(ecid.NewPseudoRandom(rng).Key()),
 		id.NewPseudoRandom(rng),
+		p,
 	)
 	assert.NotNil(t, s.(*introducer).signer)
 	assert.NotNil(t, s.(*introducer).introducerCreator)
@@ -102,22 +105,26 @@ func TestIntroducer_Introduce_rpErr(t *testing.T) {
 }
 
 func TestIntroducer_query_ok(t *testing.T) {
-	intro := newQueryTestIntroduction()
+	rng := rand.New(rand.NewSource(0))
+	intro, introducers := newQueryTestIntroduction()
 	introducerImpl := &introducer{
 		signer:            &lclient.TestNoOpSigner{},
-		introducerCreator: &fixedIntroducerCreator{},
+		introducerCreator: &fixedIntroducerCreator{
+			introducers: introducers,
+		},
 	}
 
-	client := &peer.TestConnector{}
-	rp, err := introducerImpl.query(client, intro)
+	next := peer.NewTestPeer(rng, 0)
+	rp, err := introducerImpl.query(next, intro)
 
 	assert.Nil(t, err)
 	assert.NotNil(t, rp.Metadata.RequestId)
 }
 
 func TestIntroducer_query_err(t *testing.T) {
-	clientConn := &peer.TestConnector{}
-	intro := newQueryTestIntroduction()
+	rng := rand.New(rand.NewSource(0))
+	intro, _ := newQueryTestIntroduction()
+	next := peer.NewTestPeer(rng, 0)
 	cases := []*introducer{
 		// case 0
 		{
@@ -135,7 +142,7 @@ func TestIntroducer_query_err(t *testing.T) {
 		{
 			signer: &lclient.TestNoOpSigner{},
 			introducerCreator: &fixedIntroducerCreator{
-				introducer: &fixedIntroducer{err: errors.New("some Store error")},
+				err: errors.New("some Store error"),
 			},
 		},
 
@@ -143,13 +150,15 @@ func TestIntroducer_query_err(t *testing.T) {
 		{
 			signer: &lclient.TestNoOpSigner{},
 			introducerCreator: &fixedIntroducerCreator{
-				introducer: &fixedIntroducer{requestID: []byte{1, 2, 3, 4}},
+				introducers: map[string]api.Introducer{
+					next.Address().String(): &fixedIntroducer{requestID: []byte{1, 2, 3, 4}},
+				},
 			},
 		},
 	}
 	for i, c := range cases {
 		info := fmt.Sprintf("case %d", i)
-		rp1, err := c.query(clientConn, intro)
+		rp1, err := c.query(next, intro)
 		assert.Nil(t, rp1, info)
 		assert.NotNil(t, err, info)
 	}
@@ -207,15 +216,22 @@ func TestResponseProcessor_Process(t *testing.T) {
 	}
 }
 
-func newQueryTestIntroduction() *Introduction {
+func newQueryTestIntroduction() (*Introduction, map[string]api.Introducer) {
 	n, _ := 32, uint(8)
 	rng := rand.New(rand.NewSource(int64(n)))
-	peers, _, _, selfID := search.NewTestPeers(rng, n)
+	peers, _, peerConnectedAddrs, _, selfID := search.NewTestPeers(rng, n)
 	apiSelf := &api.PeerAddress{
 		PeerId: peers[0].ID().Bytes(),
 	}
 	intro := NewIntroduction(selfID, apiSelf, &Parameters{})
-	return intro
+	introducers := make(map[string]api.Introducer)
+	for address, connectedAddrs := range peerConnectedAddrs {
+		introducers[address] = &fixedIntroducer{
+			addresses: connectedAddrs,
+		}
+	}
+
+	return intro, introducers
 }
 
 type errResponseProcessor struct{}
@@ -224,10 +240,18 @@ func (erp *errResponseProcessor) Process(rp *api.IntroduceResponse, result *Resu
 	return errors.New("some fatal processing error")
 }
 
-func newTestIntroducer(peersMap map[string]peer.Peer, selfID id.ID) Introducer {
+func newTestIntroducer(peersMap map[string]peer.Peer, selfID id.ID,
+	peerConnectedAddrs map[string][]*api.PeerAddress) Introducer {
+	addressIntroducers := make(map[string]api.Introducer)
+	for _, p := range peersMap {
+		addressIntroducers[p.Address().String()] = &fixedIntroducer{
+			addresses: peerConnectedAddrs[p.Address().String()],
+			self: p.ToAPI(),
+		}
+	}
 	return NewIntroducer(
 		&lclient.TestNoOpSigner{},
-		&fixedIntroducerCreator{},
+		&fixedIntroducerCreator{introducers: addressIntroducers},
 		&responseProcessor{
 			fromer: &search.TestFromer{Peers: peersMap},
 			selfID: selfID,
@@ -238,13 +262,13 @@ func newTestIntroducer(peersMap map[string]peer.Peer, selfID id.ID) Introducer {
 func newTestIntros(concurrency uint) (Introducer, *Introduction, []int, []peer.Peer) {
 	n, targetNumIntros := 256, uint(64)
 	rng := rand.New(rand.NewSource(int64(n)))
-	peers, peersMap, selfPeerIdxs, selfID := search.NewTestPeers(rng, n)
+	peers, peersMap, peerConnectedAddrs, selfPeerIdxs, selfID := search.NewTestPeers(rng, n)
 	apiSelf := &api.PeerAddress{
 		PeerId: peers[0].ID().Bytes(),
 	}
 
 	// create our introducer
-	introducer := newTestIntroducer(peersMap, selfID.ID())
+	introducer := newTestIntroducer(peersMap, selfID.ID(), peerConnectedAddrs)
 
 	intro := NewIntroduction(selfID, apiSelf, &Parameters{
 		TargetNumIntroductions: targetNumIntros,
@@ -258,21 +282,15 @@ func newTestIntros(concurrency uint) (Introducer, *Introduction, []int, []peer.P
 }
 
 type fixedIntroducerCreator struct {
-	introducer api.Introducer
-	err        error
+	introducers map[string]api.Introducer
+	err         error
 }
 
-func (c *fixedIntroducerCreator) Create(pConn peer.Connector) (api.Introducer, error) {
+func (c *fixedIntroducerCreator) Create(address string) (api.Introducer, error) {
 	if c.err != nil {
 		return nil, c.err
 	}
-	if c.introducer != nil {
-		return c.introducer, nil
-	}
-	return &fixedIntroducer{
-		self:      pConn.(*peer.TestConnector).APISelf,
-		addresses: pConn.(*peer.TestConnector).Addresses,
-	}, nil
+	return c.introducers[address], nil
 }
 
 type fixedIntroducer struct {
