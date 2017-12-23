@@ -15,40 +15,43 @@ type Pool interface {
 	// Get the connection to the given address.
 	Get(address string) (api.LibrarianClient, error)
 
-	// CloseAll closes all active connections.
+	// CloseAll closes all active connections. Not further Get() calls may be made after this call.
 	CloseAll() error
-
-	// Len is the number of clients in the pool
-	Len() int
 }
 
 type lruPool struct {
-	conns  *lru.Cache
-	dialer dialer
-	errs   chan error
+	conns       *lru.Cache
+	dialer      dialer
+	closer      closer
+	evictionErr chan error
 }
 
+// NewLRUPool creates a new LRU Pool with the given number of max connections.
 func NewLRUPool(maxConns int) (Pool, error) {
-	p := &lruPool{
-		dialer: insecureDialer{},
-		errs:   make(chan error, 1),
-	}
+	return newLRUPool(maxConns, insecureDialer{}, closerImpl{})
+}
+
+// NewDefaultLRUPool creates a new LRU pool with the default number of max connections.
+func NewDefaultLRUPool() (Pool, error) {
+	return NewLRUPool(defaultMaxConns)
+}
+
+func newLRUPool(maxConns int, dialer dialer, closer closer) (Pool, error) {
+	evictionErrs := make(chan error, 1)
 	onEvicted := func(key interface{}, value interface{}) {
 		// close connection when it is evicted
-		if err := value.(*grpc.ClientConn).Close(); err != nil {
-			p.errs <- err
-		}
+		evictionErrs <- closer.close(value.(*grpc.ClientConn))
 	}
 	conns, err := lru.NewWithEvict(maxConns, onEvicted)
 	if err != nil {
 		return nil, err
 	}
-	p.conns = conns
-	return p, nil
-}
-
-func NewDefaultLRUPool() (Pool, error) {
-	return NewLRUPool(defaultMaxConns)
+	return &lruPool{
+		conns:       conns,
+		dialer:      dialer,
+		closer:      closer,
+		evictionErr: evictionErrs,
+	}, nil
 }
 
 func (p *lruPool) Get(address string) (api.LibrarianClient, error) {
@@ -61,31 +64,29 @@ func (p *lruPool) Get(address string) (api.LibrarianClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	p.conns.Add(address, conn)
-	select {
-	case err := <-p.errs:
-		// receive error from eviction
-		return nil, err
-	default:
-		return api.NewLibrarianClient(conn), nil
+	if eviction := p.conns.Add(address, conn); eviction {
+		if err := <-p.evictionErr; err != nil {
+			return nil, err
+		}
 	}
+	return api.NewLibrarianClient(conn), nil
 }
 
 func (p *lruPool) CloseAll() error {
-	for _, address := range p.conns.Keys() {
-		conn, _ := p.conns.Get(address)
-		if err := conn.(*grpc.ClientConn).Close(); err != nil {
+	go func() {
+		p.conns.Purge()
+		close(p.evictionErr)
+	}()
+
+	for err := range p.evictionErr {
+		if err != nil {
 			return err
 		}
-		p.conns.Remove(address)
 	}
 	return nil
 }
 
-func (p *lruPool) Len() int {
-	return p.conns.Len()
-}
-
+// dialer is a very thin wrapper around grpc.Dial to facilitate mocking during testing
 type dialer interface {
 	dial(address string) (*grpc.ClientConn, error)
 }
@@ -94,4 +95,16 @@ type insecureDialer struct{}
 
 func (insecureDialer) dial(address string) (*grpc.ClientConn, error) {
 	return grpc.Dial(address, grpc.WithInsecure())
+}
+
+// closer is a very thin wrapper around (*grpc.ClientConn).Close() to facilitate mocking during
+// testing
+type closer interface {
+	close(conn *grpc.ClientConn) error
+}
+
+type closerImpl struct{}
+
+func (closerImpl) close(conn *grpc.ClientConn) error {
+	return conn.Close()
 }
