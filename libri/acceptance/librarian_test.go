@@ -92,7 +92,7 @@ func TestLibrarianCluster(t *testing.T) {
 
 func testIntroduce(t *testing.T, params *params, state *state) {
 	nPeers := len(state.peers)
-	ic := lclient.NewIntroducerCreator()
+	ic := lclient.NewIntroducerCreator(state.clients)
 	benchResults := make([]testing.BenchmarkResult, params.nIntroductions)
 	fromer := peer.NewFromer()
 
@@ -344,7 +344,8 @@ func testReplicate(t *testing.T, _ *params, state *state) {
 
 func countDocReplicas(t *testing.T, state *state) map[string]int {
 	benchResults := make([]testing.BenchmarkResult, len(state.putDocs))
-	verifier := verify.NewDefaultVerifier(client.NewSigner(state.client.selfID.Key()))
+	verifier := verify.NewDefaultVerifier(client.NewSigner(state.client.selfID.Key()),
+		state.clients)
 	verifyParams := verify.NewDefaultParameters()
 
 	nReplicas := make(map[string]int)

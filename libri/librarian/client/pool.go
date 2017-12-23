@@ -1,9 +1,9 @@
 package client
 
 import (
-	"google.golang.org/grpc"
-	"github.com/hashicorp/golang-lru"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/hashicorp/golang-lru"
+	"google.golang.org/grpc"
 )
 
 const (

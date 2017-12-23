@@ -159,13 +159,13 @@ func TestSearcher_query_ok(t *testing.T) {
 	search := NewSearch(peerID, key, &Parameters{})
 	next := peer.NewTestPeer(rng, 0)
 	s := &searcher{
-		signer:        &client.TestNoOpSigner{},
+		signer: &client.TestNoOpSigner{},
 		finderCreator: &TestFinderCreator{
 			finders: map[string]api.Finder{
 				next.Address().String(): &fixedFinder{},
 			},
 		},
-		rp:            nil,
+		rp: nil,
 	}
 
 	rp, err := s.query(next, search)

@@ -30,9 +30,9 @@ type Searcher interface {
 }
 
 type searcher struct {
-	signer client.Signer
+	signer        client.Signer
 	finderCreator client.FinderCreator
-	rp ResponseProcessor
+	rp            ResponseProcessor
 }
 
 // NewSearcher returns a new Searcher with the given Querier and ResponseProcessor.

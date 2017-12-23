@@ -10,7 +10,7 @@ type IntroducerCreator interface {
 	Create(address string) (api.Introducer, error)
 }
 
-type introducerCreator struct{
+type introducerCreator struct {
 	clients Pool
 }
 
@@ -33,7 +33,7 @@ type FinderCreator interface {
 	Create(address string) (api.Finder, error)
 }
 
-type finderCreator struct{
+type finderCreator struct {
 	clients Pool
 }
 
@@ -56,7 +56,7 @@ type VerifierCreator interface {
 	Create(address string) (api.Verifier, error)
 }
 
-type verifierCreator struct{
+type verifierCreator struct {
 	clients Pool
 }
 
@@ -79,7 +79,7 @@ type StorerCreator interface {
 	Create(address string) (api.Storer, error)
 }
 
-type storerCreator struct{
+type storerCreator struct {
 	clients Pool
 }
 

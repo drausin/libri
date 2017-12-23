@@ -87,10 +87,10 @@ func TestUniformPutterBalancer_Next(t *testing.T) {
 }
 
 type fixedPool struct {
-	lc api.LibrarianClient
-	getErr error
+	lc           api.LibrarianClient
+	getErr       error
 	getAddresses map[string]struct{}
-	closed bool
+	closed       bool
 }
 
 func (fp *fixedPool) Get(address string) (api.LibrarianClient, error) {

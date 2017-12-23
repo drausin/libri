@@ -27,8 +27,8 @@ type Storer interface {
 }
 
 type storer struct {
-	signer client.Signer
-	searcher search.Searcher
+	signer        client.Signer
+	searcher      search.Searcher
 	storerCreator client.StorerCreator
 }
 

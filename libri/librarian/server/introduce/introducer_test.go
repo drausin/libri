@@ -108,7 +108,7 @@ func TestIntroducer_query_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	intro, introducers := newQueryTestIntroduction()
 	introducerImpl := &introducer{
-		signer:            &lclient.TestNoOpSigner{},
+		signer: &lclient.TestNoOpSigner{},
 		introducerCreator: &fixedIntroducerCreator{
 			introducers: introducers,
 		},
@@ -246,7 +246,7 @@ func newTestIntroducer(peersMap map[string]peer.Peer, selfID id.ID,
 	for _, p := range peersMap {
 		addressIntroducers[p.Address().String()] = &fixedIntroducer{
 			addresses: peerConnectedAddrs[p.Address().String()],
-			self: p.ToAPI(),
+			self:      p.ToAPI(),
 		}
 	}
 	return NewIntroducer(

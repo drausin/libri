@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"net"
+
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/stretchr/testify/assert"
-	"net"
 )
 
 func TestTableSetBalancer_Next_ok(t *testing.T) {
@@ -110,10 +111,10 @@ func TestTableSetBalancer_Remove(t *testing.T) {
 }
 
 type fixedPool struct {
-	lc api.LibrarianClient
-	getErr error
+	lc           api.LibrarianClient
+	getErr       error
 	getAddresses map[string]struct{}
-	closed bool
+	closed       bool
 }
 
 func (fp *fixedPool) Get(address string) (api.LibrarianClient, error) {
@@ -129,4 +130,3 @@ func (fp *fixedPool) CloseAll() error {
 func (fp *fixedPool) Len() int {
 	return 1
 }
-

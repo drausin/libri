@@ -2,9 +2,10 @@ package client
 
 import (
 	"testing"
+
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
-	"github.com/pkg/errors"
 )
 
 func TestNewDefaultLRUPool(t *testing.T) {
