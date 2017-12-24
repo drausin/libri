@@ -59,28 +59,25 @@ func TestSearch_FoundClosestPeers(t *testing.T) {
 	})
 
 	// add closest peers to half the heap's capacity
-	err := search.Result.Closest.SafePushMany([]peer.Peer{
+	search.Result.Closest.SafePushMany([]peer.Peer{
 		peer.New(id.FromInt64(1), "", nil),
 		peer.New(id.FromInt64(2), "", nil),
 	})
-	assert.Nil(t, err)
 
 	// haven't found closest peers b/c closest heap not at capacity
 	assert.False(t, search.FoundClosestPeers())
 
 	// add an unqueried peer farther than the farthest closest peer
-	err = search.Result.Unqueried.SafePush(peer.New(id.FromInt64(5), "", nil))
-	assert.Nil(t, err)
+	search.Result.Unqueried.SafePush(peer.New(id.FromInt64(5), "", nil))
 
 	// still haven't found closest peers b/c closest heap not at capacity
 	assert.False(t, search.FoundClosestPeers())
 
 	// add two more closest peers, bringing closest heap to capacity
-	err = search.Result.Closest.SafePushMany([]peer.Peer{
+	search.Result.Closest.SafePushMany([]peer.Peer{
 		peer.New(id.FromInt64(3), "", nil),
 		peer.New(id.FromInt64(4), "", nil),
 	})
-	assert.Nil(t, err)
 
 	// now that closest peers is at capacity, and it's max distance is less than the min
 	// unqueried peers distance, search has found it's closest peers
@@ -128,13 +125,11 @@ func TestSearch_Exhausted(t *testing.T) {
 
 	// not exhausted b/c it has unqueried peers
 	search1 := NewSearch(selfID, target, NewDefaultParameters())
-	err := search1.Result.Unqueried.SafePush(peer.New(id.FromInt64(1), "", nil))
-	assert.Nil(t, err)
+	search1.Result.Unqueried.SafePush(peer.New(id.FromInt64(1), "", nil))
 	assert.False(t, search1.Exhausted())
 
 	// exhausted b/c it doesn't have unqueried peers
 	search2 := NewSearch(selfID, target, NewDefaultParameters())
-	err = search2.Result.Unqueried.SafePush(peer.New(id.FromInt64(1), "", nil))
-	assert.Nil(t, err)
+	search2.Result.Unqueried.SafePush(peer.New(id.FromInt64(1), "", nil))
 	assert.False(t, search1.Exhausted())
 }

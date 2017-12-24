@@ -44,7 +44,7 @@ func TestPeerDistanceHeap_In(t *testing.T) {
 	cp := NewClosestPeers(target, 8)
 	for _, p := range peer.NewTestPeers(rng, 8) {
 		assert.False(t, cp.In(p.ID()))
-		assert.Nil(t, cp.SafePush(p))
+		cp.SafePush(p)
 		assert.True(t, cp.In(p.ID()))
 	}
 }
@@ -54,9 +54,28 @@ func TestPeerDistanceHeap_SafePush_exists(t *testing.T) {
 	target := id.NewPseudoRandom(rng)
 	cp := NewClosestPeers(target, 8)
 	p := peer.NewTestPeer(rng, 0)
-	assert.Nil(t, cp.SafePush(p))
-	assert.Nil(t, cp.SafePush(p)) // no-op
+	cp.SafePush(p)
+	cp.SafePush(p) // no-op
 	assert.Equal(t, 1, cp.Len())
+}
+
+func TestPeerDistanceHeap_Peers(t *testing.T) {
+	rng := rand.New(rand.NewSource(int64(0)))
+	target := id.NewPseudoRandom(rng)
+	n := 8
+	pdh := NewFarthestPeers(target, uint(n))
+	for _, p := range peer.NewTestPeers(rng, 8) {
+		pdh.SafePush(p)
+	}
+	ordered := pdh.Peers()
+
+	// each peer should be closer to target than the previous
+	for i := 1; i < len(ordered); i++ {
+		assert.NotNil(t, ordered[i-1])
+		assert.NotNil(t, ordered[i])
+		p1Dist, p2Dist := pdh.Distance(ordered[i-1]), pdh.Distance(ordered[i])
+		assert.True(t, p1Dist.Cmp(p2Dist) > 0)
+	}
 }
 
 func testPeerDistanceHeap(t *testing.T, minHeap bool) {
@@ -70,7 +89,7 @@ func testPeerDistanceHeap(t *testing.T, minHeap bool) {
 	}
 
 	// add the peers
-	assert.Nil(t, cp.SafePushMany(peer.NewTestPeers(rng, 20)))
+	cp.SafePushMany(peer.NewTestPeers(rng, 20))
 
 	// make sure our peak methods behave as expected
 	curDist := cp.PeakDistance()
@@ -107,13 +126,13 @@ func TestFarthestPeers_SafePush_capacity(t *testing.T) {
 func testPeerDistanceHeapSafePushCapacity(t *testing.T, rng *rand.Rand, pdh PeerDistanceHeap) {
 	for _, p := range peer.NewTestPeers(rng, pdh.Capacity()) {
 		assert.True(t, pdh.Capacity() > pdh.Len())
-		assert.Nil(t, pdh.SafePush(p))
+		pdh.SafePush(p)
 	}
 	assert.Equal(t, pdh.Capacity(), pdh.Len())
 
 	prevDistance := pdh.PeakDistance()
 	for _, p := range peer.NewTestPeers(rng, pdh.Capacity()) {
-		assert.Nil(t, pdh.SafePush(p))
+		pdh.SafePush(p)
 
 		// length should stay the same since we're at capacity
 		assert.Equal(t, pdh.Capacity(), pdh.Len())
