@@ -67,18 +67,16 @@ func TestVerify_PartiallyReplicated(t *testing.T) {
 	})
 
 	// add closest peers to half the heap's capacity
-	err := v.Result.Closest.SafePushMany([]peer.Peer{
+	v.Result.Closest.SafePushMany([]peer.Peer{
 		peer.New(id.FromInt64(1), "", nil),
 		peer.New(id.FromInt64(2), "", nil),
 	})
-	assert.Nil(t, err)
 
 	// not partially replicated b/c closest heap not at capacity
 	assert.False(t, v.UnderReplicated())
 
 	// add an unqueried peer farther than the farthest closest peer
-	err = v.Result.Unqueried.SafePush(peer.New(id.FromInt64(7), "", nil))
-	assert.Nil(t, err)
+	v.Result.Unqueried.SafePush(peer.New(id.FromInt64(7), "", nil))
 	assert.Equal(t, 1, v.Result.Unqueried.Len())
 
 	// still not partially replicated b/c closest heap not at capacity
@@ -90,11 +88,10 @@ func TestVerify_PartiallyReplicated(t *testing.T) {
 		"3": peer.New(id.FromInt64(3), "", nil),
 		"4": peer.New(id.FromInt64(4), "", nil),
 	}
-	err = v.Result.Closest.SafePushMany([]peer.Peer{
+	v.Result.Closest.SafePushMany([]peer.Peer{
 		peer.New(id.FromInt64(5), "", nil),
 		peer.New(id.FromInt64(6), "", nil),
 	})
-	assert.Nil(t, err)
 
 	// now that closest peers is at capacity, and it's max distance is less than the min
 	// unqueried peers distance, verify is now partially replicated
@@ -163,13 +160,11 @@ func TestVerify_Exhausted(t *testing.T) {
 
 	// not exhausted b/c it has unqueried peers
 	search1 := NewVerify(selfID, target, macKey, mac, NewDefaultParameters())
-	err := search1.Result.Unqueried.SafePush(peer.New(id.FromInt64(1), "", nil))
-	assert.Nil(t, err)
+	search1.Result.Unqueried.SafePush(peer.New(id.FromInt64(1), "", nil))
 	assert.False(t, search1.Exhausted())
 
 	// exhausted b/c it doesn't have unqueried peers
 	search2 := NewVerify(selfID, target, macKey, mac, NewDefaultParameters())
-	err = search2.Result.Unqueried.SafePush(peer.New(id.FromInt64(1), "", nil))
-	assert.Nil(t, err)
+	search2.Result.Unqueried.SafePush(peer.New(id.FromInt64(1), "", nil))
 	assert.False(t, search1.Exhausted())
 }
