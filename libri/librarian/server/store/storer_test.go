@@ -19,7 +19,7 @@ import (
 
 func TestNewDefaultStorer(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	s := NewDefaultStorer(ecid.NewPseudoRandom(rng))
+	s := NewDefaultStorer(ecid.NewPseudoRandom(rng), nil)
 	assert.NotNil(t, s.(*storer).signer)
 	assert.NotNil(t, s.(*storer).searcher)
 	assert.NotNil(t, s.(*storer).storerCreator)
@@ -32,12 +32,12 @@ func TestStorer_Store_ok(t *testing.T) {
 	concurrencies := []uint{1, 2, 3}
 
 	for _, n := range nPeers {
-		peers, peersMap, selfPeerIdxs, selfID := ssearch.NewTestPeers(rng, n)
+		peers, peersMap, addressFinders, selfPeerIdxs, selfID := ssearch.NewTestPeers(rng, n)
 
 		// create our searcher
 		value, key := api.NewTestDocument(rng)
 		storer := &storer{
-			searcher:      ssearch.NewTestSearcher(peersMap),
+			searcher:      ssearch.NewTestSearcher(peersMap, addressFinders),
 			storerCreator: &fixedStorerCreator{},
 			signer:        &client.TestNoOpSigner{},
 		}
@@ -125,7 +125,6 @@ func TestStorer_Store_err(t *testing.T) {
 
 func TestStorer_query_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	clientConn := peer.NewConnector(nil) // won't actually be used since we're mocking the storer
 	value, key := api.NewTestDocument(rng)
 	selfID := ecid.NewPseudoRandom(rng)
 	searchParams := &ssearch.Parameters{Timeout: DefaultQueryTimeout}
@@ -160,9 +159,10 @@ func TestStorer_query_err(t *testing.T) {
 			},
 		},
 	}
+	next := peer.NewTestPeer(rng, 0)
 	for i, c := range cases {
 		info := fmt.Sprintf("case %d", i)
-		rp1, err := c.query(clientConn, store)
+		rp1, err := c.query(next, store)
 		assert.Nil(t, rp1, info)
 		assert.NotNil(t, err, info)
 	}
@@ -171,12 +171,12 @@ func TestStorer_query_err(t *testing.T) {
 func newTestStore() (Storer, *Store, []int, []peer.Peer, cid.ID) {
 	n := 32
 	rng := rand.New(rand.NewSource(int64(n)))
-	peers, peersMap, selfPeerIdxs, selfID := ssearch.NewTestPeers(rng, n)
+	peers, peersMap, addressFinders, selfPeerIdxs, selfID := ssearch.NewTestPeers(rng, n)
 
 	// create our searcher
 	value, key := api.NewTestDocument(rng)
 	storerImpl := &storer{
-		searcher:      ssearch.NewTestSearcher(peersMap),
+		searcher:      ssearch.NewTestSearcher(peersMap, addressFinders),
 		storerCreator: &fixedStorerCreator{},
 		signer:        &client.TestNoOpSigner{},
 	}
@@ -208,7 +208,7 @@ type fixedStorerCreator struct {
 	err    error
 }
 
-func (c *fixedStorerCreator) Create(pConn peer.Connector) (api.Storer, error) {
+func (c *fixedStorerCreator) Create(address string) (api.Storer, error) {
 	if c.err != nil {
 		return nil, c.err
 	}

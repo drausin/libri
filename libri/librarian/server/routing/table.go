@@ -79,9 +79,6 @@ type Table interface {
 	// NumBuckets returns the number of buckets in the routing table.
 	NumBuckets() int
 
-	// Disconnect disconnects all client connections.
-	Disconnect() error
-
 	// Save saves the table via the NamespaceStorer
 	Save(ns storage.Storer) error
 }
@@ -191,7 +188,7 @@ func (rt *table) Push(new peer.Peer) PushStatus {
 		panic(errors.New("peer should be found in its insert bucket if in peers map"))
 	}
 
-	if new.Connector() == nil {
+	if new.Address() == nil {
 		// don't add if doesn't have connector/public address
 		rt.mu.Unlock()
 		return Dropped
@@ -300,19 +297,6 @@ func (rt *table) Sample(k uint, rng *rand.Rand) []peer.Peer {
 		sample = append(sample, rt.buckets[i].Peak(bucketCounts[i])...)
 	}
 	return sample
-}
-
-// Disconnect disconnects all client connections. This method is thread safe.
-func (rt *table) Disconnect() error {
-	rt.mu.Lock()
-	defer rt.mu.Unlock()
-	// disconnect from all peers
-	for _, p := range rt.peers {
-		if err := p.Connector().Disconnect(); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // Len returns the current number of buckets in the routing table.

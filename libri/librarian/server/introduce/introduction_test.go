@@ -118,7 +118,7 @@ func TestIntroduction_Errored(t *testing.T) {
 func newTestIntroduction(nPeers int, params *Parameters) *Introduction {
 	rng := rand.New(rand.NewSource(0))
 	selfID := ecid.NewPseudoRandom(rng)
-	self := peer.New(selfID.ID(), "test peer", peer.NewTestConnector(nPeers+1))
+	self := peer.New(selfID.ID(), "test peer", peer.NewTestPublicAddr(nPeers+1))
 	intro := NewIntroduction(selfID, self.ToAPI(), params)
 
 	// add some peers to unqueried map

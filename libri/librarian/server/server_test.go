@@ -111,7 +111,7 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 	clientImpl := peer.New(
 		clientID.ID(),
 		"client",
-		peer.NewTestConnector(clientPeerIdx),
+		peer.NewTestPublicAddr(clientPeerIdx),
 	)
 	clientImpl2, exists := lib.rt.Get(clientImpl.ID())
 	assert.False(t, exists)
@@ -163,7 +163,7 @@ func TestLibrarian_Introduce_peerIDErr(t *testing.T) {
 	client1 := peer.New(
 		clientID.ID(),
 		"client",
-		peer.NewTestConnector(clientPeerIdx),
+		peer.NewTestPublicAddr(clientPeerIdx),
 	)
 	client2, exists := lib.rt.Get(client1.ID())
 	assert.Nil(t, client2)

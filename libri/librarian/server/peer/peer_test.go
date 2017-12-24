@@ -14,7 +14,7 @@ import (
 func TestNew(t *testing.T) {
 	peerID, name := id.FromInt64(1), "test name"
 	addr := &net.TCPAddr{IP: net.ParseIP("192.168.1.1"), Port: 1000}
-	p := New(peerID, name, NewConnector(addr))
+	p := New(peerID, name, addr)
 	assert.Equal(t, 0, peerID.Cmp(p.ID()))
 	assert.Equal(t, name, p.(*peer).name)
 	assert.Equal(t, addr, addr)
@@ -32,7 +32,7 @@ func TestNewStub(t *testing.T) {
 	p := NewStub(peerID, name)
 	assert.Equal(t, peerID, p.ID())
 	assert.Equal(t, name, p.(*peer).name)
-	assert.Nil(t, p.Connector())
+	assert.Nil(t, p.Address())
 }
 
 func TestPeer_Before(t *testing.T) {
@@ -88,19 +88,19 @@ func TestPeer_Merge_ok(t *testing.T) {
 
 	// p2's name should replace p1's, and response counts should sum
 	p1ID := id.NewPseudoRandom(rng)
-	p1 = New(p1ID, "p1", NewConnector(&net.TCPAddr{
+	p1 = New(p1ID, "p1", &net.TCPAddr{
 		IP:   net.ParseIP("192.168.1.1"),
 		Port: 20100,
-	}))
+	})
 	p1.Recorder().Record(Request, Success)
 	assert.Equal(t, uint64(1), p1.Recorder().(*queryRecorder).requests.nQueries)
 	assert.Equal(t, uint64(0), p1.Recorder().(*queryRecorder).responses.nQueries)
 
 	p2Name := "p2"
-	p2 = New(p1.ID(), p2Name, NewConnector(&net.TCPAddr{
+	p2 = New(p1.ID(), p2Name, &net.TCPAddr{
 		IP:   net.ParseIP("192.168.1.1"),
 		Port: 20100,
-	}))
+	})
 	p2.Recorder().Record(Request, Success)
 	p2.Recorder().Record(Response, Success)
 	assert.Equal(t, uint64(1), p2.Recorder().(*queryRecorder).requests.nQueries)
@@ -115,25 +115,25 @@ func TestPeer_Merge_ok(t *testing.T) {
 	// p2's empty name should not replace p1's
 	p1 = NewTestPeer(rng, 0)
 	p1Name := p1.(*peer).name
-	p2 = New(p1.ID(), "", p1.Connector())
+	p2 = New(p1.ID(), "", p1.Address())
 	err = p1.Merge(p2)
 	assert.Nil(t, err)
 	assert.Equal(t, p1Name, p1.(*peer).name)
 
 	// p2's connector should replace p1's
 	p1ID = id.NewPseudoRandom(rng)
-	p1 = New(p1ID, "p1", NewConnector(&net.TCPAddr{
+	p1 = New(p1ID, "p1", &net.TCPAddr{
 		IP:   net.ParseIP("192.168.1.1"),
 		Port: 20100,
-	}))
-	p2Conn := NewConnector(&net.TCPAddr{
+	})
+	p2Conn := &net.TCPAddr{
 		IP:   net.ParseIP("192.168.1.1"),
 		Port: 11001,
-	})
+	}
 	p2 = New(p1ID, "p1", p2Conn)
 	err = p1.Merge(p2)
 	assert.Nil(t, err)
-	assert.Equal(t, p2Conn, p1.Connector())
+	assert.Equal(t, p2Conn, p1.Address())
 }
 
 func TestPeer_Merge_err(t *testing.T) {
@@ -152,8 +152,8 @@ func TestPeer_ToAPI(t *testing.T) {
 	apiP := p.ToAPI()
 
 	assert.Equal(t, p.ID().Bytes(), apiP.PeerId)
-	assert.Equal(t, p.Connector().Address().IP.String(), apiP.Ip)
-	assert.Equal(t, uint32(p.Connector().Address().Port), apiP.Port)
+	assert.Equal(t, p.Address().IP.String(), apiP.Ip)
+	assert.Equal(t, uint32(p.Address().Port), apiP.Port)
 }
 
 func TestFromer_FromAPI(t *testing.T) {
@@ -164,7 +164,7 @@ func TestFromer_FromAPI(t *testing.T) {
 	p2 := f.FromAPI(apiP)
 
 	assert.Equal(t, p1.ID(), p2.ID())
-	assert.Equal(t, p1.Connector().Address(), p2.Connector().Address())
+	assert.Equal(t, p1.Address(), p2.Address())
 }
 
 func TestToAPIs(t *testing.T) {

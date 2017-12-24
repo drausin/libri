@@ -18,7 +18,7 @@ import (
 
 func TestNewDefaultSearcher(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	s := NewDefaultSearcher(client.NewSigner(ecid.NewPseudoRandom(rng).Key()))
+	s := NewDefaultSearcher(client.NewSigner(ecid.NewPseudoRandom(rng).Key()), nil)
 	assert.NotNil(t, s.(*searcher).signer)
 	assert.NotNil(t, s.(*searcher).finderCreator)
 	assert.NotNil(t, s.(*searcher).rp)
@@ -27,11 +27,11 @@ func TestNewDefaultSearcher(t *testing.T) {
 func TestSearcher_Search_ok(t *testing.T) {
 	n, nClosestResponses := 32, uint(6)
 	rng := rand.New(rand.NewSource(int64(n)))
-	peers, peersMap, selfPeerIdxs, selfID := NewTestPeers(rng, n)
+	peers, peersMap, addressFinders, selfPeerIdxs, selfID := NewTestPeers(rng, n)
 
 	// create our searcher
 	key := id.NewPseudoRandom(rng)
-	searcher := NewTestSearcher(peersMap)
+	searcher := NewTestSearcher(peersMap, addressFinders)
 
 	for concurrency := uint(3); concurrency <= 3; concurrency++ {
 		info := fmt.Sprintf("concurrency: %d", concurrency)
@@ -138,11 +138,11 @@ func TestSearcher_Search_rpErr(t *testing.T) {
 func newTestSearch() (Searcher, *Search, []int, []peer.Peer) {
 	n, nClosestResponses := 32, uint(8)
 	rng := rand.New(rand.NewSource(int64(n)))
-	peers, peersMap, selfPeerIdxs, selfID := NewTestPeers(rng, n)
+	peers, peersMap, peerConnectedAddrs, selfPeerIdxs, selfID := NewTestPeers(rng, n)
 
 	// create our searcher
 	key := id.NewPseudoRandom(rng)
-	searcher := NewTestSearcher(peersMap)
+	searcher := NewTestSearcher(peersMap, peerConnectedAddrs)
 
 	search := NewSearch(selfID, key, &Parameters{
 		NClosestResponses: nClosestResponses,
@@ -157,14 +157,18 @@ func TestSearcher_query_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	peerID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
 	search := NewSearch(peerID, key, &Parameters{})
-	pConn := &peer.TestConnector{}
+	next := peer.NewTestPeer(rng, 0)
 	s := &searcher{
-		signer:        &client.TestNoOpSigner{},
-		finderCreator: &TestFinderCreator{},
-		rp:            nil,
+		signer: &client.TestNoOpSigner{},
+		finderCreator: &TestFinderCreator{
+			finders: map[string]api.Finder{
+				next.Address().String(): &fixedFinder{},
+			},
+		},
+		rp: nil,
 	}
 
-	rp, err := s.query(pConn, search)
+	rp, err := s.query(next, search)
 	assert.Nil(t, err)
 	assert.NotNil(t, rp.Metadata.RequestId)
 	assert.Nil(t, rp.Value)
@@ -172,9 +176,9 @@ func TestSearcher_query_ok(t *testing.T) {
 
 func TestSearcher_query_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	pConn := &peer.TestConnector{}
 	peerID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
 	search := NewSearch(peerID, key, &Parameters{Timeout: 1 * time.Second})
+	next := peer.NewTestPeer(rng, 0)
 
 	cases := []*searcher{
 		// case 0
@@ -193,7 +197,7 @@ func TestSearcher_query_err(t *testing.T) {
 		{
 			signer: &client.TestNoOpSigner{},
 			finderCreator: &TestFinderCreator{
-				finder: &fixedFinder{err: errors.New("some Find error")},
+				err: errors.New("some Find error"),
 			},
 		},
 
@@ -201,14 +205,16 @@ func TestSearcher_query_err(t *testing.T) {
 		{
 			signer: &client.TestNoOpSigner{},
 			finderCreator: &TestFinderCreator{
-				finder: &fixedFinder{requestID: []byte{1, 2, 3, 4}},
+				finders: map[string]api.Finder{
+					next.Address().String(): &fixedFinder{requestID: []byte{1, 2, 3, 4}},
+				},
 			},
 		},
 	}
 
 	for i, c := range cases {
 		info := fmt.Sprintf("case %d", i)
-		rp, err := c.query(pConn, search)
+		rp, err := c.query(next, search)
 		assert.Nil(t, rp, info)
 		assert.NotNil(t, err, info)
 	}

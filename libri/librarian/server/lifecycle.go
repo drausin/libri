@@ -106,13 +106,13 @@ func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
 	for _, p := range intro.Result.Responded {
 		q, exists := l.rt.Get(p.ID())
 		if exists {
-			prevAddress = q.Connector().Address().String()
+			prevAddress = q.Address().String()
 		}
 		status := l.rt.Push(p)
 		fields := []zapcore.Field{
 			zap.Stringer("peer_id", p.ID()),
 			zap.Stringer("push_status", status),
-			zap.Stringer("address", p.Connector().Address()),
+			zap.Stringer("address", p.Address()),
 		}
 		if exists {
 			fields = append(fields, zap.String("prev_address", prevAddress))
@@ -133,8 +133,7 @@ func makeBootstrapPeers(bootstrapAddrs []*net.TCPAddr, selfPublicAddr fmt.String
 	for i, bootstrap := range bootstrapAddrs {
 		if bootstrap.String() != selfPublicAddr.String() {
 			dummyIDStr := fmt.Sprintf("bootstrap-seed%02d", i)
-			conn := peer.NewConnector(bootstrap)
-			peers = append(peers, peer.New(nil, dummyIDStr, conn))
+			peers = append(peers, peer.New(nil, dummyIDStr, bootstrap))
 			addrStrs = append(addrStrs, bootstrap.String())
 		}
 	}
@@ -278,8 +277,8 @@ func (l *Librarian) Close() error {
 	}
 	cancel()
 
-	// disconnect from peers in routing table
-	if err := l.rt.Disconnect(); err != nil {
+	// close all client connections
+	if err := l.clients.CloseAll(); err != nil {
 		return err
 	}
 
