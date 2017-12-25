@@ -15,6 +15,33 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+func TestNewInitialResult(t *testing.T) {
+	rng := rand.New(rand.NewSource(int64(0)))
+	target := id.NewPseudoRandom(rng)
+	n := 6
+	sr := &ssearch.Result{
+		Closest: ssearch.NewFarthestPeers(target, uint(n)),
+	}
+	for _, p := range peer.NewTestPeers(rng, n) {
+		sr.Closest.SafePush(p)
+	}
+
+	ir := NewInitialResult(sr)
+	assert.Len(t, ir.Unqueried, n)
+	assert.Len(t, ir.Responded, 0)
+	assert.NotNil(t, ir.Search)
+	assert.Len(t, ir.Errors, 0)
+
+	// check unqueried queue is ordered from closest-to-farthest
+	for i := 1; i < len(ir.Unqueried); i++ {
+		p1, p2 := ir.Unqueried[i-1], ir.Unqueried[i]
+		assert.NotNil(t, p1)
+		assert.NotNil(t, p2)
+		dist1, dist2 := target.Distance(p1.ID()), target.Distance(p2.ID())
+		assert.True(t, dist1.Cmp(dist2) < 0)
+	}
+}
+
 func TestNewDefaultParameters(t *testing.T) {
 	p := NewDefaultParameters()
 	assert.NotZero(t, p.NMaxErrors)

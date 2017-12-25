@@ -58,8 +58,7 @@ func TestReplicator_StartStop(t *testing.T) {
 	// create some dummy unqueried and closest heaps for our fixed result to use
 	key := id.NewPseudoRandom(rng)
 	unqueried := search.NewClosestPeers(key, 10)
-	err = unqueried.SafePushMany(peer.NewTestPeers(rng, 10))
-	assert.Nil(t, err)
+	unqueried.SafePushMany(peer.NewTestPeers(rng, 10))
 	closest := search.NewFarthestPeers(key, 6)
 	for c := uint(0); c < verifyParams.NClosestResponses; c++ {
 		heap.Push(closest, heap.Pop(unqueried).(peer.Peer))
@@ -163,8 +162,7 @@ func TestReplicator_verify(t *testing.T) {
 	// verifier always returns results where FullyReplicated() == true
 	key := id.NewPseudoRandom(rng) // arbitrary, but just need something
 	unqueried := search.NewClosestPeers(key, 10)
-	err := unqueried.SafePushMany(peer.NewTestPeers(rng, 10))
-	assert.Nil(t, err)
+	unqueried.SafePushMany(peer.NewTestPeers(rng, 10))
 	replicas := make(map[string]peer.Peer)
 	for _, p := range peer.NewTestPeers(rng, int(r.verifyParams.NReplicas)) {
 		replicas[p.ID().String()] = p
@@ -220,7 +218,7 @@ func TestReplicator_verifyValue(t *testing.T) {
 		logger:           zap.NewNop(),
 	}
 	unqueried := search.NewClosestPeers(key, 10)
-	err = unqueried.SafePushMany(peer.NewTestPeers(rng, 10))
+	unqueried.SafePushMany(peer.NewTestPeers(rng, 10))
 	assert.Nil(t, err)
 
 	// check that when a verify operation has FullyReplicated() == true, only a nil error is
@@ -388,8 +386,7 @@ func TestNewStore(t *testing.T) {
 	for _, p := range responded[:verifyParams.NReplicas-1] {
 		v.Result.Replicas[p.ID().String()] = p
 	}
-	err = v.Result.Closest.SafePushMany(responded[verifyParams.NReplicas-1:])
-	assert.Nil(t, err)
+	v.Result.Closest.SafePushMany(responded[verifyParams.NReplicas-1:])
 	assert.True(t, v.UnderReplicated())
 	assert.False(t, v.FullyReplicated())
 

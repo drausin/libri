@@ -244,7 +244,7 @@ func (r *replicator) verifyValue(key id.ID, value []byte) {
 	r.wrapLock(func() {
 		maybeSendErrChan(r.errs, nil)
 	})
-	for _, p := range v.Result.Closest.Peers() {
+	for _, p := range v.Result.Responded {
 		r.rt.Push(p)
 	}
 	select {

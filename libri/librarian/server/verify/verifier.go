@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
@@ -59,8 +58,7 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 	peerResponses := make(chan *peerResponse, 1)
 
 	// add seeds and queue some of them for querying
-	err := verify.Result.Unqueried.SafePushMany(seeds)
-	cerrors.MaybePanic(err)
+	verify.Result.Unqueried.SafePushMany(seeds)
 
 	go func() {
 		for c := uint(0); c < verify.Params.Concurrency; c++ {
@@ -217,8 +215,7 @@ func (vrp *responseProcessor) Process(
 	if rp.Peers != nil {
 		// response has peer addresses close to key
 		v.wrapLock(func() {
-			err := v.Result.Closest.SafePush(from)
-			cerrors.MaybePanic(err) // should never happen
+			v.Result.Closest.SafePush(from)
 		})
 		if !v.Finished() {
 			// don't add peers to unqueried if the verify is already finished and we're not going

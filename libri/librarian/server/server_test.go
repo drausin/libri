@@ -606,8 +606,7 @@ func TestLibrarian_Get_FoundClosestPeers(t *testing.T) {
 	searchParams := search.NewDefaultParameters()
 	foundClosestPeersResult := search.NewInitialResult(key, searchParams)
 	dummyClosest := peer.NewTestPeers(rng, int(searchParams.NClosestResponses))
-	err := foundClosestPeersResult.Closest.SafePushMany(dummyClosest)
-	assert.Nil(t, err)
+	foundClosestPeersResult.Closest.SafePushMany(dummyClosest)
 
 	// create librarian and request
 	l := newGetLibrarian(rng, foundClosestPeersResult, nil)
