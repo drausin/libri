@@ -13,7 +13,12 @@ func TestBucket_PushPop(t *testing.T) {
 	for n := 1; n <= 128; n *= 2 {
 		b := newFirstBucket(DefaultMaxActivePeers)
 		rng := rand.New(rand.NewSource(int64(n)))
-		for _, p := range peer.NewTestPeers(rng, n) {
+		for i, p := range peer.NewTestPeers(rng, n) {
+
+			// simulate i successful responses from peer p so that heap ordering is well-defined
+			for j := 0; j < i; j++ {
+				p.Recorder().Record(peer.Response, peer.Success)
+			}
 			heap.Push(b, p)
 		}
 		prev := heap.Pop(b).(peer.Peer)

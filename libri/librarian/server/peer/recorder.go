@@ -36,7 +36,7 @@ type Recorder interface {
 	// Record an outcome for a particular query type.
 	Record(t QueryType, o Outcome)
 
-	// merge combines the stats of the other and current recorder instances.
+	// Merge combines the stats of the other and current recorder instances.
 	Merge(other Recorder)
 
 	// ToStored creates a storage.ResponseStats.
@@ -110,7 +110,7 @@ func (qto *queryTypeOutcomes) Record(o Outcome) {
 		qto.nErrors++
 	}
 	qto.nQueries++
-	qto.latest = time.Now().UTC()
+	qto.latest = time.Now().UTC().Round(time.Second)
 	if qto.earliest.Unix() == 0 {
 		qto.earliest = qto.latest
 	}

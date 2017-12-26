@@ -141,7 +141,13 @@ func NewWithPeers(selfID id.ID, params *Parameters, peers []peer.Peer) (Table, i
 func NewTestWithPeers(rng *rand.Rand, n int) (Table, ecid.ID, int) {
 	peerID := ecid.NewPseudoRandom(rng)
 	params := NewDefaultParameters()
-	rt, nAdded := NewWithPeers(peerID.ID(), params, peer.NewTestPeers(rng, n))
+	ps := peer.NewTestPeers(rng, n)
+	for i := range ps {
+		for j := 0; j < i; j++ {
+			ps[i].Recorder().Record(peer.Response, peer.Success)
+		}
+	}
+	rt, nAdded := NewWithPeers(peerID.ID(), params, ps)
 	return rt, peerID, nAdded
 }
 

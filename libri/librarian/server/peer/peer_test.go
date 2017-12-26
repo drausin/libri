@@ -43,19 +43,31 @@ func TestPeer_Before(t *testing.T) {
 	}{
 		"strict": {
 			pqr: &queryRecorder{
-				responses: &queryTypeOutcomes{latest: time.Unix(0, 0)},
+				responses: &queryTypeOutcomes{
+					latest:   time.Unix(0, 0),
+					nQueries: 2,
+				},
 			},
 			qqr: &queryRecorder{
-				responses: &queryTypeOutcomes{latest: time.Unix(0, 0)},
+				responses: &queryTypeOutcomes{
+					latest:   time.Unix(0, 0),
+					nQueries: 1,
+				},
 			},
 			before: false, // before is strict
 		},
 		"standard": {
 			pqr: &queryRecorder{
-				responses: &queryTypeOutcomes{latest: time.Unix(0, 0)},
+				responses: &queryTypeOutcomes{
+					latest:   time.Unix(0, 0),
+					nQueries: 1,
+				},
 			},
 			qqr: &queryRecorder{
-				responses: &queryTypeOutcomes{latest: time.Unix(1, 0)},
+				responses: &queryTypeOutcomes{
+					latest:   time.Unix(61, 0),
+					nQueries: 2,
+				},
 			},
 			before: true,
 		},
@@ -63,7 +75,7 @@ func TestPeer_Before(t *testing.T) {
 			pqr: &queryRecorder{
 				responses: &queryTypeOutcomes{
 					earliest: time.Unix(0, 0),
-					latest:   time.Unix(15, 0),
+					latest:   time.Unix(75, 0),
 				},
 			},
 			qqr: &queryRecorder{
