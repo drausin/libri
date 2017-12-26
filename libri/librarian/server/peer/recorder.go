@@ -110,7 +110,7 @@ func (qto *queryTypeOutcomes) Record(o Outcome) {
 		qto.nErrors++
 	}
 	qto.nQueries++
-	qto.latest = time.Now().UTC()
+	qto.latest = time.Now().UTC().Round(time.Second)
 	if qto.earliest.Unix() == 0 {
 		qto.earliest = qto.latest
 	}

@@ -76,6 +76,7 @@ func TestQueryRecorder_Merge(t *testing.T) {
 	r1.Record(Response, Success)
 	r1.Record(Response, Success)
 	r1.Record(Response, Error)
+	time.Sleep(time.Second)
 
 	r2 := newQueryRecorder()
 	r2.Record(Response, Success)

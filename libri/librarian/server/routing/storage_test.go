@@ -1,10 +1,11 @@
 package routing
 
 import (
-	"container/heap"
 	"errors"
 	"math/rand"
 	"testing"
+
+	"container/heap"
 
 	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/common/id"

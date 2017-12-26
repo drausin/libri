@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net"
 
+	"time"
+
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/storage"
@@ -83,7 +85,8 @@ func (p *peer) Address() *net.TCPAddr {
 
 func (p *peer) Before(q Peer) bool {
 	pr, qr := *p.Recorder().(*queryRecorder), *q.Recorder().(*queryRecorder)
-	pLatestMin, qLatestMin := pr.responses.latest.Unix()/60, pr.responses.latest.Unix()/60
+	pLatestMin := pr.responses.latest.Round(time.Minute)
+	qLatestMin := qr.responses.latest.Round(time.Minute)
 
 	// don't care about differences in latest response time within a minute
 	if pLatestMin == qLatestMin {
@@ -91,7 +94,7 @@ func (p *peer) Before(q Peer) bool {
 		// across peers
 		return pr.responses.nQueries < qr.responses.nQueries
 	}
-	return pLatestMin < qLatestMin
+	return pLatestMin.Before(qLatestMin)
 }
 
 func (p *peer) Merge(other Peer) error {
