@@ -112,23 +112,23 @@ func TestValidateEnvelope_err(t *testing.T) {
 		func(e *Envelope) { e.AuthorPublicKey = nil },     // 0) can't be nil
 		func(e *Envelope) { e.AuthorPublicKey = empty },   // 1) can't be 0-length
 		func(e *Envelope) { e.AuthorPublicKey = zeros },   // 2) can't be all zeros
-		func(e *Envelope) { e.AuthorPublicKey = badLen },  // 3) length must be 65
+		func(e *Envelope) { e.AuthorPublicKey = badLen },  // 3) length must be 33
 		func(e *Envelope) { e.ReaderPublicKey = nil },     // 4) can't be nil
 		func(e *Envelope) { e.ReaderPublicKey = empty },   // 5) can't be 0-length
 		func(e *Envelope) { e.ReaderPublicKey = zeros },   // 6) can't be all zeros
-		func(e *Envelope) { e.ReaderPublicKey = badLen },  // 7) length must be 65
+		func(e *Envelope) { e.ReaderPublicKey = badLen },  // 7) length must be 33
 		func(e *Envelope) { e.EntryKey = nil },            // 8) can't be nil
 		func(e *Envelope) { e.EntryKey = empty },          // 9) can't be 0-length
 		func(e *Envelope) { e.EntryKey = zeros },          // 10) can't be all zeros
-		func(e *Envelope) { e.EntryKey = badLen },         // 11) length must be 65
+		func(e *Envelope) { e.EntryKey = badLen },         // 11) length must be 33
 		func(e *Envelope) { e.EekCiphertext = nil },       // 12) can't be nil
 		func(e *Envelope) { e.EekCiphertext = empty },     // 13) can't be 0-length
 		func(e *Envelope) { e.EekCiphertext = zeros },     // 14) can't be all zeros
-		func(e *Envelope) { e.EekCiphertext = badLen },    // 15) length must be 65
+		func(e *Envelope) { e.EekCiphertext = badLen },    // 15) length must be 33
 		func(e *Envelope) { e.EekCiphertextMac = nil },    // 16) can't be nil
 		func(e *Envelope) { e.EekCiphertextMac = empty },  // 17) can't be 0-length
 		func(e *Envelope) { e.EekCiphertextMac = zeros },  // 18) can't be all zeros
-		func(e *Envelope) { e.EekCiphertextMac = badLen }, // 19) length must be 65
+		func(e *Envelope) { e.EekCiphertextMac = badLen }, // 19) length must be 33
 	}
 
 	assert.NotNil(t, ValidateEnvelope(nil))
@@ -159,12 +159,12 @@ func TestValidateEntry_err(t *testing.T) {
 		func(e *Entry) { e.AuthorPublicKey = nil },          // 0) can't be nil
 		func(e *Entry) { e.AuthorPublicKey = empty },        // 1) can't be zero-length
 		func(e *Entry) { e.AuthorPublicKey = zeros },        // 2) can't be all zeros
-		func(e *Entry) { e.AuthorPublicKey = badLen },       // 3) length must be 65
+		func(e *Entry) { e.AuthorPublicKey = badLen },       // 3) length must be 33
 		func(e *Entry) { e.CreatedTime = 0 },                // 4) must be non-zero
 		func(e *Entry) { e.MetadataCiphertextMac = nil },    // 5) can't be nil
 		func(e *Entry) { e.MetadataCiphertextMac = empty },  // 6) can't be zero-length
 		func(e *Entry) { e.MetadataCiphertextMac = zeros },  // 7) can't be all zeros
-		func(e *Entry) { e.MetadataCiphertextMac = badLen }, // 8) length must be 65
+		func(e *Entry) { e.MetadataCiphertextMac = badLen }, // 8) length must be 33
 		func(e *Entry) { e.MetadataCiphertext = nil },       // 9) can't be nil
 		func(e *Entry) { e.MetadataCiphertext = empty },     // 10) can't be zero-length
 		func(e *Entry) { e.MetadataCiphertext = zeros },     // 11) can't be all zeros
@@ -195,7 +195,7 @@ func TestValidatePage_err(t *testing.T) {
 		func(p *Page) { p.AuthorPublicKey = nil },    // 0) can't be nil
 		func(p *Page) { p.AuthorPublicKey = empty },  // 1) can't be zero-length
 		func(p *Page) { p.AuthorPublicKey = zeros },  // 2) can't be all zeros
-		func(p *Page) { p.AuthorPublicKey = badLen }, // 3) length must be 65
+		func(p *Page) { p.AuthorPublicKey = badLen }, // 3) length must be 33
 		func(p *Page) { p.CiphertextMac = empty },    // 5) can't be zero-length
 		func(p *Page) { p.CiphertextMac = zeros },    // 6) can't be all zeros
 		func(p *Page) { p.CiphertextMac = badLen },   // 7) length must be 32
@@ -234,10 +234,10 @@ func TestValidatePageKeys_err(t *testing.T) {
 
 func TestValidatePublicKey(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	assert.Nil(t, ValidatePublicKey(RandBytes(rng, 65)))
+	assert.Nil(t, ValidatePublicKey(RandBytes(rng, 33)))
 	assert.NotNil(t, ValidatePublicKey(RandBytes(rng, 32)))
 	assert.NotNil(t, ValidatePublicKey(make([]byte, 0)))
-	assert.NotNil(t, ValidatePublicKey(make([]byte, 65)))
+	assert.NotNil(t, ValidatePublicKey(make([]byte, 33)))
 	assert.NotNil(t, ValidatePublicKey(nil))
 }
 

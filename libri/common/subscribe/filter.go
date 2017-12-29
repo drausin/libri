@@ -8,7 +8,7 @@ import (
 	"github.com/willf/bloom"
 )
 
-var minFilterElements = 10
+var minFilterElements = 16
 
 // ToAPI converts a *bloom.BloomFilter (via narrower gob.GobEncoder) to an *api.BloomFilter.
 func ToAPI(f gob.GobEncoder) (*api.BloomFilter, error) {

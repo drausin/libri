@@ -14,8 +14,8 @@ import (
 // field lengths
 const (
 	// ECPubKeyLength is the length of a 256-bit ECDSA public key point serialized
-	// (uncompressed) to a byte string.
-	ECPubKeyLength = 65
+	// (compressed) to a byte string.
+	ECPubKeyLength = 33
 
 	// DocumentKeyLength is the byte length a document's key.
 	DocumentKeyLength = id.Length

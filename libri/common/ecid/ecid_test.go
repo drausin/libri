@@ -2,11 +2,13 @@ package ecid
 
 import (
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/sha256"
 	"errors"
 	"math/rand"
 	"testing"
+
+	"crypto/elliptic"
+	"fmt"
 
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/stretchr/testify/assert"
@@ -102,31 +104,35 @@ func TestEcid_ID(t *testing.T) {
 	assert.Equal(t, i.(*ecid).id, i.ID())
 }
 
-func TestFromPublicKeyBytes_ok(t *testing.T) {
-	rng := rand.New(rand.NewSource(0))
-	priv, err := ecdsa.GenerateKey(Curve, rng)
-	assert.Nil(t, err)
-	pubBytes := elliptic.Marshal(Curve, priv.X, priv.Y)
-
-	pub, err := FromPublicKeyBytes(pubBytes)
-	assert.Nil(t, err)
-	assert.Equal(t, Curve, pub.Curve)
-	assert.Equal(t, priv.X, pub.X)
-	assert.Equal(t, priv.Y, pub.Y)
-}
-
 func TestFromPublicKeyBytes_err(t *testing.T) {
-	short := make([]byte, 1)
-	pub, err := FromPublicKeyBytes(short)
-	assert.Nil(t, pub)
-	assert.NotNil(t, err)
+	rng := rand.New(rand.NewSource(0))
+	okPub := NewPseudoRandom(rng).Key().PublicKey
+	badPub, err := ecdsa.GenerateKey(elliptic.P256(), rng) // wrong curve
+	assert.Nil(t, err)
+	cases := [][]byte{
+		elliptic.Marshal(Curve, okPub.X, okPub.Y),   // uncompressed representation
+		make([]byte, 32),                            // wrong length
+		make([]byte, 33),                            // very unlikely that first byte is required 2 or 3
+		elliptic.Marshal(Curve, badPub.X, badPub.Y), // wrong curve
+	}
+
+	for i, c := range cases {
+		info := fmt.Sprintf("case: %d", i)
+		pub, err := FromPublicKeyBytes(c)
+		assert.Nil(t, pub, info)
+		assert.NotNil(t, err, info)
+	}
 }
 
-func TestPublicKeyBytes(t *testing.T) {
+func TestToFromPublicKeyBytes(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	i := NewPseudoRandom(rng)
-	pub, err := FromPublicKeyBytes(i.PublicKeyBytes())
-	assert.Nil(t, err)
-	assert.Equal(t, i.Key().X, pub.X)
-	assert.Equal(t, i.Key().Y, pub.Y)
+	for c := 0; c < 16; c++ {
+		i := NewPseudoRandom(rng)
+		pubBytes := i.PublicKeyBytes()
+		assert.Len(t, pubBytes, 33)
+		pub, err := FromPublicKeyBytes(pubBytes)
+		assert.Nil(t, err)
+		assert.Equal(t, i.Key().X, pub.X)
+		assert.Equal(t, i.Key().Y, pub.Y)
+	}
 }

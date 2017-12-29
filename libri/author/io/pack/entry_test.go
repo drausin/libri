@@ -25,7 +25,7 @@ func TestEntryPacker_Pack_ok(t *testing.T) {
 	params.PageSize = 128
 	docSL := storage.NewTestDocSLD()
 	p := NewEntryPacker(params, enc.NewMetadataEncrypterDecrypter(), docSL)
-	authorPub := api.RandBytes(rng, 65)
+	authorPub := api.RandBytes(rng, 33)
 	keys := enc.NewPseudoRandomEEK(rng)
 	mediaType := "application/x-pdf"
 
@@ -60,7 +60,7 @@ func TestEntryPacker_Pack_err(t *testing.T) {
 	p := NewEntryPacker(params, enc.NewMetadataEncrypterDecrypter(), docSL)
 	mediaType := "application/x-pdf"
 	content := common.NewCompressableBytes(rng, int(params.PageSize/2))
-	authorPub := api.RandBytes(rng, 65)
+	authorPub := api.RandBytes(rng, 33)
 	keys := enc.NewPseudoRandomEEK(rng)
 
 	// check error from bad mediaType bubbles up
@@ -157,7 +157,7 @@ func TestEntryUnpacker_Unpack_err(t *testing.T) {
 func TestEntryPackUnpack(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	page.MinSize = 64 // just for testing
-	authorPub := api.RandBytes(rng, 65)
+	authorPub := api.RandBytes(rng, 33)
 	keys := enc.NewPseudoRandomEEK(rng)
 	metadataEncDec := enc.NewMetadataEncrypterDecrypter()
 
