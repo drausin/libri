@@ -57,10 +57,10 @@ type GetterSampler interface {
 }
 
 type keychain struct {
-	// private keys indexed by the hex of the 65-byte public key representation
+	// private keys indexed by the hex of the 33-byte public key representation
 	privs map[string]ecid.ID
 
-	// hex 65-byte public key representations
+	// hex 33-byte public key representations
 	pubs []string
 
 	// random number generator for sampling keys
@@ -152,5 +152,5 @@ func Load(filepath, auth string) (GetterSampler, error) {
 }
 
 func pubKeyString(pubKey []byte) string {
-	return fmt.Sprintf("%065x", pubKey)
+	return fmt.Sprintf("%x", pubKey)
 }

@@ -2,7 +2,6 @@ package ecid
 
 import (
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	crand "crypto/rand"
 	"errors"
 	"fmt"
@@ -16,7 +15,7 @@ import (
 )
 
 // Curve defines the elliptic curve public & private keys use. Curve S256 implies 32-byte private
-// and 65-byte public keys, though the X value of the public key point is 32 bytes.
+// and 33-byte (compressed) public keys. The X value of the public key point is 32 bytes.
 var Curve = secp256k1.S256()
 
 // CurveName gives the name of the elliptic curve used for the private key.
@@ -118,10 +117,72 @@ func FromPrivateKey(priv *ecdsa.PrivateKey) ID {
 	}
 }
 
-// FromPublicKeyBytes creates a new ecdsa.PublicKey from the marshaled byte representation.
+// ToPublicKeyBytes marshals the public key of the ID to the compressed byte representation.
+func ToPublicKeyBytes(pub *ecdsa.PublicKey) []byte {
+	return marshalCompressed(pub)
+}
+
+// FromPublicKeyBytes creates a new ecdsa.PublicKey from the marshaled compressed byte
+// representation.
 func FromPublicKeyBytes(buf []byte) (*ecdsa.PublicKey, error) {
-	x, y := elliptic.Unmarshal(Curve, buf) // also checks (x, y) is on curve
-	if x == nil {
+	return unmarshalCompressed(buf)
+}
+
+// marshalCompressed marshals a secp256k1 public key to a compressed binary format.
+// Credit:
+//  - https://github.com/kmackay/micro-ecc/blob/1fce01e69c3f3c179cb9b6238391307426c5e887/
+// 	  uECC.c#L1831
+//  - https://github.com/fd/eccp
+func marshalCompressed(pub *ecdsa.PublicKey) []byte {
+	nBytes := (pub.Params().BitSize + 7) >> 3
+	compressed := make([]byte, nBytes+1)
+	compressed[0] = 2 + byte(pub.Y.Bit(0))
+	xBytes := pub.X.Bytes()
+	start := nBytes - len(xBytes) + 1 // left-pad X with zeros when X is shorter than nBytes
+	copy(compressed[start:], xBytes)
+	return compressed
+}
+
+// unmarshalCompressed unmarshals a compressed secp256k1 point.
+//
+// Credit:
+// 	- https://github.com/kmackay/micro-ecc/blob/1fce01e69c3f3c179cb9b6238391307426c5e887/
+//	  uECC.c#L1841
+//	- https://github.com/fd/eccp
+func unmarshalCompressed(compressed []byte) (*ecdsa.PublicKey, error) {
+	if len(compressed) != 33 {
+		return nil, fmt.Errorf("unexpected compressed length: %d", len(compressed))
+	}
+	if compressed[0] != 2 && compressed[0] != 3 {
+		return nil, fmt.Errorf("unexpected first compressed byte: %d", compressed[0])
+	}
+
+	// y^2 = x^3 + b
+	x := new(big.Int).SetBytes(compressed[1:])
+	lhs := new(big.Int)
+
+	// lhs = x^2
+	lhs.Mul(x, x)
+	lhs.Mod(lhs, Curve.Params().P)
+
+	// lhs = x^3
+	lhs.Mul(lhs, x)
+	lhs.Mod(lhs, Curve.Params().P)
+
+	// lhs = x^3 + b
+	lhs.Add(lhs, Curve.Params().B)
+	lhs.Mod(lhs, Curve.Params().P)
+
+	// lhs = sqrt(x^3 + b)
+	lhs = modSqrt(lhs)
+
+	// ensure correct of two possible y points
+	if lhs.Bit(0) != uint(compressed[0]&0x01) {
+		lhs.Sub(Curve.Params().P, lhs)
+	}
+	y := lhs
+
+	if !Curve.IsOnCurve(x, y) {
 		return nil, ErrKeyPointOffCurve
 	}
 	return &ecdsa.PublicKey{
@@ -131,7 +192,24 @@ func FromPublicKeyBytes(buf []byte) (*ecdsa.PublicKey, error) {
 	}, nil
 }
 
-// ToPublicKeyBytes marshals the public key of the ID to a byte representation.
-func ToPublicKeyBytes(pub *ecdsa.PublicKey) []byte {
-	return elliptic.Marshal(Curve, pub.X, pub.Y)
+// Credit:
+// 	- https://github.com/kmackay/micro-ecc/blob/1fce01e69c3f3c179cb9b6238391307426c5e887/
+//    uECC.c#L1685
+//  - https://github.com/fd/eccp
+func modSqrt(a *big.Int) *big.Int {
+	p1 := big.NewInt(1)
+	p1.Add(p1, Curve.Params().P)
+
+	result := big.NewInt(1)
+
+	for i := p1.BitLen() - 1; i > 1; i-- {
+		result.Mul(result, result)
+		result.Mod(result, Curve.Params().P)
+		if p1.Bit(i) > 0 {
+			result.Mul(result, a)
+			result.Mod(result, Curve.Params().P)
+		}
+	}
+
+	return result
 }
