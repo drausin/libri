@@ -137,7 +137,9 @@ func marshalCompressed(pub *ecdsa.PublicKey) []byte {
 	nBytes := (pub.Params().BitSize + 7) >> 3
 	compressed := make([]byte, nBytes+1)
 	compressed[0] = 2 + byte(pub.Y.Bit(0))
-	copy(compressed[1:], pub.X.Bytes())
+	xBytes := pub.X.Bytes()
+	start := nBytes - len(xBytes) + 1 // left-pad X with zeros when X is shorter than nBytes
+	copy(compressed[start:], xBytes)
 	return compressed
 }
 

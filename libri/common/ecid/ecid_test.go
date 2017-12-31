@@ -10,6 +10,9 @@ import (
 	"crypto/elliptic"
 	"fmt"
 
+	"encoding/hex"
+	"math/big"
+
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/stretchr/testify/assert"
 )
@@ -126,7 +129,7 @@ func TestFromPublicKeyBytes_err(t *testing.T) {
 
 func TestToFromPublicKeyBytes(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	for c := 0; c < 16; c++ {
+	for c := 0; c < 64; c++ {
 		i := NewPseudoRandom(rng)
 		pubBytes := i.PublicKeyBytes()
 		assert.Len(t, pubBytes, 33)
@@ -135,4 +138,26 @@ func TestToFromPublicKeyBytes(t *testing.T) {
 		assert.Equal(t, i.Key().X, pub.X)
 		assert.Equal(t, i.Key().Y, pub.Y)
 	}
+}
+
+func TestMarshalUnmarshallCompressed_shortX(t *testing.T) {
+	// construct a valid point where the X value has fewer than 32 bytes
+	xBytes, err := hex.DecodeString(
+		"ce523fd0fac313b412446e39d3eb139af32a29c66ca60af41f4e64a7227e18")
+	assert.Nil(t, err)
+	x := new(big.Int)
+	x.SetBytes(xBytes)
+
+	yBytes, err := hex.DecodeString(
+		"ec3c7e9d1822338d008c53e7996309cfd5fd51d088911ebbb8a2f129a7fb40d9")
+	assert.Nil(t, err)
+	y := new(big.Int)
+	y.SetBytes(yBytes)
+
+	pub1 := &ecdsa.PublicKey{Curve: Curve, X: x, Y: y}
+
+	compressed := marshalCompressed(pub1)
+	pub2, err := unmarshalCompressed(compressed)
+	assert.Nil(t, err)
+	assert.Equal(t, pub1, pub2)
 }
