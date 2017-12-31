@@ -152,5 +152,5 @@ func Load(filepath, auth string) (GetterSampler, error) {
 }
 
 func pubKeyString(pubKey []byte) string {
-	return fmt.Sprintf("%065x", pubKey)
+	return fmt.Sprintf("%x", pubKey)
 }
