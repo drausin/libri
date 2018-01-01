@@ -231,11 +231,10 @@ spec:
     spec:
       containers:
       - name: prometheus
-        image: prom/prometheus:v1.8.2
+        image: prom/prometheus:v2.0.0
         args:
-          - '-storage.local.retention=360h'
-          - '-storage.local.memory-chunks=1048576'
-          - '-config.file=/etc/prometheus/prometheus.yml'
+          - '--config.file=/etc/prometheus/prometheus.yml'
+          - '--storage.tsdb.retention=15d'
 #          - '-alertmanager.url=http://alertmanager:9093/alertmanager'
 #          - '-web.external-url=$(EXTERNAL_URL)'
         ports:
