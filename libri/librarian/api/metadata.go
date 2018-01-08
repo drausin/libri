@@ -18,23 +18,29 @@ const (
 )
 
 var (
-	// ErrUnexpectedZero describes when an error is unexpectedly zero.
-	ErrUnexpectedZero = errors.New("unexpected zero value")
+	// ErrMissingMediaType indicates when metadata has zero-valued MediaType.
+	ErrMissingMediaType = errors.New("missing MediaType")
+
+	// ErrMissingCiphertextSize indicates when metadata has zero-valued CiphertextSize.
+	ErrMissingCiphertextSize = errors.New("missing CiphertextSize")
+
+	// ErrMissingUncompressedSize indicates when metadata has zero-valued UncompressedSize.
+	ErrMissingUncompressedSize = errors.New("missing UncompressedSize")
 )
 
 // ValidateEntryMetadata checks that the metadata has all the required non-zero values.
 func ValidateEntryMetadata(m *EntryMetadata) error {
 	if m.MediaType == "" {
-		return ErrUnexpectedZero
+		return ErrMissingMediaType
 	}
 	if m.CiphertextSize == 0 {
-		return ErrUnexpectedZero
+		return ErrMissingCiphertextSize
 	}
 	if err := ValidateHMAC256(m.CiphertextMac); err != nil {
 		return err
 	}
 	if m.UncompressedSize == 0 {
-		return ErrUnexpectedZero
+		return ErrMissingUncompressedSize
 	}
 	if err := ValidateHMAC256(m.UncompressedMac); err != nil {
 		return err
