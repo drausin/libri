@@ -11,7 +11,7 @@ import (
 
 func TestValidateSubscription(t *testing.T) {
 	err := ValidateSubscription(nil)
-	assert.Equal(t, ErrUnexpectedNilValue, err)
+	assert.Equal(t, ErrMissingSubscription, err)
 
 	cases := []struct {
 		authorPublicKeys *BloomFilter
