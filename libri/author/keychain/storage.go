@@ -65,8 +65,13 @@ func decryptFromStored(stored *StoredKeychain, auth string) (GetterSampler, erro
 				errs <- err
 				return
 			}
+			i, err := ecid.FromPrivateKey(priv)
+			if err != nil {
+				errs <- err
+				return
+			}
 			mu.Lock()
-			ecids = append(ecids, ecid.FromPrivateKey(priv))
+			ecids = append(ecids, i)
 			mu.Unlock()
 		}(keyJSON1)
 	}

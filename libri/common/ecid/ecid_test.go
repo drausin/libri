@@ -114,7 +114,7 @@ func TestEcid_SaveLoad(t *testing.T) {
 	i1 := NewPseudoRandom(rng)
 	tmpDerFilepath, err := ioutil.TempFile("", "test-priv-key")
 	defer func() {
-		err := os.Remove(tmpDerFilepath.Name())
+		err = os.Remove(tmpDerFilepath.Name())
 		cerrors.MaybePanic(err)
 	}()
 	assert.Nil(t, err)
