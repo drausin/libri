@@ -1,8 +1,6 @@
 package ship
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
 	"errors"
 	"math/rand"
 	"testing"
@@ -198,10 +196,8 @@ func TestReceiver_GetEEK_err(t *testing.T) {
 	assert.Nil(t, eek)
 
 	// check enc.NewKEK() error bubbles up
-	wrongCurveKey, err := ecdsa.GenerateKey(elliptic.P256(), rng)
-	assert.Nil(t, err)
 	readerKeys3 := &fixedKeychain{
-		getKey: ecid.FromPrivateKey(wrongCurveKey),
+		getKey: ecid.NewPseudoRandom(rng),
 		in:     true,
 	}
 	wrongCurveKeyPubBytes := readerKeys3.getKey.PublicKeyBytes()
