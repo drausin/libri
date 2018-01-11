@@ -11,6 +11,7 @@ import (
 
 	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 )
 
@@ -21,8 +22,14 @@ var Curve = secp256k1.S256()
 // CurveName gives the name of the elliptic curve used for the private key.
 const CurveName = "secp256k1"
 
-// ErrKeyPointOffCurve indicates when a public key does not lay on the expected elliptic curve.
-var ErrKeyPointOffCurve = errors.New("key point is off the expected curve")
+var (
+	// ErrKeyPointOffCurve indicates when a public key does not lay on the expected elliptic
+	// curve.
+	ErrKeyPointOffCurve = errors.New("key point is off the expected curve")
+
+	// ErrPrivKeyUnexpectedCurve indicates when a private key has an unexpected elliptic curve.
+	ErrPrivKeyUnexpectedCurve = errors.New("private key has wrong curve")
+)
 
 // ID is an elliptic curve identifier, where the ID is the x-value of the (x, y) public key
 // point on the curve. When coupled with the private key, this allows something (e.g., a libri
@@ -50,6 +57,9 @@ type ID interface {
 
 	// PublicKeyBytes returns a byte slice of the encoded public key
 	PublicKeyBytes() []byte
+
+	// Save writes the ID's private key hex representation to the given filepath.
+	Save(filepath string) error
 }
 
 type ecid struct {
@@ -74,7 +84,9 @@ func NewPseudoRandom(rng *mrand.Rand) ID {
 func newRandom(reader io.Reader) ID {
 	key, err := ecdsa.GenerateKey(Curve, reader)
 	cerrors.MaybePanic(err) // should never happen
-	return FromPrivateKey(key)
+	i, err := FromPrivateKey(key)
+	cerrors.MaybePanic(err) // should never happen
+	return i
 }
 
 func (x *ecid) String() string {
@@ -109,12 +121,28 @@ func (x *ecid) ID() id.ID {
 	return x.id
 }
 
+func (x *ecid) Save(filepath string) error {
+	return crypto.SaveECDSA(filepath, x.key)
+}
+
 // FromPrivateKey creates a new ID from an ECDSA private key.
-func FromPrivateKey(priv *ecdsa.PrivateKey) ID {
+func FromPrivateKey(priv *ecdsa.PrivateKey) (ID, error) {
+	if priv.Curve != Curve {
+		return nil, ErrPrivKeyUnexpectedCurve
+	}
 	return &ecid{
 		key: priv,
 		id:  id.FromInt(priv.X),
+	}, nil
+}
+
+// FromPrivateKeyFile creates a new ID from plaintext file containing the private key.
+func FromPrivateKeyFile(filepath string) (ID, error) {
+	priv, err := crypto.LoadECDSA(filepath)
+	if err != nil {
+		return nil, err
 	}
+	return FromPrivateKey(priv)
 }
 
 // ToPublicKeyBytes marshals the public key of the ID to the compressed byte representation.
