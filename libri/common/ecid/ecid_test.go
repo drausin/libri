@@ -14,7 +14,7 @@ import (
 	"testing"
 
 	"github.com/drausin/libri/libri/common/id"
-	"github.com/elxirhealth/courier/pkg/util"
+	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -115,7 +115,7 @@ func TestEcid_SaveLoad(t *testing.T) {
 	tmpDerFilepath, err := ioutil.TempFile("", "test-priv-key")
 	defer func() {
 		err := os.Remove(tmpDerFilepath.Name())
-		util.MaybePanic(err)
+		cerrors.MaybePanic(err)
 	}()
 	assert.Nil(t, err)
 	err = i1.Save(tmpDerFilepath.Name())
