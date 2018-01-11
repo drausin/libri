@@ -2,18 +2,19 @@ package ecid
 
 import (
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
+	"fmt"
+	"io/ioutil"
+	"math/big"
 	"math/rand"
+	"os"
 	"testing"
 
-	"crypto/elliptic"
-	"fmt"
-
-	"encoding/hex"
-	"math/big"
-
 	"github.com/drausin/libri/libri/common/id"
+	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -107,16 +108,43 @@ func TestEcid_ID(t *testing.T) {
 	assert.Equal(t, i.(*ecid).id, i.ID())
 }
 
+func TestEcid_SaveLoad(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+
+	i1 := NewPseudoRandom(rng)
+	tmpDerFilepath, err := ioutil.TempFile("", "test-priv-key")
+	defer func() {
+		err = os.Remove(tmpDerFilepath.Name())
+		cerrors.MaybePanic(err)
+	}()
+	assert.Nil(t, err)
+	err = i1.Save(tmpDerFilepath.Name())
+	assert.Nil(t, err)
+
+	i2, err := FromPrivateKeyFile(tmpDerFilepath.Name())
+	assert.Nil(t, err)
+	assert.Equal(t, i1, i2)
+}
+
+func TestFromPrivateKey_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	badPriv, err := ecdsa.GenerateKey(elliptic.P256(), rng) // wrong curve
+	assert.Nil(t, err)
+	i, err := FromPrivateKey(badPriv)
+	assert.Equal(t, ErrPrivKeyUnexpectedCurve, err)
+	assert.Nil(t, i)
+}
+
 func TestFromPublicKeyBytes_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	okPub := NewPseudoRandom(rng).Key().PublicKey
-	badPub, err := ecdsa.GenerateKey(elliptic.P256(), rng) // wrong curve
+	badPriv, err := ecdsa.GenerateKey(elliptic.P256(), rng) // wrong curve
 	assert.Nil(t, err)
 	cases := [][]byte{
-		elliptic.Marshal(Curve, okPub.X, okPub.Y),   // uncompressed representation
-		make([]byte, 32),                            // wrong length
-		make([]byte, 33),                            // very unlikely that first byte is required 2 or 3
-		elliptic.Marshal(Curve, badPub.X, badPub.Y), // wrong curve
+		elliptic.Marshal(Curve, okPub.X, okPub.Y),     // uncompressed representation
+		make([]byte, 32),                              // wrong length
+		make([]byte, 33),                              // very unlikely that first byte is required 2 or 3
+		elliptic.Marshal(Curve, badPriv.X, badPriv.Y), // wrong curve
 	}
 
 	for i, c := range cases {

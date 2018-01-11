@@ -334,11 +334,11 @@ func TestAuthor_Share_err(t *testing.T) {
 	a4 := &Author{
 		receiver: &fixedReceiver{},
 		authorKeys: &fixedKeychain{
-			sampleID: ecid.FromPrivateKey(badCurvePK),
+			sampleID: ecid.NewPseudoRandom(rng),
 		},
 		logger: clogging.NewDevLogger(zapcore.DebugLevel),
 	}
-	env, envID, err = a4.Share(origEnvKey, readerPub)
+	env, envID, err = a4.Share(origEnvKey, &badCurvePK.PublicKey)
 	assert.NotNil(t, err)
 	assert.Nil(t, env)
 	assert.Nil(t, envID)
