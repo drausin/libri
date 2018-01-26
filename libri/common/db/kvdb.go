@@ -1,10 +1,15 @@
 package db
 
 import (
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
+	"sync"
 
+	errors2 "github.com/drausin/libri/libri/common/errors"
 	"github.com/tecbot/gorocksdb"
 )
 
@@ -44,8 +49,7 @@ func NewRocksDB(dbDir string) (*RocksDB, error) {
 	if err != nil {
 		return nil, err
 	}
-	options := gorocksdb.NewDefaultOptions()
-	options.SetCreateIfMissing(true)
+	options := newRocksDBOptimizedOptions()
 	db, err := gorocksdb.OpenDb(options, dbDir)
 	if err != nil {
 		return nil, err
@@ -56,6 +60,29 @@ func NewRocksDB(dbDir string) (*RocksDB, error) {
 		ro:  gorocksdb.NewDefaultReadOptions(),
 		wo:  gorocksdb.NewDefaultWriteOptions(),
 	}, nil
+}
+
+func newRocksDBDefaultOptions() *gorocksdb.Options {
+	opts := gorocksdb.NewDefaultOptions()
+	opts.SetCreateIfMissing(true)
+	return opts
+}
+
+func newRocksDBOptimizedOptions() *gorocksdb.Options {
+	// TODO (drausin) figure out best way to parameterize this
+	opts := newRocksDBDefaultOptions()
+	opts.IncreaseParallelism(4)
+
+	bbtOpts := gorocksdb.NewDefaultBlockBasedTableOptions()
+	bbtOpts.SetBlockCache(gorocksdb.NewLRUCache(1024 * 1024 * 1024)) // 1 GB
+	bbtOpts.SetBlockSize(32 * 1024)                                  // 32K
+	bbtOpts.SetFilterPolicy(gorocksdb.NewBloomFilter(10))
+	opts.SetBlockBasedTableFactory(bbtOpts)
+
+	opts.SetAllowConcurrentMemtableWrites(true)
+	opts.OptimizeLevelStyleCompaction(500 * 1024 * 1024) // 500 MB memtable
+	opts.SetStatsDumpPeriodSec(10 * 60)
+	return opts
 }
 
 // NewTempDirRocksDB creates a new RocksDB instance (used mostly for local testing) in a local
@@ -123,4 +150,69 @@ func (db *RocksDB) Iterate(
 // Close gracefully shuts down the database.
 func (db *RocksDB) Close() {
 	db.rdb.Close()
+}
+
+// NewMemoryDB creates a new in-memory KVDB.
+func NewMemoryDB() *Memory {
+	return &Memory{data: make(map[string][]byte)}
+}
+
+// Memory contains an in-memory KVDB.
+type Memory struct {
+	data map[string][]byte
+	mu   sync.Mutex
+}
+
+// Get returns the value for a key.
+func (db *Memory) Get(key []byte) ([]byte, error) {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	value := db.data[getDataKey(key)]
+	return value, nil
+}
+
+// Put stores the value for a key.
+func (db *Memory) Put(key []byte, value []byte) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	db.data[getDataKey(key)] = value
+	return nil
+}
+
+// Delete removes the value for a key.
+func (db *Memory) Delete(key []byte) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	delete(db.data, getDataKey(key))
+	return nil
+}
+
+// Iterate iterates over the values in the DB.
+func (db *Memory) Iterate(
+	keyLB, keyUB []byte, done chan struct{}, callback func(key, value []byte),
+) error {
+	dataKeyLB, dataKeyUB := getDataKey(keyLB), getDataKey(keyUB)
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	for key, value := range db.data {
+		if strings.Compare(key, dataKeyLB) >= 0 && strings.Compare(key, dataKeyUB) < 0 {
+			keyBytes, err := hex.DecodeString(key)
+			errors2.MaybePanic(err)
+			callback(keyBytes, value)
+			select {
+			case <-done:
+				return nil
+			default:
+				// continue
+			}
+		}
+	}
+	return nil
+}
+
+// Close gracefully shuts down the database.
+func (db *Memory) Close() {}
+
+func getDataKey(key []byte) string {
+	return fmt.Sprintf("%x", key)
 }

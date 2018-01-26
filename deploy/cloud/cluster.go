@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	tfGCETemplateDir      = "terraform/gce"
+	tfGCETemplateDir      = "terraform/gcp"
 	tfMinikubeTemplateDir = "terraform/minikube"
 	mainTemplateFilename  = "main.template.tf"
 	varsFilename          = "variables.tf"
@@ -32,6 +32,7 @@ const (
 	tfLibrarianLibriVersion = "librarian_libri_version"
 	tfLibrarianCPULimit     = "librarian_cpu_limit"
 	tfLibrarianRAMLimit     = "librarian_ram_limit"
+	tfLibrarianDiskSizeGB   = "librarian_disk_size_gb"
 	tfPublicPortStart       = "librarian_public_port_start"
 	tfLocalPort             = "librarian_local_port"
 	tfLocalMetricsPort      = "librarian_local_metrics_port"
@@ -47,22 +48,23 @@ type TFConfig struct {
 	ClusterName     string
 	Bucket          string
 	GCPProject      string
-	OutDir          string
+	ClusterDir      string
 	LocalModulePath string
 }
 
 // KubeConfig contains the configuration to apply to the template.
 type KubeConfig struct {
-	LibriVersion      string
-	LocalPort         int
-	LocalMetricsPort  int
-	GrafanaPort       int
-	PrometheusPort    int
-	Librarians        []LibrarianConfig
-	LibrarianCPULimit string
-	LibrarianRAMLimit string
-	LocalCluster      bool
-	GCPCluster        bool
+	LibriVersion        string
+	LocalPort           int
+	LocalMetricsPort    int
+	GrafanaPort         int
+	PrometheusPort      int
+	Librarians          []LibrarianConfig
+	LibrarianCPULimit   string
+	LibrarianRAMLimit   string
+	LibrarianDiskSizeGB int
+	LocalCluster        bool
+	GCPCluster          bool
 }
 
 // LibrarianConfig contains the public-facing configuration for an individual librarian.
@@ -87,8 +89,8 @@ func main() {
 // not to be confused with the init command
 func init() {
 	clusterCmd.AddCommand(initCmd)
-	initCmd.PersistentFlags().StringVarP(&initFlags.OutDir, "outDir", "d", "",
-		"directory to create new cluster subdirectory in")
+	initCmd.PersistentFlags().StringVarP(&initFlags.ClusterDir, "clusterDir", "d", "",
+		"directory to create new cluster in")
 	initCmd.PersistentFlags().StringVarP(&initFlags.ClusterName, "clusterName", "n", "",
 		"cluster name (without spaces)")
 
@@ -100,13 +102,13 @@ func init() {
 		"GCP project to create infrastructure in")
 
 	clusterCmd.AddCommand(planCmd)
-	planCmd.Flags().StringVarP(&clusterDir, "clusterDir", "c", "",
+	planCmd.Flags().StringVarP(&clusterDir, "clusterDir", "d", "",
 		"local cluster directory (required)")
 	planCmd.Flags().BoolVarP(&notf, "notf", "", false, "skip Terraform planning")
 	planCmd.Flags().BoolVarP(&nokube, "nokube", "", false, "skip Kubernetes planning")
 
 	clusterCmd.AddCommand(applyCmd)
-	applyCmd.Flags().StringVarP(&clusterDir, "clusterDir", "c", "",
+	applyCmd.Flags().StringVarP(&clusterDir, "clusterDir", "d", "",
 		"local cluster directory (required)")
 	applyCmd.Flags().BoolVarP(&notf, "notf", "", false, "skip Terraform applying")
 	applyCmd.Flags().BoolVarP(&nokube, "nokube", "", false, "skip Kubernetes applying")
@@ -131,7 +133,6 @@ var minikubeCmd = &cobra.Command{
 		config := initFlags
 		checkInitMinikubeParams(config)
 
-		clusterDir = filepath.Join(config.OutDir, initFlags.ClusterName)
 		maybeMkdir(clusterDir)
 		// TF infra can't be applied to minikube, so no main.tf is written
 		writeVarsTFFile(config, clusterDir, tfMinikubeTemplateDir)
@@ -150,14 +151,13 @@ var gcpCmd = &cobra.Command{
 		config := initFlags
 		checkInitGCPParams(config)
 
-		clusterDir = filepath.Join(config.OutDir, initFlags.ClusterName)
-		maybeMkdir(clusterDir)
-		writeMainTFFile(config, clusterDir, tfGCETemplateDir)
-		writeVarsTFFile(config, clusterDir, tfGCETemplateDir)
-		writePropsFile(config, clusterDir, tfGCETemplateDir)
-		tfCommand(clusterDir, "init")
+		maybeMkdir(config.ClusterDir)
+		writeMainTFFile(config, config.ClusterDir, tfGCETemplateDir)
+		writeVarsTFFile(config, config.ClusterDir, tfGCETemplateDir)
+		writePropsFile(config, config.ClusterDir, tfGCETemplateDir)
+		tfCommand(config.ClusterDir, "init")
 
-		fmt.Printf("\n%s successfully initialized in %s\n", config.ClusterName, clusterDir)
+		fmt.Printf("\n%s successfully initialized in %s\n", config.ClusterName, config.ClusterDir)
 	},
 }
 
@@ -213,8 +213,8 @@ var applyCmd = &cobra.Command{
 
 func checkInitGCPParams(config TFConfig) {
 	missingParam := false
-	if config.OutDir == "" {
-		fmt.Println("outputDir parameteter is required")
+	if config.ClusterDir == "" {
+		fmt.Println("clusterDir parameteter is required")
 		missingParam = true
 	}
 	if config.ClusterName == "" {
@@ -236,8 +236,8 @@ func checkInitGCPParams(config TFConfig) {
 
 func checkInitMinikubeParams(config TFConfig) {
 	missingParam := false
-	if config.OutDir == "" {
-		fmt.Println("outputDir parameteter is required")
+	if config.ClusterDir == "" {
+		fmt.Println("clusterDir parameteter is required")
 		missingParam = true
 	}
 	if config.ClusterName == "" {
@@ -323,16 +323,17 @@ func kubeApply(clusterDir string, dryRun bool) {
 func writeKubeConfig(clusterDir string) {
 	tfvars := getTFFlags(clusterDir)
 	config := KubeConfig{
-		LibriVersion:      tfvars[tfLibrarianLibriVersion].(string),
-		LocalPort:         tfvars[tfLocalPort].(int),
-		LocalMetricsPort:  tfvars[tfLocalMetricsPort].(int),
-		GrafanaPort:       tfvars[tfGrafanaPort].(int),
-		PrometheusPort:    tfvars[tfPrometheusPort].(int),
-		Librarians:        make([]LibrarianConfig, tfvars[tfNumLibrarians].(int)),
-		LibrarianCPULimit: tfvars[tfLibrarianCPULimit].(string),
-		LibrarianRAMLimit: tfvars[tfLibrarianRAMLimit].(string),
-		LocalCluster:      tfvars[tfClusterHost] == tfClusterHostMinikube,
-		GCPCluster:        tfvars[tfClusterHost] == tfClusterHostGCP,
+		LibriVersion:        tfvars[tfLibrarianLibriVersion].(string),
+		LocalPort:           tfvars[tfLocalPort].(int),
+		LocalMetricsPort:    tfvars[tfLocalMetricsPort].(int),
+		GrafanaPort:         tfvars[tfGrafanaPort].(int),
+		PrometheusPort:      tfvars[tfPrometheusPort].(int),
+		Librarians:          make([]LibrarianConfig, tfvars[tfNumLibrarians].(int)),
+		LibrarianCPULimit:   tfvars[tfLibrarianCPULimit].(string),
+		LibrarianRAMLimit:   tfvars[tfLibrarianRAMLimit].(string),
+		LibrarianDiskSizeGB: tfvars[tfLibrarianDiskSizeGB].(int),
+		LocalCluster:        tfvars[tfClusterHost] == tfClusterHostMinikube,
+		GCPCluster:          tfvars[tfClusterHost] == tfClusterHostGCP,
 	}
 	for i := range config.Librarians {
 		config.Librarians[i].PublicPort = tfvars[tfPublicPortStart].(int) + i

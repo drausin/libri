@@ -32,7 +32,7 @@ func TestFileDownloader_download_ok(t *testing.T) {
 	d := &fileDownloaderImpl{
 		ag: &fixedAuthorGetter{
 			author: nil, // ok since we're passing it into a mocked method anyway
-			logger: server.NewDevInfoLogger(),
+			logger: logging.NewDevInfoLogger(),
 		},
 		ad: &fixedAuthorDownloader{},
 		kc: &fixedKeychainsGetter{}, // ok that KCs are null since passing to mock
@@ -97,7 +97,7 @@ func TestFileDownloader_download_err(t *testing.T) {
 	d6 := &fileDownloaderImpl{
 		ag: &fixedAuthorGetter{
 			author: nil, // ok since we're passing it into a mocked method anyway
-			logger: server.NewDevInfoLogger(),
+			logger: logging.NewDevInfoLogger(),
 		},
 		ad: &fixedAuthorDownloader{err: errors.New("some download error")},
 		kc: &fixedKeychainsGetter{}, // ok that KCs are null since passing to mock

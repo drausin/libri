@@ -46,6 +46,94 @@
   "links": [],
   "refresh": "30s",
   "rows": [
+    {
+      "collapse": false,
+      "height": 250,
+      "panels": [
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "prometheus",
+          "fill": 1,
+          "id": 21,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": false,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null as zero",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "span": 12,
+          "stack": true,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "sum by (pod_name) (rate( grpc_server_handled_total{job=\"kubernetes-pods\"}[5m] ))",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 2,
+              "legendFormat": "{{ pod_name }}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "All Endpoints",
+          "tooltip": {
+            "shared": true,
+            "sort": 2,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "ops",
+              "label": "QPS",
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ]
+        }
+      ],
+      "repeat": null,
+      "repeatIteration": null,
+      "repeatRowId": null,
+      "showTitle": false,
+      "title": "Dashboard Row",
+      "titleSize": "h6"
+    },
     
     {
       "collapse": false,
@@ -93,8 +181,8 @@
             {
               "expr": "histogram_quantile(0.95, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"Get\"}[5m])) by (pod_name, le)) * 1000",
               "format": "time_series",
-              "interval": "10s",
-              "intervalFactor": 2,
+              "interval": "$__interval",
+              "intervalFactor": 1,
               "legendFormat": "{{ pod_name }}",
               "metric": "Get_latency_p95",
               "refId": "C",
@@ -452,8 +540,8 @@
             {
               "expr": "histogram_quantile(0.95, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"Put\"}[5m])) by (pod_name, le)) * 1000",
               "format": "time_series",
-              "interval": "10s",
-              "intervalFactor": 2,
+              "interval": "$__interval",
+              "intervalFactor": 1,
               "legendFormat": "{{ pod_name }}",
               "metric": "Put_latency_p95",
               "refId": "C",
@@ -811,8 +899,8 @@
             {
               "expr": "histogram_quantile(0.95, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"Find\"}[5m])) by (pod_name, le)) * 1000",
               "format": "time_series",
-              "interval": "10s",
-              "intervalFactor": 2,
+              "interval": "$__interval",
+              "intervalFactor": 1,
               "legendFormat": "{{ pod_name }}",
               "metric": "Find_latency_p95",
               "refId": "C",
@@ -1170,8 +1258,8 @@
             {
               "expr": "histogram_quantile(0.95, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"Store\"}[5m])) by (pod_name, le)) * 1000",
               "format": "time_series",
-              "interval": "10s",
-              "intervalFactor": 2,
+              "interval": "$__interval",
+              "intervalFactor": 1,
               "legendFormat": "{{ pod_name }}",
               "metric": "Store_latency_p95",
               "refId": "C",
@@ -1529,8 +1617,8 @@
             {
               "expr": "histogram_quantile(0.95, sum(rate(grpc_server_handling_seconds_bucket{grpc_type=\"unary\",grpc_method=\"Verify\"}[5m])) by (pod_name, le)) * 1000",
               "format": "time_series",
-              "interval": "10s",
-              "intervalFactor": 2,
+              "interval": "$__interval",
+              "intervalFactor": 1,
               "legendFormat": "{{ pod_name }}",
               "metric": "Verify_latency_p95",
               "refId": "C",

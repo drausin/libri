@@ -9,10 +9,9 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net"
+	"os"
 	"sync"
 	"testing"
-
-	"os"
 
 	"github.com/drausin/libri/libri/author/io/common"
 	"github.com/drausin/libri/libri/author/io/enc"
@@ -47,7 +46,7 @@ func TestNewAuthor(t *testing.T) {
 
 	a1 := newTestAuthor()
 
-	clientID1 := a1.clientID
+	clientID1 := a1.ClientID
 	err := a1.Close()
 	assert.Nil(t, err)
 
@@ -59,7 +58,7 @@ func TestNewAuthor(t *testing.T) {
 	)
 
 	assert.Nil(t, err)
-	assert.Equal(t, clientID1, a2.clientID)
+	assert.Equal(t, clientID1, a2.ClientID)
 	err = a2.CloseAndRemove()
 	assert.Nil(t, err)
 }
@@ -335,11 +334,11 @@ func TestAuthor_Share_err(t *testing.T) {
 	a4 := &Author{
 		receiver: &fixedReceiver{},
 		authorKeys: &fixedKeychain{
-			sampleID: ecid.FromPrivateKey(badCurvePK),
+			sampleID: ecid.NewPseudoRandom(rng),
 		},
 		logger: clogging.NewDevLogger(zapcore.DebugLevel),
 	}
-	env, envID, err = a4.Share(origEnvKey, readerPub)
+	env, envID, err = a4.Share(origEnvKey, &badCurvePK.PublicKey)
 	assert.NotNil(t, err)
 	assert.Nil(t, env)
 	assert.Nil(t, envID)

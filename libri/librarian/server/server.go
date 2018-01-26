@@ -85,6 +85,9 @@ type Librarian struct {
 	// signs requests
 	signer client.Signer
 
+	// librarian client connection pool
+	clients client.Pool
+
 	// routing table of peers
 	rt routing.Table
 
@@ -133,16 +136,20 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		return nil, err
 	}
 
+	clients, err := client.NewDefaultLRUPool()
+	if err != nil {
+		return nil, err
+	}
 	signer := client.NewSigner(selfID.Key())
-	searcher := search.NewDefaultSearcher(signer)
-	storer := store.NewStorer(signer, searcher, client.NewStorerCreator())
+	searcher := search.NewDefaultSearcher(signer, clients)
+	storer := store.NewStorer(signer, searcher, client.NewStorerCreator(clients))
 	newPubs := make(chan *subscribe.KeyedPub, newPublicationsSlack)
 
 	recentPubs, err := subscribe.NewRecentPublications(config.SubscribeTo.RecentCacheSize)
 	if err != nil {
 		return nil, err
 	}
-	clientBalancer := routing.NewClientBalancer(rt)
+	clientBalancer := routing.NewClientBalancer(rt, clients)
 	subscribeTo := subscribe.NewTo(config.SubscribeTo, selfLogger, selfID, clientBalancer, signer,
 		recentPubs, newPubs)
 
@@ -150,7 +157,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 	metricsSM.Handle("/metrics", promhttp.Handler())
 	metrics := &http.Server{Addr: fmt.Sprintf(":%d", config.LocalMetricsPort), Handler: metricsSM}
 
-	verifier := verify.NewDefaultVerifier(signer)
+	verifier := verify.NewDefaultVerifier(signer, clients)
 	replicator := replicate.NewReplicator(
 		selfID,
 		rt,
@@ -168,7 +175,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		selfID:         selfID,
 		config:         config,
 		apiSelf:        peer.FromAddress(selfID.ID(), config.PublicName, config.PublicAddr),
-		introducer:     introduce.NewDefaultIntroducer(signer, selfID.ID()),
+		introducer:     introduce.NewDefaultIntroducer(signer, selfID.ID(), clients),
 		searcher:       searcher,
 		replicator:     replicator,
 		storer:         storer,
@@ -183,6 +190,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		kvc:            storage.NewHashKeyValueChecker(),
 		fromer:         peer.NewFromer(),
 		signer:         signer,
+		clients:        clients,
 		rt:             rt,
 		storageMetrics: newStorageMetrics(),
 		logger:         selfLogger,
@@ -362,7 +370,7 @@ func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetRespon
 	}
 
 	// add found peers to routing table
-	for _, p := range s.Result.Closest.Peers() {
+	for _, p := range s.Result.Responded {
 		l.rt.Push(p)
 	}
 

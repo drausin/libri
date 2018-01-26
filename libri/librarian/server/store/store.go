@@ -101,10 +101,18 @@ type Result struct {
 
 // NewInitialResult creates a new Result object from the final search result.
 func NewInitialResult(sr *search.Result) *Result {
+
+	// reverse sr.Closest, which is ordered farthest-to-closest
+	unqueried := sr.Closest.Peers()
+	for i := 0; i < len(unqueried)/2; i++ {
+		tmp := unqueried[i]
+		unqueried[i] = unqueried[len(unqueried)-1-i]
+		unqueried[len(unqueried)-1-i] = tmp
+	}
 	return &Result{
 		// send store queries to the closest peers from the search
-		Unqueried: sr.Closest.Peers(),
-		Responded: make([]peer.Peer, 0, sr.Closest.Len()),
+		Unqueried: unqueried,
+		Responded: make([]peer.Peer, 0, len(unqueried)),
 		Search:    sr,
 		Errors:    make([]error, 0),
 	}

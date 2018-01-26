@@ -50,6 +50,7 @@ const (
 type state struct {
 	rng                 *rand.Rand
 	client              *testClient
+	clients             client.Pool
 	seedConfigs         []*server.Config
 	peerConfigs         []*server.Config
 	seeds               []*server.Librarian
@@ -147,7 +148,7 @@ func setUp(params *params) *state { // nolint: deadcode
 	rng := rand.New(rand.NewSource(0))
 	selfID := ecid.NewPseudoRandom(rng)
 	publicAddr := peer.NewTestPublicAddr(params.nSeeds + params.nPeers + 1)
-	selfPeer := peer.New(selfID.ID(), "test client", peer.NewConnector(publicAddr))
+	selfPeer := peer.New(selfID.ID(), "test client", publicAddr)
 	signer := lclient.NewSigner(selfID.Key())
 	clientImpl := &testClient{
 		selfID:  selfID,
@@ -177,10 +178,13 @@ func setUp(params *params) *state { // nolint: deadcode
 		authors[i], err = lauthor.NewAuthor(authorConfig, authorKCs, selfReaderKCs, logger)
 		errors.MaybePanic(err)
 	}
+	clients, err := client.NewDefaultLRUPool()
+	errors.MaybePanic(err)
 
 	return &state{
 		rng:          rng,
 		client:       clientImpl,
+		clients:      clients,
 		seedConfigs:  seedConfigs,
 		peerConfigs:  peerConfigs,
 		seeds:        seeds,
@@ -419,9 +423,10 @@ func benchmarkName(name string, n int) string {
 
 // nolint: megacheck
 func getLibrarians(peerConfigs []*server.Config) (client.Balancer, error) { // nolint: deadcode
+	rng := rand.New(rand.NewSource(0))
 	librarianAddrs := make([]*net.TCPAddr, len(peerConfigs))
 	for i, peerConfig := range peerConfigs {
 		librarianAddrs[i] = peerConfig.PublicAddr
 	}
-	return client.NewUniformBalancer(librarianAddrs)
+	return client.NewUniformBalancer(librarianAddrs, rng)
 }

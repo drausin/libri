@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
@@ -30,14 +29,9 @@ type Searcher interface {
 }
 
 type searcher struct {
-	// signs queries
-	signer client.Signer
-
-	// creates api.Finders
+	signer        client.Signer
 	finderCreator client.FinderCreator
-
-	// processes the find query responses from the peers
-	rp ResponseProcessor
+	rp            ResponseProcessor
 }
 
 // NewSearcher returns a new Searcher with the given Querier and ResponseProcessor.
@@ -46,10 +40,10 @@ func NewSearcher(s client.Signer, c client.FinderCreator, rp ResponseProcessor) 
 }
 
 // NewDefaultSearcher creates a new Searcher with default sub-object instantiations.
-func NewDefaultSearcher(signer client.Signer) Searcher {
+func NewDefaultSearcher(signer client.Signer, clients client.Pool) Searcher {
 	return NewSearcher(
 		signer,
-		client.NewFinderCreator(),
+		client.NewFinderCreator(clients),
 		NewResponseProcessor(peer.NewFromer()),
 	)
 }
@@ -59,8 +53,7 @@ func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
 	peerResponses := make(chan *peerResponse, 1)
 
 	// add seeds and queue some of them for querying
-	err := search.Result.Unqueried.SafePushMany(seeds)
-	cerrors.MaybePanic(err)
+	search.Result.Unqueried.SafePushMany(seeds)
 
 	go func() {
 		for c := uint(0); c < search.Params.Concurrency; c++ {
@@ -89,7 +82,7 @@ func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
 			defer wg4.Done()
 			for next := range toQuery.Peers {
 				search.AddQueried(next)
-				response, err := s.query(next.Connector(), search)
+				response, err := s.query(next, search)
 				peerResponses <- &peerResponse{
 					peer:     next,
 					response: response,
@@ -105,8 +98,8 @@ func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
 	return search.Result.FatalErr
 }
 
-func (s *searcher) query(pConn peer.Connector, search *Search) (*api.FindResponse, error) {
-	findClient, err := s.finderCreator.Create(pConn)
+func (s *searcher) query(next peer.Peer, search *Search) (*api.FindResponse, error) {
+	lc, err := s.finderCreator.Create(next.Address().String())
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +108,7 @@ func (s *searcher) query(pConn peer.Connector, search *Search) (*api.FindRespons
 	if err != nil {
 		return nil, err
 	}
-	retryFindClient := client.NewRetryFinder(findClient, searcherFindRetryTimeout)
+	retryFindClient := client.NewRetryFinder(lc, searcherFindRetryTimeout)
 	rp, err := retryFindClient.Find(ctx, search.Request)
 	cancel()
 	if err != nil {
@@ -174,6 +167,9 @@ func getNextToQuery(search *Search) peer.Peer {
 	}
 	search.mu.Lock()
 	defer search.mu.Unlock()
+	if search.Result.Unqueried.Len() == 0 {
+		return nil
+	}
 	next := heap.Pop(search.Result.Unqueried).(peer.Peer)
 	if _, alreadyQueried := search.Result.Queried[next.ID().String()]; alreadyQueried {
 		return nil
@@ -218,8 +214,7 @@ func recordError(p peer.Peer, err error, s *Search) {
 
 func recordSuccess(p peer.Peer, s *Search) {
 	s.wrapLock(func() {
-		err := s.Result.Closest.SafePush(p)
-		cerrors.MaybePanic(err) // should never happen
+		s.Result.Closest.SafePush(p)
 		s.Result.Responded[p.ID().String()] = p
 	})
 	p.Recorder().Record(peer.Response, peer.Success)
@@ -283,8 +278,7 @@ func AddPeers(
 		if !inUnqueried && !inQueried {
 			// only add discovered peers that we haven't already seen
 			newPeer := fromer.FromAPI(pa)
-			err := unqueried.SafePush(newPeer)
-			cerrors.MaybePanic(err) // should never happen
+			unqueried.SafePush(newPeer)
 		}
 	}
 }

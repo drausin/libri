@@ -10,9 +10,11 @@ import (
 
 // FromStored creates a new peer.Peer instance from a storage.Peer instance.
 func FromStored(stored *storage.Peer) Peer {
-	conn := NewConnector(fromStoredAddress(stored.PublicAddress))
-	return New(id.FromBytes(stored.Id), stored.Name, conn).(*peer).
-		WithQueryRecorder(fromStoredQueryOutcomes(stored.QueryOutcomes))
+	return New(
+		id.FromBytes(stored.Id),
+		stored.Name,
+		fromStoredAddress(stored.PublicAddress),
+	).(*peer).WithQueryRecorder(fromStoredQueryOutcomes(stored.QueryOutcomes))
 }
 
 // fromStoredAddress creates a net.TCPAddr from a storage.Address.

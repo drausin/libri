@@ -16,10 +16,10 @@ type PeerDistanceHeap interface {
 	// SafePush pushes a peer onto the heap and subsequently removes a peer if the number of
 	// peers exceeds the capacity. At capacity, these peer removals guarantee that the head
 	// always becomes closer to the target or stays the same with each push.
-	SafePush(peer.Peer) error
+	SafePush(peer.Peer)
 
 	// SafePushMany pushed an array of peers.
-	SafePushMany([]peer.Peer) error
+	SafePushMany([]peer.Peer)
 
 	// PeakDistance returns the distance from the root of the heap to the target.
 	PeakDistance() *big.Int
@@ -30,7 +30,7 @@ type PeerDistanceHeap interface {
 	// ToAPI creates an array of api.PeerAddresses from the peers in the heap.
 	ToAPI() []*api.PeerAddress
 
-	// Peers returns a slide of the peers in the heap.
+	// Peers returns the ordered peers in the heap, starting from the top.
 	Peers() []peer.Peer
 
 	// In returns whether a peer ID is in the heap
@@ -116,7 +116,12 @@ func (pdh *peerDistanceHeap) ToAPI() []*api.PeerAddress {
 }
 
 func (pdh *peerDistanceHeap) Peers() []peer.Peer {
-	return pdh.peers
+	ordered := make([]peer.Peer, pdh.Len())
+	for i := range ordered {
+		ordered[i] = heap.Pop(pdh).(peer.Peer)
+	}
+	pdh.SafePushMany(ordered)
+	return ordered
 }
 
 func (pdh *peerDistanceHeap) In(id id.ID) bool {
@@ -128,10 +133,10 @@ func (pdh *peerDistanceHeap) Distance(p peer.Peer) *big.Int {
 	return p.ID().Distance(pdh.target)
 }
 
-func (pdh *peerDistanceHeap) SafePush(p peer.Peer) error {
+func (pdh *peerDistanceHeap) SafePush(p peer.Peer) {
 	if pdh.In(p.(peer.Peer).ID()) {
 		// do nothing b/c it already exists
-		return nil
+		return
 	}
 
 	heap.Push(pdh, p)
@@ -144,17 +149,12 @@ func (pdh *peerDistanceHeap) SafePush(p peer.Peer) error {
 			heap.Pop(pdh)
 		}
 	}
-
-	return nil
 }
 
-func (pdh *peerDistanceHeap) SafePushMany(ps []peer.Peer) error {
+func (pdh *peerDistanceHeap) SafePushMany(ps []peer.Peer) {
 	for _, p := range ps {
-		if err := pdh.SafePush(p); err != nil {
-			return err
-		}
+		pdh.SafePush(p)
 	}
-	return nil
 }
 
 // Len returns the current number of peers.

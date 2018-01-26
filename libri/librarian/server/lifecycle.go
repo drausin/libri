@@ -4,13 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
+	_ "net/http/pprof" // pprof doc calls for black import
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
-
-	"net/http"
 
 	cbackoff "github.com/cenkalti/backoff"
 	cerrors "github.com/drausin/libri/libri/common/errors"
@@ -29,6 +29,7 @@ import (
 const (
 	postListenNotifyWait  = 100 * time.Millisecond
 	backoffMaxElapsedTime = 5 * time.Second
+	maxConcurrentStreams  = 128
 )
 
 const (
@@ -105,13 +106,13 @@ func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
 	for _, p := range intro.Result.Responded {
 		q, exists := l.rt.Get(p.ID())
 		if exists {
-			prevAddress = q.Connector().Address().String()
+			prevAddress = q.Address().String()
 		}
 		status := l.rt.Push(p)
 		fields := []zapcore.Field{
 			zap.Stringer("peer_id", p.ID()),
 			zap.Stringer("push_status", status),
-			zap.Stringer("address", p.Connector().Address()),
+			zap.Stringer("address", p.Address()),
 		}
 		if exists {
 			fields = append(fields, zap.String("prev_address", prevAddress))
@@ -132,8 +133,7 @@ func makeBootstrapPeers(bootstrapAddrs []*net.TCPAddr, selfPublicAddr fmt.String
 	for i, bootstrap := range bootstrapAddrs {
 		if bootstrap.String() != selfPublicAddr.String() {
 			dummyIDStr := fmt.Sprintf("bootstrap-seed%02d", i)
-			conn := peer.NewConnector(bootstrap)
-			peers = append(peers, peer.New(nil, dummyIDStr, conn))
+			peers = append(peers, peer.New(nil, dummyIDStr, bootstrap))
 			addrStrs = append(addrStrs, bootstrap.String())
 		}
 	}
@@ -144,6 +144,7 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 	s := grpc.NewServer(
 		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
 		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
+		grpc.MaxConcurrentStreams(maxConcurrentStreams),
 	)
 
 	api.RegisterLibrarianServer(s, l)
@@ -155,16 +156,9 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 	}
 	reflection.Register(s)
 
-	if l.config.ReportMetrics {
-		go func() {
-			if err := l.metrics.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				l.logger.Error("error serving Prometheus metrics", zap.Error(err))
-				cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
-			}
-		}()
-	}
-
 	// aux routines handle:
+	// - (maybe) start Prometheus metrics endpoint
+	// - (maybe) start pprof profiler endpoint
 	// - listening to SIGTERM (and friends) signals from outside world
 	// - sending publications to subscribed peers
 	// - document replication
@@ -208,6 +202,25 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 }
 
 func (l *Librarian) startAuxRoutines() {
+	if l.config.ReportMetrics {
+		go func() {
+			if err := l.metrics.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				l.logger.Error("error serving Prometheus metrics", zap.Error(err))
+				cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
+			}
+		}()
+	}
+
+	if l.config.Profile {
+		go func() {
+			profilerAddr := fmt.Sprintf(":%d", l.config.LocalProfilerPort)
+			if err := http.ListenAndServe(profilerAddr, nil); err != nil {
+				l.logger.Error("error serving profiler", zap.Error(err))
+				cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
+			}
+		}()
+	}
+
 	// handle stop stopSignals from outside world
 	stopSignals := make(chan os.Signal, 3)
 	signal.Notify(stopSignals, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
@@ -264,8 +277,8 @@ func (l *Librarian) Close() error {
 	}
 	cancel()
 
-	// disconnect from peers in routing table
-	if err := l.rt.Disconnect(); err != nil {
+	// close all client connections
+	if err := l.clients.CloseAll(); err != nil {
 		return err
 	}
 

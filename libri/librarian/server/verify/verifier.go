@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
@@ -29,27 +28,21 @@ type Verifier interface {
 }
 
 type verifier struct {
-	signer client.Signer
-
+	signer          client.Signer
 	verifierCreator client.VerifierCreator
-
-	rp ResponseProcessor
+	rp              ResponseProcessor
 }
 
 // NewVerifier returns a new Verifier with the given Querier and ResponseProcessor.
 func NewVerifier(s client.Signer, c client.VerifierCreator, rp ResponseProcessor) Verifier {
-	return &verifier{
-		signer:          s,
-		verifierCreator: c,
-		rp:              rp,
-	}
+	return &verifier{signer: s, verifierCreator: c, rp: rp}
 }
 
 // NewDefaultVerifier creates a new Verifier with default sub-object instantiations.
-func NewDefaultVerifier(signer client.Signer) Verifier {
+func NewDefaultVerifier(signer client.Signer, clients client.Pool) Verifier {
 	return NewVerifier(
 		signer,
-		client.NewVerifierCreator(),
+		client.NewVerifierCreator(clients),
 		NewResponseProcessor(peer.NewFromer()),
 	)
 }
@@ -65,8 +58,7 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 	peerResponses := make(chan *peerResponse, 1)
 
 	// add seeds and queue some of them for querying
-	err := verify.Result.Unqueried.SafePushMany(seeds)
-	cerrors.MaybePanic(err)
+	verify.Result.Unqueried.SafePushMany(seeds)
 
 	go func() {
 		for c := uint(0); c < verify.Params.Concurrency; c++ {
@@ -94,7 +86,7 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 			defer wg4.Done()
 			for next := range toQuery.Peers {
 				verify.AddQueried(next)
-				response, err := v.query(next.Connector(), verify)
+				response, err := v.query(next, verify)
 				peerResponses <- &peerResponse{
 					peer:     next,
 					response: response,
@@ -110,8 +102,8 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 	return verify.Result.FatalErr
 }
 
-func (v *verifier) query(pConn peer.Connector, verify *Verify) (*api.VerifyResponse, error) {
-	verifyClient, err := v.verifierCreator.Create(pConn)
+func (v *verifier) query(next peer.Peer, verify *Verify) (*api.VerifyResponse, error) {
+	lc, err := v.verifierCreator.Create(next.Address().String())
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +112,7 @@ func (v *verifier) query(pConn peer.Connector, verify *Verify) (*api.VerifyRespo
 	if err != nil {
 		return nil, err
 	}
-	retryVerifyClient := client.NewRetryVerifier(verifyClient, verifierVerifyRetryTimeout)
+	retryVerifyClient := client.NewRetryVerifier(lc, verifierVerifyRetryTimeout)
 	rp, err := retryVerifyClient.Verify(ctx, rq)
 	cancel()
 	if err != nil {
@@ -139,6 +131,9 @@ func getNextToQuery(verify *Verify) peer.Peer {
 	}
 	verify.mu.Lock()
 	defer verify.mu.Unlock()
+	if verify.Result.Unqueried.Len() == 0 {
+		return nil
+	}
 	next := heap.Pop(verify.Result.Unqueried).(peer.Peer)
 	if _, alreadyQueried := verify.Result.Queried[next.ID().String()]; alreadyQueried {
 		return nil
@@ -220,8 +215,7 @@ func (vrp *responseProcessor) Process(
 	if rp.Peers != nil {
 		// response has peer addresses close to key
 		v.wrapLock(func() {
-			err := v.Result.Closest.SafePush(from)
-			cerrors.MaybePanic(err) // should never happen
+			v.Result.Closest.SafePush(from)
 		})
 		if !v.Finished() {
 			// don't add peers to unqueried if the verify is already finished and we're not going

@@ -8,7 +8,6 @@ import (
 
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/drausin/libri/libri/librarian/server/peer"
 )
 
 // ErrEmptyLibrarianAddresses indicates that the librarian addresses is empty.
@@ -47,23 +46,26 @@ type SetBalancer interface {
 }
 
 type uniformRandBalancer struct {
-	rng   *rand.Rand
-	mu    sync.Mutex
-	addrs []*net.TCPAddr
-	conns []peer.Connector
+	rng     *rand.Rand
+	mu      sync.Mutex
+	addrs   []*net.TCPAddr
+	clients Pool
 }
 
 // NewUniformBalancer creates a new Balancer that selects the next client
 // uniformly at random.
-func NewUniformBalancer(libAddrs []*net.TCPAddr) (Balancer, error) {
-	conns := make([]peer.Connector, len(libAddrs))
+func NewUniformBalancer(libAddrs []*net.TCPAddr, rng *rand.Rand) (Balancer, error) {
+	conns, err := NewDefaultLRUPool()
+	if err != nil {
+		return nil, err
+	}
 	if len(libAddrs) == 0 {
 		return nil, ErrEmptyLibrarianAddresses
 	}
 	return &uniformRandBalancer{
-		rng:   rand.New(rand.NewSource(int64(len(conns)))),
-		conns: conns,
-		addrs: libAddrs,
+		rng:     rng,
+		clients: conns,
+		addrs:   libAddrs,
 	}, nil
 }
 
@@ -71,24 +73,12 @@ func NewUniformBalancer(libAddrs []*net.TCPAddr) (Balancer, error) {
 func (b *uniformRandBalancer) Next() (api.LibrarianClient, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	i := b.rng.Int31n(int32(len(b.conns)))
-	if b.conns[i] == nil {
-		// only init when needed
-		b.conns[i] = peer.NewConnector(b.addrs[i])
-	}
-	return b.conns[i].Connect()
+	i := b.rng.Int31n(int32(len(b.addrs)))
+	return b.clients.Get(b.addrs[i].String())
 }
 
 func (b *uniformRandBalancer) CloseAll() error {
-	for _, conn := range b.conns {
-		if conn != nil {
-			err := conn.Disconnect()
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+	return b.clients.CloseAll()
 }
 
 type uniformGetterBalancer struct {

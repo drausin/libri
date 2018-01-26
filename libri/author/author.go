@@ -3,6 +3,7 @@ package author
 import (
 	"crypto/ecdsa"
 	"io"
+	"math/rand"
 	"time"
 
 	"github.com/drausin/libri/libri/author/io/enc"
@@ -29,8 +30,8 @@ var (
 // Author is the main client of the libri network. It can upload, download, and share documents with
 // other author clients.
 type Author struct {
-	// selfID is ID of this author client
-	clientID ecid.ID
+	// ClientID is ID of this author client
+	ClientID ecid.ID
 
 	// Config holds the configuration parameters of the server
 	config *Config
@@ -102,7 +103,11 @@ func NewAuthor(
 		return nil, err
 	}
 	clientSL := storage.NewClientSL(rdb)
-	documentSL := storage.NewDocumentSLD(rdb)
+
+	// documentSL behaves more like a cache (i.e., everything is cleaned up), so ok for it to be
+	// complete in-memory
+	mdb := db.NewMemoryDB()
+	documentSL := storage.NewDocumentSLD(mdb)
 
 	// get client ID and immediately save it so subsequent restarts have it
 	clientID, err := loadOrCreateClientID(logger, clientSL)
@@ -116,7 +121,10 @@ func NewAuthor(
 		authorKeys:     authorKeys,
 		selfReaderKeys: selfReaderKeys,
 	}
-	librarians, err := client.NewUniformBalancer(config.LibrarianAddrs)
+
+	// use client ID for rng seed so search client queries librarians in different order
+	rng := rand.New(rand.NewSource(clientID.Int().Int64()))
+	librarians, err := client.NewUniformBalancer(config.LibrarianAddrs, rng)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +150,7 @@ func NewAuthor(
 	entryUnpacker := pack.NewEntryUnpacker(config.Print, mdEncDec, documentSL)
 
 	author := &Author{
-		clientID:         clientID,
+		ClientID:         clientID,
 		config:           config,
 		authorKeys:       authorKeys,
 		selfReaderKeys:   selfReaderKeys,
@@ -267,6 +275,13 @@ func (a *Author) Share(envKey id.ID, readerPub *ecdsa.PublicKey) (*api.Document,
 	if err != nil {
 		return nil, nil, a.logAndReturnErr("error receiving envelope", err)
 	}
+	return a.ShareEnvelope(env, readerPub)
+}
+
+// ShareEnvelope creates and uploads a new envelope with the given reader public key. The new
+// envelope has the same entry and entry encryption key as the envelope passed in.
+func (a *Author) ShareEnvelope(env *api.Envelope, readerPub *ecdsa.PublicKey) (
+	*api.Document, id.ID, error) {
 	eek, err := a.receiver.GetEEK(env)
 	if err != nil {
 		return nil, nil, a.logAndReturnErr("error getting EEK", err)
@@ -287,7 +302,7 @@ func (a *Author) Share(envKey id.ID, readerPub *ecdsa.PublicKey) (*api.Document,
 	}
 
 	a.logger.Info("successfully shared document",
-		sharedDocFields(envKey, entryKey, authKeyBs, readKeyBs)...,
+		sharedDocFields(sharedEnvKey, entryKey, authKeyBs, readKeyBs)...,
 	)
 	return sharedEnv, sharedEnvKey, nil
 }

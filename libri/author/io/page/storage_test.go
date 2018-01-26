@@ -44,25 +44,22 @@ func TestStorerLoader_Store_err(t *testing.T) {
 }
 
 func TestStorerLoader_Load_ok(t *testing.T) {
-	stored := make(map[string]*api.Document)
+	inner := &storage.TestDocSLD{Stored: make(map[string]*api.Document)}
 	rng := rand.New(rand.NewSource(0))
 	nPages := 4
 	pageIDs := make([]id.ID, nPages)
+	pageArray := make([]*api.Page, nPages)
 	for c := 0; c < nPages; c++ {
-		page := api.NewTestPage(rng)
-		pageID, err := api.GetKey(page)
+		pageArray[c] = api.NewTestPage(rng)
+		pageID, err := api.GetKey(pageArray[c])
 		assert.Nil(t, err)
 		pageIDs[c] = pageID
-		stored[pageID.String()] = &api.Document{
-			Contents: &api.Document_Page{Page: page},
-		}
+		inner.Store(pageID, &api.Document{
+			Contents: &api.Document_Page{Page: pageArray[c]},
+		})
 	}
 
-	sl := NewStorerLoader(
-		&storage.TestDocSLD{
-			Stored: stored,
-		},
-	)
+	sl := NewStorerLoader(inner)
 
 	pages, abort := make(chan *api.Page, nPages), make(chan struct{})
 	err := sl.Load(pageIDs, pages, abort)
@@ -75,11 +72,19 @@ func TestStorerLoader_Load_ok(t *testing.T) {
 		pageID, err := api.GetKey(page)
 		assert.Nil(t, err)
 		assert.Equal(t, pageIDs[i], pageID)
+
+		// check that page has been deleted from inner storage
+		storedPage, err := inner.Load(pageID)
+		assert.Nil(t, err)
+		assert.Nil(t, storedPage)
 		i++
 	}
 	assert.Equal(t, nPages, i)
 
 	// check abort channel terminates load
+	inner.Store(pageIDs[0], &api.Document{
+		Contents: &api.Document_Page{Page: pageArray[0]},
+	})
 	pages, abort = make(chan *api.Page, nPages), make(chan struct{})
 	close(abort)
 	close(pages)

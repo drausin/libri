@@ -1,10 +1,18 @@
-package server
+package logging
 
 import (
 	"github.com/drausin/libri/libri/common/errors"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
+
+// GetLogLevel returns a new log level instance.
+func GetLogLevel(logLevelStr string) zapcore.Level {
+	var logLevel zapcore.Level
+	err := logLevel.Set(logLevelStr)
+	errors.MaybePanic(err)
+	return logLevel
+}
 
 // NewDevLogger creates a new logger with a given log level for use in development (i.e., not
 // production).

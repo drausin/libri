@@ -9,7 +9,6 @@ import (
 )
 
 var (
-
 	// ErrUnexpectedDocContent indicates that a document is not of the expected content type
 	// (e.g., an Entry when expecing a Page).
 	ErrUnexpectedDocContent = errors.New("unexpected document content")
@@ -82,6 +81,9 @@ func (s *storerLoader) Load(keys []id.ID, pages chan *api.Page, abort chan struc
 			return nil
 		default:
 			pages <- docPage.Page
+			if err := s.inner.Delete(key); err != nil { // no need to keep page around
+				return err
+			}
 		}
 	}
 	return nil

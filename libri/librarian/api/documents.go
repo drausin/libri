@@ -14,8 +14,8 @@ import (
 // field lengths
 const (
 	// ECPubKeyLength is the length of a 256-bit ECDSA public key point serialized
-	// (uncompressed) to a byte string.
-	ECPubKeyLength = 65
+	// (compressed) to a byte string.
+	ECPubKeyLength = 33
 
 	// DocumentKeyLength is the byte length a document's key.
 	DocumentKeyLength = id.Length
@@ -62,6 +62,30 @@ var (
 	// ErrUnexpectedKey indicates when a key does not match the expected key (from GetKey)
 	// for a given value.
 	ErrUnexpectedKey = errors.New("unexpected key for value")
+
+	// ErrMissingDocument indicates when a document is unexpectedly missing.
+	ErrMissingDocument = errors.New("missing document")
+
+	// ErrMissingEnvelope indicates when an envelope is unexpectedly missing.
+	ErrMissingEnvelope = errors.New("missing envelope")
+
+	// ErrMissingEntry indicates when an entry is unexpectedly missing.
+	ErrMissingEntry = errors.New("missing entry")
+
+	// ErrMissingPage indicates when a page is unexpectedly missing.
+	ErrMissingPage = errors.New("missing page")
+
+	// ErrZeroCreatedTime indicates when an entry's CreatedTime field is zero.
+	ErrZeroCreatedTime = errors.New("created time is zero")
+
+	// ErrDiffAuthorPubs indicates when the author public keys of an entry and its page differ.
+	ErrDiffAuthorPubs = errors.New("page and entry have different author public keys")
+
+	// ErrMissingPageKeys indicates when the PageKeys of an entry are unexpectedly missing.
+	ErrMissingPageKeys = errors.New("missing page keys")
+
+	// ErrEmptyPageKeys indicates when the PageKeys of an entry are unexpectedly zero-length.
+	ErrEmptyPageKeys = errors.New("empty page keys")
 )
 
 // GetKey calculates the key from the has of the proto.Message.
@@ -125,7 +149,7 @@ func GetPageDocument(page *Page) (*Document, id.ID, error) {
 // lengths.
 func ValidateDocument(d *Document) error {
 	if d == nil {
-		return errors.New("Document may not be nil")
+		return ErrMissingDocument
 	}
 	switch c := d.Contents.(type) {
 	case *Document_Envelope:
@@ -142,7 +166,7 @@ func ValidateDocument(d *Document) error {
 // lengths.
 func ValidateEnvelope(e *Envelope) error {
 	if e == nil {
-		return errors.New("Envelope may not be nil")
+		return ErrMissingEnvelope
 	}
 	if err := ValidateBytes(e.EntryKey, DocumentKeyLength, "EntryKey"); err != nil {
 		return err
@@ -153,7 +177,8 @@ func ValidateEnvelope(e *Envelope) error {
 	if err := ValidatePublicKey(e.ReaderPublicKey); err != nil {
 		return err
 	}
-	if err := ValidateBytes(e.EekCiphertext, EEKCiphertextLength, "EntryEncryptionKeys"); err != nil {
+	if err := ValidateBytes(e.EekCiphertext, EEKCiphertextLength, "EntryEncryptionKeys");
+	err != nil {
 		return err
 	}
 	if err := ValidateHMAC256(e.EekCiphertextMac); err != nil {
@@ -166,13 +191,13 @@ func ValidateEnvelope(e *Envelope) error {
 // lengths.
 func ValidateEntry(e *Entry) error {
 	if e == nil {
-		return errors.New("Entry may not be nil")
+		return ErrMissingEntry
 	}
 	if err := ValidatePublicKey(e.AuthorPublicKey); err != nil {
 		return err
 	}
 	if e.CreatedTime == 0 {
-		return errors.New("CreateTime must be populated")
+		return ErrZeroCreatedTime
 	}
 	if err := ValidateHMAC256(e.MetadataCiphertextMac); err != nil {
 		return err
@@ -189,7 +214,7 @@ func ValidateEntry(e *Entry) error {
 func validateEntryContents(e *Entry) error {
 	if e.Page != nil {
 		if !bytes.Equal(e.AuthorPublicKey, e.Page.AuthorPublicKey) {
-			return errors.New("page author public key must be the same as Entry's")
+			return ErrDiffAuthorPubs
 		}
 		return ValidatePage(e.Page)
 	}
@@ -202,7 +227,7 @@ func validateEntryContents(e *Entry) error {
 // ValidatePage checks that all fields of a Page are populated and have the expected lengths.
 func ValidatePage(p *Page) error {
 	if p == nil {
-		return errors.New("page may not be nil")
+		return ErrMissingPage
 	}
 	if err := ValidatePublicKey(p.AuthorPublicKey); err != nil {
 		return err
@@ -221,10 +246,10 @@ func ValidatePage(p *Page) error {
 // lengths.
 func ValidatePageKeys(pk [][]byte) error {
 	if pk == nil {
-		return errors.New("PageKeys may not be nil")
+		return ErrMissingPageKeys
 	}
 	if len(pk) == 0 {
-		return errors.New("PageKeys.Keys must have length > 0")
+		return ErrEmptyPageKeys
 	}
 	for i, k := range pk {
 		if err := ValidateNotEmpty(k, fmt.Sprintf("key %d", i)); err != nil {

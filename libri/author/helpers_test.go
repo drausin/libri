@@ -1,13 +1,8 @@
 package author
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"math/rand"
 	"testing"
-
 	"errors"
-
 	"net"
 
 	"github.com/drausin/libri/libri/author/io/enc"
@@ -43,8 +38,6 @@ func TestEnvelopeKeySampler_Sample_ok(t *testing.T) {
 }
 
 func TestEnvelopeKeySampler_Sample_err(t *testing.T) {
-	rng := rand.New(rand.NewSource(0))
-
 	// authorKeys.Sample() error should bubble up
 	s1 := &envelopeKeySamplerImpl{
 		authorKeys:     &fixedKeychain{sampleErr: errors.New("some Sample error")},
@@ -69,23 +62,7 @@ func TestEnvelopeKeySampler_Sample_err(t *testing.T) {
 	assert.Nil(t, kek)
 	assert.Nil(t, eek)
 
-	// NewKEK() error should bubble up
-	offCurvePriv, err := ecdsa.GenerateKey(elliptic.P256(), rng)
-	assert.Nil(t, err)
-	s3 := &envelopeKeySamplerImpl{
-		authorKeys: &fixedKeychain{ // will cause error in NewKEK
-			sampleID: ecid.FromPrivateKey(offCurvePriv),
-		},
-		selfReaderKeys: keychain.New(3),
-	}
-	aPB, srPB, kek, eek, err = s3.sample()
-	assert.NotNil(t, err)
-	assert.Nil(t, aPB)
-	assert.Nil(t, srPB)
-	assert.Nil(t, kek)
-	assert.Nil(t, eek)
-
-	// too hard/annoying to create error in NewEEK()
+	// too hard/annoying to create error in NewKEK() and NewEEK()
 }
 
 func TestGetLibrarianHealthClients(t *testing.T) {

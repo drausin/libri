@@ -269,8 +269,8 @@ func getLoggerValues(pub *api.Publication) []zapcore.Field {
 	return []zapcore.Field{
 		zap.String("entry_key", fmt.Sprintf("%032x", pub.EntryKey)),
 		zap.String("envelope_key", fmt.Sprintf("%032x", pub.EnvelopeKey)),
-		zap.String("author_public_key", fmt.Sprintf("%065x", pub.AuthorPublicKey)),
-		zap.String("reader_public_key", fmt.Sprintf("%065x", pub.ReaderPublicKey)),
+		zap.String("author_public_key", fmt.Sprintf("%x", pub.AuthorPublicKey)),
+		zap.String("reader_public_key", fmt.Sprintf("%x", pub.ReaderPublicKey)),
 	}
 }
 

@@ -26,7 +26,8 @@ func TestStartLibrarianCmd_err(t *testing.T) {
 
 func TestGetLibrarianConfig_ok(t *testing.T) {
 	publicIP := "1.2.3.4"
-	localPort, localMetricsPort, publicPort := 1234, 1235, 6789
+	localPort, localMetricsPort, localProfilerPort, publicPort := 1234, 1235, 1236, 6789
+	profile := true
 	publicName := "some name"
 	dataDir := "some/data/dir"
 	logLevel := "debug"
@@ -37,6 +38,8 @@ func TestGetLibrarianConfig_ok(t *testing.T) {
 	viper.Set(publicHostFlag, publicIP)
 	viper.Set(localPortFlag, localPort)
 	viper.Set(localMetricsPortFlag, localMetricsPort)
+	viper.Set(localProfilerPortFlag, localProfilerPort)
+	viper.Set(profileFlag, profile)
 	viper.Set(publicPortFlag, publicPort)
 	viper.Set(publicNameFlag, publicName)
 	viper.Set(dataDirFlag, dataDir)
@@ -49,6 +52,8 @@ func TestGetLibrarianConfig_ok(t *testing.T) {
 	assert.NotNil(t, logger)
 	assert.Equal(t, localPort, config.LocalPort)
 	assert.Equal(t, localMetricsPort, config.LocalMetricsPort)
+	assert.Equal(t, localProfilerPort, config.LocalProfilerPort)
+	assert.Equal(t, profile, config.Profile)
 	assert.Equal(t, fmt.Sprintf("%s:%d", publicIP, publicPort), config.PublicAddr.String())
 	assert.Equal(t, publicName, config.PublicName)
 	assert.Equal(t, dataDir, config.DataDir)

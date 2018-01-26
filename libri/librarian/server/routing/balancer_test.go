@@ -2,9 +2,10 @@ package routing
 
 import (
 	"math/rand"
-	"net"
 	"testing"
 	"time"
+
+	"net"
 
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -12,20 +13,21 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestTableUniqueBalancer_Next_ok(t *testing.T) {
+func TestTableSetBalancer_Next_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	origLC := api.NewLibrarianClient(nil)
+	clients := &fixedPool{lc: origLC, getAddresses: make(map[string]struct{})}
 	rt := NewEmpty(id.NewPseudoRandom(rng), NewDefaultParameters())
 	rt.Push(
 		peer.New(
 			id.NewPseudoRandom(rng),
 			"test-peer-1",
-			&fixedConnector{connectLC: origLC},
+			&net.TCPAddr{IP: net.ParseIP("1.2.3.4"), Port: 8080},
 		),
 	)
-	csb := NewClientBalancer(rt)
+	csb := NewClientBalancer(rt, clients)
 
-	// check Next() returns inner LibrarianClient
+	// check AddNext() returns inner LibrarianClient
 	lc, peerID, err := csb.AddNext()
 	assert.Nil(t, err)
 	assert.NotNil(t, lc)
@@ -43,7 +45,7 @@ func TestTableUniqueBalancer_Next_ok(t *testing.T) {
 		peer.New(
 			id.NewPseudoRandom(rng),
 			"test-peer-2",
-			&fixedConnector{connectLC: origLC},
+			&net.TCPAddr{IP: net.ParseIP("1.2.3.4"), Port: 8081},
 		),
 	)
 	lc, peerID, err = csb.AddNext()
@@ -52,10 +54,11 @@ func TestTableUniqueBalancer_Next_ok(t *testing.T) {
 	assert.NotNil(t, peerID)
 }
 
-func TestTableUniqueBalancer_Next_err(t *testing.T) {
+func TestTableSetBalancer_Next_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	rt := NewEmpty(id.NewPseudoRandom(rng), NewDefaultParameters())
-	cb := NewClientBalancer(rt)
+	clients := &fixedPool{lc: api.NewLibrarianClient(nil), getAddresses: make(map[string]struct{})}
+	cb := NewClientBalancer(rt, clients)
 
 	// check empty RT throws error
 	tableSampleRetryWait = 10 * time.Millisecond // just for test
@@ -68,9 +71,7 @@ func TestTableUniqueBalancer_Next_err(t *testing.T) {
 		peer.New(
 			id.NewPseudoRandom(rng),
 			"test-peer",
-			&fixedConnector{
-				connectLC: api.NewLibrarianClient(nil),
-			},
+			&net.TCPAddr{IP: net.ParseIP("1.2.3.4"), Port: 8080},
 		),
 	)
 	lc, peerID, err = cb.AddNext()
@@ -79,18 +80,19 @@ func TestTableUniqueBalancer_Next_err(t *testing.T) {
 	assert.NotNil(t, peerID)
 }
 
-func TestRoutingTableBalancer_Remove(t *testing.T) {
+func TestTableSetBalancer_Remove(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	lc1 := api.NewLibrarianClient(nil)
+	clients := &fixedPool{lc: lc1, getAddresses: make(map[string]struct{})}
 	rt := NewEmpty(id.NewPseudoRandom(rng), NewDefaultParameters())
 	rt.Push(
 		peer.New(
 			id.NewPseudoRandom(rng),
 			"test-peer-1",
-			&fixedConnector{connectLC: lc1},
+			&net.TCPAddr{IP: net.ParseIP("1.2.3.4"), Port: 8080},
 		),
 	)
-	csb := NewClientBalancer(rt)
+	csb := NewClientBalancer(rt, clients)
 
 	lc2, peerID, err := csb.AddNext()
 	assert.Nil(t, err)
@@ -108,21 +110,23 @@ func TestRoutingTableBalancer_Remove(t *testing.T) {
 	assert.Equal(t, ErrClientMissingFromSet, err)
 }
 
-type fixedConnector struct {
-	connectLC  api.LibrarianClient
-	connectErr error
+type fixedPool struct {
+	lc           api.LibrarianClient
+	getErr       error
+	getAddresses map[string]struct{}
+	closed       bool
 }
 
-func (fc *fixedConnector) Connect() (api.LibrarianClient, error) {
-	return fc.connectLC, fc.connectErr
+func (fp *fixedPool) Get(address string) (api.LibrarianClient, error) {
+	fp.getAddresses[address] = struct{}{}
+	return fp.lc, fp.getErr
 }
 
-// Disconnect closes the connection with the peer.
-func (fc *fixedConnector) Disconnect() error {
+func (fp *fixedPool) CloseAll() error {
+	fp.closed = true
 	return nil
 }
 
-// Address returns the TCP address used by the Connector.
-func (fc *fixedConnector) Address() *net.TCPAddr {
-	return nil
+func (fp *fixedPool) Len() int {
+	return 1
 }

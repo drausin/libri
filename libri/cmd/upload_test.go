@@ -44,7 +44,7 @@ func TestFileUploader_upload_ok(t *testing.T) {
 	u := &fileUploaderImpl{
 		ag: &fixedAuthorGetter{
 			author: nil, // ok since we're passing it into a mocked method anyway
-			logger: server.NewDevInfoLogger(),
+			logger: logging.NewDevInfoLogger(),
 		},
 		au:  &fixedAuthorUploader{},
 		mtg: &fixedMediaTypeGetter{}, // ok that mediaType is nil since passing to mock
@@ -114,7 +114,7 @@ func TestFileUploader_upload_err(t *testing.T) {
 	u6 := &fileUploaderImpl{
 		ag: &fixedAuthorGetter{
 			author: nil, // ok since we're passing it into a mocked method anyway
-			logger: server.NewDevInfoLogger(),
+			logger: logging.NewDevInfoLogger(),
 		},
 		au:  &fixedAuthorUploader{err: errors.New("some upload error")},
 		mtg: &fixedMediaTypeGetter{}, // ok that mediaType is nil since passing to mock
@@ -183,7 +183,7 @@ func TestKeychainsGetter_get_ok(t *testing.T) {
 	keychainDir, err := ioutil.TempDir("", "test-keychains")
 	defer func() { cerrors.MaybePanic(os.RemoveAll(keychainDir)) }()
 	assert.Nil(t, err)
-	logger := server.NewDevInfoLogger()
+	logger := logging.NewDevInfoLogger()
 	passphrase := "some test passphrase"
 	err = author.CreateKeychains(logger, keychainDir, passphrase,
 		veryLightScryptN, veryLightScryptP)
@@ -212,7 +212,7 @@ func TestKeychainsGetter_get_err(t *testing.T) {
 	keychainDir, err := ioutil.TempDir("", "test-keychains")
 	defer func() { cerrors.MaybePanic(os.RemoveAll(keychainDir)) }()
 	assert.Nil(t, err)
-	logger := server.NewDevInfoLogger()
+	logger := logging.NewDevInfoLogger()
 	passphrase := "some test passphrase"
 
 	// should error on missing keychainDirFlag

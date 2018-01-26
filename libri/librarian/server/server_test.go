@@ -111,7 +111,7 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 	clientImpl := peer.New(
 		clientID.ID(),
 		"client",
-		peer.NewTestConnector(clientPeerIdx),
+		peer.NewTestPublicAddr(clientPeerIdx),
 	)
 	clientImpl2, exists := lib.rt.Get(clientImpl.ID())
 	assert.False(t, exists)
@@ -163,7 +163,7 @@ func TestLibrarian_Introduce_peerIDErr(t *testing.T) {
 	client1 := peer.New(
 		clientID.ID(),
 		"client",
-		peer.NewTestConnector(clientPeerIdx),
+		peer.NewTestPublicAddr(clientPeerIdx),
 	)
 	client2, exists := lib.rt.Get(client1.ID())
 	assert.Nil(t, client2)
@@ -606,8 +606,7 @@ func TestLibrarian_Get_FoundClosestPeers(t *testing.T) {
 	searchParams := search.NewDefaultParameters()
 	foundClosestPeersResult := search.NewInitialResult(key, searchParams)
 	dummyClosest := peer.NewTestPeers(rng, int(searchParams.NClosestResponses))
-	err := foundClosestPeersResult.Closest.SafePushMany(dummyClosest)
-	assert.Nil(t, err)
+	foundClosestPeersResult.Closest.SafePushMany(dummyClosest)
 
 	// create librarian and request
 	l := newGetLibrarian(rng, foundClosestPeersResult, nil)

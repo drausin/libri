@@ -35,10 +35,10 @@ func NewIntroducer(s client.Signer, c client.IntroducerCreator, rp ResponseProce
 
 // NewDefaultIntroducer creates a new Introducer with the given signer and default querier and
 // response processor.
-func NewDefaultIntroducer(s client.Signer, selfID id.ID) Introducer {
+func NewDefaultIntroducer(s client.Signer, selfID id.ID, clients client.Pool) Introducer {
 	return NewIntroducer(
 		s,
-		client.NewIntroducerCreator(),
+		client.NewIntroducerCreator(clients),
 		NewResponseProcessor(peer.NewFromer(), selfID),
 	)
 }
@@ -75,7 +75,7 @@ func (i *introducer) introduceWork(intro *Introduction, wg *sync.WaitGroup) {
 		}
 
 		// do the query
-		response, err := i.query(next.Connector(), intro)
+		response, err := i.query(next, intro)
 		if err != nil {
 			// if we had an issue querying, skip to next peer
 			intro.wrapLock(func() {
@@ -95,17 +95,11 @@ func (i *introducer) introduceWork(intro *Introduction, wg *sync.WaitGroup) {
 			intro.wrapLock(func() { intro.Result.FatalErr = err })
 			return
 		}
-		err = next.Connector().Disconnect()
-		if err != nil {
-			intro.wrapLock(func() { intro.Result.FatalErr = err })
-			return
-		}
 	}
 }
 
-func (i *introducer) query(pConn peer.Connector, intro *Introduction) (*api.IntroduceResponse,
-	error) {
-	introClient, err := i.introducerCreator.Create(pConn)
+func (i *introducer) query(next peer.Peer, intro *Introduction) (*api.IntroduceResponse, error) {
+	lc, err := i.introducerCreator.Create(next.Address().String())
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +108,7 @@ func (i *introducer) query(pConn peer.Connector, intro *Introduction) (*api.Intr
 	if err != nil {
 		return nil, err
 	}
-	rp, err := introClient.Introduce(ctx, rq)
+	rp, err := lc.Introduce(ctx, rq)
 	cancel()
 	if err != nil {
 		return nil, err
