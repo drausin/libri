@@ -25,7 +25,7 @@ func TestAuthorGetter_get_ok(t *testing.T) {
 		WithDataDir(keychainDir).
 		WithDefaultDBDir().
 		WithDefaultKeychainDir()
-	logger1 := server.NewDevInfoLogger()
+	logger1 := logging.NewDevInfoLogger()
 
 	ag := authorGetterImpl{
 		acg: &fixedAuthorConfigGetter{

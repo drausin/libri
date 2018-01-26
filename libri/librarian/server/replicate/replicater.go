@@ -186,6 +186,8 @@ func (r *replicator) verify() {
 		}()
 		select {
 		case <-r.stop:
+			close(r.stopped)
+			return
 		case <-pause:
 		}
 
