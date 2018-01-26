@@ -1,4 +1,4 @@
-package server
+package logging
 
 import (
 	"github.com/drausin/libri/libri/common/errors"

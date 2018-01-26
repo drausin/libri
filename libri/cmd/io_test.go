@@ -54,14 +54,14 @@ func TestIOTester_test_ok(t *testing.T) {
 		au: aud,
 		ad: aud,
 	}
-	logger := server.NewDevInfoLogger()
+	logger := logging.NewDevInfoLogger()
 	err := iot.test(nil, logger)
 	assert.Nil(t, err)
 }
 
 func TestIOTester_test_err(t *testing.T) {
 	viper.Set(nEntriesFlag, 1)
-	logger := server.NewDevInfoLogger()
+	logger := logging.NewDevInfoLogger()
 
 	iot1 := &ioTesterImpl{
 		au: &fixedAuthorUploaderDownloader{uploadErr: errors.New("some upload err")},
