@@ -133,13 +133,12 @@ var minikubeCmd = &cobra.Command{
 		config := initFlags
 		checkInitMinikubeParams(config)
 
-		maybeMkdir(clusterDir)
+		maybeMkdir(config.ClusterDir)
 		// TF infra can't be applied to minikube, so no main.tf is written
-		writeVarsTFFile(config, clusterDir, tfMinikubeTemplateDir)
-		writePropsFile(config, clusterDir, tfMinikubeTemplateDir)
-		tfCommand(clusterDir, "init")
+		writeVarsTFFile(config, config.ClusterDir, tfMinikubeTemplateDir)
+		writePropsFile(config, config.ClusterDir, tfMinikubeTemplateDir)
 
-		fmt.Printf("\n%s successfully initialized in %s\n", config.ClusterName, clusterDir)
+		fmt.Printf("%s successfully initialized in %s\n", config.ClusterName, config.ClusterDir)
 	},
 }
 
@@ -331,10 +330,13 @@ func writeKubeConfig(clusterDir string) {
 		Librarians:          make([]LibrarianConfig, tfvars[tfNumLibrarians].(int)),
 		LibrarianCPULimit:   tfvars[tfLibrarianCPULimit].(string),
 		LibrarianRAMLimit:   tfvars[tfLibrarianRAMLimit].(string),
-		LibrarianDiskSizeGB: tfvars[tfLibrarianDiskSizeGB].(int),
 		LocalCluster:        tfvars[tfClusterHost] == tfClusterHostMinikube,
 		GCPCluster:          tfvars[tfClusterHost] == tfClusterHostGCP,
 	}
+	if value, in := tfvars[tfLibrarianDiskSizeGB]; in {
+		config.LibrarianDiskSizeGB = value.(int)
+	}
+
 	for i := range config.Librarians {
 		config.Librarians[i].PublicPort = tfvars[tfPublicPortStart].(int) + i
 	}

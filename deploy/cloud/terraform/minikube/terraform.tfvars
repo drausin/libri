@@ -2,7 +2,7 @@ cluster_host = "minikube"
 
 # librarians
 num_librarians = 4
-librarian_libri_version = "snapshot"
+librarian_libri_version = "0.3.0"
 librarian_cpu_limit = "50m"
 librarian_ram_limit = "300M"
 
