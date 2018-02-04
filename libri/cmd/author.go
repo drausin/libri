@@ -12,7 +12,7 @@ import (
 	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
-	"github.com/drausin/libri/libri/librarian/server"
+	"github.com/drausin/libri/libri/common/parse"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -92,7 +92,7 @@ func (*authorConfigGetterImpl) get(librariansFlag string) (*author.Config, *zap.
 	config.Publish.GetTimeout = timeout
 
 	logger := clogging.NewDevLogger(config.LogLevel)
-	librarianNetAddrs, err := server.ParseAddrs(viper.GetStringSlice(librariansFlag))
+	librarianNetAddrs, err := parse.Addrs(viper.GetStringSlice(librariansFlag))
 	if err != nil {
 		logger.Error("unable to parse librarian address", zap.Error(err))
 		return nil, logger, err

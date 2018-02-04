@@ -22,6 +22,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+	"github.com/drausin/libri/libri/common/parse"
 )
 
 func TestStart_ok(t *testing.T) {
@@ -86,7 +87,7 @@ func TestStart_bootstrapPeersErr(t *testing.T) {
 	config.WithBootstrapAddrs(make([]*net.TCPAddr, 0))
 
 	// configure bootstrap peer to be non-existent peer
-	publicAddr, err := ParseAddr(DefaultIP, DefaultPort-1)
+	publicAddr, err := parse.Addr(DefaultIP, DefaultPort-1)
 	assert.Nil(t, err)
 	config.BootstrapAddrs = append(config.BootstrapAddrs, publicAddr)
 
@@ -170,7 +171,7 @@ func TestLibrarian_bootstrapPeers_noResponsesErr(t *testing.T) {
 	// define out fixed introduction result with no responses
 	fixedResult := introduce.NewInitialResult()
 
-	publicAddr, err := ParseAddr(DefaultIP, DefaultPort+1)
+	publicAddr, err := parse.Addr(DefaultIP, DefaultPort+1)
 	assert.Nil(t, err)
 	l := &Librarian{
 		config: NewDefaultConfig().WithPublicAddr(publicAddr),
