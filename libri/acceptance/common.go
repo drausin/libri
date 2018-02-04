@@ -32,6 +32,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"github.com/drausin/libri/libri/common/parse"
 )
 
 // nolint: megacheck
@@ -371,7 +372,7 @@ func newConfig(
 	subscribeToParams := subscribe.NewDefaultToParameters()
 	subscribeToParams.FPRate = 0.9
 
-	localAddr, err := server.ParseAddr("localhost", port)
+	localAddr, err := parse.Addr("localhost", port)
 	errors.MaybePanic(err) // should never happen
 	peerDataDir := filepath.Join(dataDir, server.NameFromAddr(localAddr))
 

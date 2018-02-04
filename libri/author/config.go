@@ -8,9 +8,9 @@ import (
 	"github.com/drausin/libri/libri/author/io/print"
 	"github.com/drausin/libri/libri/author/io/publish"
 	"github.com/drausin/libri/libri/common/errors"
-	"github.com/drausin/libri/libri/librarian/server"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"github.com/drausin/libri/libri/common/parse"
 )
 
 const (
@@ -136,7 +136,7 @@ func (c *Config) WithLibrarianAddrs(librarianAddrs []*net.TCPAddr) *Config {
 // WithDefaultLibrarianAddrs sets the librarian addresses to a single address of the default IP
 // and port.
 func (c *Config) WithDefaultLibrarianAddrs() *Config {
-	addr, err := server.ParseAddr(DefaultLibrarianIP, DefaultLibrarianPort)
+	addr, err := parse.Addr(DefaultLibrarianIP, DefaultLibrarianPort)
 	errors.MaybePanic(err) // should never happen
 	c.LibrarianAddrs = []*net.TCPAddr{addr}
 	return c

@@ -15,6 +15,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/store"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"github.com/drausin/libri/libri/common/parse"
 )
 
 const (
@@ -184,7 +185,7 @@ func (c *Config) WithPublicAddr(publicAddr *net.TCPAddr) *Config {
 // WithDefaultPublicAddr sets the public address to the local address, useful when just running
 // a cluster locally.
 func (c *Config) WithDefaultPublicAddr() *Config {
-	addr, err := ParseAddr(DefaultIP, c.LocalPort)
+	addr, err := parse.Addr(DefaultIP, c.LocalPort)
 	errors.MaybePanic(err) // should never happen with default
 	c.PublicAddr = addr
 	return c
@@ -253,7 +254,7 @@ func (c *Config) WithBootstrapAddrs(bootstrapAddrs []*net.TCPAddr) *Config {
 // and port.
 func (c *Config) WithDefaultBootstrapAddrs() *Config {
 	// default is itself
-	addr, err := ParseAddr(DefaultIP, DefaultPort)
+	addr, err := parse.Addr(DefaultIP, DefaultPort)
 	errors.MaybePanic(err) // should never happen with default
 	c.BootstrapAddrs = []*net.TCPAddr{addr}
 	return c
@@ -402,24 +403,6 @@ func (c *Config) isBootstrap() bool {
 		}
 	}
 	return false
-}
-
-// ParseAddr parses a net.TCPAddr from a host address and port.
-func ParseAddr(host string, port int) (*net.TCPAddr, error) {
-	return net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", host, port))
-}
-
-// ParseAddrs parses an array of net.TCPAddrs from an array of IPv4:Port address strings.
-func ParseAddrs(addrs []string) ([]*net.TCPAddr, error) {
-	netAddrs := make([]*net.TCPAddr, len(addrs))
-	for i, a := range addrs {
-		netAddr, err := net.ResolveTCPAddr("tcp4", a)
-		if err != nil {
-			return nil, err
-		}
-		netAddrs[i] = netAddr
-	}
-	return netAddrs, nil
 }
 
 // NameFromAddr gives the local name (on the host) of the node using the NodeIndex

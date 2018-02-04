@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
+	"github.com/drausin/libri/libri/common/parse"
 )
 
 const (
@@ -83,7 +84,7 @@ func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
 	localMetricsPort := viper.GetInt(localMetricsPortFlag)
 	localProfilerPort := viper.GetInt(localProfilerPortFlag)
 	profile := viper.GetBool(profileFlag)
-	publicAddr, err := server.ParseAddr(
+	publicAddr, err := parse.Addr(
 		viper.GetString(publicHostFlag),
 		viper.GetInt(publicPortFlag),
 	)
@@ -104,7 +105,7 @@ func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
 	config.SubscribeTo.NSubscriptions = uint32(viper.GetInt(nSubscriptionsFlag))
 	config.SubscribeTo.FPRate = float32(viper.GetFloat64(fpRateFlag))
 
-	bootstrapNetAddrs, err := server.ParseAddrs(viper.GetStringSlice(bootstrapsFlag))
+	bootstrapNetAddrs, err := parse.Addrs(viper.GetStringSlice(bootstrapsFlag))
 	if err != nil {
 		logger.Error("unable to parse bootstrap peer address", zap.Error(err))
 		return nil, nil, err

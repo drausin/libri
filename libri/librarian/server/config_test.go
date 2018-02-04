@@ -11,6 +11,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/store"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap/zapcore"
+	"github.com/drausin/libri/libri/common/parse"
 )
 
 func TestDefaultConfig(t *testing.T) {
@@ -59,7 +60,7 @@ func TestConfig_WithPublicAddr(t *testing.T) {
 	c1, c2, c3 := &Config{}, &Config{}, &Config{}
 	c1.WithDefaultPublicAddr()
 	assert.Equal(t, c1.PublicAddr, c2.WithPublicAddr(nil).PublicAddr)
-	c3Addr, err := ParseAddr("localhost", 1234)
+	c3Addr, err := parse.Addr("localhost", 1234)
 	assert.Nil(t, err)
 	assert.NotEqual(t,
 		c1.PublicAddr,
@@ -92,7 +93,7 @@ func TestConfig_WithBootstrapAddrs(t *testing.T) {
 	c1, c2, c3 := &Config{}, &Config{}, &Config{}
 	c1.WithDefaultBootstrapAddrs()
 	assert.Equal(t, c1.BootstrapAddrs, c2.WithBootstrapAddrs(nil).BootstrapAddrs)
-	c3Addr, err := ParseAddr("localhost", 1234)
+	c3Addr, err := parse.Addr("localhost", 1234)
 	assert.Nil(t, err)
 	assert.NotEqual(t,
 		c1.BootstrapAddrs,
@@ -194,60 +195,8 @@ func TestConfig_isBootstrap(t *testing.T) {
 	config := NewDefaultConfig()
 	assert.True(t, config.isBootstrap())
 
-	addr, err := ParseAddr("localhost", DefaultPort+1)
+	addr, err := parse.Addr("localhost", DefaultPort+1)
 	assert.Nil(t, err)
 	config.WithPublicAddr(addr)
 	assert.False(t, config.isBootstrap())
-}
-
-func TestParseAddr(t *testing.T) {
-	cases := []struct {
-		ip       string
-		port     int
-		expected *net.TCPAddr
-	}{
-		{"192.168.1.1", 20100, &net.TCPAddr{IP: net.ParseIP("192.168.1.1"), Port: 20100}},
-		{"192.168.1.1", 11001, &net.TCPAddr{IP: net.ParseIP("192.168.1.1"), Port: 11001}},
-		{"localhost", 20100, &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 20100}},
-	}
-	for _, c := range cases {
-		actual, err := ParseAddr(c.ip, c.port)
-		assert.Nil(t, err)
-		assert.Equal(t, c.expected, actual)
-	}
-}
-
-func TestParseAddrs_ok(t *testing.T) {
-	addrs := []string{
-		"192.168.1.1:20100",
-		"192.168.1.1:11001",
-		"localhost:20100",
-	}
-	expectedNetAddrs := []*net.TCPAddr{
-		{IP: net.ParseIP("192.168.1.1"), Port: 20100},
-		{IP: net.ParseIP("192.168.1.1"), Port: 11001},
-		{IP: net.ParseIP("127.0.0.1"), Port: 20100},
-	}
-	actualNetAddrs, err := ParseAddrs(addrs)
-
-	assert.Nil(t, err)
-	for i, a := range actualNetAddrs {
-		assert.Equal(t, expectedNetAddrs[i], a)
-	}
-}
-
-func TestParseAddrs_err(t *testing.T) {
-	addrs := []string{
-		"192.168.1.1",         // no port
-		"192.168.1.1:A",       // bad port
-		"192::168::1:1:11001", // IPv6 instead of IPv4
-		"192.168.1.1.11001",   // bad port delimiter
-	}
-
-	// test individually
-	for _, a := range addrs {
-		na, err := ParseAddrs([]string{a})
-		assert.Nil(t, na, a)
-		assert.NotNil(t, err, a)
-	}
 }
