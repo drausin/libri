@@ -14,7 +14,7 @@ resource "google_container_cluster" "libri" {
 
   master_auth {
     username = "admin"
-    password = "demetrius"
+    password = "demetriusijustdontknowwhywoahwoah"
   }
 
   node_config {
