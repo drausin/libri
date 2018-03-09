@@ -23,7 +23,7 @@ Clusters are hosted in (currently) one of two environments: minikube or GCP. Ini
 
     go run cluster.go init minikube \
         --clusterDir /path/to/my-test-cluster-dir
-        --clusterName my-test-cluster \
+        --clusterName my-test-cluster
 
 where `/path/to/clusters/dir` is the directory to create the cluster subdirectory in. The GCP
 cluster initialization is very similar
@@ -32,7 +32,7 @@ cluster initialization is very similar
         --clusterDir /path/to/my-test-cluster-dir
         --clusterName my-test-cluster \
         --bucket my-bucket-name \
-        --gcpProject my-gcp-project \
+        --gcpProject my-gcp-project
 
 
 The `terraform.tfvars` file created in the cluster directory has settings (like number of
