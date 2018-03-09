@@ -52,10 +52,13 @@ for c in $(seq 0 $((${N_LIBRARIANS} - 1))); do
         --localPort ${port} \
         --localMetricsPort ${metricsPort} \
         --bootstraps "librarian-0:20100"
-    librarian_addrs="${name}:${port},${librarian_addrs}"
+    if [[ c -eq 0 ]]; then
+       librarian_addrs="${name}:${port}"
+    else
+       librarian_addrs="${name}:${port},${librarian_addrs}"
+    fi
     librarian_containers="${name} ${librarian_containers}"
 done
-librarian_addrs=${librarian_addrs::-1}  # remove trailing space
 sleep 5  # TODO (drausin) add retry to healthcheck
 
 echo
