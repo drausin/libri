@@ -168,7 +168,7 @@ func (t *to) Begin() error {
 		go func(i uint32) {
 			rng, fp := rand.New(rand.NewSource(int64(i))), float64(t.params.FPRate)
 			for {
-				lc, peerID, err := t.csb.AddNext()
+				lc, address, err := t.csb.AddNext()
 				if err != nil {
 					fatal <- err
 					return
@@ -181,14 +181,14 @@ func (t *to) Begin() error {
 				t.logger.Debug("beginning new subscription",
 					zap.Int("index", int(i)),
 					zap.Float64("false_positive_rate", fp),
-					zap.Stringer("peer_id", peerID),
+					zap.String("peer_address", address),
 				)
 				select {
 				case <-t.end:
 					return
 				case errs <- t.sb.begin(lc, sub, t.received, errs, t.end):
 				}
-				cerrors.MaybePanic(t.csb.Remove(peerID)) // should never happen
+				cerrors.MaybePanic(t.csb.Remove(address)) // should never happen
 			}
 		}(c)
 	}

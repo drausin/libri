@@ -20,6 +20,7 @@ import (
 	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
+	"github.com/drausin/libri/libri/common/parse"
 	"github.com/drausin/libri/libri/common/subscribe"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
@@ -32,7 +33,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"github.com/drausin/libri/libri/common/parse"
 )
 
 // nolint: megacheck
@@ -429,5 +429,9 @@ func getLibrarians(peerConfigs []*server.Config) (client.Balancer, error) { // n
 	for i, peerConfig := range peerConfigs {
 		librarianAddrs[i] = peerConfig.PublicAddr
 	}
-	return client.NewUniformBalancer(librarianAddrs, rng)
+	clients, err := lclient.NewDefaultLRUPool()
+	if err != nil {
+		return nil, err
+	}
+	return client.NewUniformBalancer(librarianAddrs, clients, rng)
 }
