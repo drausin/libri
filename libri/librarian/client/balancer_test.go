@@ -86,6 +86,82 @@ func TestUniformPutterBalancer_Next(t *testing.T) {
 	assert.Nil(t, p)
 }
 
+func TestNewSetBalancer_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	sb, err := NewSetBalancer([]*net.TCPAddr{}, rng)
+	assert.NotNil(t, err)
+	assert.Nil(t, sb)
+}
+
+func TestSetRandBalancer_AddNextRemove_ok(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	tcpAddrs := []*net.TCPAddr{
+		{IP: net.ParseIP("1.2.3.4"), Port: 8080},
+		{IP: net.ParseIP("1.2.3.4"), Port: 8081},
+		{IP: net.ParseIP("1.2.3.4"), Port: 8082},
+	}
+
+	sb, err := NewSetBalancer(tcpAddrs, rng)
+	assert.Nil(t, err)
+
+	lc1 := api.NewLibrarianClient(nil)
+	clients := &fixedPool{lc: lc1, getAddresses: make(map[string]struct{})}
+	sb.(*setRandBalancer).clients = clients
+
+	addrs := make([]string, 0)
+	for i := 0; i < len(tcpAddrs); i++ {
+		lc2, addr, err := sb.AddNext()
+		assert.Nil(t, err)
+		assert.NotNil(t, lc2)
+		assert.NotEmpty(t, addr)
+		addrs = append(addrs, addr)
+		for j := 0; j < i; j++ {
+			assert.NotEqual(t, addrs[j], addrs[i])
+		}
+	}
+
+	for c := 0; c < len(addrs); c++ {
+		err := sb.Remove(addrs[c])
+		assert.Nil(t, err)
+	}
+}
+
+func TestSetRandBalancer_AddNext_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	tcpAddrs := []*net.TCPAddr{
+		{IP: net.ParseIP("1.2.3.4"), Port: 8080},
+	}
+	sb, err := NewSetBalancer(tcpAddrs, rng)
+	assert.Nil(t, err)
+	lc1 := api.NewLibrarianClient(nil)
+	clients := &fixedPool{lc: lc1, getAddresses: make(map[string]struct{})}
+	sb.(*setRandBalancer).clients = clients
+
+	// ok
+	lc2, addr, err := sb.AddNext()
+	assert.Nil(t, err)
+	assert.NotNil(t, lc2)
+	assert.NotEmpty(t, addr)
+
+	// no more addresses
+	lc2, addr, err = sb.AddNext()
+	assert.Equal(t, ErrNoNewClients, err)
+	assert.Nil(t, lc2)
+	assert.Empty(t, addr)
+}
+
+func TestSetRandBalancer_Remove_err(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	tcpAddrs := []*net.TCPAddr{
+		{IP: net.ParseIP("1.2.3.4"), Port: 8080},
+	}
+	sb, err := NewSetBalancer(tcpAddrs, rng)
+	assert.Nil(t, err)
+
+	err = sb.Remove("some other addr")
+	assert.Equal(t, ErrClientMissingFromSet, err)
+}
+
 type fixedPool struct {
 	lc           api.LibrarianClient
 	getErr       error

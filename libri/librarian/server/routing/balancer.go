@@ -1,25 +1,16 @@
 package routing
 
 import (
-	"errors"
 	"math/rand"
 	"sync"
 	"time"
 
-	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 )
 
 var (
-	// ErrNoNewClients indicates when Next() cannot return a new LibrarianClient because no
-	// new clients were found in the table.
-	ErrNoNewClients = errors.New("no new LibrarianClients found in routing table")
-
-	// ErrClientMissingFromSet indicates when a client ID is expected to be in a set but isn't.
-	ErrClientMissingFromSet = errors.New("client missing from set")
-
 	tableSampleRetryWait = 3 * time.Second
 	numRetries           = 32
 	sampleBatchSize      = uint(8)
@@ -46,7 +37,7 @@ type tableSetBalancer struct {
 	mu      sync.Mutex
 }
 
-func (b *tableSetBalancer) AddNext() (api.LibrarianClient, id.ID, error) {
+func (b *tableSetBalancer) AddNext() (api.LibrarianClient, string, error) {
 	for c := 0; c < numRetries; c++ {
 		b.mu.Lock()
 		if len(b.cache) == 0 {
@@ -60,27 +51,28 @@ func (b *tableSetBalancer) AddNext() (api.LibrarianClient, id.ID, error) {
 		}
 		nextPeer := b.cache[0]
 		b.cache = b.cache[1:]
-		if _, in := b.set[nextPeer.ID().String()]; !in {
+		nextAddress := nextPeer.Address().String()
+		if _, in := b.set[nextAddress]; !in {
 			// update current state & return connection to new peer
-			b.set[nextPeer.ID().String()] = struct{}{}
+			b.set[nextAddress] = struct{}{}
 			b.mu.Unlock()
-			lc, err := b.clients.Get(nextPeer.Address().String())
-			return lc, nextPeer.ID(), err
+			lc, err := b.clients.Get(nextAddress)
+			return lc, nextAddress, err
 		}
 		b.mu.Unlock()
 
 		// wait for routing table to possibly fill up a bit
 		time.Sleep(tableSampleRetryWait)
 	}
-	return nil, nil, ErrNoNewClients
+	return nil, "", client.ErrNoNewClients
 }
 
-func (b *tableSetBalancer) Remove(peerID id.ID) error {
+func (b *tableSetBalancer) Remove(address string) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if _, in := b.set[peerID.String()]; !in {
-		return ErrClientMissingFromSet
+	if _, in := b.set[address]; !in {
+		return client.ErrClientMissingFromSet
 	}
-	delete(b.set, peerID.String())
+	delete(b.set, address)
 	return nil
 }
