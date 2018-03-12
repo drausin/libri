@@ -12,7 +12,7 @@ import (
 
 func TestNewUniformBalancer_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	b, err := NewUniformBalancer([]*net.TCPAddr{}, rng)
+	b, err := NewUniformBalancer([]*net.TCPAddr{}, nil, rng)
 	assert.Equal(t, ErrEmptyLibrarianAddresses, err)
 	assert.Nil(t, b)
 }
@@ -24,12 +24,13 @@ func TestUniformRandBalancer_Next(t *testing.T) {
 		{IP: net.ParseIP("1.2.3.4"), Port: 8081},
 		{IP: net.ParseIP("1.2.3.4"), Port: 8082},
 	}
-	b, err := NewUniformBalancer(addrs, rng)
+	clients := &fixedPool{
+		lc:           api.NewLibrarianClient(nil),
+		getAddresses: make(map[string]struct{}),
+	}
+	b, err := NewUniformBalancer(addrs, clients, rng)
 	assert.Nil(t, err)
 	assert.NotNil(t, b)
-	lc := api.NewLibrarianClient(nil)
-	clients := &fixedPool{lc: lc, getAddresses: make(map[string]struct{})}
-	b.(*uniformRandBalancer).clients = clients
 
 	for c := 0; c < 16; c++ { // should be enough trials to hit each addr at least once
 		lc, err := b.Next()
@@ -47,10 +48,10 @@ func TestUniformRandBalancer_CloseAll(t *testing.T) {
 		{IP: net.ParseIP("1.2.3.4"), Port: 8081},
 		{IP: net.ParseIP("1.2.3.4"), Port: 8082},
 	}
-	b, err := NewUniformBalancer(addrs, rng)
+	clients := &fixedPool{}
+	b, err := NewUniformBalancer(addrs, clients, rng)
 	assert.Nil(t, err)
 	assert.NotNil(t, b)
-	clients := &fixedPool{}
 	b.(*uniformRandBalancer).clients = clients
 
 	err = b.CloseAll()
@@ -88,7 +89,7 @@ func TestUniformPutterBalancer_Next(t *testing.T) {
 
 func TestNewSetBalancer_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	sb, err := NewSetBalancer([]*net.TCPAddr{}, rng)
+	sb, err := NewSetBalancer([]*net.TCPAddr{}, nil, rng)
 	assert.NotNil(t, err)
 	assert.Nil(t, sb)
 }
@@ -101,11 +102,13 @@ func TestSetRandBalancer_AddNextRemove_ok(t *testing.T) {
 		{IP: net.ParseIP("1.2.3.4"), Port: 8082},
 	}
 
-	sb, err := NewSetBalancer(tcpAddrs, rng)
+	clients := &fixedPool{
+		lc:           api.NewLibrarianClient(nil),
+		getAddresses: make(map[string]struct{}),
+	}
+	sb, err := NewSetBalancer(tcpAddrs, clients, rng)
 	assert.Nil(t, err)
 
-	lc1 := api.NewLibrarianClient(nil)
-	clients := &fixedPool{lc: lc1, getAddresses: make(map[string]struct{})}
 	sb.(*setRandBalancer).clients = clients
 
 	addrs := make([]string, 0)
@@ -131,11 +134,12 @@ func TestSetRandBalancer_AddNext_err(t *testing.T) {
 	tcpAddrs := []*net.TCPAddr{
 		{IP: net.ParseIP("1.2.3.4"), Port: 8080},
 	}
-	sb, err := NewSetBalancer(tcpAddrs, rng)
+	clients := &fixedPool{
+		lc:           api.NewLibrarianClient(nil),
+		getAddresses: make(map[string]struct{}),
+	}
+	sb, err := NewSetBalancer(tcpAddrs, clients, rng)
 	assert.Nil(t, err)
-	lc1 := api.NewLibrarianClient(nil)
-	clients := &fixedPool{lc: lc1, getAddresses: make(map[string]struct{})}
-	sb.(*setRandBalancer).clients = clients
 
 	// ok
 	lc2, addr, err := sb.AddNext()
@@ -155,7 +159,11 @@ func TestSetRandBalancer_Remove_err(t *testing.T) {
 	tcpAddrs := []*net.TCPAddr{
 		{IP: net.ParseIP("1.2.3.4"), Port: 8080},
 	}
-	sb, err := NewSetBalancer(tcpAddrs, rng)
+	clients := &fixedPool{
+		lc:           api.NewLibrarianClient(nil),
+		getAddresses: make(map[string]struct{}),
+	}
+	sb, err := NewSetBalancer(tcpAddrs, clients, rng)
 	assert.Nil(t, err)
 
 	err = sb.Remove("some other addr")

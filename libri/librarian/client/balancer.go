@@ -62,17 +62,13 @@ type uniformRandBalancer struct {
 
 // NewUniformBalancer creates a new Balancer that selects the next client
 // uniformly at random.
-func NewUniformBalancer(libAddrs []*net.TCPAddr, rng *rand.Rand) (Balancer, error) {
-	conns, err := NewDefaultLRUPool()
-	if err != nil {
-		return nil, err
-	}
+func NewUniformBalancer(libAddrs []*net.TCPAddr, clients Pool, rng *rand.Rand) (Balancer, error) {
 	if len(libAddrs) == 0 {
 		return nil, ErrEmptyLibrarianAddresses
 	}
 	return &uniformRandBalancer{
 		rng:     rng,
-		clients: conns,
+		clients: clients,
 		addrs:   libAddrs,
 	}, nil
 }
@@ -133,11 +129,7 @@ type setRandBalancer struct {
 
 // NewSetBalancer creates a new SetBalancer that selects the next client from the remaining clients
 // in the available set.
-func NewSetBalancer(libAddrs []*net.TCPAddr, rng *rand.Rand) (SetBalancer, error) {
-	conns, err := NewDefaultLRUPool()
-	if err != nil {
-		return nil, err
-	}
+func NewSetBalancer(libAddrs []*net.TCPAddr, clients Pool, rng *rand.Rand) (SetBalancer, error) {
 	if len(libAddrs) == 0 {
 		return nil, ErrEmptyLibrarianAddresses
 	}
@@ -148,7 +140,7 @@ func NewSetBalancer(libAddrs []*net.TCPAddr, rng *rand.Rand) (SetBalancer, error
 
 	return &setRandBalancer{
 		rng:       rng,
-		clients:   conns,
+		clients:   clients,
 		available: available,
 		set:       make(map[string]struct{}),
 	}, nil

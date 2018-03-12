@@ -124,7 +124,11 @@ func NewAuthor(
 
 	// use client ID for rng seed so search client queries librarians in different order
 	rng := rand.New(rand.NewSource(clientID.Int().Int64()))
-	librarians, err := client.NewUniformBalancer(config.LibrarianAddrs, rng)
+	clients, err := client.NewDefaultLRUPool()
+	if err != nil {
+		return nil, err
+	}
+	librarians, err := client.NewUniformBalancer(config.LibrarianAddrs, clients, rng)
 	if err != nil {
 		return nil, err
 	}
