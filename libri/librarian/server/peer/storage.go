@@ -2,7 +2,6 @@ package peer
 
 import (
 	"net"
-	"time"
 
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/server/storage"
@@ -14,7 +13,7 @@ func FromStored(stored *storage.Peer) Peer {
 		id.FromBytes(stored.Id),
 		stored.Name,
 		fromStoredAddress(stored.PublicAddress),
-	).(*peer).WithQueryRecorder(fromStoredQueryOutcomes(stored.QueryOutcomes))
+	)
 }
 
 // fromStoredAddress creates a net.TCPAddr from a storage.Address.
@@ -30,23 +29,5 @@ func toStoredAddress(address *net.TCPAddr) *storage.Address {
 	return &storage.Address{
 		Ip:   address.IP.String(),
 		Port: uint32(address.Port),
-	}
-}
-
-// fromStoredQueryOutcomes creates a peer.Recorder from a storage.QueryOutcomes.
-func fromStoredQueryOutcomes(stored *storage.QueryOutcomes) *queryRecorder {
-	return &queryRecorder{
-		responses: fromStoredQueryTypeOutcomes(stored.Responses),
-		requests:  fromStoredQueryTypeOutcomes(stored.Requests),
-	}
-}
-
-// fromStoredQueryTypeOutcomes creates a queryTypeOutcomes from a storage.QueryTypeOutcomes.
-func fromStoredQueryTypeOutcomes(stored *storage.QueryTypeOutcomes) *queryTypeOutcomes {
-	return &queryTypeOutcomes{
-		earliest: time.Unix(stored.Earliest, int64(0)).UTC(),
-		latest:   time.Unix(stored.Latest, int64(0)).UTC(),
-		nQueries: stored.NQueries,
-		nErrors:  stored.NErrors,
 	}
 }

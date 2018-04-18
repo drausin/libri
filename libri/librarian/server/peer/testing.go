@@ -16,18 +16,11 @@ import (
 // NewTestPeer generates a new peer suitable for testing using a random number generator for the
 // ID and an index.
 func NewTestPeer(rng *rand.Rand, idx int) Peer {
-	// create new recorder with a distinct response time
-	now := time.Unix(int64(idx), 0).UTC()
-	recorder := newQueryRecorder()
-	recorder.Record(Response, Success)
-	recorder.responses.latest = now
-	recorder.responses.earliest = now
-
 	return New(
 		id.NewPseudoRandom(rng),
 		fmt.Sprintf("test-peer-%d", idx+1),
 		NewTestPublicAddr(idx),
-	).(*peer).WithQueryRecorder(recorder)
+	)
 }
 
 // NewTestPublicAddr creates a new net.TCPAddr given a particular peer index.
@@ -76,10 +69,4 @@ func AssertPeersEqual(t *testing.T, sp *storage.Peer, p Peer) {
 	publicAddres := p.(*peer).Address()
 	assert.Equal(t, sp.PublicAddress.Ip, publicAddres.IP.String())
 	assert.Equal(t, sp.PublicAddress.Port, uint32(publicAddres.Port))
-
-	prs := p.Recorder().(*queryRecorder).responses
-	assert.Equal(t, sp.QueryOutcomes.Responses.Earliest, prs.earliest.Unix())
-	assert.Equal(t, sp.QueryOutcomes.Responses.Latest, prs.latest.Unix())
-	assert.Equal(t, sp.QueryOutcomes.Responses.NQueries, prs.nQueries)
-	assert.Equal(t, sp.QueryOutcomes.Responses.NErrors, prs.nErrors)
 }

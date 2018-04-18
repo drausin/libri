@@ -5,6 +5,46 @@ import (
 	"google.golang.org/grpc"
 )
 
+type Endpoint int
+
+const (
+	All Endpoint = iota - 1
+	Introduce
+	Find
+	Store
+	Verify
+	Get
+	Put
+	Subscribe
+)
+
+var (
+	Endpoints = []Endpoint{Introduce, Find, Store, Verify, Get, Put, Subscribe}
+)
+
+func (e Endpoint) String() string {
+	switch e {
+	case All:
+		return "All"
+	case Introduce:
+		return "Introduce"
+	case Find:
+		return "Find"
+	case Store:
+		return "Store"
+	case Verify:
+		return "Verify"
+	case Get:
+		return "Get"
+	case Put:
+		return "Put"
+	case Subscribe:
+		return "Subscribe"
+	default:
+		panic("unknown endpoint")
+	}
+}
+
 // These interfaces split up the methods of LibrarianClient, mostly to allow for narrow interface
 // usage and testing.
 
