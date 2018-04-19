@@ -9,6 +9,7 @@ import (
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
+	gw "github.com/drausin/libri/libri/librarian/server/goodwill"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
 )
@@ -30,23 +31,28 @@ type storer struct {
 	signer        client.Signer
 	searcher      search.Searcher
 	storerCreator client.StorerCreator
+	rec           gw.Recorder
 }
 
 // NewStorer creates a new Storer instance with given Searcher and StoreQuerier instances.
-func NewStorer(signer client.Signer, searcher search.Searcher, c client.StorerCreator) Storer {
+func NewStorer(
+	signer client.Signer, rec gw.Recorder, searcher search.Searcher, c client.StorerCreator,
+) Storer {
 	return &storer{
 		signer:        signer,
 		searcher:      searcher,
 		storerCreator: c,
+		rec:           rec,
 	}
 }
 
 // NewDefaultStorer creates a new Storer with default Searcher and StoreQuerier instances.
-func NewDefaultStorer(peerID ecid.ID, clients client.Pool) Storer {
+func NewDefaultStorer(peerID ecid.ID, rec gw.Recorder, clients client.Pool) Storer {
 	signer := client.NewSigner(peerID.Key())
 	return NewStorer(
 		signer,
-		search.NewDefaultSearcher(signer, clients),
+		rec,
+		search.NewDefaultSearcher(signer, rec, clients),
 		client.NewStorerCreator(clients),
 	)
 }
@@ -88,7 +94,7 @@ func (s *storer) Store(store *Store, seeds []peer.Peer) error {
 	go func(wg2 *sync.WaitGroup) {
 		defer wg2.Done()
 		for peerResponse := range peerResponses {
-			processAnyReponse(peerResponse, toQuery, store)
+			s.processAnyReponse(peerResponse, toQuery, store)
 		}
 	}(&wg1)
 
@@ -137,6 +143,39 @@ func (s *storer) query(next peer.Peer, store *Store) (*api.StoreResponse, error)
 	return rp, nil
 }
 
+func (s *storer) processAnyReponse(pr *peerResponse, toQuery chan peer.Peer, store *Store) {
+	errored := false
+	var outcome gw.Outcome
+	if pr.err != nil {
+		// if we had an issue querying, skip to next peer
+		store.wrapLock(func() {
+			store.Result.Errors = append(store.Result.Errors, pr.err)
+		})
+		if store.Errored() {
+			store.wrapLock(func() {
+				store.Result.FatalErr = ErrTooManyStoreErrors
+			})
+		}
+		errored = true
+		outcome = gw.Error
+	} else {
+		store.wrapLock(func() {
+			store.Result.Responded = append(store.Result.Responded, pr.peer)
+		})
+		outcome = gw.Success
+	}
+	s.rec.Record(pr.peer.ID(), api.Store, gw.Response, outcome)
+
+	finished := store.Finished()
+	if errored && !finished {
+		// since we've already queue NReplicas into toQuery above, only queue more
+		// if we get an error
+		sendNextToQuery(toQuery, store)
+	} else if finished {
+		maybeClose(toQuery)
+	}
+}
+
 func maybeClose(toQuery chan peer.Peer) {
 	select {
 	case <-toQuery:
@@ -164,35 +203,4 @@ func sendNextToQuery(toQuery chan peer.Peer, store *Store) bool {
 		toQuery <- next
 	}
 	return store.Finished()
-}
-
-func processAnyReponse(pr *peerResponse, toQuery chan peer.Peer, store *Store) {
-	errored := false
-	if pr.err != nil {
-		// if we had an issue querying, skip to next peer
-		store.wrapLock(func() {
-			store.Result.Errors = append(store.Result.Errors, pr.err)
-		})
-		if store.Errored() {
-			store.wrapLock(func() {
-				store.Result.FatalErr = ErrTooManyStoreErrors
-			})
-		}
-		pr.peer.Recorder().Record(peer.Response, peer.Error)
-		errored = true
-	} else {
-		store.wrapLock(func() {
-			store.Result.Responded = append(store.Result.Responded, pr.peer)
-		})
-		pr.peer.Recorder().Record(peer.Response, peer.Success)
-	}
-
-	finished := store.Finished()
-	if errored && !finished {
-		// since we've already queue NReplicas into toQuery above, only queue more
-		// if we get an error
-		sendNextToQuery(toQuery, store)
-	} else if finished {
-		maybeClose(toQuery)
-	}
 }

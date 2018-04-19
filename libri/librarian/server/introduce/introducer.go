@@ -8,6 +8,7 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
+	gw "github.com/drausin/libri/libri/librarian/server/goodwill"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 )
 
@@ -21,26 +22,28 @@ type introducer struct {
 	signer            client.Signer
 	introducerCreator client.IntroducerCreator
 	repProcessor      ResponseProcessor
+	rec               gw.Recorder
 }
 
 // NewIntroducer creates a new Introducer instance with the given signer, querier, and response
 // processor.
-func NewIntroducer(s client.Signer, c client.IntroducerCreator, rp ResponseProcessor) Introducer {
+func NewIntroducer(
+	s client.Signer, rec gw.Recorder, c client.IntroducerCreator, rp ResponseProcessor,
+) Introducer {
 	return &introducer{
 		signer:            s,
 		introducerCreator: c,
 		repProcessor:      rp,
+		rec:               rec,
 	}
 }
 
 // NewDefaultIntroducer creates a new Introducer with the given signer and default querier and
 // response processor.
-func NewDefaultIntroducer(s client.Signer, selfID id.ID, clients client.Pool) Introducer {
-	return NewIntroducer(
-		s,
-		client.NewIntroducerCreator(clients),
-		NewResponseProcessor(peer.NewFromer(), selfID),
-	)
+func NewDefaultIntroducer(s client.Signer, rec gw.Recorder, selfID id.ID, clients client.Pool) Introducer {
+	ic := client.NewIntroducerCreator(clients)
+	rp := NewResponseProcessor(peer.NewFromer(), selfID)
+	return NewIntroducer(s, rec, ic, rp)
 }
 
 func (i *introducer) Introduce(intro *Introduction, seeds []peer.Peer) error {
@@ -80,21 +83,18 @@ func (i *introducer) introduceWork(intro *Introduction, wg *sync.WaitGroup) {
 			// if we had an issue querying, skip to next peer
 			intro.wrapLock(func() {
 				intro.Result.NErrors++
-				next.Recorder().Record(peer.Response, peer.Error)
+				i.rec.Record(next.ID(), api.Introduce, gw.Response,
+					gw.Error)
 			})
 			continue
 		}
-		intro.wrapLock(func() { next.Recorder().Record(peer.Response, peer.Success) })
+		i.rec.Record(next.ID(), api.Introduce, gw.Response, gw.Success)
 
 		// process the heap's response
 		intro.wrapLock(func() {
 			delete(intro.Result.Unqueried, nextIDStr)
-			err = i.repProcessor.Process(response, intro.Result)
+			i.repProcessor.Process(response, intro.Result)
 		})
-		if err != nil {
-			intro.wrapLock(func() { intro.Result.FatalErr = err })
-			return
-		}
 	}
 }
 
@@ -132,7 +132,7 @@ func removeAny(m map[string]peer.Peer) (string, peer.Peer) {
 type ResponseProcessor interface {
 	// Process handles an api.IntroduceResponse, adding the responder to the map of responded
 	// peers and newly discovered peers to the unqueried map.
-	Process(*api.IntroduceResponse, *Result) error
+	Process(*api.IntroduceResponse, *Result)
 }
 
 type responseProcessor struct {
@@ -148,7 +148,7 @@ func NewResponseProcessor(f peer.Fromer, selfID id.ID) ResponseProcessor {
 	}
 }
 
-func (irp *responseProcessor) Process(rp *api.IntroduceResponse, result *Result) error {
+func (irp *responseProcessor) Process(rp *api.IntroduceResponse, result *Result) {
 
 	// add newly introduced peer to responded map
 	idStr := id.FromBytes(rp.Self.PeerId).String()
@@ -166,6 +166,4 @@ func (irp *responseProcessor) Process(rp *api.IntroduceResponse, result *Result)
 			result.Unqueried[newIDStr] = newPeer
 		}
 	}
-
-	return nil
 }

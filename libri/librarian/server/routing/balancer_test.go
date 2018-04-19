@@ -18,7 +18,7 @@ func TestTableSetBalancer_Next_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	origLC := api.NewLibrarianClient(nil)
 	clients := &fixedPool{lc: origLC, getAddresses: make(map[string]struct{})}
-	rt := NewEmpty(id.NewPseudoRandom(rng), NewDefaultParameters())
+	rt := NewEmpty(id.NewPseudoRandom(rng), &fixedJudge{}, NewDefaultParameters())
 	rt.Push(
 		peer.New(
 			id.NewPseudoRandom(rng),
@@ -57,7 +57,7 @@ func TestTableSetBalancer_Next_ok(t *testing.T) {
 
 func TestTableSetBalancer_Next_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	rt := NewEmpty(id.NewPseudoRandom(rng), NewDefaultParameters())
+	rt := NewEmpty(id.NewPseudoRandom(rng), &fixedJudge{}, NewDefaultParameters())
 	clients := &fixedPool{lc: api.NewLibrarianClient(nil), getAddresses: make(map[string]struct{})}
 	cb := NewClientBalancer(rt, clients)
 
@@ -85,7 +85,7 @@ func TestTableSetBalancer_Remove(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	lc1 := api.NewLibrarianClient(nil)
 	clients := &fixedPool{lc: lc1, getAddresses: make(map[string]struct{})}
-	rt := NewEmpty(id.NewPseudoRandom(rng), NewDefaultParameters())
+	rt := NewEmpty(id.NewPseudoRandom(rng), &fixedJudge{}, NewDefaultParameters())
 	rt.Push(
 		peer.New(
 			id.NewPseudoRandom(rng),
@@ -130,4 +130,10 @@ func (fp *fixedPool) CloseAll() error {
 
 func (fp *fixedPool) Len() int {
 	return 1
+}
+
+type fixedJudge struct{}
+
+func (f *fixedJudge) Prefer(peerID1, peerID2 id.ID) bool {
+	return true
 }

@@ -5,33 +5,38 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/server/goodwill"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestBucket_PushPop(t *testing.T) {
 	for n := 1; n <= 128; n *= 2 {
-		b := newFirstBucket(DefaultMaxActivePeers)
+		rec := goodwill.NewScalarRecorder()
+		judge := goodwill.NewLatestPreferJudge(rec)
+		b := newFirstBucket(DefaultMaxActivePeers, judge)
 		rng := rand.New(rand.NewSource(int64(n)))
 		for i, p := range peer.NewTestPeers(rng, n) {
 
 			// simulate i successful responses from peer p so that heap ordering is well-defined
 			for j := 0; j < i; j++ {
-				p.Recorder().Record(peer.Response, peer.Success)
+				rec.Record(p.ID(), api.Find, goodwill.Response, goodwill.Success)
 			}
 			heap.Push(b, p)
 		}
 		prev := heap.Pop(b).(peer.Peer)
 		for b.Len() > 0 {
 			cur := heap.Pop(b).(peer.Peer)
-			assert.True(t, prev.Before(cur))
+			assert.True(t, judge.Prefer(prev.ID(), cur.ID()))
 			prev = cur
 		}
 	}
 }
 
 func TestBucket_Peak(t *testing.T) {
-	b := newFirstBucket(DefaultMaxActivePeers)
+	judge := goodwill.NewLatestPreferJudge(goodwill.NewScalarRecorder())
+	b := newFirstBucket(DefaultMaxActivePeers, judge)
 
 	// nothing to peak b/c bucket is empty
 	assert.Equal(t, 0, len(b.Peak(2)))

@@ -13,7 +13,7 @@ import (
 
 func TestLatestCompareJudge_Prefer(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	r := newScalarRecorder()
+	r := NewScalarRecorder()
 	j := NewLatestPreferJudge(r)
 
 	id1, id2 := id.NewPseudoRandom(rng), id.NewPseudoRandom(rng)

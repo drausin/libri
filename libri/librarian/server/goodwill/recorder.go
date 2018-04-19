@@ -31,7 +31,7 @@ type scalarRecorder struct {
 	mu    sync.Mutex
 }
 
-func newScalarRecorder() *scalarRecorder {
+func NewScalarRecorder() *scalarRecorder {
 	return &scalarRecorder{
 		peers: make(map[string]EndpointQueryOutcomes),
 	}
@@ -59,8 +59,11 @@ func (r *scalarRecorder) record(peerID id.ID, endpoint api.Endpoint, qt QueryTyp
 
 func (r *scalarRecorder) Get(peerID id.ID, endpoint api.Endpoint) QueryOutcomes {
 	r.mu.Lock()
-	po := r.peers[peerID.String()]
+	po, in := r.peers[peerID.String()]
 	r.mu.Unlock()
+	if !in {
+		return newQueryOutcomes() // zero values
+	}
 	return po[endpoint]
 }
 
@@ -82,7 +85,7 @@ func NewPromScalarRecorder(selfID id.ID) Recorder {
 	)
 	prom.MustRegister(counter)
 	return &promScalarRecorder{
-		scalarRecorder: newScalarRecorder(),
+		scalarRecorder: NewScalarRecorder(),
 		selfID:         selfID,
 		counter:        counter,
 	}

@@ -46,7 +46,7 @@ func BenchmarkTable_Sample(b *testing.B) {
 func benchmarkPush(b *testing.B, numPeers int) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	for n := 0; n < b.N; n++ {
-		rt, _, _ := NewTestWithPeers(rng, 0) // empty
+		rt, _, _, _ := NewTestWithPeers(rng, 0) // empty
 		repeatedPeers := make([]peer.Peer, 0)
 		for _, p := range peer.NewTestPeers(rng, numPeers) {
 			status := rt.Push(p)
@@ -68,7 +68,7 @@ func benchmarkPush(b *testing.B, numPeers int) {
 func benchmarkPushPop(b *testing.B, numPeers int) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	for n := 0; n < b.N; n++ {
-		rt, _, _ := NewTestWithPeers(rng, numPeers)
+		rt, _, _, _ := NewTestWithPeers(rng, numPeers)
 
 		// pop half the peers every time
 		for rt.NumPeers() > 0 {
@@ -82,7 +82,7 @@ func benchmarkPushPop(b *testing.B, numPeers int) {
 func benchmarkPeak(b *testing.B, numPeers int) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	for n := 0; n < b.N; n++ {
-		rt, _, _ := NewTestWithPeers(rng, numPeers)
+		rt, _, _, _ := NewTestWithPeers(rng, numPeers)
 		for c := 0; c < 100; c++ {
 			target := id.NewPseudoRandom(rng)
 			rt.Peak(target, search.DefaultNClosestResponses)
@@ -93,7 +93,7 @@ func benchmarkPeak(b *testing.B, numPeers int) {
 func benchmarkSample(b *testing.B, numPeers int) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	for n := 0; n < b.N; n++ {
-		rt, _, _ := NewTestWithPeers(rng, numPeers)
+		rt, _, _, _ := NewTestWithPeers(rng, numPeers)
 		for c := 0; c < 100; c++ {
 			rt.Sample(introduce.DefaultNumPeersPerRequest, rng)
 		}

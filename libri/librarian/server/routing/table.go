@@ -13,6 +13,7 @@ import (
 	errors2 "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
+	gw "github.com/drausin/libri/libri/librarian/server/goodwill"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 )
 
@@ -50,7 +51,6 @@ func (p PushStatus) String() string {
 // Table defines how routes to a particular target map to specific peers, held in a tree of
 // buckets.
 type Table interface {
-
 	// SelfID returns the table's selfID.
 	SelfID() id.ID
 
@@ -85,7 +85,6 @@ type Table interface {
 
 // Parameters are the parameters of the routing table.
 type Parameters struct {
-
 	// MaxBucketPeers is the maximum number of peers in a bucket.
 	MaxBucketPeers uint
 }
@@ -115,8 +114,8 @@ type table struct {
 }
 
 // NewEmpty creates a new routing table without peers.
-func NewEmpty(selfID id.ID, params *Parameters) Table {
-	firstBucket := newFirstBucket(params.MaxBucketPeers)
+func NewEmpty(selfID id.ID, judge gw.PreferJudge, params *Parameters) Table {
+	firstBucket := newFirstBucket(params.MaxBucketPeers, judge)
 	return &table{
 		selfID:  selfID,
 		peers:   make(map[string]peer.Peer),
@@ -126,8 +125,10 @@ func NewEmpty(selfID id.ID, params *Parameters) Table {
 }
 
 // NewWithPeers creates a new routing table with peers, returning it and the number of peers added.
-func NewWithPeers(selfID id.ID, params *Parameters, peers []peer.Peer) (Table, int) {
-	rt := NewEmpty(selfID, params)
+func NewWithPeers(
+	selfID id.ID, judge gw.PreferJudge, params *Parameters, peers []peer.Peer,
+) (Table, int) {
+	rt := NewEmpty(selfID, judge, params)
 	nAdded := 0
 	for _, p := range peers {
 		if rt.Push(p) == Added {
@@ -138,17 +139,14 @@ func NewWithPeers(selfID id.ID, params *Parameters, peers []peer.Peer) (Table, i
 }
 
 // NewTestWithPeers creates a new test routing table with pseudo-random SelfID and n peers.
-func NewTestWithPeers(rng *rand.Rand, n int) (Table, ecid.ID, int) {
+func NewTestWithPeers(rng *rand.Rand, n int) (Table, ecid.ID, int, gw.PreferJudge) {
 	peerID := ecid.NewPseudoRandom(rng)
 	params := NewDefaultParameters()
 	ps := peer.NewTestPeers(rng, n)
-	for i := range ps {
-		for j := 0; j < i; j++ {
-			ps[i].Recorder().Record(peer.Response, peer.Success)
-		}
-	}
-	rt, nAdded := NewWithPeers(peerID.ID(), params, ps)
-	return rt, peerID, nAdded
+	rec := gw.NewScalarRecorder()
+	judge := gw.NewLatestPreferJudge(rec)
+	rt, nAdded := NewWithPeers(peerID.ID(), judge, params, ps)
+	return rt, peerID, nAdded, judge
 }
 
 // SelfID returns the table's selfID.
@@ -392,6 +390,7 @@ func (rt *table) splitBucket(bucketIdx int) {
 		maxActivePeers: current.maxActivePeers,
 		activePeers:    make([]peer.Peer, 0),
 		positions:      make(map[string]int),
+		judge:          current.judge,
 	}
 	left.containsSelf = left.Contains(rt.selfID)
 
@@ -404,6 +403,7 @@ func (rt *table) splitBucket(bucketIdx int) {
 		maxActivePeers: current.maxActivePeers,
 		activePeers:    make([]peer.Peer, 0),
 		positions:      make(map[string]int),
+		judge:          current.judge,
 	}
 	right.containsSelf = right.Contains(rt.selfID)
 

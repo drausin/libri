@@ -13,8 +13,8 @@ import (
 
 func TestScalarRecorder_RecordGet(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	id1, id2 := id.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
-	r := newScalarRecorder()
+	id1, id2, id3 := id.NewPseudoRandom(rng), id.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
+	r := NewScalarRecorder()
 
 	// record every possible combination
 	for _, e := range api.Endpoints {
@@ -48,6 +48,10 @@ func TestScalarRecorder_RecordGet(t *testing.T) {
 		assert.Equal(t, uint64(1), eo[Request][Error].Count)
 		assert.Equal(t, uint64(1), eo[Response][Error].Count)
 	}
+
+	// check p3's counts are zero, since we haven't recorded anything for it yet
+	assert.Equal(t, uint64(0), r.Get(id3, api.Find)[Request][Success].Count)
+	assert.Equal(t, uint64(0), r.Get(id3, api.Store)[Request][Success].Count)
 }
 
 func TestPromScalarRecorder_Record(t *testing.T) {
