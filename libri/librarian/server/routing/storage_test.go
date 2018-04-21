@@ -8,8 +8,11 @@ import (
 	"container/heap"
 
 	"github.com/drausin/libri/libri/common/db"
+	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
 	cstorage "github.com/drausin/libri/libri/common/storage"
+	"github.com/drausin/libri/libri/librarian/api"
+	gw "github.com/drausin/libri/libri/librarian/server/goodwill"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	sstorage "github.com/drausin/libri/libri/librarian/server/storage"
 	"github.com/stretchr/testify/assert"
@@ -28,12 +31,24 @@ func TestToRoutingTable(t *testing.T) {
 }
 
 func TestRoutingTable_SaveLoad(t *testing.T) {
-	rt1, _, _, judge := NewTestWithPeers(rand.New(rand.NewSource(0)), 8)
 	kvdb, cleanup, err := db.NewTempDirRocksDB()
 	defer cleanup()
 	defer kvdb.Close()
 	assert.Nil(t, err)
 	ssl := cstorage.NewServerSL(kvdb)
+
+	rng := rand.New(rand.NewSource(0))
+	peerID := ecid.NewPseudoRandom(rng)
+	params := NewDefaultParameters()
+	ps := peer.NewTestPeers(rng, 8)
+	rec := gw.NewScalarRecorder()
+	judge := gw.NewLatestPreferJudge(rec)
+	rt1, _ := NewWithPeers(peerID.ID(), judge, params, ps)
+	for i, p := range ps {
+		for j := 0; j < i+1; j++ {
+			rec.Record(p.ID(), api.Find, gw.Response, gw.Success)
+		}
+	}
 
 	err = rt1.Save(ssl)
 	assert.Nil(t, err)

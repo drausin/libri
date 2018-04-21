@@ -37,7 +37,7 @@ func TestReplicator_StartStop(t *testing.T) {
 	defer cleanup()
 	defer kvdb.Close()
 
-	rt, selfID, _ := routing.NewTestWithPeers(rng, 10)
+	rt, selfID, _, _ := routing.NewTestWithPeers(rng, 10)
 	docS := storage.NewDocumentSLD(kvdb)
 	verifyParams := verify.NewDefaultParameters()
 	replicatorParams := &Parameters{
@@ -134,7 +134,7 @@ func TestReplicator_StartStop(t *testing.T) {
 
 func TestReplicator_verify(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	rt, selfID, _ := routing.NewTestWithPeers(rng, 10)
+	rt, selfID, _, _ := routing.NewTestWithPeers(rng, 10)
 	r := replicator{
 		selfID:           selfID,
 		verifyParams:     verify.NewDefaultParameters(),
@@ -201,7 +201,7 @@ func TestReplicator_verifyValue(t *testing.T) {
 	value, key := api.NewTestDocument(rng)
 	valueBytes, err := proto.Marshal(value)
 	assert.Nil(t, err)
-	rt, selfID, _ := routing.NewTestWithPeers(rng, 10)
+	rt, selfID, _, _ := routing.NewTestWithPeers(rng, 10)
 	replicatorParams := &Parameters{
 		VerifyInterval: 10 * time.Millisecond,
 		VerifyTimeout:  10 * time.Millisecond,

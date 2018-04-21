@@ -78,23 +78,24 @@ func (i *introducer) introduceWork(intro *Introduction, wg *sync.WaitGroup) {
 		}
 
 		// do the query
-		response, err := i.query(next, intro)
+		rp, err := i.query(next, intro)
 		if err != nil {
 			// if we had an issue querying, skip to next peer
-			intro.wrapLock(func() {
-				intro.Result.NErrors++
-				i.rec.Record(next.ID(), api.Introduce, gw.Response,
-					gw.Error)
-			})
+			intro.mu.Lock()
+			intro.Result.NErrors++
+			if next.ID() != nil {
+				i.rec.Record(next.ID(), api.Introduce, gw.Response, gw.Error)
+			}
+			intro.mu.Unlock()
 			continue
 		}
-		i.rec.Record(next.ID(), api.Introduce, gw.Response, gw.Success)
 
-		// process the heap's response
+		// process the heap's rp
 		intro.wrapLock(func() {
 			delete(intro.Result.Unqueried, nextIDStr)
-			i.repProcessor.Process(response, intro.Result)
+			i.repProcessor.Process(rp, intro.Result)
 		})
+		i.rec.Record(id.FromBytes(rp.Self.PeerId), api.Introduce, gw.Response, gw.Success)
 	}
 }
 

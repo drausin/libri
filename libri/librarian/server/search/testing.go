@@ -10,7 +10,7 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
-	"github.com/drausin/libri/libri/librarian/server/goodwill"
+	gw "github.com/drausin/libri/libri/librarian/server/goodwill"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -69,13 +69,14 @@ func (f *TestFromer) FromAPI(apiAddress *api.PeerAddress) peer.Peer {
 // NewTestSearcher creates a new Searcher instance with a FindCreator and FindResponseProcessor that
 // each just return fixed addresses and peers, respectively.
 func NewTestSearcher(
-	peersMap map[string]peer.Peer, peerConnectedAddrs map[string][]*api.PeerAddress,
+	peersMap map[string]peer.Peer,
+	peerConnectedAddrs map[string][]*api.PeerAddress,
+	rec gw.Recorder,
 ) Searcher {
 	addressFinders := make(map[string]api.Finder)
 	for address, connectedAddresses := range peerConnectedAddrs {
 		addressFinders[address] = &fixedFinder{addresses: connectedAddresses}
 	}
-	rec := goodwill.NewScalarRecorder()
 	return NewSearcher(
 		&client.TestNoOpSigner{},
 		rec,

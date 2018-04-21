@@ -136,7 +136,12 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 	selfLogger := logger.With(zap.String(logSelfIDShort, id.ShortHex(selfID.Bytes())))
 
 	// TODO (drausin) load recorder from storage instead of initializing empty
-	recorder := gw.NewPromScalarRecorder(selfID.ID())
+	var recorder gw.Recorder
+	if config.ReportMetrics {
+		recorder = gw.NewPromScalarRecorder(selfID.ID())
+	} else {
+		recorder = gw.NewScalarRecorder()
+	}
 	judge := gw.NewLatestPreferJudge(recorder)
 
 	rt, err := loadOrCreateRoutingTable(selfLogger, serverSL, judge, selfID, config.Routing)
@@ -229,8 +234,9 @@ func (l *Librarian) Introduce(ctx context.Context, rq *api.IntroduceRequest) (
 	logger.Debug("received introduce request", introduceRequestFields(rq)...)
 
 	// check request
-	requesterID, err := l.checkRequest(ctx, rq, rq.Metadata, api.Introduce)
+	requesterID, err := l.checkRequest(ctx, rq, rq.Metadata)
 	if err != nil {
+		l.record(requesterID, api.Introduce, gw.Request, gw.Error)
 		return nil, logAndReturnErr(logger, "error checking request", err)
 	}
 	requester := l.fromer.FromAPI(rq.Self)
@@ -261,8 +267,9 @@ func (l *Librarian) Find(ctx context.Context, rq *api.FindRequest) (*api.FindRes
 	logger := l.logger.With(rqMetadataFields(rq.Metadata)...)
 	logger.Debug("received find request", findRequestFields(rq)...)
 
-	requesterID, err := l.checkRequestAndKey(ctx, rq, rq.Metadata, api.Find, rq.Key)
+	requesterID, err := l.checkRequestAndKey(ctx, rq, rq.Metadata, rq.Key)
 	if err != nil {
+		l.record(requesterID, api.Find, gw.Request, gw.Error)
 		return nil, logAndReturnErr(logger, "check request error", err)
 	}
 	l.record(requesterID, api.Find, gw.Request, gw.Success)
@@ -302,8 +309,9 @@ func (l *Librarian) Verify(
 	logger := l.logger.With(rqMetadataFields(rq.Metadata)...)
 	logger.Debug("received verify request", verifyRequestFields(rq)...)
 
-	requesterID, err := l.checkRequestAndKey(ctx, rq, rq.Metadata, api.Verify, rq.Key)
+	requesterID, err := l.checkRequestAndKey(ctx, rq, rq.Metadata, rq.Key)
 	if err != nil {
+		l.record(requesterID, api.Verify, gw.Request, gw.Error)
 		return nil, logAndReturnErr(logger, "check request error", err)
 	}
 	l.record(requesterID, api.Verify, gw.Request, gw.Success)
@@ -341,9 +349,9 @@ func (l *Librarian) Store(ctx context.Context, rq *api.StoreRequest) (
 	logger := l.logger.With(rqMetadataFields(rq.Metadata)...)
 	logger.Debug("received store request", storeRequestFields(rq)...)
 
-	requesterID, err := l.checkRequestAndKeyValue(ctx, rq, rq.Metadata, api.Store, rq.Key,
-		rq.Value)
+	requesterID, err := l.checkRequestAndKeyValue(ctx, rq, rq.Metadata, rq.Key, rq.Value)
 	if err != nil {
+		l.record(requesterID, api.Store, gw.Request, gw.Error)
 		return nil, logAndReturnErr(logger, "error checking request", err)
 	}
 	l.record(requesterID, api.Store, gw.Request, gw.Success)
@@ -369,8 +377,9 @@ func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetRespon
 	logger := l.logger.With(rqMetadataFields(rq.Metadata)...)
 	logger.Debug("received get request", getRequestFields(rq)...)
 
-	requesterID, err := l.checkRequestAndKey(ctx, rq, rq.Metadata, api.Get, rq.Key)
+	requesterID, err := l.checkRequestAndKey(ctx, rq, rq.Metadata, rq.Key)
 	if err != nil {
+		l.record(requesterID, api.Get, gw.Request, gw.Error)
 		logger.Error("error checking request", zap.Error(err))
 		return nil, err
 	}
@@ -419,9 +428,9 @@ func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutRespon
 	logger := l.logger.With(rqMetadataFields(rq.Metadata)...)
 	logger.Debug("received put request", putRequestFields(rq)...)
 
-	requesterID, err := l.checkRequestAndKeyValue(ctx, rq, rq.Metadata, api.Put, rq.Key,
-		rq.Value)
+	requesterID, err := l.checkRequestAndKeyValue(ctx, rq, rq.Metadata, rq.Key, rq.Value)
 	if err != nil {
+		l.record(requesterID, api.Put, gw.Request, gw.Error)
 		return nil, logAndReturnErr(logger, "error checking request", err)
 	}
 	l.record(requesterID, api.Put, gw.Request, gw.Success)
@@ -474,17 +483,20 @@ func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutRespon
 func (l *Librarian) Subscribe(rq *api.SubscribeRequest, from api.Librarian_SubscribeServer) error {
 	logger := l.logger.With(rqMetadataFields(rq.Metadata)...)
 	logger.Debug("received subscribe request")
-	requesterID, err := l.checkRequest(from.Context(), rq, rq.Metadata, api.Subscribe)
+	requesterID, err := l.checkRequest(from.Context(), rq, rq.Metadata)
 	if err != nil {
+		l.record(requesterID, api.Subscribe, gw.Request, gw.Error)
 		logger.Error("error checking request", zap.Error(err))
 		return err
 	}
 	authorFilter, err := subscribe.FromAPI(rq.Subscription.AuthorPublicKeys)
 	if err != nil {
+		l.record(requesterID, api.Subscribe, gw.Request, gw.Error)
 		return logAndReturnErr(logger, "error decoding author filter", err)
 	}
 	readerFilter, err := subscribe.FromAPI(rq.Subscription.ReaderPublicKeys)
 	if err != nil {
+		l.record(requesterID, api.Subscribe, gw.Request, gw.Error)
 		return logAndReturnErr(logger, "error decoding reader filter", err)
 	}
 	l.record(requesterID, api.Subscribe, gw.Request, gw.Success)

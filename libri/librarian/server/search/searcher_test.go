@@ -12,16 +12,20 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
+	gw "github.com/drausin/libri/libri/librarian/server/goodwill"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewDefaultSearcher(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	s := NewDefaultSearcher(client.NewSigner(ecid.NewPseudoRandom(rng).Key()), nil)
+	selfID := ecid.NewPseudoRandom(rng).Key()
+	rec := &fixedRecorder{}
+	s := NewDefaultSearcher(client.NewSigner(selfID), rec, nil)
 	assert.NotNil(t, s.(*searcher).signer)
 	assert.NotNil(t, s.(*searcher).finderCreator)
 	assert.NotNil(t, s.(*searcher).rp)
+	assert.NotNil(t, s.(*searcher).rec)
 }
 
 func TestSearcher_Search_ok(t *testing.T) {
@@ -31,12 +35,13 @@ func TestSearcher_Search_ok(t *testing.T) {
 
 	// create our searcher
 	key := id.NewPseudoRandom(rng)
-	searcher := NewTestSearcher(peersMap, addressFinders)
 
 	for concurrency := uint(3); concurrency <= 3; concurrency++ {
 		info := fmt.Sprintf("concurrency: %d", concurrency)
 		//log.Printf("running: %s", info) // sometimes handy for debugging
 
+		rec := &fixedRecorder{}
+		searcher := NewTestSearcher(peersMap, addressFinders, rec)
 		search := NewSearch(selfID, key, &Parameters{
 			NClosestResponses: nClosestResponses,
 			NMaxErrors:        DefaultNMaxErrors,
@@ -76,11 +81,16 @@ func TestSearcher_Search_ok(t *testing.T) {
 			_, in := expectedClosestsPeers[p.ID().String()]
 			assert.True(t, in, info)
 		}
+
+		// check responses got recorded
+		assert.True(t, len(search.Result.Responded) <= rec.nSuccesses)
+		assert.Zero(t, rec.nErrors)
 	}
 }
 
 func TestSearcher_Search_queryErr(t *testing.T) {
-	searcherImpl, search, selfPeerIdxs, peers := newTestSearch()
+	rec := &fixedRecorder{}
+	searcherImpl, search, selfPeerIdxs, peers := newTestSearch(rec)
 	seeds := NewTestSeeds(peers, selfPeerIdxs)
 
 	// duplicate seeds so we cover branch of hitting errored peer more than once
@@ -104,6 +114,7 @@ func TestSearcher_Search_queryErr(t *testing.T) {
 	assert.Equal(t, 0, search.Result.Closest.Len())
 	assert.True(t, 0 < search.Result.Unqueried.Len())
 	assert.Equal(t, 0, len(search.Result.Responded))
+	assert.Equal(t, len(search.Result.Errored), rec.nErrors)
 }
 
 type errResponseProcessor struct{}
@@ -113,7 +124,8 @@ func (erp *errResponseProcessor) Process(rp *api.FindResponse, search *Search) e
 }
 
 func TestSearcher_Search_rpErr(t *testing.T) {
-	searcherImpl, search, selfPeerIdxs, peers := newTestSearch()
+	rec := &fixedRecorder{}
+	searcherImpl, search, selfPeerIdxs, peers := newTestSearch(rec)
 	seeds := NewTestSeeds(peers, selfPeerIdxs)
 
 	// mock some internal issue when processing responses
@@ -133,16 +145,17 @@ func TestSearcher_Search_rpErr(t *testing.T) {
 	assert.Equal(t, 0, search.Result.Closest.Len())
 	assert.True(t, 0 < search.Result.Unqueried.Len())
 	assert.Equal(t, 0, len(search.Result.Responded))
+	assert.Equal(t, len(search.Result.Errored), rec.nErrors)
 }
 
-func newTestSearch() (Searcher, *Search, []int, []peer.Peer) {
+func newTestSearch(rec gw.Recorder) (Searcher, *Search, []int, []peer.Peer) {
 	n, nClosestResponses := 32, uint(8)
 	rng := rand.New(rand.NewSource(int64(n)))
 	peers, peersMap, peerConnectedAddrs, selfPeerIdxs, selfID := NewTestPeers(rng, n)
 
 	// create our searcher
 	key := id.NewPseudoRandom(rng)
-	searcher := NewTestSearcher(peersMap, peerConnectedAddrs)
+	searcher := NewTestSearcher(peersMap, peerConnectedAddrs, rec)
 
 	search := NewSearch(selfID, key, &Parameters{
 		NClosestResponses: nClosestResponses,
@@ -321,4 +334,21 @@ func newPeerAddresses(rng *rand.Rand, n int) []*api.PeerAddress {
 		peerAddresses[i] = p.ToAPI()
 	}
 	return peerAddresses
+}
+
+type fixedRecorder struct {
+	nSuccesses int
+	nErrors    int
+}
+
+func (f *fixedRecorder) Record(peerID id.ID, endpoint api.Endpoint, qt gw.QueryType, o gw.Outcome) {
+	if o == gw.Success {
+		f.nSuccesses++
+	} else {
+		f.nErrors++
+	}
+}
+
+func (f *fixedRecorder) Get(peerID id.ID, endpoint api.Endpoint) gw.QueryOutcomes {
+	return nil
 }

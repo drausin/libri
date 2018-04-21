@@ -16,6 +16,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/client"
 	lclient "github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server"
+	gw "github.com/drausin/libri/libri/librarian/server/goodwill"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/store"
@@ -344,8 +345,11 @@ func testReplicate(t *testing.T, _ *params, state *state) {
 
 func countDocReplicas(t *testing.T, state *state) map[string]int {
 	benchResults := make([]testing.BenchmarkResult, len(state.putDocs))
-	verifier := verify.NewDefaultVerifier(client.NewSigner(state.client.selfID.Key()),
-		state.clients)
+	verifier := verify.NewDefaultVerifier(
+		client.NewSigner(state.client.selfID.Key()),
+		gw.NewScalarRecorder(),
+		state.clients,
+	)
 	verifyParams := verify.NewDefaultParameters()
 
 	nReplicas := make(map[string]int)

@@ -32,7 +32,7 @@ func (l *Librarian) NewResponseMetadata(m *api.RequestMetadata) *api.ResponseMet
 // checkRequest verifies the request signature and records an error with the peer if necessary. It
 // returns the ID of the requester or an error.
 func (l *Librarian) checkRequest(
-	ctx context.Context, rq proto.Message, meta *api.RequestMetadata, e api.Endpoint,
+	ctx context.Context, rq proto.Message, meta *api.RequestMetadata,
 ) (id.ID, error) {
 	requesterID, err := newIDFromPublicKeyBytes(meta.PubKey)
 	if err != nil {
@@ -41,8 +41,7 @@ func (l *Librarian) checkRequest(
 
 	// record request verification issue, if it exists
 	if err := l.rqv.Verify(ctx, rq, meta); err != nil {
-		l.record(requesterID, e, gw.Request, gw.Error)
-		return nil, err
+		return requesterID, err
 	}
 	return requesterID, nil
 }
@@ -53,15 +52,13 @@ func (l *Librarian) checkRequestAndKey(
 	ctx context.Context,
 	rq proto.Message,
 	meta *api.RequestMetadata,
-	e api.Endpoint,
 	key []byte,
 ) (id.ID, error) {
-	requesterID, err := l.checkRequest(ctx, rq, meta, e)
+	requesterID, err := l.checkRequest(ctx, rq, meta)
 	if err != nil {
 		return nil, err
 	}
 	if err := l.kc.Check(key); err != nil {
-		l.record(requesterID, e, gw.Request, gw.Error)
 		return nil, err
 	}
 	return requesterID, nil
@@ -73,11 +70,10 @@ func (l *Librarian) checkRequestAndKeyValue(
 	ctx context.Context,
 	rq proto.Message,
 	meta *api.RequestMetadata,
-	e api.Endpoint,
 	key []byte,
 	value *api.Document,
 ) (id.ID, error) {
-	requesterID, err := l.checkRequest(ctx, rq, meta, e)
+	requesterID, err := l.checkRequest(ctx, rq, meta)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +82,6 @@ func (l *Librarian) checkRequestAndKeyValue(
 		return nil, err
 	}
 	if err := l.kvc.Check(key, valueBytes); err != nil {
-		l.record(requesterID, e, gw.Request, gw.Error)
 		return nil, err
 	}
 	return requesterID, nil
@@ -95,6 +90,9 @@ func (l *Librarian) checkRequestAndKeyValue(
 // record records query outcome for a particular peer if that peer is in the
 // routing table.
 func (l *Librarian) record(fromPeerID id.ID, e api.Endpoint, qt gw.QueryType, o gw.Outcome) {
+	if fromPeerID == nil {
+		return
+	}
 	l.rec.Record(fromPeerID, e, qt, o)
 	if fromPeer, exists := l.rt.Get(fromPeerID); exists {
 		// re-heap; if this proves expensive, we could choose to only selectively re-heap

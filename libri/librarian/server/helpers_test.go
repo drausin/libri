@@ -67,11 +67,11 @@ func TestCheckRequest_verifyErr(t *testing.T) {
 	rq := client.NewGetRequest(selfID, id.NewPseudoRandom(rng))
 	l := &Librarian{
 		rqv: &neverRequestVerifier{},
-		rt:  routing.NewEmpty(selfID.ID(), routing.NewDefaultParameters()),
+		rt:  routing.NewEmpty(selfID.ID(), &fixedJudge{}, routing.NewDefaultParameters()),
 	}
 	requesterID, err := l.checkRequest(context.TODO(), rq, rq.Metadata)
 
-	assert.Nil(t, requesterID)
+	assert.Zero(t, selfID.ID().Cmp(requesterID))
 	assert.NotNil(t, err)
 }
 
@@ -81,7 +81,7 @@ func TestCheckRequestAndKey_ok(t *testing.T) {
 	l := &Librarian{
 		rqv: &alwaysRequestVerifier{},
 		kc:  storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		rt:  routing.NewEmpty(selfID.ID(), routing.NewDefaultParameters()),
+		rt:  routing.NewEmpty(selfID.ID(), &fixedJudge{}, routing.NewDefaultParameters()),
 	}
 	rq := client.NewGetRequest(selfID, key)
 	requesterID, err := l.checkRequestAndKey(context.TODO(), rq, rq.Metadata, key.Bytes())
@@ -109,7 +109,7 @@ func TestCheckRequestAndKey_checkErr(t *testing.T) {
 	l := &Librarian{
 		rqv: &alwaysRequestVerifier{},
 		kc:  storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		rt:  routing.NewEmpty(selfID.ID(), routing.NewDefaultParameters()),
+		rt:  routing.NewEmpty(selfID.ID(), &fixedJudge{}, routing.NewDefaultParameters()),
 	}
 	requesterID, err := l.checkRequestAndKey(context.TODO(), rq, rq.Metadata, []byte("bad key"))
 
@@ -122,7 +122,7 @@ func TestCheckRequestAndKeyValue_ok(t *testing.T) {
 	selfID := ecid.NewPseudoRandom(rng)
 	value, key := api.NewTestDocument(rng)
 	l := &Librarian{
-		rt:  routing.NewEmpty(selfID.ID(), routing.NewDefaultParameters()),
+		rt:  routing.NewEmpty(selfID.ID(), &fixedJudge{}, routing.NewDefaultParameters()),
 		rqv: &alwaysRequestVerifier{},
 		kc:  storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		kvc: storage.NewHashKeyValueChecker(),
@@ -156,7 +156,7 @@ func TestCheckRequestAndKeyValue_checkErr(t *testing.T) {
 	key := id.NewPseudoRandom(rng) // bad key, not hash of value
 	rq := client.NewGetRequest(selfID, key)
 	l := &Librarian{
-		rt:  routing.NewEmpty(selfID.ID(), routing.NewDefaultParameters()),
+		rt:  routing.NewEmpty(selfID.ID(), &fixedJudge{}, routing.NewDefaultParameters()),
 		rqv: &alwaysRequestVerifier{},
 		kc:  storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		kvc: storage.NewHashKeyValueChecker(),
