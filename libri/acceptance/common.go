@@ -26,6 +26,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/client"
 	lclient "github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server"
+	"github.com/drausin/libri/libri/librarian/server/goodwill"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
@@ -120,8 +121,8 @@ func setUp(params *params) *state { // nolint: deadcode
 			zap.String("seed_address", seedConfigs[c].PublicAddr.String()),
 		)
 		go func() {
-			err := server.Start(logger, seedConfigs[c], seedsUp)
-			errors.MaybePanic(err)
+			err2 := server.Start(logger, seedConfigs[c], seedsUp)
+			errors.MaybePanic(err2)
 		}()
 		seeds[c] = <-seedsUp // wait for seed to come up
 	}
@@ -151,10 +152,12 @@ func setUp(params *params) *state { // nolint: deadcode
 	publicAddr := peer.NewTestPublicAddr(params.nSeeds + params.nPeers + 1)
 	selfPeer := peer.New(selfID.ID(), "test client", publicAddr)
 	signer := lclient.NewSigner(selfID.Key())
+	rec := goodwill.NewScalarRecorder()
+	judge := goodwill.NewLatestPreferJudge(rec)
 	clientImpl := &testClient{
 		selfID:  selfID,
 		selfAPI: selfPeer.ToAPI(),
-		rt:      routing.NewEmpty(selfID.ID(), routing.NewDefaultParameters()),
+		rt:      routing.NewEmpty(selfID.ID(), judge, routing.NewDefaultParameters()),
 		signer:  signer,
 		logger:  logger,
 	}

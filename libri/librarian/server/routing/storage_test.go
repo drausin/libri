@@ -8,8 +8,11 @@ import (
 	"container/heap"
 
 	"github.com/drausin/libri/libri/common/db"
+	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
 	cstorage "github.com/drausin/libri/libri/common/storage"
+	"github.com/drausin/libri/libri/librarian/api"
+	gw "github.com/drausin/libri/libri/librarian/server/goodwill"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	sstorage "github.com/drausin/libri/libri/librarian/server/storage"
 	"github.com/stretchr/testify/assert"
@@ -17,28 +20,40 @@ import (
 
 func TestFromStored(t *testing.T) {
 	srt := newTestStoredTable(rand.New(rand.NewSource(0)), 128)
-	rt := fromStored(srt, NewDefaultParameters())
+	rt := fromStored(srt, &fixedJudge{}, NewDefaultParameters())
 	assertRoutingTablesEqual(t, rt, srt)
 }
 
 func TestToRoutingTable(t *testing.T) {
-	rt, _, _ := NewTestWithPeers(rand.New(rand.NewSource(0)), 128)
+	rt, _, _, _ := NewTestWithPeers(rand.New(rand.NewSource(0)), 128)
 	srt := toStored(rt)
 	assertRoutingTablesEqual(t, rt, srt)
 }
 
 func TestRoutingTable_SaveLoad(t *testing.T) {
-	rt1, _, _ := NewTestWithPeers(rand.New(rand.NewSource(0)), 8)
 	kvdb, cleanup, err := db.NewTempDirRocksDB()
 	defer cleanup()
 	defer kvdb.Close()
 	assert.Nil(t, err)
 	ssl := cstorage.NewServerSL(kvdb)
 
+	rng := rand.New(rand.NewSource(0))
+	peerID := ecid.NewPseudoRandom(rng)
+	params := NewDefaultParameters()
+	ps := peer.NewTestPeers(rng, 8)
+	rec := gw.NewScalarRecorder()
+	judge := gw.NewLatestPreferJudge(rec)
+	rt1, _ := NewWithPeers(peerID.ID(), judge, params, ps)
+	for i, p := range ps {
+		for j := 0; j < i+1; j++ {
+			rec.Record(p.ID(), api.Find, gw.Response, gw.Success)
+		}
+	}
+
 	err = rt1.Save(ssl)
 	assert.Nil(t, err)
 
-	rt2, err := Load(ssl, NewDefaultParameters())
+	rt2, err := Load(ssl, judge, NewDefaultParameters())
 	assert.Nil(t, err)
 
 	// check that routing tables are the same
@@ -89,9 +104,10 @@ func assertRoutingTablesEqual(t *testing.T, rt Table, srt *sstorage.RoutingTable
 }
 
 func TestLoad_err(t *testing.T) {
+	j := &fixedJudge{}
 
 	// simulates missing/not stored table
-	rt1, err := Load(&cstorage.TestSLD{}, NewDefaultParameters())
+	rt1, err := Load(&cstorage.TestSLD{}, j, NewDefaultParameters())
 	assert.Nil(t, rt1)
 	assert.Nil(t, err)
 
@@ -101,6 +117,7 @@ func TestLoad_err(t *testing.T) {
 			Bytes:   []byte("some random bytes"),
 			LoadErr: errors.New("some random error"),
 		},
+		j,
 		NewDefaultParameters(),
 	)
 	assert.Nil(t, rt2)
@@ -112,6 +129,7 @@ func TestLoad_err(t *testing.T) {
 			Bytes:   []byte("the wrong bytes"),
 			LoadErr: nil,
 		},
+		j,
 		NewDefaultParameters(),
 	)
 	assert.Nil(t, rt3)

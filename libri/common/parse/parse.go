@@ -1,8 +1,8 @@
 package parse
 
 import (
-	"net"
 	"fmt"
+	"net"
 )
 
 // Addr parses a net.TCPAddr from a host address and port.
@@ -22,4 +22,3 @@ func Addrs(addrs []string) ([]*net.TCPAddr, error) {
 	}
 	return netAddrs, nil
 }
-

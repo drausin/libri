@@ -66,15 +66,16 @@ func TestLoadOrCreateRoutingTable_ok(t *testing.T) {
 	fullLoader := &cstorage.TestSLD{
 		Bytes: bytes,
 	}
-	rt1, err := loadOrCreateRoutingTable(clogging.NewDevInfoLogger(), fullLoader, selfID1,
-		routing.NewDefaultParameters())
+	judge := &fixedJudge{}
+	rt1, err := loadOrCreateRoutingTable(clogging.NewDevInfoLogger(), fullLoader, judge,
+		selfID1, routing.NewDefaultParameters())
 	assert.Equal(t, selfID1.ID(), rt1.SelfID())
 	assert.Nil(t, err)
 
 	// create new RT
 	selfID2 := ecid.NewPseudoRandom(rng)
-	rt2, err := loadOrCreateRoutingTable(clogging.NewDevInfoLogger(), &cstorage.TestSLD{}, selfID2,
-		routing.NewDefaultParameters())
+	rt2, err := loadOrCreateRoutingTable(clogging.NewDevInfoLogger(), &cstorage.TestSLD{},
+		judge, selfID2, routing.NewDefaultParameters())
 	assert.Equal(t, selfID2.ID(), rt2.SelfID())
 	assert.Nil(t, err)
 }
@@ -87,7 +88,8 @@ func TestLoadOrCreateRoutingTable_loadErr(t *testing.T) {
 		LoadErr: errors.New("some error during load"),
 	}
 
-	rt1, err := loadOrCreateRoutingTable(clogging.NewDevInfoLogger(), errLoader, selfID,
+	judge := &fixedJudge{}
+	rt1, err := loadOrCreateRoutingTable(clogging.NewDevInfoLogger(), errLoader, judge, selfID,
 		routing.NewDefaultParameters())
 	assert.Nil(t, rt1)
 	assert.NotNil(t, err)
@@ -109,8 +111,9 @@ func TestLoadOrCreateRoutingTable_selfIDErr(t *testing.T) {
 
 	// error with conflicting/different selfID
 	selfID2 := ecid.NewPseudoRandom(rng)
-	rt1, err := loadOrCreateRoutingTable(clogging.NewDevInfoLogger(), fullLoader, selfID2,
-		routing.NewDefaultParameters())
+	judge := &fixedJudge{}
+	rt1, err := loadOrCreateRoutingTable(clogging.NewDevInfoLogger(), fullLoader, judge,
+		selfID2, routing.NewDefaultParameters())
 	assert.Nil(t, rt1)
 	assert.NotNil(t, err)
 }

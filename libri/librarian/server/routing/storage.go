@@ -3,6 +3,7 @@ package routing
 import (
 	"github.com/drausin/libri/libri/common/id"
 	cstorage "github.com/drausin/libri/libri/common/storage"
+	"github.com/drausin/libri/libri/librarian/server/goodwill"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	sstorage "github.com/drausin/libri/libri/librarian/server/storage"
 	"github.com/golang/protobuf/proto"
@@ -11,7 +12,7 @@ import (
 var tableKey = []byte("RoutingTable")
 
 // Load retrieves the routing table form the KV DB.
-func Load(nl cstorage.Loader, params *Parameters) (Table, error) {
+func Load(nl cstorage.Loader, judge goodwill.PreferJudge, params *Parameters) (Table, error) {
 	bytes, err := nl.Load(tableKey)
 	if bytes == nil || err != nil {
 		return nil, err
@@ -21,7 +22,7 @@ func Load(nl cstorage.Loader, params *Parameters) (Table, error) {
 	if err != nil {
 		return nil, err
 	}
-	return fromStored(stored, params), nil
+	return fromStored(stored, judge, params), nil
 }
 
 // Save stores a representation of the routing table to the KV DB.
@@ -34,12 +35,14 @@ func (rt *table) Save(ns cstorage.Storer) error {
 }
 
 // fromStored returns a new Table instance from a StoredRoutingTable instance.
-func fromStored(stored *sstorage.RoutingTable, params *Parameters) Table {
+func fromStored(
+	stored *sstorage.RoutingTable, judge goodwill.PreferJudge, params *Parameters,
+) Table {
 	peers := make([]peer.Peer, len(stored.Peers))
 	for i, sp := range stored.Peers {
 		peers[i] = peer.FromStored(sp)
 	}
-	rt, _ := NewWithPeers(id.FromBytes(stored.SelfId), params, peers)
+	rt, _ := NewWithPeers(id.FromBytes(stored.SelfId), judge, params, peers)
 	return rt
 }
 

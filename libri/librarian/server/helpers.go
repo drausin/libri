@@ -4,7 +4,7 @@ import (
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/drausin/libri/libri/librarian/server/peer"
+	gw "github.com/drausin/libri/libri/librarian/server/goodwill"
 	"github.com/golang/protobuf/proto"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -31,8 +31,9 @@ func (l *Librarian) NewResponseMetadata(m *api.RequestMetadata) *api.ResponseMet
 
 // checkRequest verifies the request signature and records an error with the peer if necessary. It
 // returns the ID of the requester or an error.
-func (l *Librarian) checkRequest(ctx context.Context, rq proto.Message, meta *api.RequestMetadata) (
-	id.ID, error) {
+func (l *Librarian) checkRequest(
+	ctx context.Context, rq proto.Message, meta *api.RequestMetadata,
+) (id.ID, error) {
 	requesterID, err := newIDFromPublicKeyBytes(meta.PubKey)
 	if err != nil {
 		return nil, err
@@ -40,32 +41,39 @@ func (l *Librarian) checkRequest(ctx context.Context, rq proto.Message, meta *ap
 
 	// record request verification issue, if it exists
 	if err := l.rqv.Verify(ctx, rq, meta); err != nil {
-		l.record(requesterID, peer.Request, peer.Error)
-		return nil, err
+		return requesterID, err
 	}
 	return requesterID, nil
 }
 
 // checkRequestAndKey verifies the request signature and key, recording errors with the peer if
 // necessary. It returns the ID of the requester or an error.
-func (l *Librarian) checkRequestAndKey(ctx context.Context, rq proto.Message,
-	meta *api.RequestMetadata, key []byte) (id.ID, error) {
-	requester, err := l.checkRequest(ctx, rq, meta)
+func (l *Librarian) checkRequestAndKey(
+	ctx context.Context,
+	rq proto.Message,
+	meta *api.RequestMetadata,
+	key []byte,
+) (id.ID, error) {
+	requesterID, err := l.checkRequest(ctx, rq, meta)
 	if err != nil {
 		return nil, err
 	}
 	if err := l.kc.Check(key); err != nil {
-		l.record(requester, peer.Request, peer.Error)
 		return nil, err
 	}
-	return requester, nil
+	return requesterID, nil
 }
 
 // checkRequestAndKey verifies the request signature and key/value combo, recording errors with
 // the peer if necessary. It returns the ID of the requester or an error.
-func (l *Librarian) checkRequestAndKeyValue(ctx context.Context, rq proto.Message,
-	meta *api.RequestMetadata, key []byte, value *api.Document) (id.ID, error) {
-	requester, err := l.checkRequest(ctx, rq, meta)
+func (l *Librarian) checkRequestAndKeyValue(
+	ctx context.Context,
+	rq proto.Message,
+	meta *api.RequestMetadata,
+	key []byte,
+	value *api.Document,
+) (id.ID, error) {
+	requesterID, err := l.checkRequest(ctx, rq, meta)
 	if err != nil {
 		return nil, err
 	}
@@ -74,18 +82,19 @@ func (l *Librarian) checkRequestAndKeyValue(ctx context.Context, rq proto.Messag
 		return nil, err
 	}
 	if err := l.kvc.Check(key, valueBytes); err != nil {
-		l.record(requester, peer.Request, peer.Error)
 		return nil, err
 	}
-	return requester, nil
+	return requesterID, nil
 }
 
-// record records query outcome for a particular peer if that peer is in the routing table.
-func (l *Librarian) record(fromPeerID id.ID, t peer.QueryType, o peer.Outcome) {
+// record records query outcome for a particular peer if that peer is in the
+// routing table.
+func (l *Librarian) record(fromPeerID id.ID, e api.Endpoint, qt gw.QueryType, o gw.Outcome) {
+	if fromPeerID == nil {
+		return
+	}
+	l.rec.Record(fromPeerID, e, qt, o)
 	if fromPeer, exists := l.rt.Get(fromPeerID); exists {
-		// only record query outcomes for peers already in our routing table
-		fromPeer.Recorder().Record(t, o)
-
 		// re-heap; if this proves expensive, we could choose to only selectively re-heap
 		// when it changes the outcome of fromPeer.Before()
 		l.rt.Push(fromPeer)

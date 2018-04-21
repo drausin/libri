@@ -10,6 +10,7 @@ import (
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
+	gw "github.com/drausin/libri/libri/librarian/server/goodwill"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	ssearch "github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/stretchr/testify/assert"
@@ -19,7 +20,7 @@ import (
 
 func TestNewDefaultStorer(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	s := NewDefaultStorer(ecid.NewPseudoRandom(rng), nil)
+	s := NewDefaultStorer(ecid.NewPseudoRandom(rng), &fixedRecorder{}, nil)
 	assert.NotNil(t, s.(*storer).signer)
 	assert.NotNil(t, s.(*storer).searcher)
 	assert.NotNil(t, s.(*storer).storerCreator)
@@ -36,10 +37,12 @@ func TestStorer_Store_ok(t *testing.T) {
 
 		// create our searcher
 		value, key := api.NewTestDocument(rng)
+		rec := &fixedRecorder{}
 		storer := &storer{
-			searcher:      ssearch.NewTestSearcher(peersMap, addressFinders),
+			searcher:      ssearch.NewTestSearcher(peersMap, addressFinders, rec),
 			storerCreator: &fixedStorerCreator{},
 			signer:        &client.TestNoOpSigner{},
+			rec:           rec,
 		}
 
 		for _, concurrency := range concurrencies {
@@ -65,7 +68,7 @@ func TestStorer_Store_ok(t *testing.T) {
 				seeds[i] = peers[selfPeerIdxs[i]]
 			}
 
-			// do the search!
+			// do the store!
 			err := storer.Store(store, seeds)
 
 			// checks
@@ -78,12 +81,15 @@ func TestStorer_Store_ok(t *testing.T) {
 			assert.True(t, storeParams.NMaxErrors >= uint(len(store.Result.Unqueried)), info)
 			assert.Equal(t, 0, len(store.Result.Errors), info)
 			assert.Nil(t, store.Result.FatalErr, info)
+			assert.True(t, len(store.Result.Responded) <= rec.nSuccesses)
+			assert.Equal(t, 0, rec.nErrors)
 		}
 	}
 }
 
 func TestStorer_Store_queryErr(t *testing.T) {
-	storerImpl, store, selfPeerIdxs, peers, _ := newTestStore()
+	rec := &fixedRecorder{}
+	storerImpl, store, selfPeerIdxs, peers, _ := newTestStore(rec)
 	seeds := ssearch.NewTestSeeds(peers, selfPeerIdxs)
 
 	// mock storerCreator to always error
@@ -105,6 +111,7 @@ func TestStorer_Store_queryErr(t *testing.T) {
 	assert.True(t, 3 >= len(store.Result.Unqueried))
 	assert.True(t, int(store.Params.NMaxErrors) <= len(store.Result.Errors))
 	assert.Equal(t, ErrTooManyStoreErrors, store.Result.FatalErr)
+	assert.True(t, rec.nErrors > 0)
 }
 
 func TestStorer_Store_err(t *testing.T) {
@@ -168,7 +175,7 @@ func TestStorer_query_err(t *testing.T) {
 	}
 }
 
-func newTestStore() (Storer, *Store, []int, []peer.Peer, cid.ID) {
+func newTestStore(rec gw.Recorder) (Storer, *Store, []int, []peer.Peer, cid.ID) {
 	n := 32
 	rng := rand.New(rand.NewSource(int64(n)))
 	peers, peersMap, addressFinders, selfPeerIdxs, selfID := ssearch.NewTestPeers(rng, n)
@@ -176,9 +183,10 @@ func newTestStore() (Storer, *Store, []int, []peer.Peer, cid.ID) {
 	// create our searcher
 	value, key := api.NewTestDocument(rng)
 	storerImpl := &storer{
-		searcher:      ssearch.NewTestSearcher(peersMap, addressFinders),
+		searcher:      ssearch.NewTestSearcher(peersMap, addressFinders, rec),
 		storerCreator: &fixedStorerCreator{},
 		signer:        &client.TestNoOpSigner{},
+		rec:           rec,
 	}
 
 	concurrency := uint(1)
@@ -238,4 +246,23 @@ func (f *fixedStorer) Store(ctx context.Context, rq *api.StoreRequest, opts ...g
 			RequestId: requestID,
 		},
 	}, nil
+}
+
+type fixedRecorder struct {
+	nSuccesses int
+	nErrors    int
+}
+
+func (f *fixedRecorder) Record(
+	peerID cid.ID, endpoint api.Endpoint, qt gw.QueryType, o gw.Outcome,
+) {
+	if o == gw.Success {
+		f.nSuccesses++
+	} else {
+		f.nErrors++
+	}
+}
+
+func (f *fixedRecorder) Get(peerID cid.ID, endpoint api.Endpoint) gw.QueryOutcomes {
+	return nil
 }

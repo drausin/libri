@@ -12,6 +12,7 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
+	gw "github.com/drausin/libri/libri/librarian/server/goodwill"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/stretchr/testify/assert"
@@ -21,10 +22,12 @@ import (
 
 func TestNewDefaultVerifier(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	v := NewDefaultVerifier(client.NewSigner(ecid.NewPseudoRandom(rng).Key()), nil)
+	selfID := ecid.NewPseudoRandom(rng).Key()
+	v := NewDefaultVerifier(client.NewSigner(selfID), &fixedRecorder{}, nil)
 	assert.NotNil(t, v.(*verifier).signer)
 	assert.NotNil(t, v.(*verifier).verifierCreator)
 	assert.NotNil(t, v.(*verifier).rp)
+	assert.NotNil(t, v.(*verifier).rec)
 }
 
 func TestVerifier_Verify_ok(t *testing.T) {
@@ -35,12 +38,13 @@ func TestVerifier_Verify_ok(t *testing.T) {
 
 	// create our verifier
 	key := id.NewPseudoRandom(rng)
-	verifier := newTestVerifier(peersMap, peerConnectedAddrs)
 
 	for concurrency := uint(1); concurrency <= 3; concurrency++ {
 		info := fmt.Sprintf("concurrency: %d", concurrency)
 		//log.Printf("running: %s", info) // sometimes handy for debugging
 
+		rec := &fixedRecorder{}
+		verifier := newTestVerifier(peersMap, peerConnectedAddrs, rec)
 		v := NewVerify(selfID, key, macKey, mac, &Parameters{
 			NReplicas:         nReplicas,
 			NClosestResponses: nClosestResponses,
@@ -73,12 +77,17 @@ func TestVerifier_Verify_ok(t *testing.T) {
 			}
 		}
 
-		// check all closest peers are in set of peers within farther close distance to the key
+		// check all closest peers are in set of peers within farther close distance to the
+		// key
 		for v.Result.Closest.Len() > 0 {
 			p := heap.Pop(v.Result.Closest).(peer.Peer)
 			_, in := expectedClosestsPeers[p.ID().String()]
 			assert.True(t, in)
 		}
+
+		// check recorder side effect
+		assert.True(t, len(v.Result.Responded) <= rec.nSuccesses)
+		assert.Equal(t, 0, rec.nErrors)
 	}
 }
 
@@ -260,7 +269,8 @@ func newTestVerify() (Verifier, *Verify, []int, []peer.Peer) {
 
 	// create our verifier
 	key := id.NewPseudoRandom(rng)
-	verifier := newTestVerifier(peersMap, peerConnectedAddrs)
+	rec := &fixedRecorder{}
+	verifier := newTestVerifier(peersMap, peerConnectedAddrs, rec)
 
 	v := NewVerify(selfID, key, macKey, mac, &Parameters{
 		NReplicas:         nReplicas,
@@ -274,7 +284,9 @@ func newTestVerify() (Verifier, *Verify, []int, []peer.Peer) {
 }
 
 func newTestVerifier(
-	peersMap map[string]peer.Peer, peerConnectedAddrs map[string][]*api.PeerAddress,
+	peersMap map[string]peer.Peer,
+	peerConnectedAddrs map[string][]*api.PeerAddress,
+	rec gw.Recorder,
 ) Verifier {
 	addressVerifiers := make(map[string]api.Verifier)
 	for address, connectedAddresses := range peerConnectedAddrs {
@@ -282,6 +294,7 @@ func newTestVerifier(
 	}
 	return NewVerifier(
 		&client.TestNoOpSigner{},
+		rec,
 		&testVerifierCreator{verifiers: addressVerifiers},
 		&responseProcessor{
 			fromer: &search.TestFromer{Peers: peersMap},
@@ -338,4 +351,21 @@ func newPeerAddresses(rng *rand.Rand, n int) []*api.PeerAddress {
 		peerAddresses[i] = p.ToAPI()
 	}
 	return peerAddresses
+}
+
+type fixedRecorder struct {
+	nSuccesses int
+	nErrors    int
+}
+
+func (f *fixedRecorder) Record(peerID id.ID, endpoint api.Endpoint, qt gw.QueryType, o gw.Outcome) {
+	if o == gw.Success {
+		f.nSuccesses++
+	} else {
+		f.nErrors++
+	}
+}
+
+func (f *fixedRecorder) Get(peerID id.ID, endpoint api.Endpoint) gw.QueryOutcomes {
+	return nil
 }

@@ -2,6 +2,7 @@ package routing
 
 import (
 	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/server/goodwill"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 )
 
@@ -33,10 +34,13 @@ type bucket struct {
 
 	// positions (i.e., indices) of each peer (keyed by ID string) in the heap.
 	positions map[string]int
+
+	// determines peer ordering within a bucket
+	judge goodwill.PreferJudge
 }
 
 // newFirstBucket creates a new instance of the first bucket (spanning the entire ID range)
-func newFirstBucket(maxActivePeers uint) *bucket {
+func newFirstBucket(maxActivePeers uint, judge goodwill.PreferJudge) *bucket {
 	return &bucket{
 		depth:          0,
 		lowerBound:     id.LowerBound,
@@ -47,6 +51,7 @@ func newFirstBucket(maxActivePeers uint) *bucket {
 		activePeers:    make([]peer.Peer, 0),
 		positions:      make(map[string]int),
 		containsSelf:   true,
+		judge:          judge,
 	}
 }
 
@@ -55,7 +60,7 @@ func (b *bucket) Len() int {
 }
 
 func (b *bucket) Less(i, j int) bool {
-	return b.activePeers[i].Before(b.activePeers[j])
+	return b.judge.Prefer(b.activePeers[i].ID(), b.activePeers[j].ID())
 }
 
 func (b *bucket) Swap(i, j int) {

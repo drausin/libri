@@ -14,21 +14,22 @@ import (
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
+	"github.com/drausin/libri/libri/common/parse"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
-	"github.com/drausin/libri/libri/common/parse"
 )
 
 func TestStart_ok(t *testing.T) {
 	// start a single librarian server
 	config := newTestConfig()
-	config.WithProfile(true)
+	config.WithProfile(true).WithReportMetrics(true)
 	assert.True(t, config.isBootstrap())
 
 	var err error
@@ -85,6 +86,7 @@ func TestStart_bootstrapPeersErr(t *testing.T) {
 	config := NewDefaultConfig()
 	config.WithDataDir(dataDir).WithDefaultDBDir()
 	config.WithBootstrapAddrs(make([]*net.TCPAddr, 0))
+	config.WithReportMetrics(false)
 
 	// configure bootstrap peer to be non-existent peer
 	publicAddr, err := parse.Addr(DefaultIP, DefaultPort-1)
@@ -111,12 +113,14 @@ func TestLibrarian_bootstrapPeers_ok(t *testing.T) {
 		fixedResult.Responded[p.ID().String()] = p
 	}
 
+	judge := &fixedJudge{}
+	rt := routing.NewEmpty(id.NewPseudoRandom(rng), judge, routing.NewDefaultParameters())
 	l := &Librarian{
 		config: NewDefaultConfig(),
 		introducer: &fixedIntroducer{
 			result: fixedResult,
 		},
-		rt:     routing.NewEmpty(id.NewPseudoRandom(rng), routing.NewDefaultParameters()),
+		rt:     rt,
 		logger: zap.NewNop(),
 	}
 
@@ -142,13 +146,15 @@ func TestLibrarian_bootstrapPeers_introduceErr(t *testing.T) {
 		seeds[i] = peer.NewTestPublicAddr(i)
 	}
 
+	judge := &fixedJudge{}
+	rt := routing.NewEmpty(id.NewPseudoRandom(rng), judge, routing.NewDefaultParameters())
 	l := &Librarian{
 		config: NewDefaultConfig(),
 		selfID: ecid.NewPseudoRandom(rng),
 		introducer: &fixedIntroducer{
 			err: errors.New("some fatal introduce error"),
 		},
-		rt:     routing.NewEmpty(id.NewPseudoRandom(rng), routing.NewDefaultParameters()),
+		rt:     rt,
 		logger: zap.NewNop(),
 	}
 
@@ -168,18 +174,20 @@ func TestLibrarian_bootstrapPeers_noResponsesErr(t *testing.T) {
 		seeds[i] = peer.NewTestPublicAddr(i)
 	}
 
-	// define out fixed introduction result with no responses
+	// fixed introduction result with no responses
 	fixedResult := introduce.NewInitialResult()
 
 	publicAddr, err := parse.Addr(DefaultIP, DefaultPort+1)
 	assert.Nil(t, err)
+	judge := &fixedJudge{}
+	rt := routing.NewEmpty(id.NewPseudoRandom(rng), judge, routing.NewDefaultParameters())
 	l := &Librarian{
-		config: NewDefaultConfig().WithPublicAddr(publicAddr),
+		config: NewDefaultConfig().WithPublicAddr(publicAddr).WithLogLevel(zapcore.DebugLevel),
 		selfID: ecid.NewPseudoRandom(rng),
 		introducer: &fixedIntroducer{
 			result: fixedResult,
 		},
-		rt:     routing.NewEmpty(id.NewPseudoRandom(rng), routing.NewDefaultParameters()),
+		rt:     rt,
 		logger: zap.NewNop(),
 	}
 
@@ -195,4 +203,10 @@ type fixedIntroducer struct {
 func (fi *fixedIntroducer) Introduce(intro *introduce.Introduction, seeds []peer.Peer) error {
 	intro.Result = fi.result
 	return fi.err
+}
+
+type fixedJudge struct{}
+
+func (f *fixedJudge) Prefer(peerID1, peerID2 id.ID) bool {
+	return true
 }
