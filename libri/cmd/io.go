@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	maxContentSize = 12 * 1024 * 1024 // bytes
-	minContentSize = 32               // bytes
+	maxContentSize = 1 * 1024 * 1024 // bytes
+	minContentSize = 32              // bytes
 )
 
 const (

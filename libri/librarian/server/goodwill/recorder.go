@@ -15,7 +15,9 @@ const (
 	queryTypeLabel = "query_type"
 	outcomeLabel   = "outcome"
 
-	counterName = "peer_query_count"
+	counterNamespace = "libri"
+	counterSubsystem = "goodwill"
+	counterName      = "peer_query_count"
 )
 
 // Recorder manages metrics about each peer's endpoint query outcomes.
@@ -26,6 +28,17 @@ type Recorder interface {
 
 	// Get the query types outcomes on a particular endpoint for a peer.
 	Get(peerID id.ID, endpoint api.Endpoint) QueryOutcomes
+}
+
+// PromRecorder is a Recorder that exposes state via Prometheus metrics.
+type PromRecorder interface {
+	Recorder
+
+	// Register registers the Prometheus metric(s) with the default Prometheus registerer.
+	Register()
+
+	// Unregister unregisters the Prometheus metrics form the default Prometheus registerer.
+	Unregister()
 }
 
 type scalarRecorder struct {
@@ -73,11 +86,11 @@ func (r *scalarRecorder) Get(peerID id.ID, endpoint api.Endpoint) QueryOutcomes 
 
 // NewPromScalarRecorder creates a new scalar recorder that also emits Prometheus metrics for each
 // (peer, endpoint, query, outcome).
-func NewPromScalarRecorder(selfID id.ID) Recorder {
+func NewPromScalarRecorder(selfID id.ID) PromRecorder {
 	counter := prom.NewCounterVec(
 		prom.CounterOpts{
-			Namespace: "grpc",
-			Subsystem: "server",
+			Namespace: counterNamespace,
+			Subsystem: counterSubsystem,
 			Name:      counterName,
 			Help:      "Number of queries to and from other peers.",
 		},
@@ -89,7 +102,6 @@ func NewPromScalarRecorder(selfID id.ID) Recorder {
 			outcomeLabel,
 		},
 	)
-	prom.MustRegister(counter)
 	return &promScalarRecorder{
 		scalarRecorder: NewScalarRecorder().(*scalarRecorder),
 		selfID:         selfID,
@@ -113,4 +125,12 @@ func (r *promScalarRecorder) Record(peerID id.ID, endpoint api.Endpoint, qt Quer
 		queryTypeLabel: qt.String(),
 		outcomeLabel:   o.String(),
 	}).Inc()
+}
+
+func (r *promScalarRecorder) Register() {
+	prom.MustRegister(r.counter)
+}
+
+func (r *promScalarRecorder) Unregister() {
+	_ = prom.Unregister(r.counter)
 }
