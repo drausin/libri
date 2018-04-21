@@ -130,7 +130,7 @@ func CreateKeychains(logger *zap.Logger, keychainDir, auth string, scryptN, scry
 
 // CreateKeychain creates a keychain in the given filepath with the given auth and Scrypt params.
 func CreateKeychain(logger *zap.Logger, filepath, auth string, scryptN, scryptP int) error {
-	if _, err := os.Stat(filepath); os.IsExist(err) {
+	if _, err := os.Stat(filepath); !os.IsNotExist(err) {
 		logger.Error("keychain already exists",
 			zap.String(LoggerKeychainFilepath, filepath))
 		return ErrKeychainExists
