@@ -119,8 +119,8 @@ type promScalarRecorder struct {
 func (r *promScalarRecorder) Record(peerID id.ID, endpoint api.Endpoint, qt QueryType, o Outcome) {
 	r.scalarRecorder.Record(peerID, endpoint, qt, o)
 	r.counter.With(prom.Labels{
-		selfPeerLabel:  r.selfID.String(),
-		otherPeerLabel: peerID.String(),
+		selfPeerLabel:  id.ShortHex(r.selfID.Bytes()),
+		otherPeerLabel: id.ShortHex(peerID.Bytes()),
 		endpointLabel:  endpoint.String(),
 		queryTypeLabel: qt.String(),
 		outcomeLabel:   o.String(),
