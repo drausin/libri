@@ -17,7 +17,7 @@ func TestOutcome_String(t *testing.T) {
 }
 
 func TestMetrics_Record(t *testing.T) {
-	m := &Metrics{}
+	m := &ScalarMetrics{}
 
 	m.Record()
 	assert.NotEmpty(t, m.Earliest)

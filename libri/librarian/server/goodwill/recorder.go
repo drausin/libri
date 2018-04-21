@@ -18,7 +18,9 @@ const (
 	counterName = "peer_query_count"
 )
 
+// Recorder manages metrics about each peer's endpoint query outcomes.
 type Recorder interface {
+
 	// Record the outcome from a given query to/from a peer on the endpoint.
 	Record(peerID id.ID, endpoint api.Endpoint, qt QueryType, o Outcome)
 
@@ -31,7 +33,9 @@ type scalarRecorder struct {
 	mu    sync.Mutex
 }
 
-func NewScalarRecorder() *scalarRecorder {
+// NewScalarRecorder creates a new Recorder that stores scalar metrics about each peer's endpoint
+// query outcomes.
+func NewScalarRecorder() Recorder {
 	return &scalarRecorder{
 		peers: make(map[string]EndpointQueryOutcomes),
 	}
@@ -67,6 +71,8 @@ func (r *scalarRecorder) Get(peerID id.ID, endpoint api.Endpoint) QueryOutcomes 
 	return po[endpoint]
 }
 
+// NewPromScalarRecorder creates a new scalar recorder that also emits Prometheus metrics for each
+// (peer, endpoint, query, outcome).
 func NewPromScalarRecorder(selfID id.ID) Recorder {
 	counter := prom.NewCounterVec(
 		prom.CounterOpts{
@@ -85,7 +91,7 @@ func NewPromScalarRecorder(selfID id.ID) Recorder {
 	)
 	prom.MustRegister(counter)
 	return &promScalarRecorder{
-		scalarRecorder: NewScalarRecorder(),
+		scalarRecorder: NewScalarRecorder().(*scalarRecorder),
 		selfID:         selfID,
 		counter:        counter,
 	}

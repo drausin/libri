@@ -7,6 +7,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 )
 
+// PreferJudge determines which peers should be favored over others.
 type PreferJudge interface {
 
 	// Prefer indicates whether peer 1 should be preferred over peer 2 when deciding which to

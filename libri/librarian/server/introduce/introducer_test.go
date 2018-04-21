@@ -224,10 +224,6 @@ func newQueryTestIntroduction() (*Introduction, map[string]api.Introducer) {
 	return intro, introducers
 }
 
-type fixedResponseProcessor struct{}
-
-func (f *fixedResponseProcessor) Process(rp *api.IntroduceResponse, result *Result) {}
-
 func newTestIntroducer(
 	peersMap map[string]peer.Peer,
 	selfID id.ID,

@@ -13,7 +13,7 @@ import (
 
 func TestLatestCompareJudge_Prefer(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	r := NewScalarRecorder()
+	r := NewScalarRecorder().(*scalarRecorder)
 	j := NewLatestPreferJudge(r)
 
 	id1, id2 := id.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
@@ -41,7 +41,7 @@ func TestLatestCompareJudge_Prefer(t *testing.T) {
 func singletonResponseSuccess(latest time.Time, count uint64) EndpointQueryOutcomes {
 	return EndpointQueryOutcomes{
 		api.All: QueryOutcomes{
-			Response: map[Outcome]*Metrics{
+			Response: map[Outcome]*ScalarMetrics{
 				Success: {
 					Latest: latest,
 					Count:  count,

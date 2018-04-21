@@ -253,7 +253,9 @@ type fixedRecorder struct {
 	nErrors    int
 }
 
-func (f *fixedRecorder) Record(peerID cid.ID, endpoint api.Endpoint, qt gw.QueryType, o gw.Outcome) {
+func (f *fixedRecorder) Record(
+	peerID cid.ID, endpoint api.Endpoint, qt gw.QueryType, o gw.Outcome,
+) {
 	if o == gw.Success {
 		f.nSuccesses++
 	} else {

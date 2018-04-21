@@ -51,7 +51,7 @@ func TestNewLibrarian(t *testing.T) {
 
 	l2, err := NewLibrarian(l1.config, zap.NewNop())
 	go func() {
-		err := l2.replicator.Start()
+		err = l2.replicator.Start()
 		assert.Nil(t, err)
 	}()
 	go func() { // dummy stop signal acceptor

@@ -40,7 +40,9 @@ func NewIntroducer(
 
 // NewDefaultIntroducer creates a new Introducer with the given signer and default querier and
 // response processor.
-func NewDefaultIntroducer(s client.Signer, rec gw.Recorder, selfID id.ID, clients client.Pool) Introducer {
+func NewDefaultIntroducer(
+	s client.Signer, rec gw.Recorder, selfID id.ID, clients client.Pool,
+) Introducer {
 	ic := client.NewIntroducerCreator(clients)
 	rp := NewResponseProcessor(peer.NewFromer(), selfID)
 	return NewIntroducer(s, rec, ic, rp)

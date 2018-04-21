@@ -121,8 +121,8 @@ func setUp(params *params) *state { // nolint: deadcode
 			zap.String("seed_address", seedConfigs[c].PublicAddr.String()),
 		)
 		go func() {
-			err := server.Start(logger, seedConfigs[c], seedsUp)
-			errors.MaybePanic(err)
+			err2 := server.Start(logger, seedConfigs[c], seedsUp)
+			errors.MaybePanic(err2)
 		}()
 		seeds[c] = <-seedsUp // wait for seed to come up
 	}

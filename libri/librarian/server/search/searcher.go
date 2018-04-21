@@ -37,7 +37,9 @@ type searcher struct {
 }
 
 // NewSearcher returns a new Searcher with the given Querier and ResponseProcessor.
-func NewSearcher(s client.Signer, rec gw.Recorder, c client.FinderCreator, rp ResponseProcessor) Searcher {
+func NewSearcher(
+	s client.Signer, rec gw.Recorder, c client.FinderCreator, rp ResponseProcessor,
+) Searcher {
 	return &searcher{
 		signer:        s,
 		finderCreator: c,
@@ -255,11 +257,12 @@ func (frp *responseProcessor) Process(rp *api.FindResponse, s *Search) error {
 	if rp.Peers != nil {
 		// response has peer addresses close to keys
 		if !s.Finished() {
-			// don't add peers to unqueried if the search is already finished and we're not going
-			// to query those peers; there's a small chance that one of the peer that would be added
-			// to unqueried would be closer than farthest closest peer, which would be then move the
-			// search state back from finished -> not finished, a potentially confusing change
-			// that we choose to avoid altogether at the expense of (very) occasionally missing a
+			// don't add peers to unqueried if the search is already finished and we're
+			// not going to query those peers; there's a small chance that one of the
+			// peer that would be added to unqueried would be closer than farthest
+			// closest peer, which would be then move the search state back from
+			// finished -> not finished, a potentially confusing change that we choose
+			// to avoid altogether at the expense of (very) occasionally missing a
 			// closer peer
 			s.wrapLock(func() {
 				AddPeers(s.Result.Queried, s.Result.Unqueried, rp.Peers, frp.fromer)

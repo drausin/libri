@@ -18,6 +18,7 @@ const (
 	Response
 )
 
+// String returns a string representation of the query type.
 func (qt QueryType) String() string {
 	switch qt {
 	case Request:
@@ -40,6 +41,7 @@ const (
 	Error
 )
 
+// String returns a string representation of the outcome.
 func (o Outcome) String() string {
 	switch o {
 	case Success:
@@ -51,7 +53,9 @@ func (o Outcome) String() string {
 	}
 }
 
-type Metrics struct {
+// ScalarMetrics contains scalar metrics for a given query type and outcome.
+type ScalarMetrics struct {
+
 	// Earliest response time from the peer
 	Earliest time.Time
 
@@ -64,7 +68,8 @@ type Metrics struct {
 	mu sync.Mutex
 }
 
-func (m *Metrics) Record() {
+// Record updates the metrics to mark a query.
+func (m *ScalarMetrics) Record() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.Count++
@@ -74,21 +79,23 @@ func (m *Metrics) Record() {
 	}
 }
 
-type QueryOutcomes map[QueryType]map[Outcome]*Metrics
+// QueryOutcomes contains the metrics for the 4 (query type, outcome) tuples.
+type QueryOutcomes map[QueryType]map[Outcome]*ScalarMetrics
 
 func newQueryOutcomes() QueryOutcomes {
 	return QueryOutcomes{
-		Request: map[Outcome]*Metrics{
+		Request: map[Outcome]*ScalarMetrics{
 			Success: {},
 			Error:   {},
 		},
-		Response: map[Outcome]*Metrics{
+		Response: map[Outcome]*ScalarMetrics{
 			Success: {},
 			Error:   {},
 		},
 	}
 }
 
+// EndpointQueryOutcomes contains the query outcomes for each endpoint.
 type EndpointQueryOutcomes map[api.Endpoint]QueryOutcomes
 
 func newEndpointQueryOutcomes() EndpointQueryOutcomes {

@@ -5,20 +5,37 @@ import (
 	"google.golang.org/grpc"
 )
 
+// Endpoint defines an enum for the librarian API endpoints.
 type Endpoint int
 
 const (
+	// All represents all endpoints, usually used when aggregating counts across all endpoints.
 	All Endpoint = iota - 1
+
+	// Introduce represents the Introduce endpoint.
 	Introduce
+
+	// Find represents the Introduce endpoint.
 	Find
+
+	// Store represents the Introduce endpoint.
 	Store
+
+	// Verify represents the Introduce endpoint.
 	Verify
+
+	// Get represents the Introduce endpoint.
 	Get
+
+	// Put represents the Introduce endpoint.
 	Put
+
+	// Subscribe represents the Introduce endpoint.
 	Subscribe
 )
 
 var (
+	// Endpoints is a list of all the librarian endpoints (not including All).
 	Endpoints = []Endpoint{Introduce, Find, Store, Verify, Get, Put, Subscribe}
 )
 
