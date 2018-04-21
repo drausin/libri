@@ -130,9 +130,7 @@ func CreateKeychains(logger *zap.Logger, keychainDir, auth string, scryptN, scry
 
 // CreateKeychain creates a keychain in the given filepath with the given auth and Scrypt params.
 func CreateKeychain(logger *zap.Logger, filepath, auth string, scryptN, scryptP int) error {
-	if info, err := os.Stat(filepath); err != nil {
-		return err
-	} else if info != nil {
+	if _, err := os.Stat(filepath); os.IsExist(err) {
 		logger.Error("keychain already exists",
 			zap.String(LoggerKeychainFilepath, filepath))
 		return ErrKeychainExists
@@ -153,16 +151,11 @@ func MissingKeychains(keychainDir string) (bool, error) {
 	if _, err := os.Stat(keychainDir); os.IsNotExist(err) {
 		return true, nil
 	}
-	authorFileInfo, err := os.Stat(path.Join(keychainDir, AuthorKeychainFilename))
-	if err != nil {
-		return false, err
-	}
-	selfReaderFileInfo, err := os.Stat(path.Join(keychainDir, SelfReaderKeychainFilename))
-	if err != nil {
-		return false, err
-	}
+	authorFileInfo, authorFileErr := os.Stat(path.Join(keychainDir, AuthorKeychainFilename))
+	selfReaderFileInfo, selfReaderFileErr :=
+		os.Stat(path.Join(keychainDir, SelfReaderKeychainFilename))
 
-	if authorFileInfo == nil && selfReaderFileInfo == nil {
+	if os.IsNotExist(authorFileErr) && os.IsNotExist(selfReaderFileErr) {
 		// neither file exists
 		return true, nil
 	}

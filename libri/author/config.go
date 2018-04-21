@@ -8,9 +8,9 @@ import (
 	"github.com/drausin/libri/libri/author/io/print"
 	"github.com/drausin/libri/libri/author/io/publish"
 	"github.com/drausin/libri/libri/common/errors"
+	"github.com/drausin/libri/libri/common/parse"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"github.com/drausin/libri/libri/common/parse"
 )
 
 const (

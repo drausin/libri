@@ -3,6 +3,7 @@ package parse
 import (
 	"net"
 	"testing"
+
 	"github.com/stretchr/testify/assert"
 )
 

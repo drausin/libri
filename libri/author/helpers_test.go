@@ -1,9 +1,9 @@
 package author
 
 import (
-	"testing"
 	"errors"
 	"net"
+	"testing"
 
 	"github.com/drausin/libri/libri/author/io/enc"
 	"github.com/drausin/libri/libri/author/keychain"

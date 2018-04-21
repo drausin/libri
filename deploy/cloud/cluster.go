@@ -322,16 +322,16 @@ func kubeApply(clusterDir string, dryRun bool) {
 func writeKubeConfig(clusterDir string) {
 	tfvars := getTFFlags(clusterDir)
 	config := KubeConfig{
-		LibriVersion:        tfvars[tfLibrarianLibriVersion].(string),
-		LocalPort:           tfvars[tfLocalPort].(int),
-		LocalMetricsPort:    tfvars[tfLocalMetricsPort].(int),
-		GrafanaPort:         tfvars[tfGrafanaPort].(int),
-		PrometheusPort:      tfvars[tfPrometheusPort].(int),
-		Librarians:          make([]LibrarianConfig, tfvars[tfNumLibrarians].(int)),
-		LibrarianCPULimit:   tfvars[tfLibrarianCPULimit].(string),
-		LibrarianRAMLimit:   tfvars[tfLibrarianRAMLimit].(string),
-		LocalCluster:        tfvars[tfClusterHost] == tfClusterHostMinikube,
-		GCPCluster:          tfvars[tfClusterHost] == tfClusterHostGCP,
+		LibriVersion:      tfvars[tfLibrarianLibriVersion].(string),
+		LocalPort:         tfvars[tfLocalPort].(int),
+		LocalMetricsPort:  tfvars[tfLocalMetricsPort].(int),
+		GrafanaPort:       tfvars[tfGrafanaPort].(int),
+		PrometheusPort:    tfvars[tfPrometheusPort].(int),
+		Librarians:        make([]LibrarianConfig, tfvars[tfNumLibrarians].(int)),
+		LibrarianCPULimit: tfvars[tfLibrarianCPULimit].(string),
+		LibrarianRAMLimit: tfvars[tfLibrarianRAMLimit].(string),
+		LocalCluster:      tfvars[tfClusterHost] == tfClusterHostMinikube,
+		GCPCluster:        tfvars[tfClusterHost] == tfClusterHostGCP,
 	}
 	if value, in := tfvars[tfLibrarianDiskSizeGB]; in {
 		config.LibrarianDiskSizeGB = value.(int)

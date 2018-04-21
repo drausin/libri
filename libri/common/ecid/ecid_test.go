@@ -13,8 +13,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/drausin/libri/libri/common/id"
 	cerrors "github.com/drausin/libri/libri/common/errors"
+	"github.com/drausin/libri/libri/common/id"
 	"github.com/stretchr/testify/assert"
 )
 
