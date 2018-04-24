@@ -27,6 +27,7 @@ const (
 	kubeConfigFilename         = "libri.yml"
 
 	// Terraform variable keys
+	tfClusterAdminUser      = "cluster_admin_user"
 	tfClusterHost           = "cluster_host"
 	tfNumLibrarians         = "num_librarians"
 	tfLibrarianLibriVersion = "librarian_libri_version"
@@ -54,6 +55,7 @@ type TFConfig struct {
 
 // KubeConfig contains the configuration to apply to the template.
 type KubeConfig struct {
+	ClusterAdminUser    string
 	LibriVersion        string
 	LocalPort           int
 	LocalMetricsPort    int
@@ -322,6 +324,7 @@ func kubeApply(clusterDir string, dryRun bool) {
 func writeKubeConfig(clusterDir string) {
 	tfvars := getTFFlags(clusterDir)
 	config := KubeConfig{
+		ClusterAdminUser:  tfvars[tfClusterAdminUser].(string),
 		LibriVersion:      tfvars[tfLibrarianLibriVersion].(string),
 		LocalPort:         tfvars[tfLocalPort].(int),
 		LocalMetricsPort:  tfvars[tfLocalMetricsPort].(int),
