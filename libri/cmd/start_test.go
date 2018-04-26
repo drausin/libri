@@ -33,6 +33,7 @@ func TestGetLibrarianConfig_ok(t *testing.T) {
 	logLevel := "debug"
 	nSubscriptions, fpRate := 5, 0.5
 	bootstraps := "1.2.3.5:1000 1.2.3.6:1000"
+	nBucketPeers := uint(8)
 
 	viper.Set(logLevelFlag, logLevel)
 	viper.Set(publicHostFlag, publicIP)
@@ -46,6 +47,7 @@ func TestGetLibrarianConfig_ok(t *testing.T) {
 	viper.Set(nSubscriptionsFlag, nSubscriptions)
 	viper.Set(fpRateFlag, fpRate)
 	viper.Set(bootstrapsFlag, bootstraps)
+	viper.Set(maxBucketPeersFlag, nBucketPeers)
 
 	config, logger, err := getLibrarianConfig()
 	assert.Nil(t, err)
@@ -62,6 +64,7 @@ func TestGetLibrarianConfig_ok(t *testing.T) {
 	assert.Equal(t, uint32(nSubscriptions), config.SubscribeTo.NSubscriptions)
 	assert.Equal(t, float32(fpRate), config.SubscribeTo.FPRate)
 	assert.Equal(t, 2, len(config.BootstrapAddrs))
+	assert.Equal(t, nBucketPeers, config.Routing.MaxBucketPeers)
 
 	assert.Nil(t, os.RemoveAll(config.DataDir))
 }
