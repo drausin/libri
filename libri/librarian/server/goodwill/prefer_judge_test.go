@@ -48,6 +48,10 @@ func singletonResponseSuccess(latest time.Time, count uint64) EndpointQueryOutco
 				},
 				Error: {},
 			},
+			Request: map[Outcome]*ScalarMetrics{
+				Success: {},
+				Error:   {},
+			},
 		},
 	}
 }

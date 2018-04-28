@@ -27,16 +27,27 @@ func NewLatestPreferJudge(rec Recorder) PreferJudge {
 }
 
 func (j *latestPreferJudge) Prefer(peerID1, peerID2 id.ID) bool {
-	success1 := j.rec.Get(peerID1, api.All)[Response][Success]
-	error1 := j.rec.Get(peerID1, api.All)[Response][Error]
-	success2 := j.rec.Get(peerID2, api.All)[Response][Success]
-	error2 := j.rec.Get(peerID1, api.All)[Response][Error]
+	rpSuccess1 := j.rec.Get(peerID1, api.All)[Response][Success]
+	rqSuccess1 := j.rec.Get(peerID1, api.All)[Request][Success]
+	rpSuccess2 := j.rec.Get(peerID2, api.All)[Response][Success]
+	rqSuccess2 := j.rec.Get(peerID2, api.All)[Request][Success]
+
+	latest1 := rqSuccess1.Latest
+	if latest1.Before(rpSuccess1.Latest) {
+		latest1 = rpSuccess1.Latest
+	}
+	latest2 := rqSuccess2.Latest
+	if latest2.Before(rpSuccess2.Latest) {
+		latest2 = rpSuccess2.Latest
+	}
+	diff1 := rqSuccess1.Count - rpSuccess1.Count
+	diff2 := rqSuccess2.Count - rpSuccess2.Count
 
 	// don't care about differences in latest response time within a minute
-	if success1.Latest.Round(time.Minute) == success2.Latest.Round(time.Minute) {
-		// prefer 1 over 2 if we've made fewer queries to it, so we can attempt to
-		// balance queries across peers
-		return success1.Count+error1.Count < success2.Count+error2.Count
+	if latest1.Round(time.Minute) == latest2.Round(time.Minute) {
+		// if peer1 has more requests than responses, prefer it over peer2 to attempt to
+		// load balance between peers
+		return diff1 > diff2
 	}
-	return success1.Latest.After(success2.Latest)
+	return latest1.After(latest2)
 }
