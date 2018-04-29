@@ -134,6 +134,14 @@ func (fp *fixedPool) Len() int {
 
 type fixedJudge struct{}
 
+func (f *fixedJudge) Trusted(peerID id.ID) bool {
+	return true
+}
+
+func (f *fixedJudge) Healthy(peerID id.ID) bool {
+	return true
+}
+
 func (f *fixedJudge) Prefer(peerID1, peerID2 id.ID) bool {
 	return true
 }

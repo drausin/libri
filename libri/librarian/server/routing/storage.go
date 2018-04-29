@@ -12,7 +12,7 @@ import (
 var tableKey = []byte("RoutingTable")
 
 // Load retrieves the routing table form the KV DB.
-func Load(nl cstorage.Loader, judge goodwill.PreferJudge, params *Parameters) (Table, error) {
+func Load(nl cstorage.Loader, judge goodwill.Judge, params *Parameters) (Table, error) {
 	bytes, err := nl.Load(tableKey)
 	if bytes == nil || err != nil {
 		return nil, err
@@ -36,7 +36,7 @@ func (rt *table) Save(ns cstorage.Storer) error {
 
 // fromStored returns a new Table instance from a StoredRoutingTable instance.
 func fromStored(
-	stored *sstorage.RoutingTable, judge goodwill.PreferJudge, params *Parameters,
+	stored *sstorage.RoutingTable, judge goodwill.Judge, params *Parameters,
 ) Table {
 	peers := make([]peer.Peer, len(stored.Peers))
 	for i, sp := range stored.Peers {

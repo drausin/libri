@@ -27,13 +27,13 @@ func BenchmarkTable_Push(b *testing.B) {
 
 func BenchmarkTable_PushPop(b *testing.B) {
 	for _, c := range benchmarkCases {
-		b.Run(c.name, func(b *testing.B) { benchmarkPushPop(b, c.numPeers) })
+		b.Run(c.name, func(b *testing.B) { benchmarkPushFind(b, c.numPeers) })
 	}
 }
 
 func BenchmarkTable_Peak(b *testing.B) {
 	for _, c := range benchmarkCases {
-		b.Run(c.name, func(b *testing.B) { benchmarkPeak(b, c.numPeers) })
+		b.Run(c.name, func(b *testing.B) { benchmarkFind(b, c.numPeers) })
 	}
 }
 
@@ -65,7 +65,7 @@ func benchmarkPush(b *testing.B, numPeers int) {
 	}
 }
 
-func benchmarkPushPop(b *testing.B, numPeers int) {
+func benchmarkPushFind(b *testing.B, numPeers int) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	for n := 0; n < b.N; n++ {
 		rt, _, _, _ := NewTestWithPeers(rng, numPeers)
@@ -74,18 +74,18 @@ func benchmarkPushPop(b *testing.B, numPeers int) {
 		for rt.NumPeers() > 0 {
 			numToPop := uint(rt.NumPeers()/2 + 1)
 			target := id.NewPseudoRandom(rng)
-			rt.Pop(target, numToPop)
+			rt.Find(target, numToPop)
 		}
 	}
 }
 
-func benchmarkPeak(b *testing.B, numPeers int) {
+func benchmarkFind(b *testing.B, numPeers int) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	for n := 0; n < b.N; n++ {
 		rt, _, _, _ := NewTestWithPeers(rng, numPeers)
 		for c := 0; c < 100; c++ {
 			target := id.NewPseudoRandom(rng)
-			rt.Peak(target, search.DefaultNClosestResponses)
+			rt.Find(target, search.DefaultNClosestResponses)
 		}
 	}
 }

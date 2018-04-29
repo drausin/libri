@@ -7,26 +7,30 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 )
 
-// PreferJudge determines which peers should be favored over others.
-type PreferJudge interface {
+// Judge determines which peers should be favored over others.
+type Judge interface {
 
 	// Prefer indicates whether peer 1 should be preferred over peer 2 when deciding which to
 	// query next.
 	Prefer(peerID1, peerID2 id.ID) bool
+
+	Trusted(peerID id.ID) bool
+
+	Healthy(peerID id.ID) bool
 }
 
-type latestPreferJudge struct {
+type latestNaiveJudge struct {
 	rec Recorder
 }
 
-// NewLatestPreferJudge returns a PreferJudge using a strategy of preferring the peer with the most
+// NewLatestPreferJudge returns a Judge using a strategy of preferring the peer with the most
 // recent successful response. When both peers have responded within same minute, it prefers
 // that peer with the fewer number of successful responses.
-func NewLatestPreferJudge(rec Recorder) PreferJudge {
-	return &latestPreferJudge{rec}
+func NewLatestPreferJudge(rec Recorder) Judge {
+	return &latestNaiveJudge{rec}
 }
 
-func (j *latestPreferJudge) Prefer(peerID1, peerID2 id.ID) bool {
+func (j *latestNaiveJudge) Prefer(peerID1, peerID2 id.ID) bool {
 	rpSuccess1 := j.rec.Get(peerID1, api.All)[Response][Success]
 	rqSuccess1 := j.rec.Get(peerID1, api.All)[Request][Success]
 	rpSuccess2 := j.rec.Get(peerID2, api.All)[Response][Success]
@@ -50,4 +54,12 @@ func (j *latestPreferJudge) Prefer(peerID1, peerID2 id.ID) bool {
 		return diff1 > diff2
 	}
 	return latest1.After(latest2)
+}
+
+func (j *latestNaiveJudge) Trusted(peerID id.ID) bool {
+	return true
+}
+
+func (j *latestNaiveJudge) Healthy(peerID id.ID) bool {
+	return true
 }

@@ -1,6 +1,10 @@
 package routing
 
 import (
+	"math/big"
+
+	"container/heap"
+
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/server/goodwill"
 	"github.com/drausin/libri/libri/librarian/server/peer"
@@ -36,11 +40,11 @@ type bucket struct {
 	positions map[string]int
 
 	// determines peer ordering within a bucket
-	judge goodwill.PreferJudge
+	judge goodwill.Judge
 }
 
 // newFirstBucket creates a new instance of the first bucket (spanning the entire ID range)
-func newFirstBucket(maxActivePeers uint, judge goodwill.PreferJudge) *bucket {
+func newFirstBucket(maxActivePeers uint, judge goodwill.Judge) *bucket {
 	return &bucket{
 		depth:          0,
 		lowerBound:     id.LowerBound,
@@ -60,7 +64,8 @@ func (b *bucket) Len() int {
 }
 
 func (b *bucket) Less(i, j int) bool {
-	return b.judge.Prefer(b.activePeers[i].ID(), b.activePeers[j].ID())
+	// swap j & i b/c we want a max-heap, i.e., least-preferred peers at the top
+	return b.judge.Prefer(b.activePeers[j].ID(), b.activePeers[i].ID())
 }
 
 func (b *bucket) Swap(i, j int) {
@@ -84,10 +89,30 @@ func (b *bucket) Pop() interface{} {
 }
 
 func (b *bucket) Peak(k uint) []peer.Peer {
-	if k >= uint(b.Len()) {
-		return b.activePeers
+	ps := make([]peer.Peer, 0, k)
+	for _, p := range b.activePeers {
+		if b.judge.Trusted(p.ID()) && b.judge.Healthy(p.ID()) {
+			ps = append(ps, p)
+			if len(ps) == int(k) {
+				return ps
+			}
+		}
 	}
-	return b.activePeers[:k]
+	return ps
+}
+
+// Find finds the k healthy, good peers closest to the target.
+func (b *bucket) Find(target id.ID, k uint) []peer.Peer {
+	tp := newTargetedPeers(target, k)
+	for _, p := range b.activePeers {
+		if b.judge.Trusted(p.ID()) && b.judge.Healthy(p.ID()) {
+			heap.Push(tp, p)
+		}
+		if uint(len(tp.peers)) > k {
+			heap.Pop(tp)
+		}
+	}
+	return tp.peers
 }
 
 func (b *bucket) Before(c *bucket) bool {
@@ -102,4 +127,46 @@ func (b *bucket) Vacancy() bool {
 // Contains returns whether the bucket's ID range contains the target.
 func (b *bucket) Contains(target id.ID) bool {
 	return target.Cmp(b.lowerBound) >= 0 && target.Cmp(b.upperBound) < 0
+}
+
+type targetedPeers struct {
+	target    id.ID
+	distances []*big.Int
+	peers     []peer.Peer
+}
+
+func newTargetedPeers(target id.ID, k uint) *targetedPeers {
+	return &targetedPeers{
+		target:    target,
+		distances: make([]*big.Int, 0, k+1),
+		peers:     make([]peer.Peer, 0, k+1),
+	}
+}
+
+func (tp *targetedPeers) Len() int {
+	return len(tp.peers)
+}
+
+func (tp *targetedPeers) Less(i, j int) bool {
+	// swap j & i b/c we want a max heap
+	return tp.distances[j].Cmp(tp.distances[i]) < 0
+}
+
+func (tp *targetedPeers) Pop() interface{} {
+	root := tp.peers[len(tp.peers)-1]
+	tp.distances = tp.distances[0 : len(tp.distances)-1]
+	tp.peers = tp.peers[0 : len(tp.peers)-1]
+	return root
+}
+
+func (tp *targetedPeers) Push(x interface{}) {
+	p := x.(peer.Peer)
+	dist := p.ID().Distance(tp.target)
+	tp.distances = append(tp.distances, dist)
+	tp.peers = append(tp.peers, p)
+}
+
+func (tp *targetedPeers) Swap(i, j int) {
+	tp.peers[i], tp.peers[j] = tp.peers[j], tp.peers[i]
+	tp.distances[i], tp.distances[j] = tp.distances[j], tp.distances[i]
 }

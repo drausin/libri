@@ -28,7 +28,7 @@ func TestBucket_PushPop(t *testing.T) {
 		prev := heap.Pop(b).(peer.Peer)
 		for b.Len() > 0 {
 			cur := heap.Pop(b).(peer.Peer)
-			assert.True(t, judge.Prefer(prev.ID(), cur.ID()))
+			assert.True(t, judge.Prefer(cur.ID(), prev.ID()))
 			prev = cur
 		}
 	}

@@ -46,7 +46,7 @@ func TestRoutingTable_SaveLoad(t *testing.T) {
 	rt1, _ := NewWithPeers(peerID.ID(), judge, params, ps)
 	for i, p := range ps {
 		for j := 0; j < i+1; j++ {
-			rec.Record(p.ID(), api.Find, gw.Response, gw.Success)
+			rec.Record(p.ID(), api.Find, gw.Request, gw.Success)
 		}
 	}
 
