@@ -40,7 +40,7 @@ func TestLatestCompareJudge_Prefer(t *testing.T) {
 
 func singletonResponseSuccess(latest time.Time, count uint64) EndpointQueryOutcomes {
 	return EndpointQueryOutcomes{
-		api.All: QueryOutcomes{
+		api.Find: QueryOutcomes{
 			Response: map[Outcome]*ScalarMetrics{
 				Success: {
 					Latest: latest,

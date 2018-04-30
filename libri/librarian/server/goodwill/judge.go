@@ -31,10 +31,11 @@ func NewLatestPreferJudge(rec Recorder) Judge {
 }
 
 func (j *latestNaiveJudge) Prefer(peerID1, peerID2 id.ID) bool {
-	rpSuccess1 := j.rec.Get(peerID1, api.All)[Response][Success]
-	rqSuccess1 := j.rec.Get(peerID1, api.All)[Request][Success]
-	rpSuccess2 := j.rec.Get(peerID2, api.All)[Response][Success]
-	rqSuccess2 := j.rec.Get(peerID2, api.All)[Request][Success]
+	// TODO (drausin) refactor this a bit
+	rpSuccess1 := j.rec.Get(peerID1, api.Find)[Response][Success]
+	rqSuccess1 := j.rec.Get(peerID1, api.Find)[Request][Success]
+	rpSuccess2 := j.rec.Get(peerID2, api.Find)[Response][Success]
+	rqSuccess2 := j.rec.Get(peerID2, api.Find)[Request][Success]
 
 	latest1 := rqSuccess1.Latest
 	if latest1.Before(rpSuccess1.Latest) {
@@ -44,14 +45,20 @@ func (j *latestNaiveJudge) Prefer(peerID1, peerID2 id.ID) bool {
 	if latest2.Before(rpSuccess2.Latest) {
 		latest2 = rpSuccess2.Latest
 	}
-	diff1 := rqSuccess1.Count - rpSuccess1.Count
-	diff2 := rqSuccess2.Count - rpSuccess2.Count
+	diff1 := int64(rqSuccess1.Count) - int64(rpSuccess1.Count)
+	if diff1 < 0 {
+		diff1 = -diff1
+	}
+	diff2 := int64(rqSuccess2.Count) - int64(rpSuccess2.Count)
+	if diff2 < 0 {
+		diff2 = -diff2
+	}
 
-	// don't care about differences in latest response time within a minute
-	if latest1.Round(time.Minute) == latest2.Round(time.Minute) {
-		// if peer1 has more requests than responses, prefer it over peer2 to attempt to
-		// load balance between peers
-		return diff1 > diff2
+	// don't care about differences in latest response time within 5 minutes
+	latestDiff := latest1.Sub(latest2)
+	if latestDiff < 5*time.Minute && latestDiff > -5*time.Minute {
+		// prefer peer1 if its balance is closer to 0, i.e., smaller than peer2's
+		return diff1 < diff2
 	}
 	return latest1.After(latest2)
 }
