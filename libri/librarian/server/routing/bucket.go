@@ -91,7 +91,7 @@ func (b *bucket) Pop() interface{} {
 func (b *bucket) Peak(k uint) []peer.Peer {
 	ps := make([]peer.Peer, 0, k)
 	for _, p := range b.activePeers {
-		if b.judge.Trusted(p.ID()) && b.judge.Healthy(p.ID()) {
+		if b.judge.Trust(p.ID()) && b.judge.Healthy(p.ID()) {
 			ps = append(ps, p)
 			if len(ps) == int(k) {
 				return ps
@@ -105,7 +105,7 @@ func (b *bucket) Peak(k uint) []peer.Peer {
 func (b *bucket) Find(target id.ID, k uint) []peer.Peer {
 	tp := newTargetedPeers(target, k)
 	for _, p := range b.activePeers {
-		if b.judge.Trusted(p.ID()) && b.judge.Healthy(p.ID()) {
+		if b.judge.Trust(p.ID()) && b.judge.Healthy(p.ID()) {
 			heap.Push(tp, p)
 		}
 		if uint(len(tp.peers)) > k {
