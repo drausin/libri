@@ -153,7 +153,7 @@ func setUp(params *params) *state { // nolint: deadcode
 	selfPeer := peer.New(selfID.ID(), "test client", publicAddr)
 	signer := lclient.NewSigner(selfID.Key())
 	rec := goodwill.NewScalarRecorder()
-	judge := goodwill.NewLatestPreferJudge(rec)
+	judge := goodwill.NewLatestNaiveJudge(rec)
 	clientImpl := &testClient{
 		selfID:  selfID,
 		selfAPI: selfPeer.ToAPI(),

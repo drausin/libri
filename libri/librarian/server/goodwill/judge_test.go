@@ -11,47 +11,67 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestLatestCompareJudge_Prefer(t *testing.T) {
+func TestLatestNaiveJudge_Prefer(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	r := NewScalarRecorder().(*scalarRecorder)
-	j := NewLatestPreferJudge(r)
+	j := NewLatestNaiveJudge(r)
 
-	id1, id2 := id.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
 	t1 := time.Unix(1524017559, 0)
 	t2 := t1.Add(-5 * time.Minute)
 	t3 := t1.Add(-5 * time.Second)
 
 	// prefer 1 over 2 b/c it had a successful response more recently
+	id1, id2 := id.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
 	r.peers[id1.String()] = singletonResponseSuccess(t1, 1)
 	r.peers[id2.String()] = singletonResponseSuccess(t2, 1)
 	assert.True(t, j.Prefer(id1, id2))
 
 	// same, even when 2 has larger count
+	id1, id2 = id.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
 	r.peers[id1.String()] = singletonResponseSuccess(t1, 1)
 	r.peers[id2.String()] = singletonResponseSuccess(t2, 2)
 	assert.True(t, j.Prefer(id1, id2))
 
-	// prefer 2 over 1 b/c it's within same minute window and we've made fewer queries to it
+	// prefer 1 over 2 b/c it's within same time window and we've received more requests from
+	// it, which moves peer posterior mean farther from zero b/c have received no responses
+	// from it
+	id1, id2 = id.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
 	r.peers[id1.String()] = singletonResponseSuccess(t1, 2)
 	r.peers[id2.String()] = singletonResponseSuccess(t3, 1)
 	assert.False(t, j.Prefer(id1, id2))
 
 }
 
+func TestLatestNaiveJudge_Healthy(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	r := NewScalarRecorder()
+	j := NewLatestNaiveJudge(r)
+	assert.True(t, j.Healthy(id.NewPseudoRandom(rng)))
+}
+
+func TestLatestNaiveJudge_Trust(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	r := NewScalarRecorder()
+	j := NewLatestNaiveJudge(r)
+	assert.True(t, j.Trust(id.NewPseudoRandom(rng), api.Find, Response))
+}
+
 func singletonResponseSuccess(latest time.Time, count uint64) EndpointQueryOutcomes {
-	return EndpointQueryOutcomes{
-		api.Find: QueryOutcomes{
-			Response: map[Outcome]*ScalarMetrics{
-				Success: {
-					Latest: latest,
-					Count:  count,
-				},
-				Error: {},
+	qo := QueryOutcomes{
+		Response: map[Outcome]*ScalarMetrics{
+			Success: {
+				Latest: latest,
+				Count:  count,
 			},
-			Request: map[Outcome]*ScalarMetrics{
-				Success: {},
-				Error:   {},
-			},
+			Error: {},
 		},
+		Request: map[Outcome]*ScalarMetrics{
+			Success: {},
+			Error:   {},
+		},
+	}
+	return EndpointQueryOutcomes{
+		api.All:  qo,
+		api.Find: qo,
 	}
 }

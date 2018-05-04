@@ -1,9 +1,8 @@
 package goodwill
 
 import (
-	"time"
-
 	"sync"
+	"time"
 
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -26,18 +25,13 @@ var (
 )
 
 type Preferer interface {
-	// Prefer indicates whether peer 1 should be preferred over peer 2 when when prioritization
+	// Prefer indicates whether peer 1 should be preferred over peer 2 when prioritization
 	// is necessary.
 	Prefer(peerID1, peerID2 id.ID) bool
 }
 
-func NewDefaultPrefer(rec Recorder) Preferer {
-	return NewFindRqRpBetaPrefer(
-		rec,
-		defaultFindRqRpParams.IdealPrior.Dist(), // no observations, so posterior = prior
-		defaultFindRqRpParams.PeerPrior,
-		defaultCacheTTL,
-	)
+func NewDefaultPreferer(rec Recorder) Preferer {
+	return NewDefaultFindRqRpBetaPreferer(rec)
 }
 
 type findRqRpBetaPreferer struct {
@@ -48,24 +42,32 @@ type findRqRpBetaPreferer struct {
 	cacheTTL                 time.Duration
 }
 
-func NewFindRqRpBetaPrefer(
+func NewFindRqRpBetaPreferer(
 	rec Recorder,
 	idealPosterior distuv.LogProber,
 	peerPrior *BetaParameters,
 	cacheTTL time.Duration,
 ) Preferer {
 	return &findRqRpBetaPreferer{
-		rec:            rec,
-		idealPosterior: idealPosterior,
-		peerPrior:      peerPrior.Dist(),
-		cacheTTL:       cacheTTL,
+		rec:                      rec,
+		idealPosterior:           idealPosterior,
+		peerPrior:                peerPrior.Dist(),
+		cachedPeerPosteriorMeans: make(map[string]*cachedValue),
+		cacheTTL:                 cacheTTL,
 	}
+}
+func NewDefaultFindRqRpBetaPreferer(rec Recorder) Preferer {
+	return NewFindRqRpBetaPreferer(
+		rec,
+		defaultFindRqRpParams.IdealPrior.Dist(), // no observations, so posterior = prior
+		defaultFindRqRpParams.PeerPrior,
+		defaultCacheTTL,
+	)
 }
 
 func (j *findRqRpBetaPreferer) Prefer(peerID1, peerID2 id.ID) bool {
-	logPDF1 := j.idealPosteriorLogProb(peerID1)
-	logPDF2 := j.idealPosteriorLogProb(peerID2)
-	return logPDF1 > logPDF2
+	lp1, lp2 := j.idealPosteriorLogProb(peerID1), j.idealPosteriorLogProb(peerID2)
+	return lp1 > lp2
 }
 
 func (j *findRqRpBetaPreferer) idealPosteriorLogProb(peerID id.ID) float64 {
@@ -79,7 +81,7 @@ func (j *findRqRpBetaPreferer) idealPosteriorLogProb(peerID id.ID) float64 {
 		}
 		j.cachedPeerPosteriorMeans[peerID.String()] = value
 	}
-	return value.Get()
+	return value.get()
 }
 
 func (j *findRqRpBetaPreferer) getPeerPosteriorMean(peerID id.ID) float64 {
@@ -100,7 +102,7 @@ type cachedValue struct {
 	mu       sync.Mutex
 }
 
-func (cv *cachedValue) Get() float64 {
+func (cv *cachedValue) get() float64 {
 	cv.mu.Lock()
 	defer cv.mu.Unlock()
 	now := time.Now()

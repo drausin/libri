@@ -145,7 +145,7 @@ func NewTestWithPeers(rng *rand.Rand, n int) (Table, ecid.ID, int, gw.Judge) {
 	params := NewDefaultParameters()
 	ps := peer.NewTestPeers(rng, n)
 	rec := gw.NewScalarRecorder()
-	judge := gw.NewLatestPreferJudge(rec)
+	judge := gw.NewLatestNaiveJudge(rec)
 	rt, nAdded := NewWithPeers(peerID.ID(), judge, params, ps)
 	return rt, peerID, nAdded, judge
 }

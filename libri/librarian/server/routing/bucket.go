@@ -6,7 +6,8 @@ import (
 	"container/heap"
 
 	"github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/librarian/server/goodwill"
+	"github.com/drausin/libri/libri/librarian/api"
+	gw "github.com/drausin/libri/libri/librarian/server/goodwill"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 )
 
@@ -40,11 +41,11 @@ type bucket struct {
 	positions map[string]int
 
 	// determines peer ordering within a bucket
-	judge goodwill.Judge
+	judge gw.Judge
 }
 
 // newFirstBucket creates a new instance of the first bucket (spanning the entire ID range)
-func newFirstBucket(maxActivePeers uint, judge goodwill.Judge) *bucket {
+func newFirstBucket(maxActivePeers uint, judge gw.Judge) *bucket {
 	return &bucket{
 		depth:          0,
 		lowerBound:     id.LowerBound,
@@ -91,7 +92,7 @@ func (b *bucket) Pop() interface{} {
 func (b *bucket) Peak(k uint) []peer.Peer {
 	ps := make([]peer.Peer, 0, k)
 	for _, p := range b.activePeers {
-		if b.judge.Trust(p.ID()) && b.judge.Healthy(p.ID()) {
+		if b.judge.Trust(p.ID(), api.Find, gw.Response) && b.judge.Healthy(p.ID()) {
 			ps = append(ps, p)
 			if len(ps) == int(k) {
 				return ps
@@ -105,7 +106,7 @@ func (b *bucket) Peak(k uint) []peer.Peer {
 func (b *bucket) Find(target id.ID, k uint) []peer.Peer {
 	tp := newTargetedPeers(target, k)
 	for _, p := range b.activePeers {
-		if b.judge.Trust(p.ID()) && b.judge.Healthy(p.ID()) {
+		if b.judge.Trust(p.ID(), api.Find, gw.Response) && b.judge.Healthy(p.ID()) {
 			heap.Push(tp, p)
 		}
 		if uint(len(tp.peers)) > k {

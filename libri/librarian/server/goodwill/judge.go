@@ -18,17 +18,18 @@ type latestNaiveJudge struct {
 	naiveDoctor
 	naiveTruster
 
-	rec   Recorder
-	finds Preferer
+	preferer Preferer
+	rec      Recorder
 }
 
-// NewLatestPreferJudge returns a Judge using a strategy of preferring the peer with the most
-// recent successful response. When both peers have responded within same minute, it prefers
-// that peer with the fewer number of successful responses.
-func NewLatestPreferJudge(rec Recorder) Judge {
+// NewLatestNaiveJudge returns a Judge using a strategy of preferring the peer with the most
+// recent successful response. When both peers have responded within a close window of time, it
+// delegates to the default Preferer. It naively assumes all peers can be trusted and are healthy.
+func NewLatestNaiveJudge(rec Recorder) Judge {
 	return &latestNaiveJudge{
 		naiveDoctor:  naiveDoctor{},
 		naiveTruster: naiveTruster{},
+		preferer:     NewDefaultPreferer(rec),
 		rec:          rec,
 	}
 }
@@ -38,8 +39,7 @@ func (j *latestNaiveJudge) Prefer(peerID1, peerID2 id.ID) bool {
 	latest1, latest2 := j.getLatestInteraction(peerID1), j.getLatestInteraction(peerID2)
 	latestDiff := latest1.Sub(latest2)
 	if latestDiff < 5*time.Minute && latestDiff > -5*time.Minute {
-		// prefer peer1 if its balance is closer to 0, i.e., smaller than peer2's
-		return j.finds.Prefer(peerID1, peerID2)
+		return j.preferer.Prefer(peerID1, peerID2)
 	}
 	return latest1.After(latest2)
 }

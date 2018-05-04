@@ -10,6 +10,7 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
+	gw "github.com/drausin/libri/libri/librarian/server/goodwill"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/stretchr/testify/assert"
 )
@@ -134,7 +135,7 @@ func (fp *fixedPool) Len() int {
 
 type fixedJudge struct{}
 
-func (f *fixedJudge) Trusted(peerID id.ID) bool {
+func (f *fixedJudge) Trust(peerID id.ID, endpoint api.Endpoint, queryType gw.QueryType) bool {
 	return true
 }
 

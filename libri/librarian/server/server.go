@@ -142,7 +142,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 	} else {
 		recorder = gw.NewScalarRecorder()
 	}
-	judge := gw.NewLatestPreferJudge(recorder)
+	judge := gw.NewLatestNaiveJudge(recorder)
 
 	rt, err := loadOrCreateRoutingTable(selfLogger, serverSL, judge, selfID, config.Routing)
 	if err != nil {
