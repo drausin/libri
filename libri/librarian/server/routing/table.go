@@ -33,7 +33,7 @@ const (
 
 const (
 	// DefaultMaxActivePeers returns the default number of maximum number of peers in a bucket.
-	DefaultMaxActivePeers = uint(20)
+	DefaultMaxActivePeers = uint(16)
 )
 
 // PushStatus indicates different outcomes when adding a peer to the routing table.

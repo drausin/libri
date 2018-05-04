@@ -122,7 +122,6 @@ spec:
           "--localPort", "{{ $localPort }}",
           "--localMetricsPort", "{{ $localMetricsPort }}",
           "--bootstraps", "librarians-0.libri.default.svc.cluster.local:{{ $localPort }}",
-          "--maxRoutingBucketPeers", "8",
           "--profile"
         ]
         env:
