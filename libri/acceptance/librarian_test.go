@@ -363,7 +363,7 @@ func countDocReplicas(t *testing.T, state *state) map[string]int {
 		assert.Nil(t, err)
 
 		start := time.Now()
-		seeds := state.client.rt.Peak(key, verifyParams.NClosestResponses)
+		seeds := state.client.rt.Find(key, verifyParams.NClosestResponses)
 		v := verify.NewVerify(state.client.selfID, key, docBytes, macKey, verifyParams)
 		err = verifier.Verify(v, seeds)
 		if err == nil {

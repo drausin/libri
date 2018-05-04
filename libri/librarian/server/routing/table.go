@@ -26,11 +26,14 @@ const (
 
 	// Dropped denotes that the peer was dropped from the table.
 	Dropped
+
+	// Replaced denotes that the peer replaced another peer in the table.
+	Replaced
 )
 
 const (
 	// DefaultMaxActivePeers returns the default number of maximum number of peers in a bucket.
-	DefaultMaxActivePeers = uint(20)
+	DefaultMaxActivePeers = uint(16)
 )
 
 // PushStatus indicates different outcomes when adding a peer to the routing table.
@@ -44,6 +47,8 @@ func (p PushStatus) String() string {
 		return "Added"
 	case Dropped:
 		return "Dropped"
+	case Replaced:
+		return "Replaced"
 	}
 	panic(fmt.Errorf("unknown PushStatus value %d", p))
 }
@@ -57,12 +62,8 @@ type Table interface {
 	// Push adds the peer into the appropriate bucket and returns an AddStatus result.
 	Push(new peer.Peer) PushStatus
 
-	// Pop removes and returns the k peers in the bucket(s) closest to the given target.
-	Pop(target id.ID, k uint) []peer.Peer
-
-	// Peak returns the k peers in the bucket(s) closest to the given target by popping and then
-	// pushing them back into the table.
-	Peak(target id.ID, k uint) []peer.Peer
+	// Find removes and returns the k peers in the bucket(s) closest to the given target.
+	Find(target id.ID, k uint) []peer.Peer
 
 	// Get returns the peer with the given ID or nil (if it doesn't exist) with a boolean
 	// indicator for whether the peer existed.
@@ -114,7 +115,7 @@ type table struct {
 }
 
 // NewEmpty creates a new routing table without peers.
-func NewEmpty(selfID id.ID, judge gw.PreferJudge, params *Parameters) Table {
+func NewEmpty(selfID id.ID, judge gw.Judge, params *Parameters) Table {
 	firstBucket := newFirstBucket(params.MaxBucketPeers, judge)
 	return &table{
 		selfID:  selfID,
@@ -126,7 +127,7 @@ func NewEmpty(selfID id.ID, judge gw.PreferJudge, params *Parameters) Table {
 
 // NewWithPeers creates a new routing table with peers, returning it and the number of peers added.
 func NewWithPeers(
-	selfID id.ID, judge gw.PreferJudge, params *Parameters, peers []peer.Peer,
+	selfID id.ID, judge gw.Judge, params *Parameters, peers []peer.Peer,
 ) (Table, int) {
 	rt := NewEmpty(selfID, judge, params)
 	nAdded := 0
@@ -139,12 +140,12 @@ func NewWithPeers(
 }
 
 // NewTestWithPeers creates a new test routing table with pseudo-random SelfID and n peers.
-func NewTestWithPeers(rng *rand.Rand, n int) (Table, ecid.ID, int, gw.PreferJudge) {
+func NewTestWithPeers(rng *rand.Rand, n int) (Table, ecid.ID, int, gw.Judge) {
 	peerID := ecid.NewPseudoRandom(rng)
 	params := NewDefaultParameters()
 	ps := peer.NewTestPeers(rng, n)
 	rec := gw.NewScalarRecorder()
-	judge := gw.NewLatestPreferJudge(rec)
+	judge := gw.NewLatestNaiveJudge(rec)
 	rt, nAdded := NewWithPeers(peerID.ID(), judge, params, ps)
 	return rt, peerID, nAdded, judge
 }
@@ -175,15 +176,10 @@ func (rt *table) Push(new peer.Peer) PushStatus {
 	bucketIdx := rt.bucketIndex(new.ID())
 	insertBucket := rt.buckets[bucketIdx]
 
-	if pHeapIdx, exists := insertBucket.positions[new.ID().String()]; exists {
-		// node is already in the bucket, so update it and re-heap
-		existing := heap.Remove(insertBucket, pHeapIdx).(peer.Peer)
-		if new != existing {
-			// if the two peers aren't the same instance, merge new into existing
-			err := existing.Merge(new)
-			errors2.MaybePanic(err) // should never happen
-		}
-		heap.Push(insertBucket, existing)
+	if pHeapIdx, in := insertBucket.positions[new.ID().String()]; in {
+		err := insertBucket.activePeers[pHeapIdx].Merge(new)
+		errors2.MaybePanic(err) // should never happen
+		heap.Fix(insertBucket, pHeapIdx)
 		rt.mu.Unlock()
 		return Existed
 	}
@@ -193,20 +189,12 @@ func (rt *table) Push(new peer.Peer) PushStatus {
 	}
 
 	if new.Address() == nil {
-		// don't add if doesn't have connector/public address
+		// don't add if doesn't have public address
 		rt.mu.Unlock()
 		return Dropped
 	}
 
-	if insertBucket.Vacancy() {
-		// node isn't already in the bucket and there's vacancy, so add it
-		heap.Push(insertBucket, new)
-		rt.peers[new.ID().String()] = new
-		rt.mu.Unlock()
-		return Added
-	}
-
-	if insertBucket.containsSelf {
+	if !insertBucket.Vacancy() && insertBucket.containsSelf {
 		// no vacancy in the bucket and it contains the self ID, so split the bucket and
 		// insert via (single) recursive call
 		rt.splitBucket(bucketIdx)
@@ -214,15 +202,25 @@ func (rt *table) Push(new peer.Peer) PushStatus {
 		return rt.Push(new)
 	}
 
-	// no vacancy in the bucket and it doesn't contain the self ID, so just drop new peer on
-	// the floor
+	// add peer to bucket, possibly popping one off if it's over capacity
+	heap.Push(insertBucket, new)
+	rt.peers[new.ID().String()] = new
+	if len(insertBucket.activePeers) > int(insertBucket.maxActivePeers) {
+		popped := heap.Pop(insertBucket).(peer.Peer)
+		delete(rt.peers, popped.ID().String())
+		rt.mu.Unlock()
+		if popped == new {
+			return Dropped
+		}
+		return Replaced
+	}
 	rt.mu.Unlock()
-	return Dropped
+	return Added
 }
 
-// Pop removes and returns the k peers in the bucket(s) closest to the given target. This method
+// Find removes and returns the k peers in the bucket(s) closest to the given target. This method
 // is concurrency safe.
-func (rt *table) Pop(target id.ID, k uint) []peer.Peer {
+func (rt *table) Find(target id.ID, k uint) []peer.Peer {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 	if np := rt.NumPeers(); k > uint(np) {
@@ -237,11 +235,10 @@ func (rt *table) Pop(target id.ID, k uint) []peer.Peer {
 	next := make([]peer.Peer, k)
 	for i := uint(0); i < k; {
 		bucketIdx := rt.chooseBucketIndex(target, fwdIdx, bkwdIdx)
-
-		// fill peers from this bucket
-		for ; i < k && rt.buckets[bucketIdx].Len() > 0; i++ {
-			next[i] = heap.Pop(rt.buckets[bucketIdx]).(peer.Peer)
-			delete(rt.peers, next[i].ID().String())
+		found := rt.buckets[bucketIdx].Find(target, k-i)
+		for _, p := range found {
+			next[i] = p
+			i++
 		}
 
 		// (in|de)crement the appropriate index
@@ -253,18 +250,6 @@ func (rt *table) Pop(target id.ID, k uint) []peer.Peer {
 	}
 
 	return next
-}
-
-// Peak returns the k peers in the bucket(s) closest to the given target by popping and then
-// pushing them back into the table. This method is concurrency safe.
-func (rt *table) Peak(target id.ID, k uint) []peer.Peer {
-	popped := rt.Pop(target, k)
-
-	// add the peers back
-	for _, p := range popped {
-		rt.Push(p)
-	}
-	return popped
 }
 
 // Get returns the peer (if it exists) in the table with the given ID.
@@ -298,7 +283,9 @@ func (rt *table) Sample(k uint, rng *rand.Rand) []peer.Peer {
 	// peak peers from each bucket
 	sample := make([]peer.Peer, 0, k)
 	for i := 0; i < len(bucketCounts); i++ {
-		sample = append(sample, rt.buckets[i].Peak(bucketCounts[i])...)
+		if bucketCounts[i] > 0 {
+			sample = append(sample, rt.buckets[i].Peak(bucketCounts[i])...)
+		}
 	}
 	return sample
 }

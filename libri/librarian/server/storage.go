@@ -67,7 +67,7 @@ func savePeerID(ns storage.Storer, peerID ecid.ID) error {
 func loadOrCreateRoutingTable(
 	logger *zap.Logger,
 	nl storage.Loader,
-	judge gw.PreferJudge,
+	judge gw.Judge,
 	selfID ecid.ID,
 	params *routing.Parameters,
 ) (routing.Table, error) {

@@ -88,7 +88,7 @@ func TestTable_Push(t *testing.T) {
 		c := 0
 		for _, p := range peers {
 			status = rt.Push(p)
-			assert.True(t, status == Added || status == Dropped)
+			assert.NotEqual(t, Existed, status)
 			if status == Added {
 				c++
 				// 25% of the time, we add this peer to list we'll add again later
@@ -101,9 +101,11 @@ func TestTable_Push(t *testing.T) {
 
 		// add a few other peers a second time
 		for _, p := range repeatedPeers {
-			status := rt.Push(p)
-			assert.Equal(t, Existed, status)
-			checkTableConsistent(t, rt, c)
+			if _, in := rt.Get(p.ID()); in {
+				status := rt.Push(p)
+				assert.Equal(t, Existed, status)
+				checkTableConsistent(t, rt, c)
+			}
 		}
 	}
 }
@@ -113,20 +115,15 @@ func TestTable_Push_existing(t *testing.T) {
 	for c := 0; c < 10; c++ {
 		rt, _, _, _ := NewTestWithPeers(rng, 128)
 
-		// pop off a random peer
-		ps := rt.Pop(id.NewPseudoRandom(rng), 1)
+		// sample a random peer
+		ps := rt.Sample(1, rng)
 		p1 := ps[0]
 
-		// add it back
-		assert.Equal(t, Added, rt.Push(p1))
+		// add it
+		assert.Equal(t, Existed, rt.Push(p1))
 
 		// check that p1 exists
 		_, exists := rt.Get(p1.ID())
-		assert.True(t, exists)
-
-		// add it again, confirming that the recorder has the same state (i.e., no merge)
-		assert.Equal(t, Existed, rt.Push(p1))
-		_, exists = rt.Get(p1.ID())
 		assert.True(t, exists)
 
 		// create stub peer with new request success
@@ -139,15 +136,15 @@ func TestTable_Push_existing(t *testing.T) {
 	}
 }
 
-func TestTable_Pop(t *testing.T) {
+func TestTable_Find(t *testing.T) {
 
-	// make sure we support poppping 0 peers
+	// make sure we support popping 0 peers
 	rng := rand.New(rand.NewSource(0))
 	rt, _, _, _ := NewTestWithPeers(rng, 8)
-	ps := rt.Pop(id.NewPseudoRandom(rng), 0)
+	ps := rt.Find(id.NewPseudoRandom(rng), 0)
 	assert.Equal(t, 0, len(ps))
 
-	for n := 8; n <= 128; n *= 2 {
+	for n := 8; n <= 512; n *= 2 {
 		// for different numbers of total active peers
 
 		for s := 0; s < 8; s++ {
@@ -161,46 +158,7 @@ func TestTable_Pop(t *testing.T) {
 				numActivePeers := rt.(*table).NumPeers()
 				info := fmt.Sprintf("nPeers: %v, s: %v, k: %v, nap: %v", n, s,
 					k, numActivePeers)
-				ps = rt.Pop(target, k)
-				checkPoppedPeers(t, k, numActivePeers, ps, info)
-
-				// check that the number of active peers has decreased by len(ps)
-				assert.Equal(t, numActivePeers-len(ps), rt.(*table).NumPeers())
-
-				// check that no peer exists in our peers maps
-				for _, nextPeer := range ps {
-					_, exists := rt.(*table).peers[nextPeer.ID().String()]
-					assert.False(t, exists)
-				}
-			}
-
-		}
-	}
-}
-
-func TestTable_Peak(t *testing.T) {
-
-	// make sure we support poppping 0 peers
-	rng := rand.New(rand.NewSource(0))
-	rt, _, _, _ := NewTestWithPeers(rng, 8)
-	ps := rt.Peak(id.NewPseudoRandom(rng), 0)
-	assert.Equal(t, 0, len(ps))
-
-	for n := 8; n <= 16; n *= 2 {
-		// for different numbers of total active peers
-
-		for s := 0; s < 8; s++ {
-			// for different selfIDs
-			rng := rand.New(rand.NewSource(int64(s)))
-			rt, _, _, _ := NewTestWithPeers(rng, n)
-			target := id.NewPseudoRandom(rng)
-
-			for k := uint(2); k <= 32; k *= 2 {
-				// for different numbers of peers to get
-				numActivePeers := rt.(*table).NumPeers()
-				info := fmt.Sprintf("nPeers: %v, s: %v, k: %v, nap: %v", n, s,
-					k, numActivePeers)
-				ps = rt.Peak(target, k)
+				ps = rt.Find(target, k)
 				checkPoppedPeers(t, k, numActivePeers, ps, info)
 
 				// check that the number of active peers has not decreased
@@ -233,7 +191,7 @@ func TestTable_Peak_concurrent(t *testing.T) {
 			go func(wg *sync.WaitGroup) {
 				defer wg.Done()
 				info := fmt.Sprintf("k: %v, nap: %v", k, numActivePeers)
-				ps := rt.Peak(target, k/concurrency)
+				ps := rt.Find(target, k/concurrency)
 				checkPoppedPeers(t, k/concurrency, numActivePeers, ps, info)
 			}(&wg)
 		}

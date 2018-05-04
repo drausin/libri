@@ -38,17 +38,17 @@ func TestRoutingTable_SaveLoad(t *testing.T) {
 	ssl := cstorage.NewServerSL(kvdb)
 
 	rng := rand.New(rand.NewSource(0))
-	peerID := ecid.NewPseudoRandom(rng)
+	selfID := ecid.NewPseudoRandom(rng)
 	params := NewDefaultParameters()
 	ps := peer.NewTestPeers(rng, 8)
 	rec := gw.NewScalarRecorder()
-	judge := gw.NewLatestPreferJudge(rec)
-	rt1, _ := NewWithPeers(peerID.ID(), judge, params, ps)
+	judge := gw.NewLatestNaiveJudge(rec)
 	for i, p := range ps {
 		for j := 0; j < i+1; j++ {
-			rec.Record(p.ID(), api.Find, gw.Response, gw.Success)
+			rec.Record(p.ID(), api.Find, gw.Request, gw.Success)
 		}
 	}
+	rt1, _ := NewWithPeers(selfID.ID(), judge, params, ps)
 
 	err = rt1.Save(ssl)
 	assert.Nil(t, err)

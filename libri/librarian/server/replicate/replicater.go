@@ -216,7 +216,7 @@ func (r *replicator) verifyValue(key id.ID, value []byte) {
 	cerrors.MaybePanic(err) // should never happen
 
 	v := verify.NewVerify(r.selfID, key, value, macKey, r.verifyParams)
-	seeds := r.rt.Peak(key, r.verifyParams.NClosestResponses)
+	seeds := r.rt.Find(key, r.verifyParams.NClosestResponses)
 
 	operation := func() error {
 		v.Result = verify.NewInitialResult(key, r.verifyParams)

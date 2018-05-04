@@ -153,7 +153,7 @@ func setUp(params *params) *state { // nolint: deadcode
 	selfPeer := peer.New(selfID.ID(), "test client", publicAddr)
 	signer := lclient.NewSigner(selfID.Key())
 	rec := goodwill.NewScalarRecorder()
-	judge := goodwill.NewLatestPreferJudge(rec)
+	judge := goodwill.NewLatestNaiveJudge(rec)
 	clientImpl := &testClient{
 		selfID:  selfID,
 		selfAPI: selfPeer.ToAPI(),
@@ -168,19 +168,19 @@ func setUp(params *params) *state { // nolint: deadcode
 	for i, authorConfig := range authorConfigs {
 
 		// create keychains
-		err := lauthor.CreateKeychains(logger, authorConfig.KeychainDir, authorKeychainAuth,
+		err = lauthor.CreateKeychains(logger, authorConfig.KeychainDir, authorKeychainAuth,
 			veryLightScryptN, veryLightScryptP)
 		errors.MaybePanic(err)
 
 		// load keychains
-		authorKCs, selfReaderKCs, err := lauthor.LoadKeychains(authorConfig.KeychainDir,
+		authorKCs, selfReaderKCs, err2 := lauthor.LoadKeychains(authorConfig.KeychainDir,
 			authorKeychainAuth)
-		errors.MaybePanic(err)
+		errors.MaybePanic(err2)
 		authorKeys[i] = authorKCs
 
 		// create author
-		authors[i], err = lauthor.NewAuthor(authorConfig, authorKCs, selfReaderKCs, logger)
-		errors.MaybePanic(err)
+		authors[i], err2 = lauthor.NewAuthor(authorConfig, authorKCs, selfReaderKCs, logger)
+		errors.MaybePanic(err2)
 	}
 	clients, err := client.NewDefaultLRUPool()
 	errors.MaybePanic(err)
@@ -280,7 +280,8 @@ func writeBenchmarkResults(t *testing.T, benchmarks []*benchmarkObs) { // nolint
 	for _, benchmark := range benchmarks {
 		name := benchmarkName(benchmark.name, benchmark.procs)
 		for _, result := range averageSubsamples(benchmark.results, 4) {
-			fmt.Fprintf(f, "%-*s\t%s\n", maxNameLen, name, result.String())
+			_, err := fmt.Fprintf(f, "%-*s\t%s\n", maxNameLen, name, result.String())
+			assert.Nil(t, err)
 		}
 	}
 }

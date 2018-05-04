@@ -14,7 +14,7 @@ import (
 func TestBucket_PushPop(t *testing.T) {
 	for n := 1; n <= 128; n *= 2 {
 		rec := goodwill.NewScalarRecorder()
-		judge := goodwill.NewLatestPreferJudge(rec)
+		judge := goodwill.NewLatestNaiveJudge(rec)
 		b := newFirstBucket(DefaultMaxActivePeers, judge)
 		rng := rand.New(rand.NewSource(int64(n)))
 		for i, p := range peer.NewTestPeers(rng, n) {
@@ -28,14 +28,14 @@ func TestBucket_PushPop(t *testing.T) {
 		prev := heap.Pop(b).(peer.Peer)
 		for b.Len() > 0 {
 			cur := heap.Pop(b).(peer.Peer)
-			assert.True(t, judge.Prefer(prev.ID(), cur.ID()))
+			assert.True(t, judge.Prefer(cur.ID(), prev.ID()))
 			prev = cur
 		}
 	}
 }
 
 func TestBucket_Peak(t *testing.T) {
-	judge := goodwill.NewLatestPreferJudge(goodwill.NewScalarRecorder())
+	judge := goodwill.NewLatestNaiveJudge(goodwill.NewScalarRecorder())
 	b := newFirstBucket(DefaultMaxActivePeers, judge)
 
 	// nothing to peak b/c bucket is empty

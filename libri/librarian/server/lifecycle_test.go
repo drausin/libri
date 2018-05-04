@@ -15,6 +15,8 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/common/parse"
+	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/server/goodwill"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
@@ -206,6 +208,14 @@ func (fi *fixedIntroducer) Introduce(intro *introduce.Introduction, seeds []peer
 }
 
 type fixedJudge struct{}
+
+func (f *fixedJudge) Trust(peerID id.ID, endpoint api.Endpoint, queryType goodwill.QueryType) bool {
+	return true
+}
+
+func (f *fixedJudge) Healthy(peerID id.ID) bool {
+	return true
+}
 
 func (f *fixedJudge) Prefer(peerID1, peerID2 id.ID) bool {
 	return true
