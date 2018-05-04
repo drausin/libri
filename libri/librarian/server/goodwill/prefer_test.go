@@ -57,7 +57,7 @@ func TestFindRqRpBetaPreferer_Prefer(t *testing.T) {
 	}
 	p := NewDefaultFindRqRpBetaPreferer(rec)
 
-	// both peer 2 & peer 1 have posterior mean 0, so peer 2 isn't prefered over peer 1
+	// both peer 2 & peer 1 have posterior mean 0, so peer 2 isn't preferred over peer 1
 	assert.False(t, p.Prefer(peerID2, peerID1))
 
 	// peer 1 has posterior mean 0, which has max log prob under ideal posterior

@@ -24,12 +24,15 @@ var (
 	defaultCacheTTL = 5 * time.Second
 )
 
+// Preferer judges whether one peer is preferable over another.
 type Preferer interface {
+
 	// Prefer indicates whether peer 1 should be preferred over peer 2 when prioritization
 	// is necessary.
 	Prefer(peerID1, peerID2 id.ID) bool
 }
 
+// NewDefaultPreferer returns a new default Preferer.
 func NewDefaultPreferer(rec Recorder) Preferer {
 	return NewDefaultFindRqRpBetaPreferer(rec)
 }
@@ -42,6 +45,10 @@ type findRqRpBetaPreferer struct {
 	cacheTTL                 time.Duration
 }
 
+// NewFindRqRpBetaPreferer returns a new Preferer for Find endpoint request/(request + response)
+// ratio. It takes in the recorder to use when getting endpoint stats, the ideal distribution
+// posterior, the prior distribution for a peer, and a time to live (TTL) for cached values of the
+// peer posterior log prob under the ideal posterior distribution.
 func NewFindRqRpBetaPreferer(
 	rec Recorder,
 	idealPosterior distuv.LogProber,
@@ -56,6 +63,9 @@ func NewFindRqRpBetaPreferer(
 		cacheTTL:                 cacheTTL,
 	}
 }
+
+// NewDefaultFindRqRpBetaPreferer returns a new Preferer using the default ideal and peer priors
+// for the Find rq/(rq + rp) distribution.
 func NewDefaultFindRqRpBetaPreferer(rec Recorder) Preferer {
 	return NewFindRqRpBetaPreferer(
 		rec,
