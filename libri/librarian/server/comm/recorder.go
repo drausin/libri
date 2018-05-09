@@ -1,7 +1,9 @@
-package goodwill
+package comm
 
 import (
 	"sync"
+
+	"time"
 
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -28,6 +30,8 @@ type Recorder interface {
 
 	// Get the query types outcomes on a particular endpoint for a peer.
 	Get(peerID id.ID, endpoint api.Endpoint) QueryOutcomes
+
+	Count(endpoint api.Endpoint, qt QueryType) int
 }
 
 // PromRecorder is a Recorder that exposes state via Prometheus metrics.
@@ -82,6 +86,62 @@ func (r *scalarRecorder) Get(peerID id.ID, endpoint api.Endpoint) QueryOutcomes 
 		return newQueryOutcomes() // zero values
 	}
 	return po[endpoint]
+}
+
+func (r *scalarRecorder) Count(endpoint api.Endpoint, qt QueryType) int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	c := 0
+	for peerID := range r.peers {
+		if po, in := r.peers[peerID]; in {
+			qto := po[endpoint][qt]
+			if qto[Success].Count > 0 || qto[Error].Count > 0 {
+				c++
+			}
+		}
+	}
+	return c
+}
+
+type WindowRecorder interface {
+	Recorder
+}
+
+type windowScalarRec struct {
+	*scalarRecorder
+
+	window time.Duration
+	start  time.Time
+	end    time.Time
+}
+
+func (r *windowScalarRec) Record(peerID id.ID, endpoint api.Endpoint, qt QueryType, o Outcome) {
+	r.maybeNextWindow()
+	r.scalarRecorder.Record(peerID, endpoint, qt, o)
+}
+
+func (r *windowScalarRec) Get(peerID id.ID, endpoint api.Endpoint) QueryOutcomes {
+	r.maybeNextWindow()
+	return r.scalarRecorder.Get(peerID, endpoint)
+}
+
+func (r *windowScalarRec) maybeNextWindow() {
+	r.mu.Lock()
+	now := time.Now()
+	if now.After(r.end) {
+
+		// reset window
+		r.start = now.Round(r.window)
+		if r.start.After(now) {
+			// start always in past
+			r.start = r.start.Add(-r.window)
+		}
+		r.end = r.start.Add(r.window)
+
+		// reset query outcomes
+		r.peers = make(map[string]EndpointQueryOutcomes)
+	}
+	r.mu.Unlock()
 }
 
 // NewPromScalarRecorder creates a new scalar recorder that also emits Prometheus metrics for each

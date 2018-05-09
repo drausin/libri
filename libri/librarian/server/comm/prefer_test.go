@@ -1,4 +1,4 @@
-package goodwill
+package comm
 
 import (
 	"testing"

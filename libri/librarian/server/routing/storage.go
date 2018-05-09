@@ -3,7 +3,6 @@ package routing
 import (
 	"github.com/drausin/libri/libri/common/id"
 	cstorage "github.com/drausin/libri/libri/common/storage"
-	"github.com/drausin/libri/libri/librarian/server/goodwill"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	sstorage "github.com/drausin/libri/libri/librarian/server/storage"
 	"github.com/golang/protobuf/proto"
@@ -12,7 +11,7 @@ import (
 var tableKey = []byte("RoutingTable")
 
 // Load retrieves the routing table form the KV DB.
-func Load(nl cstorage.Loader, judge goodwill.Judge, params *Parameters) (Table, error) {
+func Load(nl cstorage.Loader, judge comms.Judge, params *Parameters) (Table, error) {
 	bytes, err := nl.Load(tableKey)
 	if bytes == nil || err != nil {
 		return nil, err
@@ -36,7 +35,7 @@ func (rt *table) Save(ns cstorage.Storer) error {
 
 // fromStored returns a new Table instance from a StoredRoutingTable instance.
 func fromStored(
-	stored *sstorage.RoutingTable, judge goodwill.Judge, params *Parameters,
+	stored *sstorage.RoutingTable, judge comms.Judge, params *Parameters,
 ) Table {
 	peers := make([]peer.Peer, len(stored.Peers))
 	for i, sp := range stored.Peers {

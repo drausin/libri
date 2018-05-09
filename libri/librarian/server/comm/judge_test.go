@@ -1,4 +1,4 @@
-package goodwill
+package comm
 
 import (
 	"math/rand"
@@ -53,7 +53,7 @@ func TestLatestNaiveJudge_Trust(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	r := NewScalarRecorder()
 	j := NewLatestNaiveJudge(r)
-	assert.True(t, j.Trust(id.NewPseudoRandom(rng), api.Find, Response))
+	assert.True(t, j.Within(id.NewPseudoRandom(rng), api.Find, Response))
 }
 
 func singletonResponseSuccess(latest time.Time, count uint64) EndpointQueryOutcomes {
