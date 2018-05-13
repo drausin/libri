@@ -10,7 +10,6 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
-	gw "github.com/drausin/libri/libri/librarian/server/goodwill"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/stretchr/testify/assert"
 )
@@ -19,7 +18,8 @@ func TestTableSetBalancer_Next_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	origLC := api.NewLibrarianClient(nil)
 	clients := &fixedPool{lc: origLC, getAddresses: make(map[string]struct{})}
-	rt := NewEmpty(id.NewPseudoRandom(rng), &fixedJudge{}, NewDefaultParameters())
+	p, d := &fixedPreferer{}, &fixedDoctor{healthy: true}
+	rt := NewEmpty(id.NewPseudoRandom(rng), p, d, NewDefaultParameters())
 	rt.Push(
 		peer.New(
 			id.NewPseudoRandom(rng),
@@ -58,7 +58,8 @@ func TestTableSetBalancer_Next_ok(t *testing.T) {
 
 func TestTableSetBalancer_Next_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	rt := NewEmpty(id.NewPseudoRandom(rng), &fixedJudge{}, NewDefaultParameters())
+	p, d := &fixedPreferer{}, &fixedDoctor{healthy: true}
+	rt := NewEmpty(id.NewPseudoRandom(rng), p, d, NewDefaultParameters())
 	clients := &fixedPool{lc: api.NewLibrarianClient(nil), getAddresses: make(map[string]struct{})}
 	cb := NewClientBalancer(rt, clients)
 
@@ -86,7 +87,8 @@ func TestTableSetBalancer_Remove(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	lc1 := api.NewLibrarianClient(nil)
 	clients := &fixedPool{lc: lc1, getAddresses: make(map[string]struct{})}
-	rt := NewEmpty(id.NewPseudoRandom(rng), &fixedJudge{}, NewDefaultParameters())
+	p, d := &fixedPreferer{}, &fixedDoctor{healthy: true}
+	rt := NewEmpty(id.NewPseudoRandom(rng), p, d, NewDefaultParameters())
 	rt.Push(
 		peer.New(
 			id.NewPseudoRandom(rng),
@@ -133,16 +135,18 @@ func (fp *fixedPool) Len() int {
 	return 1
 }
 
-type fixedJudge struct{}
-
-func (f *fixedJudge) Trust(peerID id.ID, endpoint api.Endpoint, queryType gw.QueryType) bool {
-	return true
+type fixedPreferer struct {
+	prefer bool
 }
 
-func (f *fixedJudge) Healthy(peerID id.ID) bool {
-	return true
+func (f *fixedPreferer) Prefer(peerID1, peerID2 id.ID) bool {
+	return f.prefer
 }
 
-func (f *fixedJudge) Prefer(peerID1, peerID2 id.ID) bool {
-	return true
+type fixedDoctor struct {
+	healthy bool
+}
+
+func (f *fixedDoctor) Healthy(peerID id.ID) bool {
+	return f.healthy
 }

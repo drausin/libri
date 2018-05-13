@@ -12,7 +12,7 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
-	gw "github.com/drausin/libri/libri/librarian/server/goodwill"
+	"github.com/drausin/libri/libri/librarian/server/comm"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/stretchr/testify/assert"
@@ -199,7 +199,9 @@ func TestVerifier_query_err(t *testing.T) {
 			signer: &client.TestNoOpSigner{},
 			verifierCreator: &testVerifierCreator{
 				verifiers: map[string]api.Verifier{
-					next.Address().String(): &fixedVerifier{requestID: []byte{1, 2, 3, 4}},
+					next.Address().String(): &fixedVerifier{
+						requestID: []byte{1, 2, 3, 4},
+					},
 				},
 			},
 		},
@@ -286,7 +288,7 @@ func newTestVerify() (Verifier, *Verify, []int, []peer.Peer) {
 func newTestVerifier(
 	peersMap map[string]peer.Peer,
 	peerConnectedAddrs map[string][]*api.PeerAddress,
-	rec gw.Recorder,
+	rec comm.Recorder,
 ) Verifier {
 	addressVerifiers := make(map[string]api.Verifier)
 	for address, connectedAddresses := range peerConnectedAddrs {
@@ -358,14 +360,20 @@ type fixedRecorder struct {
 	nErrors    int
 }
 
-func (f *fixedRecorder) Record(peerID id.ID, endpoint api.Endpoint, qt gw.QueryType, o gw.Outcome) {
-	if o == gw.Success {
+func (f *fixedRecorder) Record(
+	peerID id.ID, endpoint api.Endpoint, qt comm.QueryType, o comm.Outcome,
+) {
+	if o == comm.Success {
 		f.nSuccesses++
 	} else {
 		f.nErrors++
 	}
 }
 
-func (f *fixedRecorder) Get(peerID id.ID, endpoint api.Endpoint) gw.QueryOutcomes {
-	return nil
+func (f *fixedRecorder) Get(peerID id.ID, endpoint api.Endpoint) comm.QueryOutcomes {
+	panic("implement me")
+}
+
+func (f *fixedRecorder) CountPeers(endpoint api.Endpoint, qt comm.QueryType, known bool) int {
+	panic("implement me")
 }

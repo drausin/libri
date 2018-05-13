@@ -12,7 +12,7 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	cstorage "github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
-	gw "github.com/drausin/libri/libri/librarian/server/goodwill"
+	"github.com/drausin/libri/libri/librarian/server/comm"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	sstorage "github.com/drausin/libri/libri/librarian/server/storage"
 	"github.com/stretchr/testify/assert"
@@ -20,7 +20,8 @@ import (
 
 func TestFromStored(t *testing.T) {
 	srt := newTestStoredTable(rand.New(rand.NewSource(0)), 128)
-	rt := fromStored(srt, &fixedJudge{}, NewDefaultParameters())
+	p, d := &fixedPreferer{}, &fixedDoctor{}
+	rt := fromStored(srt, NewDefaultParameters(), p, d)
 	assertRoutingTablesEqual(t, rt, srt)
 }
 
@@ -41,19 +42,19 @@ func TestRoutingTable_SaveLoad(t *testing.T) {
 	selfID := ecid.NewPseudoRandom(rng)
 	params := NewDefaultParameters()
 	ps := peer.NewTestPeers(rng, 8)
-	rec := gw.NewScalarRecorder()
-	judge := gw.NewLatestNaiveJudge(rec)
+	rec := comm.NewScalarRecorder(comm.NewNeverKnower())
+	p, d := comm.NewFindRpPreferer(rec), &fixedDoctor{healthy: true}
 	for i, p := range ps {
 		for j := 0; j < i+1; j++ {
-			rec.Record(p.ID(), api.Find, gw.Request, gw.Success)
+			rec.Record(p.ID(), api.Find, comm.Response, comm.Success)
 		}
 	}
-	rt1, _ := NewWithPeers(selfID.ID(), judge, params, ps)
+	rt1, _ := NewWithPeers(selfID.ID(), p, d, params, ps)
 
 	err = rt1.Save(ssl)
 	assert.Nil(t, err)
 
-	rt2, err := Load(ssl, judge, NewDefaultParameters())
+	rt2, err := Load(ssl, p, d, NewDefaultParameters())
 	assert.Nil(t, err)
 
 	// check that routing tables are the same
@@ -104,10 +105,10 @@ func assertRoutingTablesEqual(t *testing.T, rt Table, srt *sstorage.RoutingTable
 }
 
 func TestLoad_err(t *testing.T) {
-	j := &fixedJudge{}
+	p, d := &fixedPreferer{}, &fixedDoctor{}
 
 	// simulates missing/not stored table
-	rt1, err := Load(&cstorage.TestSLD{}, j, NewDefaultParameters())
+	rt1, err := Load(&cstorage.TestSLD{}, p, d, NewDefaultParameters())
 	assert.Nil(t, rt1)
 	assert.Nil(t, err)
 
@@ -117,7 +118,8 @@ func TestLoad_err(t *testing.T) {
 			Bytes:   []byte("some random bytes"),
 			LoadErr: errors.New("some random error"),
 		},
-		j,
+		p,
+		d,
 		NewDefaultParameters(),
 	)
 	assert.Nil(t, rt2)
@@ -129,7 +131,8 @@ func TestLoad_err(t *testing.T) {
 			Bytes:   []byte("the wrong bytes"),
 			LoadErr: nil,
 		},
-		j,
+		p,
+		d,
 		NewDefaultParameters(),
 	)
 	assert.Nil(t, rt3)

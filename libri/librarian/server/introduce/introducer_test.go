@@ -12,7 +12,7 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	lclient "github.com/drausin/libri/libri/librarian/client"
-	gw "github.com/drausin/libri/libri/librarian/server/goodwill"
+	"github.com/drausin/libri/libri/librarian/server/comm"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/stretchr/testify/assert"
@@ -228,7 +228,7 @@ func newTestIntroducer(
 	peersMap map[string]peer.Peer,
 	selfID id.ID,
 	peerConnectedAddrs map[string][]*api.PeerAddress,
-	rec gw.Recorder,
+	rec comm.Recorder,
 ) Introducer {
 	addressIntroducers := make(map[string]api.Introducer)
 	for _, p := range peersMap {
@@ -249,7 +249,7 @@ func newTestIntroducer(
 }
 
 func newTestIntros(
-	concurrency uint, rec gw.Recorder,
+	concurrency uint, rec comm.Recorder,
 ) (Introducer, *Introduction, []int, []peer.Peer) {
 	n, targetNumIntros := 256, uint(64)
 	rng := rand.New(rand.NewSource(int64(n)))
@@ -316,16 +316,22 @@ type fixedRecorder struct {
 	mu         sync.Mutex
 }
 
-func (f *fixedRecorder) Record(peerID id.ID, endpoint api.Endpoint, qt gw.QueryType, o gw.Outcome) {
+func (f *fixedRecorder) Record(
+	peerID id.ID, endpoint api.Endpoint, qt comm.QueryType, o comm.Outcome,
+) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if o == gw.Success {
+	if o == comm.Success {
 		f.nSuccesses++
 	} else {
 		f.nErrors++
 	}
 }
 
-func (f *fixedRecorder) Get(peerID id.ID, endpoint api.Endpoint) gw.QueryOutcomes {
-	return nil
+func (f *fixedRecorder) Get(peerID id.ID, endpoint api.Endpoint) comm.QueryOutcomes {
+	panic("implement me")
+}
+
+func (f *fixedRecorder) CountPeers(endpoint api.Endpoint, qt comm.QueryType, known bool) int {
+	panic("implement me")
 }

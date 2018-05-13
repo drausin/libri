@@ -20,7 +20,7 @@ import (
 	"github.com/drausin/libri/libri/common/subscribe"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
-	gw "github.com/drausin/libri/libri/librarian/server/goodwill"
+	"github.com/drausin/libri/libri/librarian/server/comm"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/search"
@@ -95,7 +95,7 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 	peerName, serverPeerIdx := "server", 0
 	publicAddr := peer.NewTestPublicAddr(serverPeerIdx)
 	rt, serverID, _, _ := routing.NewTestWithPeers(rng, 128)
-	rec := gw.NewScalarRecorder()
+	rec := comm.NewScalarRecorder(comm.NewNeverKnower())
 
 	lib := &Librarian{
 		config: &Config{
@@ -136,12 +136,12 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 	assert.Equal(t, peerName, rp.Self.PeerName)
 	assert.Equal(t, int(numPeers), len(rp.Peers))
 	qo := rec.Get(clientImpl.ID(), api.Introduce)
-	assert.Equal(t, 1, int(qo[gw.Request][gw.Success].Count))
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
 func TestLibrarian_Introduce_checkRequestErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	rec := gw.NewScalarRecorder()
+	rec := comm.NewScalarRecorder(comm.NewNeverKnower())
 	l := &Librarian{
 		logger: zap.NewNop(), // clogging.NewDevInfoLogger()
 		rec:    rec,
@@ -159,7 +159,7 @@ func TestLibrarian_Introduce_checkRequestErr(t *testing.T) {
 func TestLibrarian_Introduce_peerIDErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	rt, _, _, _ := routing.NewTestWithPeers(rng, 0)
-	rec := gw.NewScalarRecorder()
+	rec := comm.NewScalarRecorder(comm.NewNeverKnower())
 
 	lib := &Librarian{
 		fromer: peer.NewFromer(),
@@ -190,7 +190,7 @@ func TestLibrarian_Introduce_peerIDErr(t *testing.T) {
 	assert.Nil(t, rp)
 	assert.NotNil(t, err)
 	qo := rec.Get(otherID.ID(), api.Introduce)
-	assert.Equal(t, 1, int(qo[gw.Request][gw.Error].Count))
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Error].Count))
 }
 
 func TestLibrarian_Find_peers(t *testing.T) {
@@ -206,7 +206,7 @@ func TestLibrarian_Find_peers(t *testing.T) {
 
 			rng := rand.New(rand.NewSource(int64(s)))
 			rt, peerID, nAdded, _ := routing.NewTestWithPeers(rng, n)
-			rec := gw.NewScalarRecorder()
+			rec := comm.NewScalarRecorder(comm.NewNeverKnower())
 			l := &Librarian{
 				selfID:     peerID,
 				documentSL: storage.NewDocumentSLD(kvdb),
@@ -230,7 +230,7 @@ func TestLibrarian_Find_peers(t *testing.T) {
 			// check
 			checkPeersFindResponse(t, rq, rp, nAdded, numClosest)
 			qo := rec.Get(l.selfID.ID(), api.Find)
-			assert.Equal(t, 1, int(qo[gw.Request][gw.Success].Count))
+			assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 		}
 	}
 }
@@ -264,7 +264,7 @@ func TestLibrarian_Find_value(t *testing.T) {
 	defer kvdb.Close()
 	assert.Nil(t, err)
 
-	rec := gw.NewScalarRecorder()
+	rec := comm.NewScalarRecorder(comm.NewNeverKnower())
 	l := &Librarian{
 		selfID:     peerID,
 		db:         kvdb,
@@ -292,7 +292,7 @@ func TestLibrarian_Find_value(t *testing.T) {
 	rp, err := l.Find(context.Background(), rq)
 	assert.Nil(t, err)
 	qo := rec.Get(l.selfID.ID(), api.Find)
-	assert.Equal(t, 1, int(qo[gw.Request][gw.Success].Count))
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 
 	// we should get back the value we stored
 	assert.NotNil(t, rp.Value)
@@ -305,7 +305,7 @@ func TestLibrarian_Find_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	peerID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
 	rt, _, _, _ := routing.NewTestWithPeers(rng, 0)
-	rec := gw.NewScalarRecorder()
+	rec := comm.NewScalarRecorder(comm.NewNeverKnower())
 	cases := []struct {
 		l         *Librarian
 		rqCreator func() *api.FindRequest
@@ -357,7 +357,7 @@ func TestLibrarian_Verify_value(t *testing.T) {
 	defer kvdb.Close()
 	assert.Nil(t, err)
 
-	rec := gw.NewScalarRecorder()
+	rec := comm.NewScalarRecorder(comm.NewNeverKnower())
 	l := &Librarian{
 		selfID:     peerID,
 		db:         kvdb,
@@ -400,7 +400,7 @@ func TestLibrarian_Verify_value(t *testing.T) {
 	assert.Nil(t, rp.Peers)
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
 	qo := rec.Get(l.selfID.ID(), api.Verify)
-	assert.Equal(t, 1, int(qo[gw.Request][gw.Success].Count))
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
 func TestLibrarian_Verify_peers(t *testing.T) {
@@ -416,7 +416,7 @@ func TestLibrarian_Verify_peers(t *testing.T) {
 
 			rng := rand.New(rand.NewSource(int64(s)))
 			rt, peerID, nAdded, _ := routing.NewTestWithPeers(rng, n)
-			rec := gw.NewScalarRecorder()
+			rec := comm.NewScalarRecorder(comm.NewNeverKnower())
 			l := &Librarian{
 				selfID:     peerID,
 				documentSL: storage.NewDocumentSLD(kvdb),
@@ -440,7 +440,7 @@ func TestLibrarian_Verify_peers(t *testing.T) {
 			// check
 			checkPeersVerifyResponse(t, rq, rp, nAdded, numClosest)
 			qo := rec.Get(l.selfID.ID(), api.Verify)
-			assert.Equal(t, 1, int(qo[gw.Request][gw.Success].Count))
+			assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 		}
 	}
 }
@@ -469,7 +469,7 @@ func TestLibrarian_Verify_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	peerID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
 	rt, _, _, _ := routing.NewTestWithPeers(rng, 0)
-	rec := gw.NewScalarRecorder()
+	rec := comm.NewScalarRecorder(comm.NewNeverKnower())
 	macKey := api.RandBytes(rng, 32)
 	cases := []struct {
 		l         *Librarian
@@ -522,7 +522,7 @@ func TestLibrarian_Store_ok(t *testing.T) {
 	defer kvdb.Close()
 	assert.Nil(t, err)
 
-	rec := gw.NewScalarRecorder()
+	rec := comm.NewScalarRecorder(comm.NewNeverKnower())
 	l := &Librarian{
 		selfID:         peerID,
 		rt:             rt,
@@ -557,7 +557,7 @@ func TestLibrarian_Store_ok(t *testing.T) {
 	assert.Equal(t, value, stored)
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
 	qo := rec.Get(l.selfID.ID(), api.Store)
-	assert.Equal(t, 1, int(qo[gw.Request][gw.Success].Count))
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
 func newTestRequestMetadata(rng *rand.Rand, peerID ecid.ID) *api.RequestMetadata {
@@ -571,7 +571,7 @@ func TestLibrarian_Store_checkRequestError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	l := &Librarian{
 		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
-		rec:    gw.NewScalarRecorder(),
+		rec:    comm.NewScalarRecorder(comm.NewNeverKnower()),
 	}
 	value, key := api.NewTestDocument(rng)
 	rqID := ecid.NewPseudoRandom(rng)
@@ -582,7 +582,7 @@ func TestLibrarian_Store_checkRequestError(t *testing.T) {
 	assert.Nil(t, rp)
 	assert.NotNil(t, err)
 	qo := l.rec.Get(rqID.ID(), api.Get)
-	assert.Equal(t, 0, int(qo[gw.Request][gw.Success].Count))
+	assert.Equal(t, 0, int(qo[comm.Request][comm.Success].Count))
 }
 
 func TestLibrarian_Store_storeError(t *testing.T) {
@@ -590,7 +590,7 @@ func TestLibrarian_Store_storeError(t *testing.T) {
 	rt, peerID, _, _ := routing.NewTestWithPeers(rng, 64)
 	sld := storage.NewTestDocSLD()
 	sld.StoreErr = errors.New("some Store error")
-	rec := gw.NewScalarRecorder()
+	rec := comm.NewScalarRecorder(comm.NewNeverKnower())
 	l := &Librarian{
 		selfID:     peerID,
 		rt:         rt,
@@ -609,7 +609,7 @@ func TestLibrarian_Store_storeError(t *testing.T) {
 	assert.Nil(t, rp)
 	assert.NotNil(t, err)
 	qo := rec.Get(rqID.ID(), api.Store)
-	assert.Equal(t, 1, int(qo[gw.Request][gw.Success].Count))
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
 type fixedSearcher struct {
@@ -645,7 +645,7 @@ func TestLibrarian_Get_FoundValue(t *testing.T) {
 	assert.Equal(t, value, rp.Value)
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
 	qo := l.rec.Get(peerID.ID(), api.Get)
-	assert.Equal(t, 1, int(qo[gw.Request][gw.Success].Count))
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
 func TestLibrarian_Get_FoundClosestPeers(t *testing.T) {
@@ -669,7 +669,7 @@ func TestLibrarian_Get_FoundClosestPeers(t *testing.T) {
 	assert.Nil(t, rp.Value)
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
 	qo := l.rec.Get(peerID.ID(), api.Get)
-	assert.Equal(t, 1, int(qo[gw.Request][gw.Success].Count))
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
 func TestLibrarian_Get_Errored(t *testing.T) {
@@ -690,7 +690,7 @@ func TestLibrarian_Get_Errored(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Nil(t, rp)
 	qo := l.rec.Get(peerID.ID(), api.Get)
-	assert.Equal(t, 1, int(qo[gw.Request][gw.Success].Count))
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
 func TestLibrarian_Get_Exhausted(t *testing.T) {
@@ -710,7 +710,7 @@ func TestLibrarian_Get_Exhausted(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Nil(t, rp)
 	qo := l.rec.Get(peerID.ID(), api.Get)
-	assert.Equal(t, 1, int(qo[gw.Request][gw.Success].Count))
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
 func TestLibrarian_Get_err(t *testing.T) {
@@ -726,14 +726,14 @@ func TestLibrarian_Get_err(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Nil(t, rp)
 	qo := l.rec.Get(peerID.ID(), api.Get)
-	assert.Equal(t, 1, int(qo[gw.Request][gw.Success].Count))
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
 func TestLibrarian_Get_checkRequestError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	l := &Librarian{
 		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
-		rec:    gw.NewScalarRecorder(),
+		rec:    comm.NewScalarRecorder(comm.NewNeverKnower()),
 	}
 	rqID := ecid.NewPseudoRandom(rng)
 	rq := client.NewGetRequest(rqID, id.NewPseudoRandom(rng))
@@ -743,7 +743,7 @@ func TestLibrarian_Get_checkRequestError(t *testing.T) {
 	assert.Nil(t, rp)
 	assert.NotNil(t, err)
 	qo := l.rec.Get(rqID.ID(), api.Get)
-	assert.Equal(t, 0, int(qo[gw.Request][gw.Success].Count))
+	assert.Equal(t, 0, int(qo[comm.Request][comm.Success].Count))
 }
 
 func newGetLibrarian(rng *rand.Rand, searchResult *search.Result, searchErr error) *Librarian {
@@ -759,7 +759,7 @@ func newGetLibrarian(rng *rand.Rand, searchResult *search.Result, searchErr erro
 			err:    searchErr,
 		},
 		rqv:    &alwaysRequestVerifier{},
-		rec:    gw.NewScalarRecorder(),
+		rec:    comm.NewScalarRecorder(comm.NewNeverKnower()),
 		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 }
@@ -799,7 +799,7 @@ func TestLibrarian_Put_Stored(t *testing.T) {
 	assert.Equal(t, api.PutOperation_STORED, rp.Operation)
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
 	qo := l.rec.Get(peerID.ID(), api.Put)
-	assert.Equal(t, 1, int(qo[gw.Request][gw.Success].Count))
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
 func TestLibrarian_Put_Exists(t *testing.T) {
@@ -823,7 +823,7 @@ func TestLibrarian_Put_Exists(t *testing.T) {
 	assert.Equal(t, api.PutOperation_LEFT_EXISTING, rp.Operation)
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
 	qo := l.rec.Get(peerID.ID(), api.Put)
-	assert.Equal(t, 1, int(qo[gw.Request][gw.Success].Count))
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
 func TestLibrarian_Put_Errored(t *testing.T) {
@@ -845,7 +845,7 @@ func TestLibrarian_Put_Errored(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Nil(t, rp)
 	qo := l.rec.Get(peerID.ID(), api.Put)
-	assert.Equal(t, 1, int(qo[gw.Request][gw.Success].Count)) // request was ok
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count)) // request was ok
 }
 
 func TestLibrarian_Put_err(t *testing.T) {
@@ -862,13 +862,13 @@ func TestLibrarian_Put_err(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Nil(t, rp)
 	qo := l.rec.Get(peerID.ID(), api.Put)
-	assert.Equal(t, 1, int(qo[gw.Request][gw.Success].Count)) // request was ok
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count)) // request was ok
 }
 
 func TestLibrarian_Put_checkRequestError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	l := &Librarian{
-		rec:    gw.NewScalarRecorder(),
+		rec:    comm.NewScalarRecorder(comm.NewNeverKnower()),
 		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	value, key := api.NewTestDocument(rng)
@@ -880,7 +880,7 @@ func TestLibrarian_Put_checkRequestError(t *testing.T) {
 	assert.Nil(t, rp)
 	assert.NotNil(t, err)
 	qo := l.rec.Get(rqID.ID(), api.Put)
-	assert.Equal(t, 0, int(qo[gw.Request][gw.Success].Count))
+	assert.Equal(t, 0, int(qo[comm.Request][comm.Success].Count))
 }
 
 func TestLibrarian_Subscribe_ok(t *testing.T) {
@@ -897,7 +897,7 @@ func TestLibrarian_Subscribe_ok(t *testing.T) {
 		},
 		rqv:    &alwaysRequestVerifier{},
 		rt:     rt,
-		rec:    gw.NewScalarRecorder(),
+		rec:    comm.NewScalarRecorder(comm.NewNeverKnower()),
 		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 
@@ -919,7 +919,7 @@ func TestLibrarian_Subscribe_ok(t *testing.T) {
 		err = l.Subscribe(rq, from)
 		assert.Nil(t, err)
 		qo := l.rec.Get(rqID.ID(), api.Subscribe)
-		assert.Equal(t, 1, int(qo[gw.Request][gw.Success].Count))
+		assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 	}(wg)
 
 	// generate pubs we're going to send
@@ -975,13 +975,13 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 	l1 := &Librarian{
 		rqv:    &neverRequestVerifier{},
 		rt:     rt,
-		rec:    gw.NewScalarRecorder(),
+		rec:    comm.NewScalarRecorder(comm.NewNeverKnower()),
 		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	err = l1.Subscribe(rq, from)
 	assert.NotNil(t, err)
 	qo := l1.rec.Get(selfID.ID(), api.Subscribe)
-	assert.Equal(t, 1, int(qo[gw.Request][gw.Error].Count))
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Error].Count))
 
 	// check author filter error bubbles up
 	sub2, err := subscribe.NewFPSubscription(1.0, rng)
@@ -991,13 +991,13 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 	l2 := &Librarian{
 		rqv:    &alwaysRequestVerifier{},
 		rt:     rt,
-		rec:    gw.NewScalarRecorder(),
+		rec:    comm.NewScalarRecorder(comm.NewNeverKnower()),
 		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	err = l2.Subscribe(rq2, from)
 	assert.NotNil(t, err)
 	qo = l2.rec.Get(selfID.ID(), api.Subscribe)
-	assert.Equal(t, 1, int(qo[gw.Request][gw.Error].Count))
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Error].Count))
 
 	// check reader filter error bubbles up
 	sub3, err := subscribe.NewFPSubscription(1.0, rng)
@@ -1007,13 +1007,13 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 	l3 := &Librarian{
 		rqv:    &alwaysRequestVerifier{},
 		rt:     rt,
-		rec:    gw.NewScalarRecorder(),
+		rec:    comm.NewScalarRecorder(comm.NewNeverKnower()),
 		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	err = l3.Subscribe(rq3, from)
 	assert.NotNil(t, err)
 	qo = l3.rec.Get(selfID.ID(), api.Subscribe)
-	assert.Equal(t, 1, int(qo[gw.Request][gw.Error].Count))
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Error].Count))
 
 	// check subscribeFrom.New() bubbles up
 	sub4, err := subscribe.NewFPSubscription(1.0, rng)
@@ -1026,13 +1026,13 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 		},
 		rqv:    &alwaysRequestVerifier{},
 		rt:     rt,
-		rec:    gw.NewScalarRecorder(),
+		rec:    comm.NewScalarRecorder(comm.NewNeverKnower()),
 		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	err = l4.Subscribe(rq4, from)
 	assert.Equal(t, subscribe.ErrNotAcceptingNewSubscriptions, err)
 	qo = l4.rec.Get(selfID.ID(), api.Subscribe)
-	assert.Equal(t, 0, int(qo[gw.Request][gw.Error].Count)) // not rq error
+	assert.Equal(t, 0, int(qo[comm.Request][comm.Error].Count)) // not rq error
 
 	// check from.Send() error bubbles up
 	sub5, err := subscribe.NewFPSubscription(1.0, rng)
@@ -1047,7 +1047,7 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 		},
 		rqv:    &alwaysRequestVerifier{},
 		rt:     rt,
-		rec:    gw.NewScalarRecorder(),
+		rec:    comm.NewScalarRecorder(comm.NewNeverKnower()),
 		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	from5 := &fixedLibrarianSubscribeServer{
@@ -1060,7 +1060,7 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 		err = l5.Subscribe(rq5, from5)
 		assert.NotNil(t, err)
 		qo = l5.rec.Get(selfID.ID(), api.Subscribe)
-		assert.Equal(t, 0, int(qo[gw.Request][gw.Error].Count))
+		assert.Equal(t, 0, int(qo[comm.Request][comm.Error].Count))
 	}(wg)
 	newPubs <- newKeyedPub(t, api.NewTestPublication(rng))
 	wg.Wait()
@@ -1152,7 +1152,7 @@ func newPutLibrarian(rng *rand.Rand, storeResult *store.Result, searchErr error)
 			err:    searchErr,
 		},
 		rqv:    &alwaysRequestVerifier{},
-		rec:    gw.NewScalarRecorder(),
+		rec:    comm.NewScalarRecorder(comm.NewNeverKnower()),
 		logger: clogging.NewDevInfoLogger(),
 	}
 }

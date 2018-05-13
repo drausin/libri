@@ -1,4 +1,4 @@
-package goodwill
+package comm
 
 import (
 	"sync"
@@ -62,7 +62,7 @@ type ScalarMetrics struct {
 	// Latest response time from the peer
 	Latest time.Time
 
-	// Count of queries sent to the peer
+	// CountPeers of queries sent to the peer
 	Count uint64
 
 	mu sync.Mutex
@@ -95,15 +95,42 @@ func newQueryOutcomes() QueryOutcomes {
 	}
 }
 
-// EndpointQueryOutcomes contains the query outcomes for each endpoint.
-type EndpointQueryOutcomes map[api.Endpoint]QueryOutcomes
+// endpointQueryOutcomes contains the query outcomes for each endpoint.
+type endpointQueryOutcomes map[api.Endpoint]QueryOutcomes
 
-func newEndpointQueryOutcomes() EndpointQueryOutcomes {
-	eqos := EndpointQueryOutcomes{
+func newEndpointQueryOutcomes() endpointQueryOutcomes {
+	eqos := endpointQueryOutcomes{
 		api.All: newQueryOutcomes(),
 	}
 	for _, e := range api.Endpoints {
 		eqos[e] = newQueryOutcomes()
 	}
 	return eqos
+}
+
+type knownPeers map[bool]map[string]struct{}
+
+type endpointQueryPeers map[api.Endpoint]map[QueryType]knownPeers
+
+func newEndpointQueryPeers() endpointQueryPeers {
+	eqp := endpointQueryPeers{
+		api.All: newQueryPeers(),
+	}
+	for _, e := range api.Endpoints {
+		eqp[e] = newQueryPeers()
+	}
+	return eqp
+}
+
+func newQueryPeers() map[QueryType]knownPeers {
+	return map[QueryType]knownPeers{
+		Request: {
+			true:  {},
+			false: {},
+		},
+		Response: {
+			true:  {},
+			false: {},
+		},
+	}
 }

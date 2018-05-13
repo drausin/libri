@@ -1,8 +1,10 @@
-package goodwill
+package comm
 
 import (
 	"math/rand"
 	"testing"
+
+	"time"
 
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -11,10 +13,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestScalarRecorder_RecordGet(t *testing.T) {
+func TestScalarRecorder(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	id1, id2, id3 := id.NewPseudoRandom(rng), id.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
-	r := NewScalarRecorder()
+	r := NewScalarRecorder(NewNeverKnower())
 
 	// record every possible combination
 	for _, e := range api.Endpoints {
@@ -32,6 +34,8 @@ func TestScalarRecorder_RecordGet(t *testing.T) {
 		assert.Equal(t, uint64(1), eo[Response][Success].Count)
 		assert.Equal(t, uint64(1), eo[Request][Error].Count)
 		assert.Equal(t, uint64(1), eo[Response][Error].Count)
+		assert.Equal(t, 1, r.CountPeers(e, Request, false))
+		assert.Equal(t, 1, r.CountPeers(e, Response, false))
 	}
 
 	// add a few responses from another peer
@@ -49,9 +53,33 @@ func TestScalarRecorder_RecordGet(t *testing.T) {
 		assert.Equal(t, uint64(1), eo[Response][Error].Count)
 	}
 
+	// check endpoints w/ id1 and id2 rqs have proper peer count
+	assert.Equal(t, 2, r.CountPeers(api.Find, Request, false))
+	assert.Equal(t, 2, r.CountPeers(api.Store, Request, false))
+	assert.Equal(t, 1, r.CountPeers(api.Find, Response, false))
+	assert.Equal(t, 1, r.CountPeers(api.Store, Response, false))
+
 	// check p3's counts are zero, since we haven't recorded anything for it yet
 	assert.Equal(t, uint64(0), r.Get(id3, api.Find)[Request][Success].Count)
 	assert.Equal(t, uint64(0), r.Get(id3, api.Store)[Request][Success].Count)
+}
+
+func TestWindowScalarRec(t *testing.T) {
+	k := NewNeverKnower()
+	window := 50 * time.Millisecond
+	r := NewWindowScalarRecorder(k, window)
+	rng := rand.New(rand.NewSource(0))
+	peerID := id.NewPseudoRandom(rng)
+
+	r.Record(peerID, api.Find, Request, Success)
+	assert.Equal(t, uint64(1), r.Get(peerID, api.Find)[Request][Success].Count)
+	assert.Equal(t, 1, r.CountPeers(api.Find, Request, false))
+
+	time.Sleep(window)
+
+	// counts should no longer exist
+	assert.Equal(t, uint64(0), r.Get(peerID, api.Find)[Request][Success].Count)
+	assert.Equal(t, 0, r.CountPeers(api.Find, Request, false))
 }
 
 func TestPromScalarRecorder_Record(t *testing.T) {
@@ -59,7 +87,7 @@ func TestPromScalarRecorder_Record(t *testing.T) {
 	selfID := id.NewPseudoRandom(rng)
 	id1, id2 := id.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
 
-	r := NewPromScalarRecorder(selfID)
+	r := NewPromScalarRecorder(selfID, NewNeverKnower())
 
 	r.Record(id1, api.Find, Request, Success)
 	r.Record(id1, api.Store, Request, Success)

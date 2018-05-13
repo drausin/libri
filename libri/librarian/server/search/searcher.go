@@ -10,7 +10,7 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
-	gw "github.com/drausin/libri/libri/librarian/server/goodwill"
+	"github.com/drausin/libri/libri/librarian/server/comm"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 )
 
@@ -33,12 +33,12 @@ type searcher struct {
 	signer        client.Signer
 	finderCreator client.FinderCreator
 	rp            ResponseProcessor
-	rec           gw.Recorder
+	rec           comm.Recorder
 }
 
 // NewSearcher returns a new Searcher with the given Querier and ResponseProcessor.
 func NewSearcher(
-	s client.Signer, rec gw.Recorder, c client.FinderCreator, rp ResponseProcessor,
+	s client.Signer, rec comm.Recorder, c client.FinderCreator, rp ResponseProcessor,
 ) Searcher {
 	return &searcher{
 		signer:        s,
@@ -49,7 +49,7 @@ func NewSearcher(
 }
 
 // NewDefaultSearcher creates a new Searcher with default sub-object instantiations.
-func NewDefaultSearcher(signer client.Signer, rec gw.Recorder, clients client.Pool) Searcher {
+func NewDefaultSearcher(signer client.Signer, rec comm.Recorder, clients client.Pool) Searcher {
 	return NewSearcher(
 		signer,
 		rec,
@@ -219,7 +219,7 @@ func (s *searcher) recordError(p peer.Peer, err error, search *Search) {
 			search.Result.FatalErr = ErrTooManyFindErrors
 		})
 	}
-	s.rec.Record(p.ID(), api.Find, gw.Response, gw.Error)
+	s.rec.Record(p.ID(), api.Find, comm.Response, comm.Error)
 }
 
 func (s *searcher) recordSuccess(p peer.Peer, search *Search) {
@@ -227,7 +227,7 @@ func (s *searcher) recordSuccess(p peer.Peer, search *Search) {
 		search.Result.Closest.SafePush(p)
 		search.Result.Responded[p.ID().String()] = p
 	})
-	s.rec.Record(p.ID(), api.Find, gw.Response, gw.Success)
+	s.rec.Record(p.ID(), api.Find, comm.Response, comm.Success)
 }
 
 // ResponseProcessor handles an api.FindResponse

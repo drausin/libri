@@ -9,7 +9,7 @@ import (
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
-	gw "github.com/drausin/libri/libri/librarian/server/goodwill"
+	"github.com/drausin/libri/libri/librarian/server/comm"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
 )
@@ -31,12 +31,12 @@ type storer struct {
 	signer        client.Signer
 	searcher      search.Searcher
 	storerCreator client.StorerCreator
-	rec           gw.Recorder
+	rec           comm.Recorder
 }
 
 // NewStorer creates a new Storer instance with given Searcher and StoreQuerier instances.
 func NewStorer(
-	signer client.Signer, rec gw.Recorder, searcher search.Searcher, c client.StorerCreator,
+	signer client.Signer, rec comm.Recorder, searcher search.Searcher, c client.StorerCreator,
 ) Storer {
 	return &storer{
 		signer:        signer,
@@ -47,7 +47,7 @@ func NewStorer(
 }
 
 // NewDefaultStorer creates a new Storer with default Searcher and StoreQuerier instances.
-func NewDefaultStorer(peerID ecid.ID, rec gw.Recorder, clients client.Pool) Storer {
+func NewDefaultStorer(peerID ecid.ID, rec comm.Recorder, clients client.Pool) Storer {
 	signer := client.NewSigner(peerID.Key())
 	return NewStorer(
 		signer,
@@ -145,7 +145,7 @@ func (s *storer) query(next peer.Peer, store *Store) (*api.StoreResponse, error)
 
 func (s *storer) processAnyReponse(pr *peerResponse, toQuery chan peer.Peer, store *Store) {
 	errored := false
-	var outcome gw.Outcome
+	var outcome comm.Outcome
 	if pr.err != nil {
 		// if we had an issue querying, skip to next peer
 		store.wrapLock(func() {
@@ -157,14 +157,14 @@ func (s *storer) processAnyReponse(pr *peerResponse, toQuery chan peer.Peer, sto
 			})
 		}
 		errored = true
-		outcome = gw.Error
+		outcome = comm.Error
 	} else {
 		store.wrapLock(func() {
 			store.Result.Responded = append(store.Result.Responded, pr.peer)
 		})
-		outcome = gw.Success
+		outcome = comm.Success
 	}
-	s.rec.Record(pr.peer.ID(), api.Store, gw.Response, outcome)
+	s.rec.Record(pr.peer.ID(), api.Store, comm.Response, outcome)
 
 	finished := store.Finished()
 	if errored && !finished {

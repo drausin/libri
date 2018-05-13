@@ -26,7 +26,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/client"
 	lclient "github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server"
-	"github.com/drausin/libri/libri/librarian/server/goodwill"
+	"github.com/drausin/libri/libri/librarian/server/comm"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
@@ -152,12 +152,16 @@ func setUp(params *params) *state { // nolint: deadcode
 	publicAddr := peer.NewTestPublicAddr(params.nSeeds + params.nPeers + 1)
 	selfPeer := peer.New(selfID.ID(), "test client", publicAddr)
 	signer := lclient.NewSigner(selfID.Key())
-	rec := goodwill.NewScalarRecorder()
-	judge := goodwill.NewLatestNaiveJudge(rec)
+	knower := comm.NewNeverKnower()
+	rec := comm.NewScalarRecorder(knower)
+	preferer := comm.NewFindRpPreferer(rec)
+	doctor := comm.NewNaiveDoctor()
+	rParams := routing.NewDefaultParameters()
+
 	clientImpl := &testClient{
 		selfID:  selfID,
 		selfAPI: selfPeer.ToAPI(),
-		rt:      routing.NewEmpty(selfID.ID(), judge, routing.NewDefaultParameters()),
+		rt:      routing.NewEmpty(selfID.ID(), preferer, doctor, rParams),
 		signer:  signer,
 		logger:  logger,
 	}

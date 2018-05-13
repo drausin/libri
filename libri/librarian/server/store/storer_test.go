@@ -10,7 +10,7 @@ import (
 	cid "github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
-	gw "github.com/drausin/libri/libri/librarian/server/goodwill"
+	"github.com/drausin/libri/libri/librarian/server/comm"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	ssearch "github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/stretchr/testify/assert"
@@ -175,7 +175,7 @@ func TestStorer_query_err(t *testing.T) {
 	}
 }
 
-func newTestStore(rec gw.Recorder) (Storer, *Store, []int, []peer.Peer, cid.ID) {
+func newTestStore(rec comm.Recorder) (Storer, *Store, []int, []peer.Peer, cid.ID) {
 	n := 32
 	rng := rand.New(rand.NewSource(int64(n)))
 	peers, peersMap, addressFinders, selfPeerIdxs, selfID := ssearch.NewTestPeers(rng, n)
@@ -254,15 +254,19 @@ type fixedRecorder struct {
 }
 
 func (f *fixedRecorder) Record(
-	peerID cid.ID, endpoint api.Endpoint, qt gw.QueryType, o gw.Outcome,
+	peerID cid.ID, endpoint api.Endpoint, qt comm.QueryType, o comm.Outcome,
 ) {
-	if o == gw.Success {
+	if o == comm.Success {
 		f.nSuccesses++
 	} else {
 		f.nErrors++
 	}
 }
 
-func (f *fixedRecorder) Get(peerID cid.ID, endpoint api.Endpoint) gw.QueryOutcomes {
-	return nil
+func (f *fixedRecorder) Get(peerID cid.ID, endpoint api.Endpoint) comm.QueryOutcomes {
+	panic("implement me")
+}
+
+func (f *fixedRecorder) CountPeers(endpoint api.Endpoint, qt comm.QueryType, known bool) int {
+	panic("implement me")
 }

@@ -13,7 +13,7 @@ import (
 	errors2 "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
-	gw "github.com/drausin/libri/libri/librarian/server/goodwill"
+	"github.com/drausin/libri/libri/librarian/server/comm"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 )
 
@@ -115,8 +115,8 @@ type table struct {
 }
 
 // NewEmpty creates a new routing table without peers.
-func NewEmpty(selfID id.ID, judge gw.Judge, params *Parameters) Table {
-	firstBucket := newFirstBucket(params.MaxBucketPeers, judge)
+func NewEmpty(selfID id.ID, preferer comm.Preferer, doctor comm.Doctor, params *Parameters) Table {
+	firstBucket := newFirstBucket(params.MaxBucketPeers, preferer, doctor)
 	return &table{
 		selfID:  selfID,
 		peers:   make(map[string]peer.Peer),
@@ -127,9 +127,13 @@ func NewEmpty(selfID id.ID, judge gw.Judge, params *Parameters) Table {
 
 // NewWithPeers creates a new routing table with peers, returning it and the number of peers added.
 func NewWithPeers(
-	selfID id.ID, judge gw.Judge, params *Parameters, peers []peer.Peer,
+	selfID id.ID,
+	preferer comm.Preferer,
+	doctor comm.Doctor,
+	params *Parameters,
+	peers []peer.Peer,
 ) (Table, int) {
-	rt := NewEmpty(selfID, judge, params)
+	rt := NewEmpty(selfID, preferer, doctor, params)
 	nAdded := 0
 	for _, p := range peers {
 		if rt.Push(p) == Added {
@@ -140,14 +144,16 @@ func NewWithPeers(
 }
 
 // NewTestWithPeers creates a new test routing table with pseudo-random SelfID and n peers.
-func NewTestWithPeers(rng *rand.Rand, n int) (Table, ecid.ID, int, gw.Judge) {
+func NewTestWithPeers(rng *rand.Rand, n int) (Table, ecid.ID, int, comm.Preferer) {
 	peerID := ecid.NewPseudoRandom(rng)
 	params := NewDefaultParameters()
 	ps := peer.NewTestPeers(rng, n)
-	rec := gw.NewScalarRecorder()
-	judge := gw.NewLatestNaiveJudge(rec)
-	rt, nAdded := NewWithPeers(peerID.ID(), judge, params, ps)
-	return rt, peerID, nAdded, judge
+	k := comm.NewNeverKnower()
+	rec := comm.NewScalarRecorder(k)
+	preferer := comm.NewFindRpPreferer(rec)
+	doctor := comm.NewNaiveDoctor()
+	rt, nAdded := NewWithPeers(peerID.ID(), preferer, doctor, params, ps)
+	return rt, peerID, nAdded, preferer
 }
 
 // SelfID returns the table's selfID.
@@ -377,7 +383,8 @@ func (rt *table) splitBucket(bucketIdx int) {
 		maxActivePeers: current.maxActivePeers,
 		activePeers:    make([]peer.Peer, 0),
 		positions:      make(map[string]int),
-		judge:          current.judge,
+		preferer:       current.preferer,
+		doctor:         current.doctor,
 	}
 	left.containsSelf = left.Contains(rt.selfID)
 
@@ -390,7 +397,8 @@ func (rt *table) splitBucket(bucketIdx int) {
 		maxActivePeers: current.maxActivePeers,
 		activePeers:    make([]peer.Peer, 0),
 		positions:      make(map[string]int),
-		judge:          current.judge,
+		preferer:       current.preferer,
+		doctor:         current.doctor,
 	}
 	right.containsSelf = right.Contains(rt.selfID)
 

@@ -15,7 +15,7 @@ import (
 	cbackoff "github.com/cenkalti/backoff"
 	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/drausin/libri/libri/librarian/server/goodwill"
+	"github.com/drausin/libri/libri/librarian/server/comm"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
@@ -154,7 +154,7 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 		grpc_prometheus.Register(s)
 		grpc_prometheus.EnableHandlingTimeHistogram()
 		l.storageMetrics.register()
-		if rec, ok := l.rec.(goodwill.PromRecorder); ok {
+		if rec, ok := l.rec.(comm.PromRecorder); ok {
 			rec.Register()
 		}
 	}
@@ -175,7 +175,7 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 		s.GracefulStop()
 		if l.config.ReportMetrics {
 			l.storageMetrics.unregister()
-			if rec, ok := l.rec.(goodwill.PromRecorder); ok {
+			if rec, ok := l.rec.(comm.PromRecorder); ok {
 				rec.Unregister()
 			}
 		}

@@ -1,8 +1,7 @@
-package goodwill
+package comm
 
 import (
 	"testing"
-	"time"
 
 	"math/rand"
 
@@ -17,7 +16,7 @@ func TestFindRqRpBetaPreferer_Prefer(t *testing.T) {
 	peerID1 := id.NewPseudoRandom(rng)
 	peerID2 := id.NewPseudoRandom(rng)
 	peerID3 := id.NewPseudoRandom(rng)
-	qo1 := EndpointQueryOutcomes{
+	qo1 := endpointQueryOutcomes{
 		api.Find: QueryOutcomes{
 			Request: map[Outcome]*ScalarMetrics{
 				Success: {Count: 1},
@@ -27,7 +26,7 @@ func TestFindRqRpBetaPreferer_Prefer(t *testing.T) {
 			},
 		},
 	}
-	qo2 := EndpointQueryOutcomes{
+	qo2 := endpointQueryOutcomes{
 		api.Find: {
 			Request: map[Outcome]*ScalarMetrics{
 				Success: {Count: 2},
@@ -37,10 +36,10 @@ func TestFindRqRpBetaPreferer_Prefer(t *testing.T) {
 			},
 		},
 	}
-	qo3 := EndpointQueryOutcomes{
+	qo3 := endpointQueryOutcomes{
 		api.Find: {
 			Request: map[Outcome]*ScalarMetrics{
-				Success: {Count: 2},
+				Success: {Count: 1},
 			},
 			Response: map[Outcome]*ScalarMetrics{
 				Success: {Count: 3},
@@ -49,32 +48,15 @@ func TestFindRqRpBetaPreferer_Prefer(t *testing.T) {
 	}
 
 	rec := &scalarRecorder{
-		peers: map[string]EndpointQueryOutcomes{
+		peers: map[string]endpointQueryOutcomes{
 			peerID1.String(): qo1,
 			peerID2.String(): qo2,
 			peerID3.String(): qo3,
 		},
 	}
-	p := NewDefaultFindRqRpBetaPreferer(rec)
+	p := NewFindRpPreferer(rec)
 
-	// both peer 2 & peer 1 have posterior mean 0, so peer 2 isn't preferred over peer 1
-	assert.False(t, p.Prefer(peerID2, peerID1))
-
-	// peer 1 has posterior mean 0, which has max log prob under ideal posterior
-	assert.True(t, p.Prefer(peerID1, peerID3))
-}
-
-func TestCachedValue_get(t *testing.T) {
-	cv := &cachedValue{
-		calc:     func() float64 { return 2 },
-		lastCalc: time.Now().Add(-2 * defaultCacheTTL), // TTL expired
-		ttl:      defaultCacheTTL,
-	}
-	assert.Equal(t, float64(2), cv.get()) // calcs
-
-	cv.calc = func() float64 { return 3 }
-	assert.Equal(t, float64(2), cv.get()) // uses cache
-
-	cv.lastCalc = time.Now().Add(-2 * defaultCacheTTL) // TTL expired again
-	assert.Equal(t, float64(3), cv.get())              // calcs
+	// prefer peer w/ more successful Find responses
+	assert.True(t, p.Prefer(peerID2, peerID1))
+	assert.True(t, p.Prefer(peerID3, peerID2))
 }

@@ -15,8 +15,6 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/common/parse"
-	"github.com/drausin/libri/libri/librarian/api"
-	"github.com/drausin/libri/libri/librarian/server/goodwill"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
@@ -115,8 +113,8 @@ func TestLibrarian_bootstrapPeers_ok(t *testing.T) {
 		fixedResult.Responded[p.ID().String()] = p
 	}
 
-	judge := &fixedJudge{}
-	rt := routing.NewEmpty(id.NewPseudoRandom(rng), judge, routing.NewDefaultParameters())
+	p, d := &fixedPreferer{}, &fixedDoctor{}
+	rt := routing.NewEmpty(id.NewPseudoRandom(rng), p, d, routing.NewDefaultParameters())
 	l := &Librarian{
 		config: NewDefaultConfig(),
 		introducer: &fixedIntroducer{
@@ -148,8 +146,8 @@ func TestLibrarian_bootstrapPeers_introduceErr(t *testing.T) {
 		seeds[i] = peer.NewTestPublicAddr(i)
 	}
 
-	judge := &fixedJudge{}
-	rt := routing.NewEmpty(id.NewPseudoRandom(rng), judge, routing.NewDefaultParameters())
+	p, d := &fixedPreferer{}, &fixedDoctor{}
+	rt := routing.NewEmpty(id.NewPseudoRandom(rng), p, d, routing.NewDefaultParameters())
 	l := &Librarian{
 		config: NewDefaultConfig(),
 		selfID: ecid.NewPseudoRandom(rng),
@@ -181,8 +179,8 @@ func TestLibrarian_bootstrapPeers_noResponsesErr(t *testing.T) {
 
 	publicAddr, err := parse.Addr(DefaultIP, DefaultPort+1)
 	assert.Nil(t, err)
-	judge := &fixedJudge{}
-	rt := routing.NewEmpty(id.NewPseudoRandom(rng), judge, routing.NewDefaultParameters())
+	p, d := &fixedPreferer{}, &fixedDoctor{}
+	rt := routing.NewEmpty(id.NewPseudoRandom(rng), p, d, routing.NewDefaultParameters())
 	l := &Librarian{
 		config: NewDefaultConfig().WithPublicAddr(publicAddr).WithLogLevel(zapcore.DebugLevel),
 		selfID: ecid.NewPseudoRandom(rng),
@@ -205,18 +203,4 @@ type fixedIntroducer struct {
 func (fi *fixedIntroducer) Introduce(intro *introduce.Introduction, seeds []peer.Peer) error {
 	intro.Result = fi.result
 	return fi.err
-}
-
-type fixedJudge struct{}
-
-func (f *fixedJudge) Trust(peerID id.ID, endpoint api.Endpoint, queryType goodwill.QueryType) bool {
-	return true
-}
-
-func (f *fixedJudge) Healthy(peerID id.ID) bool {
-	return true
-}
-
-func (f *fixedJudge) Prefer(peerID1, peerID2 id.ID) bool {
-	return true
 }

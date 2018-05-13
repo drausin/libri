@@ -8,7 +8,7 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
-	gw "github.com/drausin/libri/libri/librarian/server/goodwill"
+	"github.com/drausin/libri/libri/librarian/server/comm"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 )
 
@@ -22,13 +22,13 @@ type introducer struct {
 	signer            client.Signer
 	introducerCreator client.IntroducerCreator
 	repProcessor      ResponseProcessor
-	rec               gw.Recorder
+	rec               comm.Recorder
 }
 
 // NewIntroducer creates a new Introducer instance with the given signer, querier, and response
 // processor.
 func NewIntroducer(
-	s client.Signer, rec gw.Recorder, c client.IntroducerCreator, rp ResponseProcessor,
+	s client.Signer, rec comm.Recorder, c client.IntroducerCreator, rp ResponseProcessor,
 ) Introducer {
 	return &introducer{
 		signer:            s,
@@ -41,7 +41,7 @@ func NewIntroducer(
 // NewDefaultIntroducer creates a new Introducer with the given signer and default querier and
 // response processor.
 func NewDefaultIntroducer(
-	s client.Signer, rec gw.Recorder, selfID id.ID, clients client.Pool,
+	s client.Signer, rec comm.Recorder, selfID id.ID, clients client.Pool,
 ) Introducer {
 	ic := client.NewIntroducerCreator(clients)
 	rp := NewResponseProcessor(peer.NewFromer(), selfID)
@@ -86,7 +86,7 @@ func (i *introducer) introduceWork(intro *Introduction, wg *sync.WaitGroup) {
 			intro.mu.Lock()
 			intro.Result.NErrors++
 			if next.ID() != nil {
-				i.rec.Record(next.ID(), api.Introduce, gw.Response, gw.Error)
+				i.rec.Record(next.ID(), api.Introduce, comm.Response, comm.Error)
 			}
 			intro.mu.Unlock()
 			continue
@@ -97,7 +97,7 @@ func (i *introducer) introduceWork(intro *Introduction, wg *sync.WaitGroup) {
 			delete(intro.Result.Unqueried, nextIDStr)
 			i.repProcessor.Process(rp, intro.Result)
 		})
-		i.rec.Record(id.FromBytes(rp.Self.PeerId), api.Introduce, gw.Response, gw.Success)
+		i.rec.Record(id.FromBytes(rp.Self.PeerId), api.Introduce, comm.Response, comm.Success)
 	}
 }
 
