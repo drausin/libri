@@ -7,16 +7,28 @@ import (
 )
 
 var (
-	ErrKnownAboveQueryLimit   = errors.New("known peer above query limit")
+	// ErrKnownAboveQueryLimit indicates when a known peer is above a query limit.
+	ErrKnownAboveQueryLimit = errors.New("known peer above query limit")
+
+	// ErrUnknownAboveQueryLimit indicates when an unknown peer is above a query limit.
 	ErrUnknownAboveQueryLimit = errors.New("unknown peer above query limit")
-	ErrKnownAbovePeerLimit    = errors.New("known peer above peer limit")
-	ErrUnknownAbovePeerLimit  = errors.New("unknown peer above peer limit")
+
+	// ErrKnownAbovePeerLimit indicates when a known peer is above a peer limit.
+	ErrKnownAbovePeerLimit = errors.New("known peer above peer limit")
+
+	// ErrUnknownAbovePeerLimit indicates when an unknown peer is above a peer limit.
+	ErrUnknownAbovePeerLimit = errors.New("unknown peer above peer limit")
 )
 
+// Allower decides whether peers should be allowed to make requests.
 type Allower interface {
+
+	// Allow determines whether a peer should be allowed to make a request on a given
+	// endpoint. It returns an error if the peer is not allowed.
 	Allow(peerID id.ID, endpoint api.Endpoint) error
 }
 
+// NewAllower returns a new Allower using the given Authorizer and peer & query Limiters.
 func NewAllower(auth Authorizer, peer, query Limiter) Allower {
 	return &allower{
 		auth:  auth,
@@ -44,10 +56,15 @@ func (a *allower) Allow(peerID id.ID, endpoint api.Endpoint) error {
 	return nil
 }
 
+// Authorizer authorizes peers on endpoints.
 type Authorizer interface {
+
+	// Authorized determines whether a peer is authorized to make requests on a given endpoint.
+	// It returns an error if the peer is not authorized.
 	Authorized(peerID id.ID, endpoint api.Endpoint) error
 }
 
+// NewAlwaysAuthorizer returns an Authorizer that always
 func NewAlwaysAuthorizer() Authorizer {
 	return &alwaysAuthorizer{}
 }
@@ -69,6 +86,8 @@ type Limiter interface {
 // Limits defines a set of limits for endpoints and whether the peer is known or not.
 type Limits map[api.Endpoint]map[bool]uint64
 
+// NewPeerLimiter returns a new Limiter on the number of peers allowed to make requests for certain
+// endpoints and known status.
 func NewPeerLimiter(limit Limits, knower Knower, rec WindowRecorder) Limiter {
 	return &peerLimiter{
 		limit:  limit,
@@ -99,6 +118,8 @@ func (l *peerLimiter) WithinLimit(peerID id.ID, endpoint api.Endpoint) error {
 	return nil
 }
 
+// NewQueryLimiter returns a new Limiter on the number of requests a peer can make for a given
+// endpoint.
 func NewQueryLimiter(limit Limits, knower Knower, rec WindowRecorder) Limiter {
 	return &queryLimiter{
 		limit:  limit,

@@ -43,7 +43,7 @@ func TestRoutingTable_SaveLoad(t *testing.T) {
 	params := NewDefaultParameters()
 	ps := peer.NewTestPeers(rng, 8)
 	rec := comm.NewScalarRecorder(comm.NewNeverKnower())
-	p, d := comm.NewFindRpPrefer(rec), &fixedDoctor{healthy: true}
+	p, d := comm.NewFindRpPreferer(rec), &fixedDoctor{healthy: true}
 	for i, p := range ps {
 		for j := 0; j < i+1; j++ {
 			rec.Record(p.ID(), api.Find, comm.Response, comm.Success)

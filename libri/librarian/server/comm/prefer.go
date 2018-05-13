@@ -13,11 +13,12 @@ type Preferer interface {
 	Prefer(peerID1, peerID2 id.ID) bool
 }
 
-func NewFindRpPrefer(rec Recorder) Preferer {
+// NewFindRpPreferer returns a Preferer that prefers peers with a larger number of successful Find
+// responses.
+func NewFindRpPreferer(rec Recorder) Preferer {
 	return &findRpPreferer{rec}
 }
 
-// findRqPreferer prefers peers that have returned the larger number of successful Find responses.
 type findRpPreferer struct {
 	rec Recorder
 }

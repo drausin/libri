@@ -92,10 +92,13 @@ func (r *scalarRecorder) CountPeers(endpoint api.Endpoint, qt QueryType, known b
 	return len(r.endpointQueryPeers[endpoint][qt][known])
 }
 
+// WindowRecorder is a Recorder whose counts reset after a configurable window (e.g., 1 second,
+// 1 day).
 type WindowRecorder interface {
 	Recorder
 }
 
+// NewWindowScalarRecorder returns a WindowRecorder using the given Knower and window size.
 func NewWindowScalarRecorder(knower Knower, window time.Duration) WindowRecorder {
 	return &windowScalarRec{
 		scalarRecorder: NewScalarRecorder(knower).(*scalarRecorder),

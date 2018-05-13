@@ -54,7 +54,7 @@ func TestFindRqRpBetaPreferer_Prefer(t *testing.T) {
 			peerID3.String(): qo3,
 		},
 	}
-	p := NewFindRpPrefer(rec)
+	p := NewFindRpPreferer(rec)
 
 	// prefer peer w/ more successful Find responses
 	assert.True(t, p.Prefer(peerID2, peerID1))

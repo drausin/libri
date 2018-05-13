@@ -154,7 +154,7 @@ func setUp(params *params) *state { // nolint: deadcode
 	signer := lclient.NewSigner(selfID.Key())
 	knower := comm.NewNeverKnower()
 	rec := comm.NewScalarRecorder(knower)
-	preferer := comm.NewFindRpPrefer(rec)
+	preferer := comm.NewFindRpPreferer(rec)
 	doctor := comm.NewNaiveDoctor()
 	rParams := routing.NewDefaultParameters()
 

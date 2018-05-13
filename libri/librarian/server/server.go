@@ -145,7 +145,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 	} else {
 		recorder = comm.NewScalarRecorder(knower)
 	}
-	prefer := comm.NewFindRpPrefer(recorder)
+	prefer := comm.NewFindRpPreferer(recorder)
 
 	rt, err := loadOrCreateRoutingTable(selfLogger, serverSL, prefer, doctor, selfID,
 		config.Routing)

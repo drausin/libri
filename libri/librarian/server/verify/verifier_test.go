@@ -199,7 +199,9 @@ func TestVerifier_query_err(t *testing.T) {
 			signer: &client.TestNoOpSigner{},
 			verifierCreator: &testVerifierCreator{
 				verifiers: map[string]api.Verifier{
-					next.Address().String(): &fixedVerifier{requestID: []byte{1, 2, 3, 4}},
+					next.Address().String(): &fixedVerifier{
+						requestID: []byte{1, 2, 3, 4},
+					},
 				},
 			},
 		},
@@ -358,7 +360,9 @@ type fixedRecorder struct {
 	nErrors    int
 }
 
-func (f *fixedRecorder) Record(peerID id.ID, endpoint api.Endpoint, qt comm.QueryType, o comm.Outcome) {
+func (f *fixedRecorder) Record(
+	peerID id.ID, endpoint api.Endpoint, qt comm.QueryType, o comm.Outcome,
+) {
 	if o == comm.Success {
 		f.nSuccesses++
 	} else {
