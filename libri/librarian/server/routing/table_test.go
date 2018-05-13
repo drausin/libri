@@ -24,10 +24,10 @@ func TestTable_NewWithPeers(t *testing.T) {
 
 func TestTable_NewWithPeers_concurrent(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	j := &fixedJudge{}
+	p, d := &fixedPreferer{}, &fixedDoctor{}
 	concurrency := 4
 	for n := concurrency; n <= 256; n *= 2 {
-		rt := NewEmpty(id.NewPseudoRandom(rng), j, NewDefaultParameters())
+		rt := NewEmpty(id.NewPseudoRandom(rng), p, d, NewDefaultParameters())
 		var wg sync.WaitGroup
 		for i := 0; i < concurrency; i++ {
 			wg.Add(1)

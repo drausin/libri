@@ -24,37 +24,31 @@ const (
 
 // Recorder manages metrics about each peer's endpoint query outcomes.
 type Recorder interface {
-
 	// Record the outcome from a given query to/from a peer on the endpoint.
 	Record(peerID id.ID, endpoint api.Endpoint, qt QueryType, o Outcome)
 
 	// Get the query types outcomes on a particular endpoint for a peer.
 	Get(peerID id.ID, endpoint api.Endpoint) QueryOutcomes
 
-	Count(endpoint api.Endpoint, qt QueryType) int
-}
-
-// PromRecorder is a Recorder that exposes state via Prometheus metrics.
-type PromRecorder interface {
-	Recorder
-
-	// Register registers the Prometheus metric(s) with the default Prometheus registerer.
-	Register()
-
-	// Unregister unregisters the Prometheus metrics form the default Prometheus registerer.
-	Unregister()
+	// CountPeers returns the number of peers with queries on the given endpoint on the given
+	// type.
+	CountPeers(endpoint api.Endpoint, qt QueryType, known bool) int
 }
 
 type scalarRecorder struct {
-	peers map[string]EndpointQueryOutcomes
-	mu    sync.Mutex
+	peers              map[string]endpointQueryOutcomes
+	endpointQueryPeers endpointQueryPeers
+	knower             Knower
+	mu                 sync.Mutex
 }
 
 // NewScalarRecorder creates a new Recorder that stores scalar metrics about each peer's endpoint
 // query outcomes.
-func NewScalarRecorder() Recorder {
+func NewScalarRecorder(knower Knower) Recorder {
 	return &scalarRecorder{
-		peers: make(map[string]EndpointQueryOutcomes),
+		peers:              make(map[string]endpointQueryOutcomes),
+		endpointQueryPeers: newEndpointQueryPeers(),
+		knower:             knower,
 	}
 }
 
@@ -63,8 +57,9 @@ func (r *scalarRecorder) Record(peerID id.ID, endpoint api.Endpoint, qt QueryTyp
 		panic("cannot record outcome for all endpoints")
 	}
 	r.mu.Lock()
-	if _, in := r.peers[peerID.String()]; !in {
-		r.peers[peerID.String()] = newEndpointQueryOutcomes()
+	idStr := peerID.String()
+	if _, in := r.peers[idStr]; !in {
+		r.peers[idStr] = newEndpointQueryOutcomes()
 	}
 	r.mu.Unlock()
 	r.record(peerID, endpoint, qt, o)
@@ -72,8 +67,11 @@ func (r *scalarRecorder) Record(peerID id.ID, endpoint api.Endpoint, qt QueryTyp
 }
 
 func (r *scalarRecorder) record(peerID id.ID, endpoint api.Endpoint, qt QueryType, o Outcome) {
+	idStr := peerID.String()
+	known := r.knower.Know(peerID)
 	r.mu.Lock()
-	m := r.peers[peerID.String()][endpoint][qt][o]
+	m := r.peers[idStr][endpoint][qt][o]
+	r.endpointQueryPeers[endpoint][qt][known][idStr] = struct{}{}
 	r.mu.Unlock()
 	m.Record()
 }
@@ -88,23 +86,21 @@ func (r *scalarRecorder) Get(peerID id.ID, endpoint api.Endpoint) QueryOutcomes 
 	return po[endpoint]
 }
 
-func (r *scalarRecorder) Count(endpoint api.Endpoint, qt QueryType) int {
+func (r *scalarRecorder) CountPeers(endpoint api.Endpoint, qt QueryType, known bool) int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	c := 0
-	for peerID := range r.peers {
-		if po, in := r.peers[peerID]; in {
-			qto := po[endpoint][qt]
-			if qto[Success].Count > 0 || qto[Error].Count > 0 {
-				c++
-			}
-		}
-	}
-	return c
+	return len(r.endpointQueryPeers[endpoint][qt][known])
 }
 
 type WindowRecorder interface {
 	Recorder
+}
+
+func NewWindowScalarRecorder(knower Knower, window time.Duration) WindowRecorder {
+	return &windowScalarRec{
+		scalarRecorder: NewScalarRecorder(knower).(*scalarRecorder),
+		window:         window,
+	}
 }
 
 type windowScalarRec struct {
@@ -125,6 +121,11 @@ func (r *windowScalarRec) Get(peerID id.ID, endpoint api.Endpoint) QueryOutcomes
 	return r.scalarRecorder.Get(peerID, endpoint)
 }
 
+func (r *windowScalarRec) CountPeers(endpoint api.Endpoint, qt QueryType, known bool) int {
+	r.maybeNextWindow()
+	return r.scalarRecorder.CountPeers(endpoint, qt, known)
+}
+
 func (r *windowScalarRec) maybeNextWindow() {
 	r.mu.Lock()
 	now := time.Now()
@@ -138,15 +139,27 @@ func (r *windowScalarRec) maybeNextWindow() {
 		}
 		r.end = r.start.Add(r.window)
 
-		// reset query outcomes
-		r.peers = make(map[string]EndpointQueryOutcomes)
+		// reset internal count state
+		r.peers = make(map[string]endpointQueryOutcomes)
+		r.endpointQueryPeers = newEndpointQueryPeers()
 	}
 	r.mu.Unlock()
 }
 
+// PromRecorder is a Recorder that exposes state via Prometheus metrics.
+type PromRecorder interface {
+	Recorder
+
+	// Register registers the Prometheus metric(s) with the default Prometheus registerer.
+	Register()
+
+	// Unregister unregisters the Prometheus metrics form the default Prometheus registerer.
+	Unregister()
+}
+
 // NewPromScalarRecorder creates a new scalar recorder that also emits Prometheus metrics for each
 // (peer, endpoint, query, outcome).
-func NewPromScalarRecorder(selfID id.ID) PromRecorder {
+func NewPromScalarRecorder(selfID id.ID, knower Knower) PromRecorder {
 	counter := prom.NewCounterVec(
 		prom.CounterOpts{
 			Namespace: counterNamespace,
@@ -163,7 +176,7 @@ func NewPromScalarRecorder(selfID id.ID) PromRecorder {
 		},
 	)
 	return &promScalarRecorder{
-		scalarRecorder: NewScalarRecorder().(*scalarRecorder),
+		scalarRecorder: NewScalarRecorder(knower).(*scalarRecorder),
 		selfID:         selfID,
 		counter:        counter,
 	}

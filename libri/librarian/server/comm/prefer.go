@@ -1,10 +1,8 @@
 package comm
 
 import (
-	"sync"
-	"time"
-
 	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/librarian/api"
 )
 
 // Preferer judges whether one peer is preferable over another.
@@ -15,22 +13,17 @@ type Preferer interface {
 	Prefer(peerID1, peerID2 id.ID) bool
 }
 
-type cachedValue struct {
-	value    float64
-	calc     func() float64
-	lastCalc time.Time
-	ttl      time.Duration
-	mu       sync.Mutex
+func NewFindRpPrefer(rec Recorder) Preferer {
+	return &findRpPreferer{rec}
 }
 
-func (cv *cachedValue) get() float64 {
-	cv.mu.Lock()
-	defer cv.mu.Unlock()
-	now := time.Now()
-	if cv.lastCalc.Add(cv.ttl).Before(now) {
-		// TTL expired, so need to recalc
-		cv.value = cv.calc()
-		cv.lastCalc = now
-	}
-	return cv.value
+// findRqPreferer prefers peers that have returned the larger number of successful Find responses.
+type findRpPreferer struct {
+	rec Recorder
+}
+
+func (p *findRpPreferer) Prefer(peerID1, peerID2 id.ID) bool {
+	nRps1 := p.rec.Get(peerID1, api.Find)[Response][Success].Count
+	nRps2 := p.rec.Get(peerID2, api.Find)[Response][Success].Count
+	return nRps1 > nRps2
 }

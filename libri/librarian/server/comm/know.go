@@ -1,14 +1,17 @@
 package comm
 
-import (
-	"github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/librarian/api"
-)
+import "github.com/drausin/libri/libri/common/id"
 
 type Knower interface {
 	Know(peerID id.ID) bool
 }
 
-type Authorizer interface {
-	Authorized(peerID id.ID, endpoint api.Endpoint) bool
+func NewNeverKnower() Knower {
+	return &neverKnower{}
+}
+
+type neverKnower struct{}
+
+func (k *neverKnower) Know(peerID id.ID) bool {
+	return false
 }

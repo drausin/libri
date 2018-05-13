@@ -4,7 +4,7 @@ import (
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
-	gw "github.com/drausin/libri/libri/librarian/server/goodwill"
+	"github.com/drausin/libri/libri/librarian/server/comm"
 	"github.com/golang/protobuf/proto"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -89,7 +89,7 @@ func (l *Librarian) checkRequestAndKeyValue(
 
 // record records query outcome for a particular peer if that peer is in the
 // routing table.
-func (l *Librarian) record(fromPeerID id.ID, e api.Endpoint, qt gw.QueryType, o gw.Outcome) {
+func (l *Librarian) record(fromPeerID id.ID, e api.Endpoint, qt comm.QueryType, o comm.Outcome) {
 	if fromPeerID == nil {
 		return
 	}

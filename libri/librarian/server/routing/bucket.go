@@ -6,8 +6,7 @@ import (
 	"container/heap"
 
 	"github.com/drausin/libri/libri/common/id"
-	"github.com/drausin/libri/libri/librarian/api"
-	gw "github.com/drausin/libri/libri/librarian/server/goodwill"
+	"github.com/drausin/libri/libri/librarian/server/comm"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 )
 
@@ -41,11 +40,14 @@ type bucket struct {
 	positions map[string]int
 
 	// determines peer ordering within a bucket
-	judge gw.Judge
+	preferer comm.Preferer
+
+	// determines whether a peer is healthy
+	doctor comm.Doctor
 }
 
 // newFirstBucket creates a new instance of the first bucket (spanning the entire ID range)
-func newFirstBucket(maxActivePeers uint, judge gw.Judge) *bucket {
+func newFirstBucket(maxActivePeers uint, preferer comm.Preferer, doctor comm.Doctor) *bucket {
 	return &bucket{
 		depth:          0,
 		lowerBound:     id.LowerBound,
@@ -56,7 +58,8 @@ func newFirstBucket(maxActivePeers uint, judge gw.Judge) *bucket {
 		activePeers:    make([]peer.Peer, 0),
 		positions:      make(map[string]int),
 		containsSelf:   true,
-		judge:          judge,
+		preferer:       preferer,
+		doctor:         doctor,
 	}
 }
 
@@ -66,7 +69,7 @@ func (b *bucket) Len() int {
 
 func (b *bucket) Less(i, j int) bool {
 	// swap j & i b/c we want a max-heap, i.e., least-preferred peers at the top
-	return b.judge.Prefer(b.activePeers[j].ID(), b.activePeers[i].ID())
+	return b.preferer.Prefer(b.activePeers[j].ID(), b.activePeers[i].ID())
 }
 
 func (b *bucket) Swap(i, j int) {
@@ -92,7 +95,7 @@ func (b *bucket) Pop() interface{} {
 func (b *bucket) Peak(k uint) []peer.Peer {
 	ps := make([]peer.Peer, 0, k)
 	for _, p := range b.activePeers {
-		if b.judge.Trust(p.ID(), api.Find, gw.Response) && b.judge.Healthy(p.ID()) {
+		if b.doctor.Healthy(p.ID()) {
 			ps = append(ps, p)
 			if len(ps) == int(k) {
 				return ps
@@ -106,7 +109,7 @@ func (b *bucket) Peak(k uint) []peer.Peer {
 func (b *bucket) Find(target id.ID, k uint) []peer.Peer {
 	tp := newTargetedPeers(target, k)
 	for _, p := range b.activePeers {
-		if b.judge.Trust(p.ID(), api.Find, gw.Response) && b.judge.Healthy(p.ID()) {
+		if b.doctor.Healthy(p.ID()) {
 			heap.Push(tp, p)
 		}
 		if uint(len(tp.peers)) > k {

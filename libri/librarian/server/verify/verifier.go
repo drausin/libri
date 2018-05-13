@@ -8,7 +8,7 @@ import (
 
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
-	gw "github.com/drausin/libri/libri/librarian/server/goodwill"
+	"github.com/drausin/libri/libri/librarian/server/comm"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/pkg/errors"
@@ -32,12 +32,12 @@ type verifier struct {
 	signer          client.Signer
 	verifierCreator client.VerifierCreator
 	rp              ResponseProcessor
-	rec             gw.Recorder
+	rec             comm.Recorder
 }
 
 // NewVerifier returns a new Verifier with the given Querier and ResponseProcessor.
 func NewVerifier(
-	s client.Signer, rec gw.Recorder, c client.VerifierCreator, rp ResponseProcessor,
+	s client.Signer, rec comm.Recorder, c client.VerifierCreator, rp ResponseProcessor,
 ) Verifier {
 	return &verifier{
 		signer:          s,
@@ -48,7 +48,7 @@ func NewVerifier(
 }
 
 // NewDefaultVerifier creates a new Verifier with default sub-object instantiations.
-func NewDefaultVerifier(signer client.Signer, rec gw.Recorder, clients client.Pool) Verifier {
+func NewDefaultVerifier(signer client.Signer, rec comm.Recorder, clients client.Pool) Verifier {
 	vc := client.NewVerifierCreator(clients)
 	rp := NewResponseProcessor(peer.NewFromer())
 	return NewVerifier(signer, rec, vc, rp)
@@ -151,14 +151,14 @@ func (v *verifier) recordError(p peer.Peer, err error, verify *Verify) {
 			verify.Result.FatalErr = errTooManyVerifyErrors
 		}
 	})
-	v.rec.Record(p.ID(), api.Verify, gw.Response, gw.Error)
+	v.rec.Record(p.ID(), api.Verify, comm.Response, comm.Error)
 }
 
 func (v *verifier) recordSuccess(p peer.Peer, verify *Verify) {
 	verify.wrapLock(func() {
 		verify.Result.Responded[p.ID().String()] = p
 	})
-	v.rec.Record(p.ID(), api.Verify, gw.Response, gw.Success)
+	v.rec.Record(p.ID(), api.Verify, comm.Response, comm.Success)
 }
 
 func getNextToQuery(verify *Verify) peer.Peer {

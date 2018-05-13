@@ -10,7 +10,7 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
-	gw "github.com/drausin/libri/libri/librarian/server/goodwill"
+	"github.com/drausin/libri/libri/librarian/server/comm"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -71,7 +71,7 @@ func (f *TestFromer) FromAPI(apiAddress *api.PeerAddress) peer.Peer {
 func NewTestSearcher(
 	peersMap map[string]peer.Peer,
 	peerConnectedAddrs map[string][]*api.PeerAddress,
-	rec gw.Recorder,
+	rec comm.Recorder,
 ) Searcher {
 	addressFinders := make(map[string]api.Finder)
 	for address, connectedAddresses := range peerConnectedAddrs {
