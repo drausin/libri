@@ -29,7 +29,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 // TestNewLibrarian checks that we can create a new instance, close it, and create it again as
@@ -153,7 +155,7 @@ func TestLibrarian_Introduce_checkRequestErr(t *testing.T) {
 
 	rp, err := l.Introduce(context.Background(), rq)
 	assert.Nil(t, rp)
-	assert.NotNil(t, err)
+	assert.Equal(t, codes.InvalidArgument, getErrCode(t, err))
 }
 
 func TestLibrarian_Introduce_peerIDErr(t *testing.T) {
@@ -188,7 +190,7 @@ func TestLibrarian_Introduce_peerIDErr(t *testing.T) {
 	rp, err := lib.Introduce(context.Background(), rq)
 
 	assert.Nil(t, rp)
-	assert.NotNil(t, err)
+	assert.Equal(t, codes.InvalidArgument, getErrCode(t, err))
 	qo := rec.Get(otherID.ID(), api.Introduce)
 	assert.Equal(t, 1, int(qo[comm.Request][comm.Error].Count))
 }
@@ -307,8 +309,9 @@ func TestLibrarian_Find_err(t *testing.T) {
 	rt, _, _, _ := routing.NewTestWithPeers(rng, 0)
 	rec := comm.NewScalarRecorder(comm.NewNeverKnower())
 	cases := []struct {
-		l         *Librarian
-		rqCreator func() *api.FindRequest
+		l               *Librarian
+		rqCreator       func() *api.FindRequest
+		expectedErrCode codes.Code
 	}{
 		// case 0
 		{
@@ -323,6 +326,7 @@ func TestLibrarian_Find_err(t *testing.T) {
 				rq.Metadata.PubKey = []byte("corrupted pub key")
 				return rq
 			},
+			expectedErrCode: codes.InvalidArgument,
 		},
 
 		// case 1
@@ -338,6 +342,7 @@ func TestLibrarian_Find_err(t *testing.T) {
 			rqCreator: func() *api.FindRequest {
 				return client.NewFindRequest(peerID, key, uint(8))
 			},
+			expectedErrCode: codes.Internal,
 		},
 	}
 
@@ -345,7 +350,7 @@ func TestLibrarian_Find_err(t *testing.T) {
 		info := fmt.Sprintf("case %d", i)
 		rp, err := c.l.Find(context.Background(), c.rqCreator())
 		assert.Nil(t, rp, info)
-		assert.NotNil(t, err, info)
+		assert.Equal(t, c.expectedErrCode, getErrCode(t, err), info)
 	}
 }
 
@@ -472,8 +477,9 @@ func TestLibrarian_Verify_err(t *testing.T) {
 	rec := comm.NewScalarRecorder(comm.NewNeverKnower())
 	macKey := api.RandBytes(rng, 32)
 	cases := []struct {
-		l         *Librarian
-		rqCreator func() *api.VerifyRequest
+		l               *Librarian
+		rqCreator       func() *api.VerifyRequest
+		expectedErrCode codes.Code
 	}{
 		// case 0
 		{
@@ -488,6 +494,7 @@ func TestLibrarian_Verify_err(t *testing.T) {
 				rq.Metadata.PubKey = []byte("corrupted pub key")
 				return rq
 			},
+			expectedErrCode: codes.InvalidArgument,
 		},
 
 		// case 1
@@ -503,6 +510,7 @@ func TestLibrarian_Verify_err(t *testing.T) {
 			rqCreator: func() *api.VerifyRequest {
 				return client.NewVerifyRequest(peerID, key, macKey, uint(8))
 			},
+			expectedErrCode: codes.Internal,
 		},
 	}
 
@@ -510,7 +518,7 @@ func TestLibrarian_Verify_err(t *testing.T) {
 		info := fmt.Sprintf("case %d", i)
 		rp, err := c.l.Verify(context.Background(), c.rqCreator())
 		assert.Nil(t, rp, info)
-		assert.NotNil(t, err, info)
+		assert.Equal(t, c.expectedErrCode, getErrCode(t, err), info)
 	}
 }
 
@@ -580,7 +588,7 @@ func TestLibrarian_Store_checkRequestError(t *testing.T) {
 
 	rp, err := l.Store(context.Background(), rq)
 	assert.Nil(t, rp)
-	assert.NotNil(t, err)
+	assert.Equal(t, codes.InvalidArgument, getErrCode(t, err))
 	qo := l.rec.Get(rqID.ID(), api.Get)
 	assert.Equal(t, 0, int(qo[comm.Request][comm.Success].Count))
 }
@@ -607,7 +615,7 @@ func TestLibrarian_Store_storeError(t *testing.T) {
 
 	rp, err := l.Store(context.Background(), rq)
 	assert.Nil(t, rp)
-	assert.NotNil(t, err)
+	assert.Equal(t, codes.Internal, getErrCode(t, err))
 	qo := rec.Get(rqID.ID(), api.Store)
 	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
@@ -687,7 +695,7 @@ func TestLibrarian_Get_Errored(t *testing.T) {
 
 	// since we have a fatal search error, Get() should also return an error
 	rp, err := l.Get(context.Background(), rq)
-	assert.NotNil(t, err)
+	assert.Equal(t, codes.Internal, getErrCode(t, err))
 	assert.Nil(t, rp)
 	qo := l.rec.Get(peerID.ID(), api.Get)
 	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
@@ -707,7 +715,7 @@ func TestLibrarian_Get_Exhausted(t *testing.T) {
 
 	// since we have a fatal search error, Get() should also return an error
 	rp, err := l.Get(context.Background(), rq)
-	assert.NotNil(t, err)
+	assert.Equal(t, codes.Unavailable, getErrCode(t, err))
 	assert.Nil(t, rp)
 	qo := l.rec.Get(peerID.ID(), api.Get)
 	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
@@ -723,7 +731,7 @@ func TestLibrarian_Get_err(t *testing.T) {
 
 	// since fixedSearcher returns fixed value, should get that back in response
 	rp, err := l.Get(context.Background(), rq)
-	assert.NotNil(t, err)
+	assert.Equal(t, codes.Internal, getErrCode(t, err))
 	assert.Nil(t, rp)
 	qo := l.rec.Get(peerID.ID(), api.Get)
 	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
@@ -741,7 +749,7 @@ func TestLibrarian_Get_checkRequestError(t *testing.T) {
 
 	rp, err := l.Get(context.Background(), rq)
 	assert.Nil(t, rp)
-	assert.NotNil(t, err)
+	assert.Equal(t, codes.InvalidArgument, getErrCode(t, err))
 	qo := l.rec.Get(rqID.ID(), api.Get)
 	assert.Equal(t, 0, int(qo[comm.Request][comm.Success].Count))
 }
@@ -842,7 +850,7 @@ func TestLibrarian_Put_Errored(t *testing.T) {
 
 	// since fixedSearcher returns fixed value, should get that back in response
 	rp, err := l.Put(context.Background(), rq)
-	assert.NotNil(t, err)
+	assert.Equal(t, codes.Internal, getErrCode(t, err))
 	assert.Nil(t, rp)
 	qo := l.rec.Get(peerID.ID(), api.Put)
 	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count)) // request was ok
@@ -859,7 +867,7 @@ func TestLibrarian_Put_err(t *testing.T) {
 
 	// since fixedSearcher returns fixed value, should get that back in response
 	rp, err := l.Put(context.Background(), rq)
-	assert.NotNil(t, err)
+	assert.Equal(t, codes.Internal, getErrCode(t, err))
 	assert.Nil(t, rp)
 	qo := l.rec.Get(peerID.ID(), api.Put)
 	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count)) // request was ok
@@ -878,7 +886,7 @@ func TestLibrarian_Put_checkRequestError(t *testing.T) {
 
 	rp, err := l.Put(context.Background(), rq)
 	assert.Nil(t, rp)
-	assert.NotNil(t, err)
+	assert.Equal(t, codes.InvalidArgument, getErrCode(t, err))
 	qo := l.rec.Get(rqID.ID(), api.Put)
 	assert.Equal(t, 0, int(qo[comm.Request][comm.Success].Count))
 }
@@ -979,7 +987,7 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	err = l1.Subscribe(rq, from)
-	assert.NotNil(t, err)
+	assert.Equal(t, codes.InvalidArgument, getErrCode(t, err))
 	qo := l1.rec.Get(selfID.ID(), api.Subscribe)
 	assert.Equal(t, 1, int(qo[comm.Request][comm.Error].Count))
 
@@ -995,7 +1003,7 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	err = l2.Subscribe(rq2, from)
-	assert.NotNil(t, err)
+	assert.Equal(t, codes.InvalidArgument, getErrCode(t, err))
 	qo = l2.rec.Get(selfID.ID(), api.Subscribe)
 	assert.Equal(t, 1, int(qo[comm.Request][comm.Error].Count))
 
@@ -1011,7 +1019,7 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	err = l3.Subscribe(rq3, from)
-	assert.NotNil(t, err)
+	assert.Equal(t, codes.InvalidArgument, getErrCode(t, err))
 	qo = l3.rec.Get(selfID.ID(), api.Subscribe)
 	assert.Equal(t, 1, int(qo[comm.Request][comm.Error].Count))
 
@@ -1030,7 +1038,7 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	err = l4.Subscribe(rq4, from)
-	assert.Equal(t, subscribe.ErrNotAcceptingNewSubscriptions, err)
+	assert.Equal(t, codes.ResourceExhausted, getErrCode(t, err))
 	qo = l4.rec.Get(selfID.ID(), api.Subscribe)
 	assert.Equal(t, 0, int(qo[comm.Request][comm.Error].Count)) // not rq error
 
@@ -1058,7 +1066,7 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 	go func(wg *sync.WaitGroup) {
 		defer wg.Done()
 		err = l5.Subscribe(rq5, from5)
-		assert.NotNil(t, err)
+		assert.Equal(t, codes.Unavailable, getErrCode(t, err))
 		qo = l5.rec.Get(selfID.ID(), api.Subscribe)
 		assert.Equal(t, 0, int(qo[comm.Request][comm.Error].Count))
 	}(wg)
@@ -1073,6 +1081,12 @@ func newKeyedPub(t *testing.T, pub *api.Publication) *subscribe.KeyedPub {
 		Key:   key,
 		Value: pub,
 	}
+}
+
+func getErrCode(t *testing.T, err error) codes.Code {
+	errSt, ok := status.FromError(err)
+	assert.True(t, ok)
+	return errSt.Code()
 }
 
 type fixedFrom struct {
