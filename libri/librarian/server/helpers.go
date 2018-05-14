@@ -9,6 +9,12 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+)
+
+const (
+	invalidRequestMsg = "invalid request"
 )
 
 // newStubPeerFromPublicKeyBytes creates a new stub peer with an ID coming from an ECDSA public key.
@@ -101,12 +107,22 @@ func (l *Librarian) record(fromPeerID id.ID, e api.Endpoint, qt comm.QueryType, 
 	}
 }
 
-func logAndReturnErr(logger *zap.Logger, msg string, err error) error {
-	logger.Error(msg, zap.Error(err))
-	return err
+func logReturnInvalidRqErr(lg *zap.Logger, err error, fields ...zapcore.Field) error {
+	// info level b/c issue comes from request rather than (internal to) peer
+	fields = append(fields, zap.Error(err))
+	lg.Info(invalidRequestMsg, fields...)
+	return status.Error(codes.InvalidArgument, err.Error())
 }
 
-func logFieldsAndReturnErr(logger *zap.Logger, err error, fields []zapcore.Field) error {
-	logger.Error(err.Error(), fields...)
-	return err
+func logReturnInternalErr(lg *zap.Logger, msg string, err error, fields ...zapcore.Field) error {
+	fields = append(fields, zap.Error(err))
+	lg.Error(msg, fields...)
+	// provide no details to clients about internal errors
+	return status.Error(codes.Internal, codes.Internal.String())
+}
+
+func logReturnUnavailErr(lg *zap.Logger, msg string, err error, fields ...zapcore.Field) error {
+	fields = append(fields, zap.Error(err))
+	lg.Error(msg, fields...)
+	return status.Error(codes.Unavailable, codes.Unavailable.String())
 }
