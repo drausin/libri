@@ -8,6 +8,8 @@ import (
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var (
@@ -18,8 +20,8 @@ func TestAllower_Allow(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	peerID := id.NewPseudoRandom(rng)
 	cases := map[string]struct {
-		allower  Allower
-		expected error
+		allower         Allower
+		expectedErrCode codes.Code
 	}{
 		"ok": {
 			allower: NewAllower(
@@ -27,7 +29,7 @@ func TestAllower_Allow(t *testing.T) {
 				&fixedLimiter{},
 				&fixedLimiter{},
 			),
-			expected: nil,
+			expectedErrCode: codes.OK,
 		},
 		"not authorized": {
 			allower: NewAllower(
@@ -35,7 +37,7 @@ func TestAllower_Allow(t *testing.T) {
 				&fixedLimiter{},
 				&fixedLimiter{},
 			),
-			expected: errTest,
+			expectedErrCode: codes.PermissionDenied,
 		},
 		"peer limited": {
 			allower: NewAllower(
@@ -43,7 +45,7 @@ func TestAllower_Allow(t *testing.T) {
 				&fixedLimiter{err: errTest},
 				&fixedLimiter{},
 			),
-			expected: errTest,
+			expectedErrCode: codes.ResourceExhausted,
 		},
 		"query limited": {
 			allower: NewAllower(
@@ -51,12 +53,14 @@ func TestAllower_Allow(t *testing.T) {
 				&fixedLimiter{},
 				&fixedLimiter{err: errTest},
 			),
-			expected: errTest,
+			expectedErrCode: codes.ResourceExhausted,
 		},
 	}
 	for desc, c := range cases {
 		err := c.allower.Allow(peerID, api.Find)
-		assert.Equal(t, c.expected, err, desc)
+		errSt, ok := status.FromError(err)
+		assert.True(t, ok)
+		assert.Equal(t, c.expectedErrCode, errSt.Code(), desc)
 	}
 }
 
@@ -221,9 +225,7 @@ type fixedRecorder struct {
 	countValue int
 }
 
-func (f *fixedRecorder) Record(peerID id.ID, endpoint api.Endpoint, qt QueryType, o Outcome) {
-	panic("implement me")
-}
+func (f *fixedRecorder) Record(peerID id.ID, endpoint api.Endpoint, qt QueryType, o Outcome) {}
 
 func (f *fixedRecorder) Get(peerID id.ID, endpoint api.Endpoint) QueryOutcomes {
 	return f.getValue
@@ -253,4 +255,10 @@ type fixedAuthorizer struct {
 
 func (f *fixedAuthorizer) Authorized(peerID id.ID, endpoint api.Endpoint) error {
 	return f.err
+}
+
+type neverKnower struct{}
+
+func (k *neverKnower) Know(peerID id.ID) bool {
+	return false
 }

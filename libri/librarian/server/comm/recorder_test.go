@@ -16,7 +16,7 @@ import (
 func TestScalarRecorder(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	id1, id2, id3 := id.NewPseudoRandom(rng), id.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
-	r := NewScalarRecorder(NewNeverKnower())
+	r := NewQueryRecorderGetter(&neverKnower{})
 
 	// record every possible combination
 	for _, e := range api.Endpoints {
@@ -65,9 +65,9 @@ func TestScalarRecorder(t *testing.T) {
 }
 
 func TestWindowScalarRec(t *testing.T) {
-	k := NewNeverKnower()
+	k := &neverKnower{}
 	window := 50 * time.Millisecond
-	r := NewWindowScalarRecorder(k, window)
+	r := NewWindowRecorderGetter(k, window)
 	rng := rand.New(rand.NewSource(0))
 	peerID := id.NewPseudoRandom(rng)
 
@@ -86,15 +86,16 @@ func TestPromScalarRecorder_Record(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	selfID := id.NewPseudoRandom(rng)
 	id1, id2 := id.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
+	qr := &fixedRecorder{}
 
-	r := NewPromScalarRecorder(selfID, NewNeverKnower())
+	r := NewPromScalarRecorder(selfID, qr)
 
 	r.Record(id1, api.Find, Request, Success)
 	r.Record(id1, api.Store, Request, Success)
 	r.Record(id2, api.Store, Response, Success)
 
 	metrics := make(chan prom.Metric, 4)
-	r.(*promScalarRecorder).counter.Collect(metrics)
+	r.(*promQR).counter.Collect(metrics)
 	close(metrics)
 	for m := range metrics {
 		written := &dto.Metric{}

@@ -31,12 +31,12 @@ type storer struct {
 	signer        client.Signer
 	searcher      search.Searcher
 	storerCreator client.StorerCreator
-	rec           comm.Recorder
+	rec           comm.QueryRecorder
 }
 
 // NewStorer creates a new Storer instance with given Searcher and StoreQuerier instances.
 func NewStorer(
-	signer client.Signer, rec comm.Recorder, searcher search.Searcher, c client.StorerCreator,
+	signer client.Signer, rec comm.QueryRecorder, searcher search.Searcher, c client.StorerCreator,
 ) Storer {
 	return &storer{
 		signer:        signer,
@@ -47,7 +47,7 @@ func NewStorer(
 }
 
 // NewDefaultStorer creates a new Storer with default Searcher and StoreQuerier instances.
-func NewDefaultStorer(peerID ecid.ID, rec comm.Recorder, clients client.Pool) Storer {
+func NewDefaultStorer(peerID ecid.ID, rec comm.QueryRecorder, clients client.Pool) Storer {
 	signer := client.NewSigner(peerID.Key())
 	return NewStorer(
 		signer,

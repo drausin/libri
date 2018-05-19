@@ -148,7 +148,7 @@ func TestSearcher_Search_rpErr(t *testing.T) {
 	assert.Equal(t, len(search.Result.Errored), rec.nErrors)
 }
 
-func newTestSearch(rec comm.Recorder) (Searcher, *Search, []int, []peer.Peer) {
+func newTestSearch(rec comm.QueryRecorder) (Searcher, *Search, []int, []peer.Peer) {
 	n, nClosestResponses := 32, uint(8)
 	rng := rand.New(rand.NewSource(int64(n)))
 	peers, peersMap, peerConnectedAddrs, selfPeerIdxs, selfID := NewTestPeers(rng, n)
