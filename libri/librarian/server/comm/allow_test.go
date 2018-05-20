@@ -278,13 +278,19 @@ func newRqSuccessCount(count uint64) QueryOutcomes {
 }
 
 type fixedRecorder struct {
-	nRecords   int
+	nRecords   map[Outcome]int
 	getValue   QueryOutcomes
 	countValue int
 }
 
 func (f *fixedRecorder) Record(peerID id.ID, endpoint api.Endpoint, qt QueryType, o Outcome) {
-	f.nRecords++
+	if f.nRecords == nil {
+		f.nRecords = make(map[Outcome]int)
+	}
+	if _, in := f.nRecords[o]; !in {
+		f.nRecords[o] = 0
+	}
+	f.nRecords[o]++
 }
 
 func (f *fixedRecorder) Get(peerID id.ID, endpoint api.Endpoint) QueryOutcomes {

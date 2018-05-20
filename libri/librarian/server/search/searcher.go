@@ -222,7 +222,7 @@ func (s *searcher) recordError(p peer.Peer, err error, search *Search) {
 			search.Result.FatalErr = ErrTooManyFindErrors
 		})
 	}
-	s.rec.Record(p.ID(), api.Find, comm.Response, comm.Error)
+	comm.MaybeRecordRpErr(s.rec, p.ID(), api.Find, err)
 }
 
 func (s *searcher) recordSuccess(p peer.Peer, search *Search) {

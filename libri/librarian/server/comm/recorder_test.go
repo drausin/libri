@@ -8,10 +8,51 @@ import (
 
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/pkg/errors"
 	prom "github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
+
+func TestMaybeRecordErr(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	peerID := id.NewPseudoRandom(rng)
+	errInvalidArg := status.Error(codes.InvalidArgument, "invalid arg")
+	errInternal := status.Error(codes.Internal, "internal")
+
+	cases := map[string]struct {
+		peerID          id.ID
+		err             error
+		errRecorded     bool
+		successRecorded bool
+	}{
+		"nil peer ID": {
+			err:             errInternal,
+			errRecorded:     false,
+			successRecorded: false,
+		},
+		"non-grpc err": {
+			peerID:          peerID,
+			err:             errors.New("some other error"),
+			errRecorded:     true,
+			successRecorded: false,
+		},
+		"healthy err": {
+			peerID:          peerID,
+			err:             errInvalidArg,
+			errRecorded:     false,
+			successRecorded: true,
+		},
+	}
+	for desc, c := range cases {
+		r := &fixedRecorder{}
+		MaybeRecordRpErr(r, c.peerID, api.Find, c.err)
+		assert.Equal(t, c.errRecorded, r.nRecords[Error] == 1, desc)
+		assert.Equal(t, c.successRecorded, r.nRecords[Success] == 1, desc)
+	}
+}
 
 func TestScalarRG(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
@@ -93,8 +134,8 @@ func TestWindowQueryRecorders_Record(t *testing.T) {
 	wqrs.Record(peerID, api.Find, Response, Success)
 
 	// check each duration has record
-	assert.Equal(t, 1, secR.nRecords)
-	assert.Equal(t, 1, dayR.nRecords)
+	assert.Equal(t, 1, secR.nRecords[Success])
+	assert.Equal(t, 1, dayR.nRecords[Success])
 }
 
 func TestPromScalarRecorder_Record(t *testing.T) {

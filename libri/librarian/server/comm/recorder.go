@@ -8,6 +8,8 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	prom "github.com/prometheus/client_golang/prometheus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -22,11 +24,36 @@ const (
 	counterName      = "peer_query_count"
 )
 
+var (
+	// healthyErrStatusCodes defines the set of GRPC error codes that a health server can
+	// return. usually due to some client issue.
+	healthyErrStatusCodes = map[codes.Code]struct{}{
+		codes.InvalidArgument:   {},
+		codes.PermissionDenied:  {},
+		codes.ResourceExhausted: {},
+	}
+)
+
 // QueryRecorder records metrics about each peer's endpoint query outcomes.
 type QueryRecorder interface {
 
 	// Record the outcome from a given query to/from a peer on the endpoint.
 	Record(peerID id.ID, endpoint api.Endpoint, qt QueryType, o Outcome)
+}
+
+// MaybeRecordRpErr records skips recording an error using th given QueryRecorder if the given error
+// has a health error status code (indicating that the problem is on the client end).
+func MaybeRecordRpErr(r QueryRecorder, peerID id.ID, endpoint api.Endpoint, err error) {
+	if peerID == nil {
+		return
+	}
+	if errSt, ok := status.FromError(err); ok {
+		if _, in := healthyErrStatusCodes[errSt.Code()]; in {
+			r.Record(peerID, endpoint, Response, Success)
+			return
+		}
+	}
+	r.Record(peerID, endpoint, Response, Error)
 }
 
 // QueryGetter gets metrics about each peer's endpoint query outcomes.

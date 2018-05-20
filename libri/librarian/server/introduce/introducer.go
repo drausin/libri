@@ -85,10 +85,8 @@ func (i *introducer) introduceWork(intro *Introduction, wg *sync.WaitGroup) {
 			// if we had an issue querying, skip to next peer
 			intro.mu.Lock()
 			intro.Result.NErrors++
-			if next.ID() != nil {
-				i.rec.Record(next.ID(), api.Introduce, comm.Response, comm.Error)
-			}
 			intro.mu.Unlock()
+			comm.MaybeRecordRpErr(i.rec, next.ID(), api.Introduce, err)
 			continue
 		}
 

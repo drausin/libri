@@ -154,7 +154,7 @@ func (v *verifier) recordError(p peer.Peer, err error, verify *Verify) {
 			verify.Result.FatalErr = errTooManyVerifyErrors
 		}
 	})
-	v.rec.Record(p.ID(), api.Verify, comm.Response, comm.Error)
+	comm.MaybeRecordRpErr(v.rec, p.ID(), api.Verify, err)
 }
 
 func (v *verifier) recordSuccess(p peer.Peer, verify *Verify) {

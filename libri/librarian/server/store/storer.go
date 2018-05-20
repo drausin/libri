@@ -145,7 +145,6 @@ func (s *storer) query(next peer.Peer, store *Store) (*api.StoreResponse, error)
 
 func (s *storer) processAnyReponse(pr *peerResponse, toQuery chan peer.Peer, store *Store) {
 	errored := false
-	var outcome comm.Outcome
 	if pr.err != nil {
 		// if we had an issue querying, skip to next peer
 		store.wrapLock(func() {
@@ -157,14 +156,13 @@ func (s *storer) processAnyReponse(pr *peerResponse, toQuery chan peer.Peer, sto
 			})
 		}
 		errored = true
-		outcome = comm.Error
+		comm.MaybeRecordRpErr(s.rec, pr.peer.ID(), api.Store, pr.err)
 	} else {
 		store.wrapLock(func() {
 			store.Result.Responded = append(store.Result.Responded, pr.peer)
 		})
-		outcome = comm.Success
+		s.rec.Record(pr.peer.ID(), api.Store, comm.Response, comm.Success)
 	}
-	s.rec.Record(pr.peer.ID(), api.Store, comm.Response, outcome)
 
 	finished := store.Finished()
 	if errored && !finished {
