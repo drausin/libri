@@ -175,7 +175,7 @@ func TestStorer_query_err(t *testing.T) {
 	}
 }
 
-func newTestStore(rec comm.Recorder) (Storer, *Store, []int, []peer.Peer, cid.ID) {
+func newTestStore(rec comm.QueryRecorder) (Storer, *Store, []int, []peer.Peer, cid.ID) {
 	n := 32
 	rng := rand.New(rand.NewSource(int64(n)))
 	peers, peersMap, addressFinders, selfPeerIdxs, selfID := ssearch.NewTestPeers(rng, n)

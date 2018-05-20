@@ -13,7 +13,7 @@ import (
 
 func TestBucket_PushPop(t *testing.T) {
 	for n := 1; n <= 128; n *= 2 {
-		rec := comm.NewScalarRecorder(comm.NewNeverKnower())
+		rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 		preferer, doctor := comm.NewFindRpPreferer(rec), comm.NewNaiveDoctor()
 		b := newFirstBucket(DefaultMaxActivePeers, preferer, doctor)
 		rng := rand.New(rand.NewSource(int64(n)))
@@ -35,7 +35,7 @@ func TestBucket_PushPop(t *testing.T) {
 }
 
 func TestBucket_Peak(t *testing.T) {
-	rec := comm.NewScalarRecorder(comm.NewNeverKnower())
+	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 	preferer, doctor := comm.NewFindRpPreferer(rec), comm.NewNaiveDoctor()
 	b := newFirstBucket(DefaultMaxActivePeers, preferer, doctor)
 

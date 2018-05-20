@@ -47,7 +47,7 @@ func TestFindRqRpBetaPreferer_Prefer(t *testing.T) {
 		},
 	}
 
-	rec := &scalarRecorder{
+	rec := &scalarRG{
 		peers: map[string]endpointQueryOutcomes{
 			peerID1.String(): qo1,
 			peerID2.String(): qo2,

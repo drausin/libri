@@ -9,13 +9,13 @@ type Knower interface {
 	Know(peerID id.ID) bool
 }
 
-// NewNeverKnower returns a Knower than treats all peers as unknown.
-func NewNeverKnower() Knower {
-	return &neverKnower{}
+// NewAlwaysKnower returns a Knower than treats all peers as known.
+func NewAlwaysKnower() Knower {
+	return &alwaysKnower{}
 }
 
-type neverKnower struct{}
+type alwaysKnower struct{}
 
-func (k *neverKnower) Know(peerID id.ID) bool {
-	return false
+func (k *alwaysKnower) Know(peerID id.ID) bool {
+	return true
 }

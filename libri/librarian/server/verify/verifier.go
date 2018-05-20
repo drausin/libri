@@ -17,7 +17,8 @@ import (
 const verifierVerifyRetryTimeout = 25 * time.Millisecond
 
 var (
-	errInvalidResponse     = errors.New("VerifyResponse contains neither MAC nor peer addresses")
+	errInvalidResponse = errors.New("VerifyResponse contains neither MAC nor peer " +
+		"addresses")
 	errTooManyVerifyErrors = errors.New("too many Verify errors")
 	errUnexpectedVerifyMAC = errors.New("unexpected Verify MAC")
 )
@@ -32,12 +33,12 @@ type verifier struct {
 	signer          client.Signer
 	verifierCreator client.VerifierCreator
 	rp              ResponseProcessor
-	rec             comm.Recorder
+	rec             comm.QueryRecorder
 }
 
 // NewVerifier returns a new Verifier with the given Querier and ResponseProcessor.
 func NewVerifier(
-	s client.Signer, rec comm.Recorder, c client.VerifierCreator, rp ResponseProcessor,
+	s client.Signer, rec comm.QueryRecorder, c client.VerifierCreator, rp ResponseProcessor,
 ) Verifier {
 	return &verifier{
 		signer:          s,
@@ -48,7 +49,9 @@ func NewVerifier(
 }
 
 // NewDefaultVerifier creates a new Verifier with default sub-object instantiations.
-func NewDefaultVerifier(signer client.Signer, rec comm.Recorder, clients client.Pool) Verifier {
+func NewDefaultVerifier(
+	signer client.Signer, rec comm.QueryRecorder, clients client.Pool,
+) Verifier {
 	vc := client.NewVerifierCreator(clients)
 	rp := NewResponseProcessor(peer.NewFromer())
 	return NewVerifier(signer, rec, vc, rp)
@@ -151,7 +154,7 @@ func (v *verifier) recordError(p peer.Peer, err error, verify *Verify) {
 			verify.Result.FatalErr = errTooManyVerifyErrors
 		}
 	})
-	v.rec.Record(p.ID(), api.Verify, comm.Response, comm.Error)
+	comm.MaybeRecordRpErr(v.rec, p.ID(), api.Verify, err)
 }
 
 func (v *verifier) recordSuccess(p peer.Peer, verify *Verify) {

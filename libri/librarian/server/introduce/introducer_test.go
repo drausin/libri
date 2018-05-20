@@ -228,7 +228,7 @@ func newTestIntroducer(
 	peersMap map[string]peer.Peer,
 	selfID id.ID,
 	peerConnectedAddrs map[string][]*api.PeerAddress,
-	rec comm.Recorder,
+	rec comm.QueryRecorder,
 ) Introducer {
 	addressIntroducers := make(map[string]api.Introducer)
 	for _, p := range peersMap {
@@ -249,7 +249,7 @@ func newTestIntroducer(
 }
 
 func newTestIntros(
-	concurrency uint, rec comm.Recorder,
+	concurrency uint, rec comm.QueryRecorder,
 ) (Introducer, *Introduction, []int, []peer.Peer) {
 	n, targetNumIntros := 256, uint(64)
 	rng := rand.New(rand.NewSource(int64(n)))

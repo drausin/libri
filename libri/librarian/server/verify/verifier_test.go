@@ -288,7 +288,7 @@ func newTestVerify() (Verifier, *Verify, []int, []peer.Peer) {
 func newTestVerifier(
 	peersMap map[string]peer.Peer,
 	peerConnectedAddrs map[string][]*api.PeerAddress,
-	rec comm.Recorder,
+	rec comm.QueryRecorder,
 ) Verifier {
 	addressVerifiers := make(map[string]api.Verifier)
 	for address, connectedAddresses := range peerConnectedAddrs {

@@ -14,7 +14,8 @@ import (
 )
 
 const (
-	invalidRequestMsg = "invalid request"
+	invalidRequestMsg    = "invalid request"
+	requestNotAllowedMsg = "request not allowed"
 )
 
 // newStubPeerFromPublicKeyBytes creates a new stub peer with an ID coming from an ECDSA public key.
@@ -125,4 +126,10 @@ func logReturnUnavailErr(lg *zap.Logger, msg string, err error, fields ...zapcor
 	fields = append(fields, zap.Error(err))
 	lg.Error(msg, fields...)
 	return status.Error(codes.Unavailable, codes.Unavailable.String())
+}
+
+func logReturnNotAllowedErr(lg *zap.Logger, err error) error {
+	// assume err is already grpc status error
+	lg.Info(requestNotAllowedMsg, zap.Error(err))
+	return err
 }

@@ -17,7 +17,8 @@ import (
 const searcherFindRetryTimeout = 25 * time.Millisecond
 
 var (
-	// ErrTooManyFindErrors indicates when a search has encountered too many Find request errors.
+	// ErrTooManyFindErrors indicates when a search has encountered too many Find request
+	// errors.
 	ErrTooManyFindErrors = errors.New("too many Find errors")
 
 	errInvalidResponse = errors.New("FindResponse contains neither value nor peer addresses")
@@ -33,12 +34,12 @@ type searcher struct {
 	signer        client.Signer
 	finderCreator client.FinderCreator
 	rp            ResponseProcessor
-	rec           comm.Recorder
+	rec           comm.QueryRecorder
 }
 
 // NewSearcher returns a new Searcher with the given Querier and ResponseProcessor.
 func NewSearcher(
-	s client.Signer, rec comm.Recorder, c client.FinderCreator, rp ResponseProcessor,
+	s client.Signer, rec comm.QueryRecorder, c client.FinderCreator, rp ResponseProcessor,
 ) Searcher {
 	return &searcher{
 		signer:        s,
@@ -49,7 +50,9 @@ func NewSearcher(
 }
 
 // NewDefaultSearcher creates a new Searcher with default sub-object instantiations.
-func NewDefaultSearcher(signer client.Signer, rec comm.Recorder, clients client.Pool) Searcher {
+func NewDefaultSearcher(
+	signer client.Signer, rec comm.QueryRecorder, clients client.Pool,
+) Searcher {
 	return NewSearcher(
 		signer,
 		rec,
@@ -219,7 +222,7 @@ func (s *searcher) recordError(p peer.Peer, err error, search *Search) {
 			search.Result.FatalErr = ErrTooManyFindErrors
 		})
 	}
-	s.rec.Record(p.ID(), api.Find, comm.Response, comm.Error)
+	comm.MaybeRecordRpErr(s.rec, p.ID(), api.Find, err)
 }
 
 func (s *searcher) recordSuccess(p peer.Peer, search *Search) {

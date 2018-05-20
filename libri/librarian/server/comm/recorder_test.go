@@ -8,15 +8,56 @@ import (
 
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/pkg/errors"
 	prom "github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
-func TestScalarRecorder(t *testing.T) {
+func TestMaybeRecordErr(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	peerID := id.NewPseudoRandom(rng)
+	errInvalidArg := status.Error(codes.InvalidArgument, "invalid arg")
+	errInternal := status.Error(codes.Internal, "internal")
+
+	cases := map[string]struct {
+		peerID          id.ID
+		err             error
+		errRecorded     bool
+		successRecorded bool
+	}{
+		"nil peer ID": {
+			err:             errInternal,
+			errRecorded:     false,
+			successRecorded: false,
+		},
+		"non-grpc err": {
+			peerID:          peerID,
+			err:             errors.New("some other error"),
+			errRecorded:     true,
+			successRecorded: false,
+		},
+		"healthy err": {
+			peerID:          peerID,
+			err:             errInvalidArg,
+			errRecorded:     false,
+			successRecorded: true,
+		},
+	}
+	for desc, c := range cases {
+		r := &fixedRecorder{}
+		MaybeRecordRpErr(r, c.peerID, api.Find, c.err)
+		assert.Equal(t, c.errRecorded, r.nRecords[Error] == 1, desc)
+		assert.Equal(t, c.successRecorded, r.nRecords[Success] == 1, desc)
+	}
+}
+
+func TestScalarRG(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	id1, id2, id3 := id.NewPseudoRandom(rng), id.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
-	r := NewScalarRecorder(NewNeverKnower())
+	r := NewQueryRecorderGetter(&neverKnower{})
 
 	// record every possible combination
 	for _, e := range api.Endpoints {
@@ -64,10 +105,10 @@ func TestScalarRecorder(t *testing.T) {
 	assert.Equal(t, uint64(0), r.Get(id3, api.Store)[Request][Success].Count)
 }
 
-func TestWindowScalarRec(t *testing.T) {
-	k := NewNeverKnower()
+func TestWindowRG(t *testing.T) {
+	k := &neverKnower{}
 	window := 50 * time.Millisecond
-	r := NewWindowScalarRecorder(k, window)
+	r := NewWindowRecorderGetter(k, window)
 	rng := rand.New(rand.NewSource(0))
 	peerID := id.NewPseudoRandom(rng)
 
@@ -82,19 +123,35 @@ func TestWindowScalarRec(t *testing.T) {
 	assert.Equal(t, 0, r.CountPeers(api.Find, Request, false))
 }
 
+func TestWindowQueryRecorders_Record(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	peerID := id.NewPseudoRandom(rng)
+	secR, dayR := &fixedRecorder{}, &fixedRecorder{}
+	wqrs := WindowQueryRecorders{
+		Second: secR,
+		Day:    dayR,
+	}
+	wqrs.Record(peerID, api.Find, Response, Success)
+
+	// check each duration has record
+	assert.Equal(t, 1, secR.nRecords[Success])
+	assert.Equal(t, 1, dayR.nRecords[Success])
+}
+
 func TestPromScalarRecorder_Record(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	selfID := id.NewPseudoRandom(rng)
 	id1, id2 := id.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
+	qr := &fixedRecorder{}
 
-	r := NewPromScalarRecorder(selfID, NewNeverKnower())
+	r := NewPromScalarRecorder(selfID, qr)
 
 	r.Record(id1, api.Find, Request, Success)
 	r.Record(id1, api.Store, Request, Success)
 	r.Record(id2, api.Store, Response, Success)
 
 	metrics := make(chan prom.Metric, 4)
-	r.(*promScalarRecorder).counter.Collect(metrics)
+	r.(*promQR).counter.Collect(metrics)
 	close(metrics)
 	for m := range metrics {
 		written := &dto.Metric{}

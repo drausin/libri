@@ -42,7 +42,7 @@ func TestRoutingTable_SaveLoad(t *testing.T) {
 	selfID := ecid.NewPseudoRandom(rng)
 	params := NewDefaultParameters()
 	ps := peer.NewTestPeers(rng, 8)
-	rec := comm.NewScalarRecorder(comm.NewNeverKnower())
+	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 	p, d := comm.NewFindRpPreferer(rec), &fixedDoctor{healthy: true}
 	for i, p := range ps {
 		for j := 0; j < i+1; j++ {

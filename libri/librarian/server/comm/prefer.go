@@ -15,16 +15,16 @@ type Preferer interface {
 
 // NewFindRpPreferer returns a Preferer that prefers peers with a larger number of successful Find
 // responses.
-func NewFindRpPreferer(rec Recorder) Preferer {
-	return &findRpPreferer{rec}
+func NewFindRpPreferer(getter QueryGetter) Preferer {
+	return &findRpPreferer{getter}
 }
 
 type findRpPreferer struct {
-	rec Recorder
+	getter QueryGetter
 }
 
 func (p *findRpPreferer) Prefer(peerID1, peerID2 id.ID) bool {
-	nRps1 := p.rec.Get(peerID1, api.Find)[Response][Success].Count
-	nRps2 := p.rec.Get(peerID2, api.Find)[Response][Success].Count
+	nRps1 := p.getter.Get(peerID1, api.Find)[Response][Success].Count
+	nRps2 := p.getter.Get(peerID2, api.Find)[Response][Success].Count
 	return nRps1 > nRps2
 }

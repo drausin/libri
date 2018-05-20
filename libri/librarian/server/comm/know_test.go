@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNeverKnower_Know(t *testing.T) {
-	k := NewNeverKnower()
+func TestAlwaysKnower_Know(t *testing.T) {
+	k := NewAlwaysKnower()
 	rng := rand.New(rand.NewSource(0))
 	peerID := id.NewPseudoRandom(rng)
 
-	assert.False(t, k.Know(peerID))
+	assert.True(t, k.Know(peerID))
 }

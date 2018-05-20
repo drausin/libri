@@ -7,6 +7,8 @@ import (
 	"math/rand"
 	"net/http"
 
+	"time"
+
 	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
@@ -106,8 +108,11 @@ type Librarian struct {
 	// Prometheus counters for storage metrics
 	storageMetrics *storageMetrics
 
-	// endpoint response outcomes for each peer
-	rec comm.Recorder
+	// recorder of query outcomes for each peer
+	rec comm.QueryRecorder
+
+	// determines whether requests are allowed
+	allower comm.Allower
 
 	// logger for this instance
 	logger *zap.Logger
@@ -142,17 +147,18 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 	}
 	selfLogger := logger.With(zap.String(logSelfIDShort, id.ShortHex(selfID.Bytes())))
 
-	knower := comm.NewNeverKnower()
+	knower := comm.NewAlwaysKnower()
 	doctor := comm.NewNaiveDoctor()
 
 	// TODO (drausin) load recorder from storage instead of initializing empty
-	var recorder comm.Recorder
+	windows := []time.Duration{comm.Second, comm.Day, comm.Week}
+	recorder, getters := comm.NewWindowQueryRecorderGetters(knower, windows)
 	if config.ReportMetrics {
-		recorder = comm.NewPromScalarRecorder(selfID.ID(), knower)
-	} else {
-		recorder = comm.NewScalarRecorder(knower)
+		recorder = comm.NewPromScalarRecorder(selfID.ID(), recorder)
 	}
-	prefer := comm.NewFindRpPreferer(recorder)
+	weekGetter := getters[7*24*time.Hour]
+	prefer := comm.NewFindRpPreferer(weekGetter)
+	allower := comm.NewDefaultAllower(knower, getters)
 
 	rt, err := loadOrCreateRoutingTable(selfLogger, serverSL, prefer, doctor, selfID,
 		config.Routing)
@@ -220,6 +226,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		rt:             rt,
 		storageMetrics: newStorageMetrics(),
 		rec:            recorder,
+		allower:        allower,
 		logger:         selfLogger,
 		health:         health.NewServer(),
 		metrics:        metrics,
@@ -233,19 +240,23 @@ func (l *Librarian) Introduce(ctx context.Context, rq *api.IntroduceRequest) (
 	*api.IntroduceResponse, error) {
 	lg := l.logger.With(rqMetadataFields(rq.Metadata)...)
 	lg.Debug("received introduce request", introduceRequestFields(rq)...)
+	endpoint := api.Introduce
 
-	// check request
 	requesterID, err := l.checkRequest(ctx, rq, rq.Metadata)
 	if err != nil {
-		l.record(requesterID, api.Introduce, comm.Request, comm.Error)
+		l.record(requesterID, endpoint, comm.Request, comm.Error)
 		return nil, logReturnInvalidRqErr(lg, err)
+	}
+	if err := l.allower.Allow(requesterID, endpoint); err != nil {
+		l.record(requesterID, endpoint, comm.Request, comm.Error)
+		return nil, logReturnNotAllowedErr(lg, err)
 	}
 	requester := l.fromer.FromAPI(rq.Self)
 	if requester.ID().Cmp(requesterID) != 0 {
-		l.record(requesterID, api.Introduce, comm.Request, comm.Error)
+		l.record(requesterID, endpoint, comm.Request, comm.Error)
 		return nil, logReturnInvalidRqErr(lg, errBadPeerIDSig)
 	}
-	l.record(requesterID, api.Introduce, comm.Request, comm.Success)
+	l.record(requesterID, endpoint, comm.Request, comm.Success)
 
 	// add peer to routing table (if space)
 	l.rt.Push(requester)
@@ -267,13 +278,18 @@ func (l *Librarian) Introduce(ctx context.Context, rq *api.IntroduceRequest) (
 func (l *Librarian) Find(ctx context.Context, rq *api.FindRequest) (*api.FindResponse, error) {
 	lg := l.logger.With(rqMetadataFields(rq.Metadata)...)
 	lg.Debug("received find request", findRequestFields(rq)...)
+	endpoint := api.Find
 
 	requesterID, err := l.checkRequestAndKey(ctx, rq, rq.Metadata, rq.Key)
 	if err != nil {
-		l.record(requesterID, api.Find, comm.Request, comm.Error)
+		l.record(requesterID, endpoint, comm.Request, comm.Error)
 		return nil, logReturnInvalidRqErr(lg, err)
 	}
-	l.record(requesterID, api.Find, comm.Request, comm.Success)
+	if err = l.allower.Allow(requesterID, api.Find); err != nil {
+		l.record(requesterID, endpoint, comm.Request, comm.Error)
+		return nil, logReturnNotAllowedErr(lg, err)
+	}
+	l.record(requesterID, endpoint, comm.Request, comm.Success)
 
 	value, err := l.documentSL.Load(id.FromBytes(rq.Key))
 	if err != nil {
@@ -309,13 +325,18 @@ func (l *Librarian) Verify(
 
 	lg := l.logger.With(rqMetadataFields(rq.Metadata)...)
 	lg.Debug("received verify request", verifyRequestFields(rq)...)
+	endpoint := api.Verify
 
 	requesterID, err := l.checkRequestAndKey(ctx, rq, rq.Metadata, rq.Key)
 	if err != nil {
-		l.record(requesterID, api.Verify, comm.Request, comm.Error)
+		l.record(requesterID, endpoint, comm.Request, comm.Error)
 		return nil, logReturnInvalidRqErr(lg, err)
 	}
-	l.record(requesterID, api.Verify, comm.Request, comm.Success)
+	if err = l.allower.Allow(requesterID, endpoint); err != nil {
+		l.record(requesterID, endpoint, comm.Request, comm.Error)
+		return nil, logReturnNotAllowedErr(lg, err)
+	}
+	l.record(requesterID, endpoint, comm.Request, comm.Success)
 
 	mac, err := l.documentSL.Mac(id.FromBytes(rq.Key), rq.MacKey)
 	if err != nil {
@@ -349,13 +370,18 @@ func (l *Librarian) Store(ctx context.Context, rq *api.StoreRequest) (
 	*api.StoreResponse, error) {
 	lg := l.logger.With(rqMetadataFields(rq.Metadata)...)
 	lg.Debug("received store request", storeRequestFields(rq)...)
+	endpoint := api.Store
 
 	requesterID, err := l.checkRequestAndKeyValue(ctx, rq, rq.Metadata, rq.Key, rq.Value)
 	if err != nil {
-		l.record(requesterID, api.Store, comm.Request, comm.Error)
+		l.record(requesterID, endpoint, comm.Request, comm.Error)
 		return nil, logReturnInvalidRqErr(lg, err)
 	}
-	l.record(requesterID, api.Store, comm.Request, comm.Success)
+	if err := l.allower.Allow(requesterID, endpoint); err != nil {
+		l.record(requesterID, endpoint, comm.Request, comm.Error)
+		return nil, logReturnNotAllowedErr(lg, err)
+	}
+	l.record(requesterID, endpoint, comm.Request, comm.Success)
 
 	if err := l.documentSL.Store(id.FromBytes(rq.Key), rq.Value); err != nil {
 		return nil, logReturnInternalErr(lg, "error storing document", err)
@@ -377,13 +403,18 @@ func (l *Librarian) Store(ctx context.Context, rq *api.StoreRequest) (
 func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetResponse, error) {
 	lg := l.logger.With(rqMetadataFields(rq.Metadata)...)
 	lg.Debug("received get request", getRequestFields(rq)...)
+	endpoint := api.Get
 
 	requesterID, err := l.checkRequestAndKey(ctx, rq, rq.Metadata, rq.Key)
 	if err != nil {
-		l.record(requesterID, api.Get, comm.Request, comm.Error)
+		l.record(requesterID, endpoint, comm.Request, comm.Error)
 		return nil, logReturnInvalidRqErr(lg, err)
 	}
-	l.record(requesterID, api.Get, comm.Request, comm.Success)
+	if err = l.allower.Allow(requesterID, endpoint); err != nil {
+		l.record(requesterID, endpoint, comm.Request, comm.Error)
+		return nil, logReturnNotAllowedErr(lg, err)
+	}
+	l.record(requesterID, endpoint, comm.Request, comm.Success)
 
 	key := id.FromBytes(rq.Key)
 	s := search.NewSearch(l.selfID, key, l.config.Search)
@@ -429,13 +460,18 @@ func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetRespon
 func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutResponse, error) {
 	lg := l.logger.With(rqMetadataFields(rq.Metadata)...)
 	lg.Debug("received put request", putRequestFields(rq)...)
+	endpoint := api.Put
 
 	requesterID, err := l.checkRequestAndKeyValue(ctx, rq, rq.Metadata, rq.Key, rq.Value)
 	if err != nil {
-		l.record(requesterID, api.Put, comm.Request, comm.Error)
+		l.record(requesterID, endpoint, comm.Request, comm.Error)
 		return nil, logReturnInvalidRqErr(lg, err)
 	}
-	l.record(requesterID, api.Put, comm.Request, comm.Success)
+	if err = l.allower.Allow(requesterID, endpoint); err != nil {
+		l.record(requesterID, endpoint, comm.Request, comm.Error)
+		return nil, logReturnNotAllowedErr(lg, err)
+	}
+	l.record(requesterID, endpoint, comm.Request, comm.Success)
 
 	key := id.FromBytes(rq.Key)
 	s := store.NewStore(
@@ -488,22 +524,29 @@ func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutRespon
 func (l *Librarian) Subscribe(rq *api.SubscribeRequest, from api.Librarian_SubscribeServer) error {
 	lg := l.logger.With(rqMetadataFields(rq.Metadata)...)
 	lg.Debug("received subscribe request")
+	endpoint := api.Subscribe
+
 	requesterID, err := l.checkRequest(from.Context(), rq, rq.Metadata)
 	if err != nil {
-		l.record(requesterID, api.Subscribe, comm.Request, comm.Error)
+		l.record(requesterID, endpoint, comm.Request, comm.Error)
 		return logReturnInvalidRqErr(lg, err)
+	}
+	if err = l.allower.Allow(requesterID, endpoint); err != nil {
+		l.record(requesterID, endpoint, comm.Request, comm.Error)
+		return logReturnNotAllowedErr(lg, err)
 	}
 	authorFilter, err := subscribe.FromAPI(rq.Subscription.AuthorPublicKeys)
 	if err != nil {
-		l.record(requesterID, api.Subscribe, comm.Request, comm.Error)
+		l.record(requesterID, endpoint, comm.Request, comm.Error)
 		return logReturnInvalidRqErr(lg, err)
 	}
 	readerFilter, err := subscribe.FromAPI(rq.Subscription.ReaderPublicKeys)
 	if err != nil {
-		l.record(requesterID, api.Subscribe, comm.Request, comm.Error)
+		l.record(requesterID, endpoint, comm.Request, comm.Error)
 		return logReturnInvalidRqErr(lg, err)
 	}
-	l.record(requesterID, api.Subscribe, comm.Request, comm.Success)
+	l.record(requesterID, endpoint, comm.Request, comm.Success)
+
 	pubs, done, err := l.subscribeFrom.New()
 	if err != nil {
 		lg.Info(err.Error(), zap.Error(err)) // Info b/c more of a business as usual response

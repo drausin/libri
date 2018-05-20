@@ -8,6 +8,8 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	prom "github.com/prometheus/client_golang/prometheus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -22,10 +24,40 @@ const (
 	counterName      = "peer_query_count"
 )
 
-// Recorder manages metrics about each peer's endpoint query outcomes.
-type Recorder interface {
+var (
+	// healthyErrStatusCodes defines the set of GRPC error codes that a health server can
+	// return. usually due to some client issue.
+	healthyErrStatusCodes = map[codes.Code]struct{}{
+		codes.InvalidArgument:   {},
+		codes.PermissionDenied:  {},
+		codes.ResourceExhausted: {},
+	}
+)
+
+// QueryRecorder records metrics about each peer's endpoint query outcomes.
+type QueryRecorder interface {
+
 	// Record the outcome from a given query to/from a peer on the endpoint.
 	Record(peerID id.ID, endpoint api.Endpoint, qt QueryType, o Outcome)
+}
+
+// MaybeRecordRpErr records skips recording an error using th given QueryRecorder if the given error
+// has a health error status code (indicating that the problem is on the client end).
+func MaybeRecordRpErr(r QueryRecorder, peerID id.ID, endpoint api.Endpoint, err error) {
+	if peerID == nil {
+		return
+	}
+	if errSt, ok := status.FromError(err); ok {
+		if _, in := healthyErrStatusCodes[errSt.Code()]; in {
+			r.Record(peerID, endpoint, Response, Success)
+			return
+		}
+	}
+	r.Record(peerID, endpoint, Response, Error)
+}
+
+// QueryGetter gets metrics about each peer's endpoint query outcomes.
+type QueryGetter interface {
 
 	// Get the query types outcomes on a particular endpoint for a peer.
 	Get(peerID id.ID, endpoint api.Endpoint) QueryOutcomes
@@ -35,24 +67,30 @@ type Recorder interface {
 	CountPeers(endpoint api.Endpoint, qt QueryType, known bool) int
 }
 
-type scalarRecorder struct {
+// QueryRecorderGetter both records and gets metrics about each peer's endpoint query outcomes.
+type QueryRecorderGetter interface {
+	QueryRecorder
+	QueryGetter
+}
+
+type scalarRG struct {
 	peers              map[string]endpointQueryOutcomes
 	endpointQueryPeers endpointQueryPeers
 	knower             Knower
 	mu                 sync.Mutex
 }
 
-// NewScalarRecorder creates a new Recorder that stores scalar metrics about each peer's endpoint
-// query outcomes.
-func NewScalarRecorder(knower Knower) Recorder {
-	return &scalarRecorder{
+// NewQueryRecorderGetter creates a new QueryRecorder that stores scalar metrics about each peer's
+// endpoint query outcomes.
+func NewQueryRecorderGetter(knower Knower) QueryRecorderGetter {
+	return &scalarRG{
 		peers:              make(map[string]endpointQueryOutcomes),
 		endpointQueryPeers: newEndpointQueryPeers(),
 		knower:             knower,
 	}
 }
 
-func (r *scalarRecorder) Record(peerID id.ID, endpoint api.Endpoint, qt QueryType, o Outcome) {
+func (r *scalarRG) Record(peerID id.ID, endpoint api.Endpoint, qt QueryType, o Outcome) {
 	if endpoint == api.All {
 		panic("cannot record outcome for all endpoints")
 	}
@@ -66,7 +104,7 @@ func (r *scalarRecorder) Record(peerID id.ID, endpoint api.Endpoint, qt QueryTyp
 	r.record(peerID, api.All, qt, o)
 }
 
-func (r *scalarRecorder) record(peerID id.ID, endpoint api.Endpoint, qt QueryType, o Outcome) {
+func (r *scalarRG) record(peerID id.ID, endpoint api.Endpoint, qt QueryType, o Outcome) {
 	idStr := peerID.String()
 	known := r.knower.Know(peerID)
 	r.mu.Lock()
@@ -76,7 +114,7 @@ func (r *scalarRecorder) record(peerID id.ID, endpoint api.Endpoint, qt QueryTyp
 	m.Record()
 }
 
-func (r *scalarRecorder) Get(peerID id.ID, endpoint api.Endpoint) QueryOutcomes {
+func (r *scalarRG) Get(peerID id.ID, endpoint api.Endpoint) QueryOutcomes {
 	r.mu.Lock()
 	po, in := r.peers[peerID.String()]
 	r.mu.Unlock()
@@ -86,50 +124,77 @@ func (r *scalarRecorder) Get(peerID id.ID, endpoint api.Endpoint) QueryOutcomes 
 	return po[endpoint]
 }
 
-func (r *scalarRecorder) CountPeers(endpoint api.Endpoint, qt QueryType, known bool) int {
+func (r *scalarRG) CountPeers(endpoint api.Endpoint, qt QueryType, known bool) int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return len(r.endpointQueryPeers[endpoint][qt][known])
 }
 
-// WindowRecorder is a Recorder whose counts reset after a configurable window (e.g., 1 second,
-// 1 day).
-type WindowRecorder interface {
-	Recorder
-}
+// WindowQueryRecorders contains a collection of QueryRecorders, each defined over a specific time
+// window.
+type WindowQueryRecorders map[time.Duration]QueryRecorder
 
-// NewWindowScalarRecorder returns a WindowRecorder using the given Knower and window size.
-func NewWindowScalarRecorder(knower Knower, window time.Duration) WindowRecorder {
-	return &windowScalarRec{
-		scalarRecorder: NewScalarRecorder(knower).(*scalarRecorder),
-		window:         window,
+// WindowQueryGetters contains a collection of QueryGetters, each defined over a specific time
+// window.
+type WindowQueryGetters map[time.Duration]QueryGetter
+
+// Record the outcome from a given query to/from a peer on the endpoint.
+func (rs WindowQueryRecorders) Record(
+	peerID id.ID, endpoint api.Endpoint, qt QueryType, o Outcome,
+) {
+	for _, r := range rs {
+		r.Record(peerID, endpoint, qt, o)
 	}
 }
 
-type windowScalarRec struct {
-	*scalarRecorder
+// NewWindowQueryRecorderGetters returns a single QueryRecorder wrapper a set of individual
+// QueryRecorderGetters, one for each time window. It also returns WindowQueryGetters containing
+// QueryGetters for each time window.
+func NewWindowQueryRecorderGetters(
+	knower Knower, windows []time.Duration,
+) (QueryRecorder, WindowQueryGetters) {
+	recorders := WindowQueryRecorders{}
+	getters := WindowQueryGetters{}
+	for _, window := range windows {
+		rg := NewWindowRecorderGetter(knower, window)
+		recorders[window] = rg
+		getters[window] = rg
+	}
+	return recorders, getters
+}
+
+// NewWindowRecorderGetter returns a WindowRecorder using the given Knower and window size.
+func NewWindowRecorderGetter(knower Knower, window time.Duration) QueryRecorderGetter {
+	return &windowRG{
+		scalarRG: NewQueryRecorderGetter(knower).(*scalarRG),
+		window:   window,
+	}
+}
+
+type windowRG struct {
+	*scalarRG
 
 	window time.Duration
 	start  time.Time
 	end    time.Time
 }
 
-func (r *windowScalarRec) Record(peerID id.ID, endpoint api.Endpoint, qt QueryType, o Outcome) {
+func (r *windowRG) Record(peerID id.ID, endpoint api.Endpoint, qt QueryType, o Outcome) {
 	r.maybeNextWindow()
-	r.scalarRecorder.Record(peerID, endpoint, qt, o)
+	r.scalarRG.Record(peerID, endpoint, qt, o)
 }
 
-func (r *windowScalarRec) Get(peerID id.ID, endpoint api.Endpoint) QueryOutcomes {
+func (r *windowRG) Get(peerID id.ID, endpoint api.Endpoint) QueryOutcomes {
 	r.maybeNextWindow()
-	return r.scalarRecorder.Get(peerID, endpoint)
+	return r.scalarRG.Get(peerID, endpoint)
 }
 
-func (r *windowScalarRec) CountPeers(endpoint api.Endpoint, qt QueryType, known bool) int {
+func (r *windowRG) CountPeers(endpoint api.Endpoint, qt QueryType, known bool) int {
 	r.maybeNextWindow()
-	return r.scalarRecorder.CountPeers(endpoint, qt, known)
+	return r.scalarRG.CountPeers(endpoint, qt, known)
 }
 
-func (r *windowScalarRec) maybeNextWindow() {
+func (r *windowRG) maybeNextWindow() {
 	r.mu.Lock()
 	now := time.Now()
 	if now.After(r.end) {
@@ -149,9 +214,9 @@ func (r *windowScalarRec) maybeNextWindow() {
 	r.mu.Unlock()
 }
 
-// PromRecorder is a Recorder that exposes state via Prometheus metrics.
+// PromRecorder is a QueryRecorder that exposes state via Prometheus metrics.
 type PromRecorder interface {
-	Recorder
+	QueryRecorder
 
 	// Register registers the Prometheus metric(s) with the default Prometheus registerer.
 	Register()
@@ -162,7 +227,7 @@ type PromRecorder interface {
 
 // NewPromScalarRecorder creates a new scalar recorder that also emits Prometheus metrics for each
 // (peer, endpoint, query, outcome).
-func NewPromScalarRecorder(selfID id.ID, knower Knower) PromRecorder {
+func NewPromScalarRecorder(selfID id.ID, inner QueryRecorder) PromRecorder {
 	counter := prom.NewCounterVec(
 		prom.CounterOpts{
 			Namespace: counterNamespace,
@@ -178,22 +243,22 @@ func NewPromScalarRecorder(selfID id.ID, knower Knower) PromRecorder {
 			outcomeLabel,
 		},
 	)
-	return &promScalarRecorder{
-		scalarRecorder: NewScalarRecorder(knower).(*scalarRecorder),
-		selfID:         selfID,
-		counter:        counter,
+	return &promQR{
+		inner:   inner,
+		selfID:  selfID,
+		counter: counter,
 	}
 }
 
-type promScalarRecorder struct {
-	*scalarRecorder
+type promQR struct {
+	inner QueryRecorder
 
 	selfID  id.ID
 	counter *prom.CounterVec
 }
 
-func (r *promScalarRecorder) Record(peerID id.ID, endpoint api.Endpoint, qt QueryType, o Outcome) {
-	r.scalarRecorder.Record(peerID, endpoint, qt, o)
+func (r *promQR) Record(peerID id.ID, endpoint api.Endpoint, qt QueryType, o Outcome) {
+	r.inner.Record(peerID, endpoint, qt, o)
 	r.counter.With(prom.Labels{
 		selfPeerLabel:  id.ShortHex(r.selfID.Bytes()),
 		otherPeerLabel: id.ShortHex(peerID.Bytes()),
@@ -203,10 +268,10 @@ func (r *promScalarRecorder) Record(peerID id.ID, endpoint api.Endpoint, qt Quer
 	}).Inc()
 }
 
-func (r *promScalarRecorder) Register() {
+func (r *promQR) Register() {
 	prom.MustRegister(r.counter)
 }
 
-func (r *promScalarRecorder) Unregister() {
+func (r *promQR) Unregister() {
 	_ = prom.Unregister(r.counter)
 }

@@ -347,7 +347,7 @@ func countDocReplicas(t *testing.T, state *state) map[string]int {
 	benchResults := make([]testing.BenchmarkResult, len(state.putDocs))
 	verifier := verify.NewDefaultVerifier(
 		client.NewSigner(state.client.selfID.Key()),
-		comm.NewScalarRecorder(comm.NewNeverKnower()),
+		comm.NewQueryRecorderGetter(comm.NewAlwaysKnower()),
 		state.clients,
 	)
 	verifyParams := verify.NewDefaultParameters()

@@ -71,7 +71,7 @@ func (f *TestFromer) FromAPI(apiAddress *api.PeerAddress) peer.Peer {
 func NewTestSearcher(
 	peersMap map[string]peer.Peer,
 	peerConnectedAddrs map[string][]*api.PeerAddress,
-	rec comm.Recorder,
+	rec comm.QueryRecorder,
 ) Searcher {
 	addressFinders := make(map[string]api.Finder)
 	for address, connectedAddresses := range peerConnectedAddrs {

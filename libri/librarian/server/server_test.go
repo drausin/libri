@@ -34,6 +34,10 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+var (
+	errNotAllowed = status.Error(codes.PermissionDenied, "not authorized")
+)
+
 // TestNewLibrarian checks that we can create a new instance, close it, and create it again as
 // expected.
 func TestNewLibrarian(t *testing.T) {
@@ -97,7 +101,7 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 	peerName, serverPeerIdx := "server", 0
 	publicAddr := peer.NewTestPublicAddr(serverPeerIdx)
 	rt, serverID, _, _ := routing.NewTestWithPeers(rng, 128)
-	rec := comm.NewScalarRecorder(comm.NewNeverKnower())
+	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 
 	lib := &Librarian{
 		config: &Config{
@@ -110,6 +114,7 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 		rt:      rt,
 		rqv:     &alwaysRequestVerifier{},
 		rec:     rec,
+		allower: &fixedAllower{},
 		logger:  zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 
@@ -143,7 +148,7 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 
 func TestLibrarian_Introduce_checkRequestErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	rec := comm.NewScalarRecorder(comm.NewNeverKnower())
+	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 	l := &Librarian{
 		logger: zap.NewNop(), // clogging.NewDevInfoLogger()
 		rec:    rec,
@@ -158,17 +163,50 @@ func TestLibrarian_Introduce_checkRequestErr(t *testing.T) {
 	assert.Equal(t, codes.InvalidArgument, getErrCode(t, err))
 }
 
+func TestLibrarian_Introduce_allowErr(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	rt, _, _, _ := routing.NewTestWithPeers(rng, 0)
+	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
+
+	lib := &Librarian{
+		fromer:  peer.NewFromer(),
+		rt:      rt,
+		rqv:     &alwaysRequestVerifier{},
+		rec:     rec,
+		allower: &fixedAllower{allow: errNotAllowed},
+		logger:  zap.NewNop(), // clogging.NewDevInfoLogger()
+	}
+
+	clientID, clientPeerIdx := ecid.NewPseudoRandom(rng), 1
+	client1 := peer.New(
+		clientID.ID(),
+		"client",
+		peer.NewTestPublicAddr(clientPeerIdx),
+	)
+	rq := &api.IntroduceRequest{
+		Metadata: newTestRequestMetadata(rng, clientID),
+		Self:     client1.ToAPI(),
+	}
+	rp, err := lib.Introduce(context.Background(), rq)
+
+	assert.Nil(t, rp)
+	assert.Equal(t, codes.PermissionDenied, getErrCode(t, err))
+	qo := rec.Get(clientID.ID(), api.Introduce)
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Error].Count))
+}
+
 func TestLibrarian_Introduce_peerIDErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	rt, _, _, _ := routing.NewTestWithPeers(rng, 0)
-	rec := comm.NewScalarRecorder(comm.NewNeverKnower())
+	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 
 	lib := &Librarian{
-		fromer: peer.NewFromer(),
-		rt:     rt,
-		rqv:    &alwaysRequestVerifier{},
-		rec:    rec,
-		logger: zap.NewNop(), // clogging.NewDevInfoLogger()
+		fromer:  peer.NewFromer(),
+		rt:      rt,
+		rqv:     &alwaysRequestVerifier{},
+		rec:     rec,
+		allower: &fixedAllower{},
+		logger:  zap.NewNop(), // clogging.NewDevInfoLogger()
 	}
 
 	clientID, clientPeerIdx := ecid.NewPseudoRandom(rng), 1
@@ -208,7 +246,7 @@ func TestLibrarian_Find_peers(t *testing.T) {
 
 			rng := rand.New(rand.NewSource(int64(s)))
 			rt, peerID, nAdded, _ := routing.NewTestWithPeers(rng, n)
-			rec := comm.NewScalarRecorder(comm.NewNeverKnower())
+			rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 			l := &Librarian{
 				selfID:     peerID,
 				documentSL: storage.NewDocumentSLD(kvdb),
@@ -216,6 +254,7 @@ func TestLibrarian_Find_peers(t *testing.T) {
 				rt:         rt,
 				rqv:        &alwaysRequestVerifier{},
 				rec:        rec,
+				allower:    &fixedAllower{},
 				logger:     zap.NewNop(), // clogging.NewDevInfoLogger()
 			}
 
@@ -266,7 +305,7 @@ func TestLibrarian_Find_value(t *testing.T) {
 	defer kvdb.Close()
 	assert.Nil(t, err)
 
-	rec := comm.NewScalarRecorder(comm.NewNeverKnower())
+	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 	l := &Librarian{
 		selfID:     peerID,
 		db:         kvdb,
@@ -276,6 +315,7 @@ func TestLibrarian_Find_value(t *testing.T) {
 		kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		rqv:        &alwaysRequestVerifier{},
 		rec:        rec,
+		allower:    &fixedAllower{},
 		logger:     zap.NewNop(), // clogging.NewDevInfoLogger()
 	}
 
@@ -307,14 +347,13 @@ func TestLibrarian_Find_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	peerID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
 	rt, _, _, _ := routing.NewTestWithPeers(rng, 0)
-	rec := comm.NewScalarRecorder(comm.NewNeverKnower())
-	cases := []struct {
+	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
+	cases := map[string]struct {
 		l               *Librarian
 		rqCreator       func() *api.FindRequest
 		expectedErrCode codes.Code
 	}{
-		// case 0
-		{
+		"bad pub key": {
 			l: &Librarian{
 				logger: zap.NewNop(), // clogging.NewDevInfoLogger()
 				rqv:    NewRequestVerifier(),
@@ -329,14 +368,29 @@ func TestLibrarian_Find_err(t *testing.T) {
 			expectedErrCode: codes.InvalidArgument,
 		},
 
-		// case 1
-		{
+		"allow error": {
+			l: &Librarian{
+				logger:  zap.NewNop(), // clogging.NewDevInfoLogger()
+				rqv:     &alwaysRequestVerifier{},
+				kc:      storage.NewExactLengthChecker(storage.EntriesKeyLength),
+				rec:     rec,
+				allower: &fixedAllower{errNotAllowed},
+				rt:      rt,
+			},
+			rqCreator: func() *api.FindRequest {
+				return client.NewFindRequest(peerID, key, uint(8))
+			},
+			expectedErrCode: codes.PermissionDenied,
+		},
+
+		"load error": {
 			l: &Librarian{
 				logger:     zap.NewNop(), // clogging.NewDevInfoLogger()
 				rqv:        &alwaysRequestVerifier{},
 				kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 				documentSL: &storage.TestDocSLD{LoadErr: errors.New("some Load error")},
 				rec:        rec,
+				allower:    &fixedAllower{},
 				rt:         rt,
 			},
 			rqCreator: func() *api.FindRequest {
@@ -346,11 +400,10 @@ func TestLibrarian_Find_err(t *testing.T) {
 		},
 	}
 
-	for i, c := range cases {
-		info := fmt.Sprintf("case %d", i)
+	for desc, c := range cases {
 		rp, err := c.l.Find(context.Background(), c.rqCreator())
-		assert.Nil(t, rp, info)
-		assert.Equal(t, c.expectedErrCode, getErrCode(t, err), info)
+		assert.Nil(t, rp, desc)
+		assert.Equal(t, c.expectedErrCode, getErrCode(t, err), desc)
 	}
 }
 
@@ -362,7 +415,7 @@ func TestLibrarian_Verify_value(t *testing.T) {
 	defer kvdb.Close()
 	assert.Nil(t, err)
 
-	rec := comm.NewScalarRecorder(comm.NewNeverKnower())
+	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 	l := &Librarian{
 		selfID:     peerID,
 		db:         kvdb,
@@ -372,6 +425,7 @@ func TestLibrarian_Verify_value(t *testing.T) {
 		kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		rqv:        &alwaysRequestVerifier{},
 		rec:        rec,
+		allower:    &fixedAllower{},
 		logger:     zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 
@@ -421,7 +475,7 @@ func TestLibrarian_Verify_peers(t *testing.T) {
 
 			rng := rand.New(rand.NewSource(int64(s)))
 			rt, peerID, nAdded, _ := routing.NewTestWithPeers(rng, n)
-			rec := comm.NewScalarRecorder(comm.NewNeverKnower())
+			rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 			l := &Librarian{
 				selfID:     peerID,
 				documentSL: storage.NewDocumentSLD(kvdb),
@@ -429,6 +483,7 @@ func TestLibrarian_Verify_peers(t *testing.T) {
 				rt:         rt,
 				rqv:        &alwaysRequestVerifier{},
 				rec:        rec,
+				allower:    &fixedAllower{},
 				logger:     zap.NewNop(), // clogging.NewDevInfoLogger(),
 			}
 
@@ -474,15 +529,14 @@ func TestLibrarian_Verify_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	peerID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
 	rt, _, _, _ := routing.NewTestWithPeers(rng, 0)
-	rec := comm.NewScalarRecorder(comm.NewNeverKnower())
+	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 	macKey := api.RandBytes(rng, 32)
-	cases := []struct {
+	cases := map[string]struct {
 		l               *Librarian
 		rqCreator       func() *api.VerifyRequest
 		expectedErrCode codes.Code
 	}{
-		// case 0
-		{
+		"bad pub key": {
 			l: &Librarian{
 				logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 				rqv:    NewRequestVerifier(),
@@ -497,8 +551,22 @@ func TestLibrarian_Verify_err(t *testing.T) {
 			expectedErrCode: codes.InvalidArgument,
 		},
 
-		// case 1
-		{
+		"allow error": {
+			l: &Librarian{
+				logger:  zap.NewNop(), // clogging.NewDevInfoLogger()
+				rqv:     &alwaysRequestVerifier{},
+				kc:      storage.NewExactLengthChecker(storage.EntriesKeyLength),
+				rec:     rec,
+				allower: &fixedAllower{errNotAllowed},
+				rt:      rt,
+			},
+			rqCreator: func() *api.VerifyRequest {
+				return client.NewVerifyRequest(peerID, key, macKey, uint(8))
+			},
+			expectedErrCode: codes.PermissionDenied,
+		},
+
+		"mac err": {
 			l: &Librarian{
 				logger:     zap.NewNop(), // clogging.NewDevInfoLogger(),
 				rqv:        &alwaysRequestVerifier{},
@@ -506,6 +574,7 @@ func TestLibrarian_Verify_err(t *testing.T) {
 				documentSL: &storage.TestDocSLD{MacErr: errors.New("some Mac error")},
 				rt:         rt,
 				rec:        rec,
+				allower:    &fixedAllower{},
 			},
 			rqCreator: func() *api.VerifyRequest {
 				return client.NewVerifyRequest(peerID, key, macKey, uint(8))
@@ -514,11 +583,10 @@ func TestLibrarian_Verify_err(t *testing.T) {
 		},
 	}
 
-	for i, c := range cases {
-		info := fmt.Sprintf("case %d", i)
+	for desc, c := range cases {
 		rp, err := c.l.Verify(context.Background(), c.rqCreator())
-		assert.Nil(t, rp, info)
-		assert.Equal(t, c.expectedErrCode, getErrCode(t, err), info)
+		assert.Nil(t, rp, desc)
+		assert.Equal(t, c.expectedErrCode, getErrCode(t, err), desc)
 	}
 }
 
@@ -530,7 +598,7 @@ func TestLibrarian_Store_ok(t *testing.T) {
 	defer kvdb.Close()
 	assert.Nil(t, err)
 
-	rec := comm.NewScalarRecorder(comm.NewNeverKnower())
+	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 	l := &Librarian{
 		selfID:         peerID,
 		rt:             rt,
@@ -543,6 +611,7 @@ func TestLibrarian_Store_ok(t *testing.T) {
 		rqv:            &alwaysRequestVerifier{},
 		storageMetrics: newStorageMetrics(),
 		rec:            rec,
+		allower:        &fixedAllower{},
 		logger:         zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	defer l.storageMetrics.unregister()
@@ -577,9 +646,10 @@ func newTestRequestMetadata(rng *rand.Rand, peerID ecid.ID) *api.RequestMetadata
 
 func TestLibrarian_Store_checkRequestError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
+	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 	l := &Librarian{
 		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
-		rec:    comm.NewScalarRecorder(comm.NewNeverKnower()),
+		rec:    rec,
 	}
 	value, key := api.NewTestDocument(rng)
 	rqID := ecid.NewPseudoRandom(rng)
@@ -589,8 +659,33 @@ func TestLibrarian_Store_checkRequestError(t *testing.T) {
 	rp, err := l.Store(context.Background(), rq)
 	assert.Nil(t, rp)
 	assert.Equal(t, codes.InvalidArgument, getErrCode(t, err))
-	qo := l.rec.Get(rqID.ID(), api.Get)
+	qo := rec.Get(rqID.ID(), api.Get)
 	assert.Equal(t, 0, int(qo[comm.Request][comm.Success].Count))
+}
+
+func TestLibrarian_Store_notAllowedError(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	rt, peerID, _, _ := routing.NewTestWithPeers(rng, 64)
+	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
+	l := &Librarian{
+		selfID:  peerID,
+		rt:      rt,
+		kc:      storage.NewExactLengthChecker(storage.EntriesKeyLength),
+		kvc:     storage.NewHashKeyValueChecker(),
+		rqv:     &alwaysRequestVerifier{},
+		rec:     rec,
+		allower: &fixedAllower{errNotAllowed},
+		logger:  zap.NewNop(), // clogging.NewDevInfoLogger(),
+	}
+	value, key := api.NewTestDocument(rng)
+	rqID := ecid.NewPseudoRandom(rng)
+	rq := client.NewStoreRequest(rqID, key, value)
+
+	rp, err := l.Store(context.Background(), rq)
+	assert.Nil(t, rp)
+	assert.Equal(t, codes.PermissionDenied, getErrCode(t, err))
+	qo := rec.Get(rqID.ID(), api.Store)
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Error].Count))
 }
 
 func TestLibrarian_Store_storeError(t *testing.T) {
@@ -598,7 +693,7 @@ func TestLibrarian_Store_storeError(t *testing.T) {
 	rt, peerID, _, _ := routing.NewTestWithPeers(rng, 64)
 	sld := storage.NewTestDocSLD()
 	sld.StoreErr = errors.New("some Store error")
-	rec := comm.NewScalarRecorder(comm.NewNeverKnower())
+	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 	l := &Librarian{
 		selfID:     peerID,
 		rt:         rt,
@@ -607,6 +702,7 @@ func TestLibrarian_Store_storeError(t *testing.T) {
 		rqv:        &alwaysRequestVerifier{},
 		documentSL: sld,
 		rec:        rec,
+		allower:    &fixedAllower{},
 		logger:     zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	value, key := api.NewTestDocument(rng)
@@ -652,7 +748,7 @@ func TestLibrarian_Get_FoundValue(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, value, rp.Value)
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
-	qo := l.rec.Get(peerID.ID(), api.Get)
+	qo := l.rec.(comm.QueryRecorderGetter).Get(peerID.ID(), api.Get)
 	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
@@ -676,7 +772,7 @@ func TestLibrarian_Get_FoundClosestPeers(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Nil(t, rp.Value)
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
-	qo := l.rec.Get(peerID.ID(), api.Get)
+	qo := l.rec.(comm.QueryRecorderGetter).Get(peerID.ID(), api.Get)
 	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
@@ -697,7 +793,7 @@ func TestLibrarian_Get_Errored(t *testing.T) {
 	rp, err := l.Get(context.Background(), rq)
 	assert.Equal(t, codes.Internal, getErrCode(t, err))
 	assert.Nil(t, rp)
-	qo := l.rec.Get(peerID.ID(), api.Get)
+	qo := l.rec.(comm.QueryRecorderGetter).Get(peerID.ID(), api.Get)
 	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
@@ -717,7 +813,7 @@ func TestLibrarian_Get_Exhausted(t *testing.T) {
 	rp, err := l.Get(context.Background(), rq)
 	assert.Equal(t, codes.Unavailable, getErrCode(t, err))
 	assert.Nil(t, rp)
-	qo := l.rec.Get(peerID.ID(), api.Get)
+	qo := l.rec.(comm.QueryRecorderGetter).Get(peerID.ID(), api.Get)
 	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
@@ -733,7 +829,7 @@ func TestLibrarian_Get_err(t *testing.T) {
 	rp, err := l.Get(context.Background(), rq)
 	assert.Equal(t, codes.Internal, getErrCode(t, err))
 	assert.Nil(t, rp)
-	qo := l.rec.Get(peerID.ID(), api.Get)
+	qo := l.rec.(comm.QueryRecorderGetter).Get(peerID.ID(), api.Get)
 	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
@@ -741,7 +837,7 @@ func TestLibrarian_Get_checkRequestError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	l := &Librarian{
 		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
-		rec:    comm.NewScalarRecorder(comm.NewNeverKnower()),
+		rec:    comm.NewQueryRecorderGetter(comm.NewAlwaysKnower()),
 	}
 	rqID := ecid.NewPseudoRandom(rng)
 	rq := client.NewGetRequest(rqID, id.NewPseudoRandom(rng))
@@ -750,8 +846,26 @@ func TestLibrarian_Get_checkRequestError(t *testing.T) {
 	rp, err := l.Get(context.Background(), rq)
 	assert.Nil(t, rp)
 	assert.Equal(t, codes.InvalidArgument, getErrCode(t, err))
-	qo := l.rec.Get(rqID.ID(), api.Get)
+	qo := l.rec.(comm.QueryRecorderGetter).Get(rqID.ID(), api.Get)
 	assert.Equal(t, 0, int(qo[comm.Request][comm.Success].Count))
+}
+
+func TestLibrarian_Get_notAllowedErr(t *testing.T) {
+	rng := rand.New(rand.NewSource(int64(0)))
+	key, peerID := id.NewPseudoRandom(rng), ecid.NewPseudoRandom(rng)
+
+	// create librarian and request
+	l := newGetLibrarian(rng, nil, nil)
+	l.allower = &fixedAllower{errNotAllowed}
+	rq := client.NewGetRequest(peerID, key)
+
+	// since fixedSearcher returns a Search value where UnderReplicated() is true, shouldn't
+	// have any Value
+	rp, err := l.Get(context.Background(), rq)
+	assert.Nil(t, rp)
+	assert.Equal(t, codes.PermissionDenied, getErrCode(t, err))
+	qo := l.rec.(comm.QueryRecorderGetter).Get(peerID.ID(), api.Get)
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Error].Count))
 }
 
 func newGetLibrarian(rng *rand.Rand, searchResult *search.Result, searchErr error) *Librarian {
@@ -766,9 +880,10 @@ func newGetLibrarian(rng *rand.Rand, searchResult *search.Result, searchErr erro
 			result: searchResult,
 			err:    searchErr,
 		},
-		rqv:    &alwaysRequestVerifier{},
-		rec:    comm.NewScalarRecorder(comm.NewNeverKnower()),
-		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
+		rqv:     &alwaysRequestVerifier{},
+		rec:     comm.NewQueryRecorderGetter(comm.NewAlwaysKnower()),
+		allower: &fixedAllower{},
+		logger:  zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 }
 
@@ -806,7 +921,7 @@ func TestLibrarian_Put_Stored(t *testing.T) {
 	assert.Equal(t, uint32(nReplicas), rp.NReplicas)
 	assert.Equal(t, api.PutOperation_STORED, rp.Operation)
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
-	qo := l.rec.Get(peerID.ID(), api.Put)
+	qo := l.rec.(comm.QueryRecorderGetter).Get(peerID.ID(), api.Put)
 	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
@@ -830,7 +945,7 @@ func TestLibrarian_Put_Exists(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, api.PutOperation_LEFT_EXISTING, rp.Operation)
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
-	qo := l.rec.Get(peerID.ID(), api.Put)
+	qo := l.rec.(comm.QueryRecorderGetter).Get(peerID.ID(), api.Put)
 	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
@@ -852,7 +967,7 @@ func TestLibrarian_Put_Errored(t *testing.T) {
 	rp, err := l.Put(context.Background(), rq)
 	assert.Equal(t, codes.Internal, getErrCode(t, err))
 	assert.Nil(t, rp)
-	qo := l.rec.Get(peerID.ID(), api.Put)
+	qo := l.rec.(comm.QueryRecorderGetter).Get(peerID.ID(), api.Put)
 	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count)) // request was ok
 }
 
@@ -869,14 +984,14 @@ func TestLibrarian_Put_err(t *testing.T) {
 	rp, err := l.Put(context.Background(), rq)
 	assert.Equal(t, codes.Internal, getErrCode(t, err))
 	assert.Nil(t, rp)
-	qo := l.rec.Get(peerID.ID(), api.Put)
+	qo := l.rec.(comm.QueryRecorderGetter).Get(peerID.ID(), api.Put)
 	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count)) // request was ok
 }
 
 func TestLibrarian_Put_checkRequestError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	l := &Librarian{
-		rec:    comm.NewScalarRecorder(comm.NewNeverKnower()),
+		rec:    comm.NewQueryRecorderGetter(comm.NewAlwaysKnower()),
 		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	value, key := api.NewTestDocument(rng)
@@ -887,8 +1002,26 @@ func TestLibrarian_Put_checkRequestError(t *testing.T) {
 	rp, err := l.Put(context.Background(), rq)
 	assert.Nil(t, rp)
 	assert.Equal(t, codes.InvalidArgument, getErrCode(t, err))
-	qo := l.rec.Get(rqID.ID(), api.Put)
+	qo := l.rec.(comm.QueryRecorderGetter).Get(rqID.ID(), api.Put)
 	assert.Equal(t, 0, int(qo[comm.Request][comm.Success].Count))
+}
+
+func TestLibrarian_Put_notAllowedErr(t *testing.T) {
+	rng := rand.New(rand.NewSource(int64(0)))
+	value, key := api.NewTestDocument(rng)
+	peerID := ecid.NewPseudoRandom(rng)
+
+	// create librarian and request
+	l := newPutLibrarian(rng, nil, nil)
+	l.allower = &fixedAllower{errNotAllowed}
+	rq := client.NewPutRequest(peerID, key, value)
+
+	// since fixedSearcher returns fixed value, should get that back in response
+	rp, err := l.Put(context.Background(), rq)
+	assert.Equal(t, codes.PermissionDenied, getErrCode(t, err))
+	assert.Nil(t, rp)
+	qo := l.rec.(comm.QueryRecorderGetter).Get(peerID.ID(), api.Put)
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Error].Count)) // request was ok
 }
 
 func TestLibrarian_Subscribe_ok(t *testing.T) {
@@ -903,10 +1036,11 @@ func TestLibrarian_Subscribe_ok(t *testing.T) {
 			new:  newPubs,
 			done: done,
 		},
-		rqv:    &alwaysRequestVerifier{},
-		rt:     rt,
-		rec:    comm.NewScalarRecorder(comm.NewNeverKnower()),
-		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
+		rqv:     &alwaysRequestVerifier{},
+		rt:      rt,
+		rec:     comm.NewQueryRecorderGetter(comm.NewAlwaysKnower()),
+		allower: &fixedAllower{},
+		logger:  zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 
 	// create subscription that should cover both the author and reader filter code branches
@@ -926,7 +1060,7 @@ func TestLibrarian_Subscribe_ok(t *testing.T) {
 		defer wg.Done()
 		err = l.Subscribe(rq, from)
 		assert.Nil(t, err)
-		qo := l.rec.Get(rqID.ID(), api.Subscribe)
+		qo := l.rec.(comm.QueryRecorderGetter).Get(rqID.ID(), api.Subscribe)
 		assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 	}(wg)
 
@@ -983,12 +1117,27 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 	l1 := &Librarian{
 		rqv:    &neverRequestVerifier{},
 		rt:     rt,
-		rec:    comm.NewScalarRecorder(comm.NewNeverKnower()),
+		rec:    comm.NewQueryRecorderGetter(comm.NewAlwaysKnower()),
 		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	err = l1.Subscribe(rq, from)
 	assert.Equal(t, codes.InvalidArgument, getErrCode(t, err))
-	qo := l1.rec.Get(selfID.ID(), api.Subscribe)
+	qo := l1.rec.(comm.QueryRecorderGetter).Get(selfID.ID(), api.Subscribe)
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Error].Count))
+
+	sub6, err := subscribe.NewFPSubscription(1.0, rng)
+	assert.Nil(t, err)
+	rq6 := client.NewSubscribeRequest(selfID, sub6)
+	l6 := &Librarian{
+		rqv:     &alwaysRequestVerifier{},
+		rt:      rt,
+		rec:     comm.NewQueryRecorderGetter(comm.NewAlwaysKnower()),
+		allower: &fixedAllower{errNotAllowed},
+		logger:  zap.NewNop(), // clogging.NewDevInfoLogger(),
+	}
+	err = l6.Subscribe(rq6, from)
+	assert.Equal(t, codes.PermissionDenied, getErrCode(t, err))
+	qo = l6.rec.(comm.QueryRecorderGetter).Get(selfID.ID(), api.Subscribe)
 	assert.Equal(t, 1, int(qo[comm.Request][comm.Error].Count))
 
 	// check author filter error bubbles up
@@ -997,14 +1146,15 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 	sub2.AuthorPublicKeys.Encoded = nil // will trigger error
 	rq2 := client.NewSubscribeRequest(selfID, sub2)
 	l2 := &Librarian{
-		rqv:    &alwaysRequestVerifier{},
-		rt:     rt,
-		rec:    comm.NewScalarRecorder(comm.NewNeverKnower()),
-		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
+		rqv:     &alwaysRequestVerifier{},
+		rt:      rt,
+		rec:     comm.NewQueryRecorderGetter(comm.NewAlwaysKnower()),
+		allower: &fixedAllower{},
+		logger:  zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	err = l2.Subscribe(rq2, from)
 	assert.Equal(t, codes.InvalidArgument, getErrCode(t, err))
-	qo = l2.rec.Get(selfID.ID(), api.Subscribe)
+	qo = l2.rec.(comm.QueryRecorderGetter).Get(selfID.ID(), api.Subscribe)
 	assert.Equal(t, 1, int(qo[comm.Request][comm.Error].Count))
 
 	// check reader filter error bubbles up
@@ -1013,14 +1163,15 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 	sub3.ReaderPublicKeys.Encoded = nil // will trigger error
 	rq3 := client.NewSubscribeRequest(selfID, sub3)
 	l3 := &Librarian{
-		rqv:    &alwaysRequestVerifier{},
-		rt:     rt,
-		rec:    comm.NewScalarRecorder(comm.NewNeverKnower()),
-		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
+		rqv:     &alwaysRequestVerifier{},
+		rt:      rt,
+		rec:     comm.NewQueryRecorderGetter(comm.NewAlwaysKnower()),
+		allower: &fixedAllower{},
+		logger:  zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	err = l3.Subscribe(rq3, from)
 	assert.Equal(t, codes.InvalidArgument, getErrCode(t, err))
-	qo = l3.rec.Get(selfID.ID(), api.Subscribe)
+	qo = l3.rec.(comm.QueryRecorderGetter).Get(selfID.ID(), api.Subscribe)
 	assert.Equal(t, 1, int(qo[comm.Request][comm.Error].Count))
 
 	// check subscribeFrom.New() bubbles up
@@ -1032,14 +1183,15 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 		subscribeFrom: &fixedFrom{
 			err: subscribe.ErrNotAcceptingNewSubscriptions,
 		},
-		rqv:    &alwaysRequestVerifier{},
-		rt:     rt,
-		rec:    comm.NewScalarRecorder(comm.NewNeverKnower()),
-		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
+		rqv:     &alwaysRequestVerifier{},
+		rt:      rt,
+		rec:     comm.NewQueryRecorderGetter(comm.NewAlwaysKnower()),
+		allower: &fixedAllower{},
+		logger:  zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	err = l4.Subscribe(rq4, from)
 	assert.Equal(t, codes.ResourceExhausted, getErrCode(t, err))
-	qo = l4.rec.Get(selfID.ID(), api.Subscribe)
+	qo = l4.rec.(comm.QueryRecorderGetter).Get(selfID.ID(), api.Subscribe)
 	assert.Equal(t, 0, int(qo[comm.Request][comm.Error].Count)) // not rq error
 
 	// check from.Send() error bubbles up
@@ -1053,10 +1205,11 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 			new:  newPubs,
 			done: make(chan struct{}),
 		},
-		rqv:    &alwaysRequestVerifier{},
-		rt:     rt,
-		rec:    comm.NewScalarRecorder(comm.NewNeverKnower()),
-		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
+		rqv:     &alwaysRequestVerifier{},
+		rt:      rt,
+		rec:     comm.NewQueryRecorderGetter(comm.NewAlwaysKnower()),
+		allower: &fixedAllower{},
+		logger:  zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	from5 := &fixedLibrarianSubscribeServer{
 		err: errors.New("some Subscribe error"),
@@ -1067,7 +1220,7 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 		defer wg.Done()
 		err = l5.Subscribe(rq5, from5)
 		assert.Equal(t, codes.Unavailable, getErrCode(t, err))
-		qo = l5.rec.Get(selfID.ID(), api.Subscribe)
+		qo = l5.rec.(comm.QueryRecorderGetter).Get(selfID.ID(), api.Subscribe)
 		assert.Equal(t, 0, int(qo[comm.Request][comm.Error].Count))
 	}(wg)
 	newPubs <- newKeyedPub(t, api.NewTestPublication(rng))
@@ -1152,6 +1305,14 @@ func (f *fixedLibrarianSubscribeServer) RecvMsg(m interface{}) error {
 	return nil
 }
 
+type fixedAllower struct {
+	allow error
+}
+
+func (f *fixedAllower) Allow(peerID id.ID, endpoint api.Endpoint) error {
+	return f.allow
+}
+
 func newPutLibrarian(rng *rand.Rand, storeResult *store.Result, searchErr error) *Librarian {
 	n := 8
 	rt, peerID, _, _ := routing.NewTestWithPeers(rng, n)
@@ -1165,8 +1326,9 @@ func newPutLibrarian(rng *rand.Rand, storeResult *store.Result, searchErr error)
 			result: storeResult,
 			err:    searchErr,
 		},
-		rqv:    &alwaysRequestVerifier{},
-		rec:    comm.NewScalarRecorder(comm.NewNeverKnower()),
-		logger: clogging.NewDevInfoLogger(),
+		rqv:     &alwaysRequestVerifier{},
+		rec:     comm.NewQueryRecorderGetter(comm.NewAlwaysKnower()),
+		allower: &fixedAllower{},
+		logger:  clogging.NewDevInfoLogger(),
 	}
 }

@@ -4,10 +4,14 @@ import (
 	"math/rand"
 	"testing"
 
+	"time"
+
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var (
@@ -18,8 +22,8 @@ func TestAllower_Allow(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	peerID := id.NewPseudoRandom(rng)
 	cases := map[string]struct {
-		allower  Allower
-		expected error
+		allower         Allower
+		expectedErrCode codes.Code
 	}{
 		"ok": {
 			allower: NewAllower(
@@ -27,7 +31,7 @@ func TestAllower_Allow(t *testing.T) {
 				&fixedLimiter{},
 				&fixedLimiter{},
 			),
-			expected: nil,
+			expectedErrCode: codes.OK,
 		},
 		"not authorized": {
 			allower: NewAllower(
@@ -35,7 +39,7 @@ func TestAllower_Allow(t *testing.T) {
 				&fixedLimiter{},
 				&fixedLimiter{},
 			),
-			expected: errTest,
+			expectedErrCode: codes.PermissionDenied,
 		},
 		"peer limited": {
 			allower: NewAllower(
@@ -43,7 +47,7 @@ func TestAllower_Allow(t *testing.T) {
 				&fixedLimiter{err: errTest},
 				&fixedLimiter{},
 			),
-			expected: errTest,
+			expectedErrCode: codes.ResourceExhausted,
 		},
 		"query limited": {
 			allower: NewAllower(
@@ -51,13 +55,24 @@ func TestAllower_Allow(t *testing.T) {
 				&fixedLimiter{},
 				&fixedLimiter{err: errTest},
 			),
-			expected: errTest,
+			expectedErrCode: codes.ResourceExhausted,
 		},
 	}
 	for desc, c := range cases {
 		err := c.allower.Allow(peerID, api.Find)
-		assert.Equal(t, c.expected, err, desc)
+		errSt, ok := status.FromError(err)
+		assert.True(t, ok)
+		assert.Equal(t, c.expectedErrCode, errSt.Code(), desc)
 	}
+}
+
+func TestNewDefaultAllower(t *testing.T) {
+	k := NewAlwaysKnower()
+	_, getters := NewWindowQueryRecorderGetters(k, []time.Duration{Second, Day})
+	a := NewDefaultAllower(k, getters)
+
+	assert.NotNil(t, a.(*allower).auth)
+	assert.Equal(t, 4, len(a.(*allower).limiters))
 }
 
 func TestAlwaysAuthorizer_Authorized(t *testing.T) {
@@ -65,6 +80,52 @@ func TestAlwaysAuthorizer_Authorized(t *testing.T) {
 	peerID := id.NewPseudoRandom(rng)
 	a := NewAlwaysAuthorizer()
 	assert.Nil(t, a.Authorized(peerID, api.Find))
+}
+
+func TestConfiguredAuthorizer_Authorized(t *testing.T) {
+	k := NewAlwaysKnower()
+	auths := Authorizations{
+		api.Put: {
+			false: false,
+			true:  true,
+		},
+		api.Get: {
+			false: true,
+		},
+		api.Subscribe: {
+			true: false,
+		},
+	}
+	a := NewConfiguredAuthorizer(auths, k)
+	rng := rand.New(rand.NewSource(0))
+	peerID := id.NewPseudoRandom(rng)
+
+	cases := map[string]struct {
+		ep       api.Endpoint
+		expected error
+	}{
+		"no EP": {
+			ep:       api.Find,
+			expected: ErrUnauthorized,
+		},
+		"has EP, no known": {
+			ep:       api.Get,
+			expected: ErrUnauthorized,
+		},
+		"has EP, has known, authorized": {
+			ep:       api.Put,
+			expected: nil,
+		},
+		"has EP, has known, not authorized": {
+			ep:       api.Subscribe,
+			expected: ErrUnauthorized,
+		},
+	}
+
+	for desc, c := range cases {
+		err := a.Authorized(peerID, c.ep)
+		assert.Equal(t, c.expected, err, desc)
+	}
 }
 
 func TestPeerLimiter_WithinLimit(t *testing.T) {
@@ -217,12 +278,19 @@ func newRqSuccessCount(count uint64) QueryOutcomes {
 }
 
 type fixedRecorder struct {
+	nRecords   map[Outcome]int
 	getValue   QueryOutcomes
 	countValue int
 }
 
 func (f *fixedRecorder) Record(peerID id.ID, endpoint api.Endpoint, qt QueryType, o Outcome) {
-	panic("implement me")
+	if f.nRecords == nil {
+		f.nRecords = make(map[Outcome]int)
+	}
+	if _, in := f.nRecords[o]; !in {
+		f.nRecords[o] = 0
+	}
+	f.nRecords[o]++
 }
 
 func (f *fixedRecorder) Get(peerID id.ID, endpoint api.Endpoint) QueryOutcomes {
@@ -253,4 +321,10 @@ type fixedAuthorizer struct {
 
 func (f *fixedAuthorizer) Authorized(peerID id.ID, endpoint api.Endpoint) error {
 	return f.err
+}
+
+type neverKnower struct{}
+
+func (k *neverKnower) Know(peerID id.ID) bool {
+	return false
 }

@@ -22,13 +22,13 @@ type introducer struct {
 	signer            client.Signer
 	introducerCreator client.IntroducerCreator
 	repProcessor      ResponseProcessor
-	rec               comm.Recorder
+	rec               comm.QueryRecorder
 }
 
 // NewIntroducer creates a new Introducer instance with the given signer, querier, and response
 // processor.
 func NewIntroducer(
-	s client.Signer, rec comm.Recorder, c client.IntroducerCreator, rp ResponseProcessor,
+	s client.Signer, rec comm.QueryRecorder, c client.IntroducerCreator, rp ResponseProcessor,
 ) Introducer {
 	return &introducer{
 		signer:            s,
@@ -41,7 +41,7 @@ func NewIntroducer(
 // NewDefaultIntroducer creates a new Introducer with the given signer and default querier and
 // response processor.
 func NewDefaultIntroducer(
-	s client.Signer, rec comm.Recorder, selfID id.ID, clients client.Pool,
+	s client.Signer, rec comm.QueryRecorder, selfID id.ID, clients client.Pool,
 ) Introducer {
 	ic := client.NewIntroducerCreator(clients)
 	rp := NewResponseProcessor(peer.NewFromer(), selfID)
@@ -85,10 +85,8 @@ func (i *introducer) introduceWork(intro *Introduction, wg *sync.WaitGroup) {
 			// if we had an issue querying, skip to next peer
 			intro.mu.Lock()
 			intro.Result.NErrors++
-			if next.ID() != nil {
-				i.rec.Record(next.ID(), api.Introduce, comm.Response, comm.Error)
-			}
 			intro.mu.Unlock()
+			comm.MaybeRecordRpErr(i.rec, next.ID(), api.Introduce, err)
 			continue
 		}
 
