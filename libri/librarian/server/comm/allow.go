@@ -178,12 +178,12 @@ func (a *configuredAuthorizer) Authorized(peerID id.ID, endpoint api.Endpoint) e
 	known := a.knower.Know(peerID)
 	if epAuth, hasEPAuth := a.auths[endpoint]; hasEPAuth {
 		if knownAuth, hasKnownAuth := epAuth[known]; hasKnownAuth {
-			if !knownAuth {
-				return ErrUnauthorized
+			if knownAuth {
+				return nil
 			}
 		}
 	}
-	return nil
+	return ErrUnauthorized
 }
 
 // Limiter determines whether requests from peers are with a set of rate limits.

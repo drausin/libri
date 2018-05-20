@@ -4,6 +4,8 @@ import (
 	"math/rand"
 	"testing"
 
+	"time"
+
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/pkg/errors"
@@ -64,11 +66,66 @@ func TestAllower_Allow(t *testing.T) {
 	}
 }
 
+func TestNewDefaultAllower(t *testing.T) {
+	k := NewAlwaysKnower()
+	_, getters := NewWindowQueryRecorderGetters(k, []time.Duration{Second, Day})
+	a := NewDefaultAllower(k, getters)
+
+	assert.NotNil(t, a.(*allower).auth)
+	assert.Equal(t, 4, len(a.(*allower).limiters))
+}
+
 func TestAlwaysAuthorizer_Authorized(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	peerID := id.NewPseudoRandom(rng)
 	a := NewAlwaysAuthorizer()
 	assert.Nil(t, a.Authorized(peerID, api.Find))
+}
+
+func TestConfiguredAuthorizer_Authorized(t *testing.T) {
+	k := NewAlwaysKnower()
+	auths := Authorizations{
+		api.Put: {
+			false: false,
+			true:  true,
+		},
+		api.Get: {
+			false: true,
+		},
+		api.Subscribe: {
+			true: false,
+		},
+	}
+	a := NewConfiguredAuthorizer(auths, k)
+	rng := rand.New(rand.NewSource(0))
+	peerID := id.NewPseudoRandom(rng)
+
+	cases := map[string]struct {
+		ep       api.Endpoint
+		expected error
+	}{
+		"no EP": {
+			ep:       api.Find,
+			expected: ErrUnauthorized,
+		},
+		"has EP, no known": {
+			ep:       api.Get,
+			expected: ErrUnauthorized,
+		},
+		"has EP, has known, authorized": {
+			ep:       api.Put,
+			expected: nil,
+		},
+		"has EP, has known, not authorized": {
+			ep:       api.Subscribe,
+			expected: ErrUnauthorized,
+		},
+	}
+
+	for desc, c := range cases {
+		err := a.Authorized(peerID, c.ep)
+		assert.Equal(t, c.expected, err, desc)
+	}
 }
 
 func TestPeerLimiter_WithinLimit(t *testing.T) {
@@ -221,11 +278,14 @@ func newRqSuccessCount(count uint64) QueryOutcomes {
 }
 
 type fixedRecorder struct {
+	nRecords   int
 	getValue   QueryOutcomes
 	countValue int
 }
 
-func (f *fixedRecorder) Record(peerID id.ID, endpoint api.Endpoint, qt QueryType, o Outcome) {}
+func (f *fixedRecorder) Record(peerID id.ID, endpoint api.Endpoint, qt QueryType, o Outcome) {
+	f.nRecords++
+}
 
 func (f *fixedRecorder) Get(peerID id.ID, endpoint api.Endpoint) QueryOutcomes {
 	return f.getValue

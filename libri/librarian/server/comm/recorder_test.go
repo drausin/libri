@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestScalarRecorder(t *testing.T) {
+func TestScalarRG(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	id1, id2, id3 := id.NewPseudoRandom(rng), id.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
 	r := NewQueryRecorderGetter(&neverKnower{})
@@ -64,7 +64,7 @@ func TestScalarRecorder(t *testing.T) {
 	assert.Equal(t, uint64(0), r.Get(id3, api.Store)[Request][Success].Count)
 }
 
-func TestWindowScalarRec(t *testing.T) {
+func TestWindowRG(t *testing.T) {
 	k := &neverKnower{}
 	window := 50 * time.Millisecond
 	r := NewWindowRecorderGetter(k, window)
@@ -80,6 +80,21 @@ func TestWindowScalarRec(t *testing.T) {
 	// counts should no longer exist
 	assert.Equal(t, uint64(0), r.Get(peerID, api.Find)[Request][Success].Count)
 	assert.Equal(t, 0, r.CountPeers(api.Find, Request, false))
+}
+
+func TestWindowQueryRecorders_Record(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	peerID := id.NewPseudoRandom(rng)
+	secR, dayR := &fixedRecorder{}, &fixedRecorder{}
+	wqrs := WindowQueryRecorders{
+		Second: secR,
+		Day:    dayR,
+	}
+	wqrs.Record(peerID, api.Find, Response, Success)
+
+	// check each duration has record
+	assert.Equal(t, 1, secR.nRecords)
+	assert.Equal(t, 1, dayR.nRecords)
 }
 
 func TestPromScalarRecorder_Record(t *testing.T) {
