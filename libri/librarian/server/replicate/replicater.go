@@ -94,6 +94,7 @@ type replicator struct {
 	replicatorParams *Parameters
 	verifyParams     *verify.Parameters
 	storeParams      *store.Parameters
+	metrics          *metrics
 	underreplicated  chan *verify.Verify
 	stop             chan struct{}
 	stopped          chan struct{}
@@ -126,6 +127,7 @@ func NewReplicator(
 		replicatorParams: replicatorParams,
 		verifyParams:     verifyParams,
 		storeParams:      storeParams,
+		metrics:          newMetrics(),
 		underreplicated:  make(chan *verify.Verify, underreplicatedQueueSize),
 		errs:             make(chan error, errQueueSize),
 		stop:             make(chan struct{}),
@@ -149,6 +151,8 @@ func (r *replicator) Start() error {
 	maxErrRate := r.replicatorParams.MaxErrRate
 	go cerrors.MonitorRunningErrors(r.errs, r.fatal, errQueueSize, maxErrRate, r.logger)
 
+	r.metrics.register()
+
 	// iterates through stored docs in a continuous loop
 	go r.verify()
 
@@ -170,6 +174,7 @@ func (r *replicator) Stop() {
 		safeCloseErrChan(r.errs)
 		safeCloseVerifyChan(r.underreplicated)
 	})
+	r.metrics.unregister()
 	<-r.stopped
 	r.logger.Debug("ended replicator")
 }
@@ -226,26 +231,26 @@ func (r *replicator) verifyValue(key id.ID, value []byte) {
 
 	if err != nil { // implies v.Errored()
 		r.logger.Error("document verification errored", zap.Object(logVerify, v))
+		r.metrics.incVerification(errored, unknown)
 		r.wrapLock(func() { maybeSendErrChan(r.errs, err) })
 		return
 	}
 	if v.Exhausted() {
 		r.logger.Error("verify exhausted peers", zap.Object(logVerify, v))
+		r.metrics.incVerification(exhausted, unknown)
 		r.wrapLock(func() { maybeSendErrChan(r.errs, errVerifyExhausted) })
 		return
 	}
 
 	if v.FullyReplicated() {
 		r.logger.Debug("document fully-replicated", zap.Object(logVerify, v))
+		r.metrics.incVerification(succeeded, full)
 	} else if v.UnderReplicated() {
-		r.wrapLock(func() {
-			maybeSendVerifyChan(r.underreplicated, v)
-		})
 		r.logger.Info("document under-replicated", zap.Object(logVerify, v))
+		r.metrics.incVerification(succeeded, under)
+		r.wrapLock(func() { maybeSendVerifyChan(r.underreplicated, v) })
 	}
-	r.wrapLock(func() {
-		maybeSendErrChan(r.errs, nil)
-	})
+	r.wrapLock(func() { maybeSendErrChan(r.errs, nil) })
 	for _, p := range v.Result.Responded {
 		r.rt.Push(p)
 	}
@@ -262,13 +267,16 @@ func (r *replicator) replicate(wg *sync.WaitGroup) {
 		// empty seeds b/c verification has already, in effect, replaced the search component of
 		// the store operation
 		if err := r.storer.Store(s, []peer.Peer{}); err != nil {
+			r.metrics.incReplication(errored)
 			r.logger.Error("replication store failed", zap.Object(logStore, s))
 			maybeSendErrChan(r.errs, err)
 			continue
 		}
 		if s.Stored() {
+			r.metrics.incReplication(succeeded)
 			r.logger.Info("stored additional replicas", zap.Object(logStore, s))
 		} else {
+			r.metrics.incReplication(errored)
 			r.logger.Error("failed to store additional replicas", zap.Object(logStore, s))
 		}
 		// for all other non-Stored outcomes for the store, we basically give up and hope to
