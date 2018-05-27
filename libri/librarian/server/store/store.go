@@ -141,8 +141,8 @@ func (r *Result) MarshalLogObject(oe zapcore.ObjectEncoder) error {
 
 // Store contains things involved in storing a particular key/value pair.
 type Store struct {
-	// Request used when querying peers
-	Request *api.StoreRequest // TODO (drausin) make this a getRequest function instead
+	// CreateRq creates new Store requests
+	CreateRq func() *api.StoreRequest
 
 	// Result of the store
 	Result *Result
@@ -170,10 +170,14 @@ func NewStore(
 	updatedSearchParams := *searchParams // by value to avoid change original search params
 	updatedSearchParams.NClosestResponses = storeParams.NReplicas + storeParams.NMaxErrors
 	updatedSearchParams.Concurrency = storeParams.Concurrency
+
+	createRq := func() *api.StoreRequest {
+		return client.NewStoreRequest(peerID, key, value)
+	}
 	return &Store{
-		Request: client.NewStoreRequest(peerID, key, value),
-		Search:  search.NewSearch(peerID, key, &updatedSearchParams),
-		Params:  storeParams,
+		CreateRq: createRq,
+		Search:   search.NewSearch(peerID, key, &updatedSearchParams),
+		Params:   storeParams,
 	}
 }
 

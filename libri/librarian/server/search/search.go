@@ -136,8 +136,8 @@ type Search struct {
 	// ID search is looking for or close to
 	Key id.ID
 
-	// request used when querying peers
-	Request *api.FindRequest // TODO (drausin) change to request-returning func
+	// CreatRq creates new Find requests
+	CreatRq func() *api.FindRequest
 
 	// result of the search
 	Result *Result
@@ -151,9 +151,12 @@ type Search struct {
 
 // NewSearch creates a new Search instance for a given target, search type, and search parameters.
 func NewSearch(selfID ecid.ID, key id.ID, params *Parameters) *Search {
+	createRq := func() *api.FindRequest {
+		return client.NewFindRequest(selfID, key, params.NClosestResponses)
+	}
 	return &Search{
 		Key:     key,
-		Request: client.NewFindRequest(selfID, key, params.NClosestResponses),
+		CreatRq: createRq,
 		Result:  NewInitialResult(key, params),
 		Params:  params,
 	}

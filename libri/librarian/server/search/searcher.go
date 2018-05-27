@@ -116,18 +116,18 @@ func (s *searcher) query(next peer.Peer, search *Search) (*api.FindResponse, err
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel, err := client.NewSignedTimeoutContext(s.signer, search.Request,
-		search.Params.Timeout)
+	rq := search.CreatRq()
+	ctx, cancel, err := client.NewSignedTimeoutContext(s.signer, rq, search.Params.Timeout)
 	if err != nil {
 		return nil, err
 	}
 	retryFindClient := client.NewRetryFinder(lc, searcherFindRetryTimeout)
-	rp, err := retryFindClient.Find(ctx, search.Request)
+	rp, err := retryFindClient.Find(ctx, rq)
 	cancel()
 	if err != nil {
 		return nil, err
 	}
-	if !bytes.Equal(rp.Metadata.RequestId, search.Request.Metadata.RequestId) {
+	if !bytes.Equal(rp.Metadata.RequestId, rq.Metadata.RequestId) {
 		return nil, client.ErrUnexpectedRequestID
 	}
 
