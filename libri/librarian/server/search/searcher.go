@@ -178,8 +178,8 @@ func getNextToQuery(search *Search) peer.Peer {
 	if search.Finished() || search.Exhausted() {
 		return nil
 	}
-	search.mu.Lock()
-	defer search.mu.Unlock()
+	search.Mu.Lock()
+	defer search.Mu.Unlock()
 	if search.Result.Unqueried.Len() == 0 {
 		return nil
 	}
