@@ -419,15 +419,6 @@ func (c *Config) WithDefaultLogLevel() *Config {
 	return c
 }
 
-func (c *Config) isBootstrap() bool {
-	for _, a := range c.BootstrapAddrs {
-		if c.PublicAddr.String() == a.String() {
-			return true
-		}
-	}
-	return false
-}
-
 // NameFromAddr gives the local name (on the host) of the node using the NodeIndex
 func NameFromAddr(localAddr fmt.Stringer) string {
 	addrHash := sha256.Sum256([]byte(localAddr.String()))

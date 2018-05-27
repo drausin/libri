@@ -205,13 +205,3 @@ func TestConfig_WithLogLevel(t *testing.T) {
 		c3.WithLogLevel(zapcore.DebugLevel).LogLevel,
 	)
 }
-
-func TestConfig_isBootstrap(t *testing.T) {
-	config := NewDefaultConfig()
-	assert.True(t, config.isBootstrap())
-
-	addr, err := parse.Addr("localhost", DefaultPort+1)
-	assert.Nil(t, err)
-	config.WithPublicAddr(addr)
-	assert.False(t, config.isBootstrap())
-}
