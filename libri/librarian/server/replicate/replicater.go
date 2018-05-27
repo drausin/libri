@@ -182,7 +182,9 @@ func (r *replicator) Stop() {
 		safeCloseErrChan(r.errs)
 		safeCloseVerifyChan(r.underreplicated)
 	})
-	r.metrics.unregister()
+	if r.replicatorParams.ReportMetrics {
+		r.metrics.unregister()
+	}
 	<-r.stopped
 	r.logger.Debug("ended replicator")
 }
