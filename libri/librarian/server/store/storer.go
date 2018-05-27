@@ -79,7 +79,9 @@ func (s *storer) Store(store *Store, seeds []peer.Peer) error {
 			return err
 		}
 	}
+	store.Search.Mu.Lock()
 	store.Result = NewInitialResult(store.Search.Result)
+	store.Search.Mu.Unlock()
 
 	// queue of peers to send Store requests to
 	toQuery := make(chan peer.Peer, store.Params.NReplicas)
