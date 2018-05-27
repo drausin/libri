@@ -196,7 +196,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		documentSL,
 		verifier,
 		storer,
-		replicate.NewDefaultParameters(),
+		config.Replicate,
 		verify.NewDefaultParameters(),
 		config.Store,
 		rng,
