@@ -71,10 +71,7 @@ func Start(logger *zap.Logger, config *Config, up chan *Librarian) error {
 		errs <- l.listenAndServe(up)
 	}()
 
-	select {
-	case err := <-errs:
-		return err
-	}
+	return <-errs
 }
 
 func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
