@@ -132,11 +132,13 @@ spec:
             fieldRef:
               fieldPath: status.podIP
         - name: LIBRI_PUBLICHOST
-        # TODO external peers once k8s v1.7.0 is available (with status.hostIP support)
-        # - move librarians to use hostIP:30100+ ports for public addresses
           valueFrom:
             fieldRef:
-              fieldPath: status.podIP
+              fieldPath: status.hostIP
+        - name: LIBRI_PUBLICPORT
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostPort
         ports:
         - containerPort: {{ $localPort }}
         - containerPort: {{ $localMetricsPort }}

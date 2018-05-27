@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"sync"
+
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
@@ -30,14 +32,17 @@ func TestStart_ok(t *testing.T) {
 	// start a single librarian server
 	config := newTestConfig()
 	config.WithProfile(true).WithReportMetrics(true)
-	assert.True(t, config.isBootstrap())
+	config.WithLogLevel(zapcore.DebugLevel)
 
 	var err error
 	up := make(chan *Librarian, 1)
-	go func() {
+	wg1 := new(sync.WaitGroup)
+	wg1.Add(1)
+	go func(wg2 *sync.WaitGroup) {
+		defer wg2.Done()
 		err = Start(clogging.NewDevInfoLogger(), config, up)
 		assert.Nil(t, err)
-	}()
+	}(wg1)
 
 	// get the librarian once it's up
 	librarian := <-up
@@ -67,7 +72,11 @@ func TestStart_ok(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "200 OK", resp.Status)
 
+	// give time for bootstrap
+	time.Sleep(3 * time.Second)
+
 	assert.Nil(t, librarian.CloseAndRemove())
+	wg1.Wait()
 }
 
 func TestStart_newLibrarianErr(t *testing.T) {
