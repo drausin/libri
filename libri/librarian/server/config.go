@@ -11,6 +11,7 @@ import (
 	"github.com/drausin/libri/libri/common/parse"
 	"github.com/drausin/libri/libri/common/subscribe"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
+	"github.com/drausin/libri/libri/librarian/server/replicate"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/store"
@@ -81,6 +82,9 @@ type Config struct {
 	// Store defines parameters for stores the server performs.
 	Store *store.Parameters
 
+	// Replicate defines parameters for replications the server performs.
+	Replicate *replicate.Parameters
+
 	// SubscribeTo defines parameters for subscriptions to other peers.
 	SubscribeTo *subscribe.ToParameters
 
@@ -117,6 +121,7 @@ func NewDefaultConfig() *Config {
 	config.WithDefaultStore()
 	config.WithDefaultSubscribeTo()
 	config.WithDefaultSubscribeFrom()
+	config.WithDefaultReplicate()
 	config.WithDefaultReportMetrics()
 	config.WithDefaultProfile()
 	config.WithDefaultLogLevel()
@@ -356,15 +361,33 @@ func (c *Config) WithDefaultSubscribeFrom() *Config {
 	return c
 }
 
+// WithReplicate sets the subscription from parameters to the given value or the default it is
+// nil.
+func (c *Config) WithReplicate(params *replicate.Parameters) *Config {
+	if params == nil {
+		return c.WithDefaultReplicate()
+	}
+	c.Replicate = params
+	return c
+}
+
+// WithDefaultReplicate sets the subscription from parameters to the default.
+func (c *Config) WithDefaultReplicate() *Config {
+	c.Replicate = replicate.NewDefaultParameters()
+	return c
+}
+
 // WithDefaultReportMetrics sets the default state for whether to report metrics.
 func (c *Config) WithDefaultReportMetrics() *Config {
 	c.ReportMetrics = true
+	c.Replicate.ReportMetrics = true
 	return c
 }
 
 // WithReportMetrics sets whether to report metrics or not.
 func (c *Config) WithReportMetrics(reportMetrics bool) *Config {
 	c.ReportMetrics = reportMetrics
+	c.Replicate.ReportMetrics = reportMetrics
 	return c
 }
 

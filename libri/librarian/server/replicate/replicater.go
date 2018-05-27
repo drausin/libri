@@ -37,6 +37,10 @@ const (
 	// before a fatal error is thrown.
 	DefaultMaxErrRate = 0.5
 
+	// DefaultReportMetrics is the default setting for whether the replicator reports Prometheus
+	// metrics.
+	DefaultReportMetrics = true
+
 	// macKeySize is the size of the MAC key used for verify operations.
 	macKeySize = 32
 
@@ -62,6 +66,7 @@ type Parameters struct {
 	ReplicateConcurrency uint
 	VerifyTimeout        time.Duration
 	MaxErrRate           float32
+	ReportMetrics        bool
 }
 
 // NewDefaultParameters returns the default replicator parameters.
@@ -71,6 +76,7 @@ func NewDefaultParameters() *Parameters {
 		ReplicateConcurrency: DefaultReplicateConcurrency,
 		VerifyTimeout:        DefaultVerifyTimeout,
 		MaxErrRate:           DefaultMaxErrRate,
+		ReportMetrics:        DefaultReportMetrics,
 	}
 }
 
@@ -151,7 +157,9 @@ func (r *replicator) Start() error {
 	maxErrRate := r.replicatorParams.MaxErrRate
 	go cerrors.MonitorRunningErrors(r.errs, r.fatal, errQueueSize, maxErrRate, r.logger)
 
-	r.metrics.register()
+	if r.replicatorParams.ReportMetrics {
+		r.metrics.register()
+	}
 
 	// iterates through stored docs in a continuous loop
 	go r.verify()

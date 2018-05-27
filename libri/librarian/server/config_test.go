@@ -7,6 +7,7 @@ import (
 	"github.com/drausin/libri/libri/common/parse"
 	"github.com/drausin/libri/libri/common/subscribe"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
+	"github.com/drausin/libri/libri/librarian/server/replicate"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/store"
@@ -29,6 +30,7 @@ func TestDefaultConfig(t *testing.T) {
 	assert.NotEmpty(t, c.Store)
 	assert.NotEmpty(t, c.SubscribeTo)
 	assert.NotEmpty(t, c.SubscribeFrom)
+	assert.NotEmpty(t, c.Replicate)
 	assert.NotEmpty(t, c.LogLevel)
 }
 
@@ -161,14 +163,27 @@ func TestConfig_WithSubscribeFrom(t *testing.T) {
 	)
 }
 
-func TestConfig_WithReportMetrics(t *testing.T) {
+func TestConfig_WithReplicate(t *testing.T) {
 	c1, c2, c3 := &Config{}, &Config{}, &Config{}
+	c1.WithDefaultReplicate()
+	assert.Equal(t, c1.Replicate, c2.WithReplicate(nil).Replicate)
+	assert.NotEqual(t,
+		c1.Replicate,
+		c3.WithReplicate(&replicate.Parameters{VerifyInterval: 0}).Replicate,
+	)
+}
+
+func TestConfig_WithReportMetrics(t *testing.T) {
+	c1, c2, c3 := NewDefaultConfig(), NewDefaultConfig(), NewDefaultConfig()
 	c1.WithDefaultReportMetrics()
 	assert.True(t, c1.ReportMetrics)
+	assert.True(t, c1.Replicate.ReportMetrics)
 	c2.WithReportMetrics(true)
 	assert.True(t, c2.ReportMetrics)
+	assert.True(t, c2.Replicate.ReportMetrics)
 	c3.WithReportMetrics(false)
 	assert.False(t, c3.ReportMetrics)
+	assert.False(t, c3.Replicate.ReportMetrics)
 }
 
 func TestConfig_WithProfile(t *testing.T) {
