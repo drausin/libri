@@ -117,7 +117,7 @@ func (v *verifier) query(next peer.Peer, verify *Verify) (*api.VerifyResponse, e
 	if err != nil {
 		return nil, err
 	}
-	rq := verify.RequestCreator()
+	rq := verify.CreateRq()
 	ctx, cancel, err := client.NewSignedTimeoutContext(v.signer, rq, verify.Params.Timeout)
 	if err != nil {
 		return nil, err

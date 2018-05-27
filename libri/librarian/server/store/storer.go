@@ -125,18 +125,18 @@ func (s *storer) query(next peer.Peer, store *Store) (*api.StoreResponse, error)
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel, err := client.NewSignedTimeoutContext(s.signer, store.Request,
-		store.Params.Timeout)
+	rq := store.CreateRq()
+	ctx, cancel, err := client.NewSignedTimeoutContext(s.signer, rq, store.Params.Timeout)
 	if err != nil {
 		return nil, err
 	}
 	retryStoreClient := client.NewRetryStorer(lc, storerStoreRetryTimeout)
-	rp, err := retryStoreClient.Store(ctx, store.Request)
+	rp, err := retryStoreClient.Store(ctx, rq)
 	cancel()
 	if err != nil {
 		return nil, err
 	}
-	if !bytes.Equal(rp.Metadata.RequestId, store.Request.Metadata.RequestId) {
+	if !bytes.Equal(rp.Metadata.RequestId, rq.Metadata.RequestId) {
 		return nil, client.ErrUnexpectedRequestID
 	}
 
