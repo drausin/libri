@@ -190,12 +190,13 @@ func (r *replicator) Stop() {
 }
 
 func (r *replicator) verify() {
+	rng := rand.New(rand.NewSource(int64(r.rng.Int())))
 	for {
 		// pause for documents to be added/things to change a bit before next verify iteration
 		pause := make(chan struct{})
 		go func() {
-			intervalMaxMs := int32(r.replicatorParams.VerifyInterval / time.Millisecond)
-			waitMs := time.Duration(r.rng.Int31n(intervalMaxMs))
+			intervalMaxMs := int(r.replicatorParams.VerifyInterval / time.Millisecond)
+			waitMs := time.Duration(rng.Intn(intervalMaxMs))
 			time.Sleep(waitMs * time.Millisecond)
 			close(pause)
 		}()
