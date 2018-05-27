@@ -72,6 +72,9 @@ func TestStart_ok(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "200 OK", resp.Status)
 
+	// give time for bootstrap
+	time.Sleep(3 * time.Second)
+
 	assert.Nil(t, librarian.CloseAndRemove())
 	wg1.Wait()
 }

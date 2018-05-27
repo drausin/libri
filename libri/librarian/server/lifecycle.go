@@ -12,8 +12,6 @@ import (
 	"syscall"
 	"time"
 
-	"sync"
-
 	cbackoff "github.com/cenkalti/backoff"
 	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -59,33 +57,23 @@ func Start(logger *zap.Logger, config *Config, up chan *Librarian) error {
 		return err
 	}
 
-	wg1 := new(sync.WaitGroup)
 	errs := make(chan error, 2)
 
 	// populate routing table
-	wg1.Add(1)
-	go func(wg2 *sync.WaitGroup) {
-		defer wg2.Done()
+	go func() {
 		if err := l.bootstrapPeers(config.BootstrapAddrs); err != nil {
 			errs <- err
 		}
-	}(wg1)
+	}()
 
 	// start main listening thread
-	wg1.Add(1)
-	go func(wg2 *sync.WaitGroup) {
-		defer wg2.Done()
-		if err := l.listenAndServe(up); err != nil {
-			errs <- err
-		}
-	}(wg1)
+	go func() {
+		errs <- l.listenAndServe(up)
+	}()
 
-	wg1.Wait()
 	select {
 	case err := <-errs:
 		return err
-	default:
-		return nil
 	}
 }
 
