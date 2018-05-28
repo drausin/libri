@@ -42,7 +42,7 @@ start() {
     git push origin develop
     set +x
     echo -e 'Started libri release. Run\n'
-    echo '  ./release.sh finish\n'
+    echo -e '  ./release.sh finish\n'
     echo 'to finish when ready.'
 }
 
