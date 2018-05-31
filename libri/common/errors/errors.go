@@ -35,7 +35,7 @@ func MonitorRunningErrors(
 	for latestErr := range errs {
 		if latestErr != nil {
 			runningNErrs++
-			logger.Debug("received non-fatal error", zap.Error(latestErr))
+			logger.Info("received non-fatal error", zap.Error(latestErr))
 			if runningNErrs >= maxRunningErrCount {
 				fatal <- ErrTooManyErrs
 				return
