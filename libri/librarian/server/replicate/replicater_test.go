@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"fmt"
+
 	"github.com/drausin/libri/libri/common/db"
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
@@ -19,6 +21,8 @@ import (
 	"github.com/drausin/libri/libri/librarian/server/verify"
 	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
+	prom "github.com/prometheus/client_golang/prometheus"
+	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )
@@ -37,7 +41,7 @@ func TestReplicator_StartStop(t *testing.T) {
 	defer cleanup()
 	defer kvdb.Close()
 
-	rt, selfID, _ := routing.NewTestWithPeers(rng, 10)
+	rt, selfID, _, _ := routing.NewTestWithPeers(rng, 10)
 	docS := storage.NewDocumentSLD(kvdb)
 	verifyParams := verify.NewDefaultParameters()
 	replicatorParams := &Parameters{
@@ -134,7 +138,7 @@ func TestReplicator_StartStop(t *testing.T) {
 
 func TestReplicator_verify(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	rt, selfID, _ := routing.NewTestWithPeers(rng, 10)
+	rt, selfID, _, _ := routing.NewTestWithPeers(rng, 10)
 	r := replicator{
 		selfID:           selfID,
 		verifyParams:     verify.NewDefaultParameters(),
@@ -201,7 +205,7 @@ func TestReplicator_verifyValue(t *testing.T) {
 	value, key := api.NewTestDocument(rng)
 	valueBytes, err := proto.Marshal(value)
 	assert.Nil(t, err)
-	rt, selfID, _ := routing.NewTestWithPeers(rng, 10)
+	rt, selfID, _, _ := routing.NewTestWithPeers(rng, 10)
 	replicatorParams := &Parameters{
 		VerifyInterval: 10 * time.Millisecond,
 		VerifyTimeout:  10 * time.Millisecond,
@@ -211,6 +215,7 @@ func TestReplicator_verifyValue(t *testing.T) {
 		verifyParams:     verify.NewDefaultParameters(),
 		replicatorParams: replicatorParams,
 		storeParams:      store.NewDefaultParameters(),
+		metrics:          newMetrics(),
 		underreplicated:  make(chan *verify.Verify, 1),
 		errs:             make(chan error, 1),
 		rt:               rt,
@@ -238,6 +243,7 @@ func TestReplicator_verifyValue(t *testing.T) {
 		assert.True(t, false) // should't get message in underreplicated
 	default:
 	}
+	checkPromMetric(t, r.metrics.verification, 1, succeeded, full)
 
 	// check that when a verify operation has UnderReplicated() == true, get msg in toReplicated
 	// and nil error
@@ -257,6 +263,7 @@ func TestReplicator_verifyValue(t *testing.T) {
 	assert.Nil(t, err)
 	v := <-r.underreplicated
 	assert.Equal(t, key, v.Key)
+	checkPromMetric(t, r.metrics.verification, 1, succeeded, under)
 
 	// check that when verify is exhausted, we get an error
 	for unqueried.Len() > 0 {
@@ -277,6 +284,7 @@ func TestReplicator_verifyValue(t *testing.T) {
 		assert.True(t, false) // should't get message in underreplicated
 	default:
 	}
+	checkPromMetric(t, r.metrics.verification, 1, exhausted, unknown)
 
 	// check that when verify errors, we get an error
 	r.verifier = &fixedVerifier{
@@ -291,6 +299,29 @@ func TestReplicator_verifyValue(t *testing.T) {
 		assert.True(t, false) // should't get message in underreplicated
 	default:
 	}
+	checkPromMetric(t, r.metrics.verification, 1, errored, unknown)
+}
+
+func checkPromMetric(t *testing.T, metrics *prom.CounterVec, expected int, labels ...fmt.Stringer) {
+	collected := make(chan prom.Metric, 16)
+	metrics.Collect(collected)
+	close(collected)
+	asserted := false
+	for counter := range collected {
+		written := dto.Metric{}
+		counter.Write(&written)
+		target := true
+		for i, lbl := range labels {
+			if lbl.String() != *written.Label[i].Value {
+				target = false
+			}
+		}
+		if target {
+			asserted = true
+			assert.Equal(t, float64(expected), *written.Counter.Value)
+		}
+	}
+	assert.True(t, asserted)
 }
 
 func peerMap(peerArr []peer.Peer) map[string]peer.Peer {
@@ -322,6 +353,7 @@ func TestReplicator_replicate(t *testing.T) {
 	r := replicator{
 		selfID:          selfID,
 		storeParams:     store.NewDefaultParameters(),
+		metrics:         newMetrics(),
 		underreplicated: make(chan *verify.Verify, 1),
 		errs:            make(chan error, 1),
 		logger:          zap.NewNop(), // server.NewDevLogger(zap.DebugLevel),
@@ -337,6 +369,7 @@ func TestReplicator_replicate(t *testing.T) {
 	r.underreplicated <- verify.NewVerify(selfID, key, valueBytes, macKey, verifyParams)
 	err = <-r.errs
 	assert.Nil(t, err)
+	checkPromMetric(t, r.metrics.replication, 1, succeeded)
 
 	// check that when storer returns result where Stored() == false, NReplicated does not increase
 	r.storer = &fixedStorer{
@@ -345,12 +378,14 @@ func TestReplicator_replicate(t *testing.T) {
 	r.underreplicated <- verify.NewVerify(selfID, key, valueBytes, macKey, verifyParams)
 	err = <-r.errs
 	assert.Nil(t, err)
+	checkPromMetric(t, r.metrics.replication, 1, errored)
 
 	// check that when storer returns an error, it gets passed to the errs channel
 	r.storer = &fixedStorer{err: errors.New("some Store error")}
 	r.underreplicated <- verify.NewVerify(selfID, key, valueBytes, macKey, verifyParams)
 	err = <-r.errs
 	assert.NotNil(t, err)
+	checkPromMetric(t, r.metrics.replication, 2, errored)
 }
 
 type fixedStorer struct {

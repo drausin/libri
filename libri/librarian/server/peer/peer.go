@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"net"
 
-	"time"
-
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/server/storage"
@@ -23,13 +21,6 @@ type Peer interface {
 
 	// Address returns the public address of the peer.
 	Address() *net.TCPAddr
-
-	// Recorder returns the Recorder instance for recording query outcomes.
-	Recorder() Recorder
-
-	// Before returns whether p should be ordered before q in the priority queue of peers to
-	// query. Currently, it just uses whether p's latest response time is before q's.
-	Before(other Peer) bool
 
 	// Merge merges another peer into the existing peer. If there is any conflicting information
 	// between the two, the merge returns an error.
@@ -50,18 +41,14 @@ type peer struct {
 
 	// self-reported name
 	name string
-
-	// tracks query outcomes from the peer
-	recorder Recorder
 }
 
 // New creates a new Peer instance with empty response stats.
 func New(id id.ID, name string, address *net.TCPAddr) Peer {
 	return &peer{
-		id:       id,
-		address:  address,
-		name:     name,
-		recorder: newQueryRecorder(),
+		id:      id,
+		address: address,
+		name:    name,
 	}
 }
 
@@ -70,31 +57,12 @@ func NewStub(id id.ID, name string) Peer {
 	return New(id, name, nil)
 }
 
-func (p *peer) WithQueryRecorder(rec Recorder) *peer {
-	p.recorder = rec
-	return p
-}
-
 func (p *peer) ID() id.ID {
 	return p.id
 }
 
 func (p *peer) Address() *net.TCPAddr {
 	return p.address
-}
-
-func (p *peer) Before(q Peer) bool {
-	pr, qr := *p.Recorder().(*queryRecorder), *q.Recorder().(*queryRecorder)
-	pLatestMin := pr.responses.latest.Round(time.Minute)
-	qLatestMin := qr.responses.latest.Round(time.Minute)
-
-	// don't care about differences in latest response time within a minute
-	if pLatestMin == qLatestMin {
-		// p comes before q if we've made fewer queries to it, so we can attempt to balance queries
-		// across peers
-		return pr.responses.nQueries < qr.responses.nQueries
-	}
-	return pLatestMin.Before(qLatestMin)
 }
 
 func (p *peer) Merge(other Peer) error {
@@ -108,12 +76,7 @@ func (p *peer) Merge(other Peer) error {
 	if p.Address().String() != other.Address().String() {
 		p.address = other.Address()
 	}
-	p.recorder.Merge(other.Recorder())
 	return nil
-}
-
-func (p *peer) Recorder() Recorder {
-	return p.recorder
 }
 
 func (p *peer) ToStored() *storage.Peer {
@@ -121,7 +84,6 @@ func (p *peer) ToStored() *storage.Peer {
 		Id:            p.id.Bytes(),
 		Name:          p.name,
 		PublicAddress: toStoredAddress(p.Address()),
-		QueryOutcomes: p.recorder.ToStored(),
 	}
 }
 

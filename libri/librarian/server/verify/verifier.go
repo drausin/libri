@@ -8,6 +8,7 @@ import (
 
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
+	"github.com/drausin/libri/libri/librarian/server/comm"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/pkg/errors"
@@ -16,7 +17,8 @@ import (
 const verifierVerifyRetryTimeout = 25 * time.Millisecond
 
 var (
-	errInvalidResponse     = errors.New("VerifyResponse contains neither MAC nor peer addresses")
+	errInvalidResponse = errors.New("VerifyResponse contains neither MAC nor peer " +
+		"addresses")
 	errTooManyVerifyErrors = errors.New("too many Verify errors")
 	errUnexpectedVerifyMAC = errors.New("unexpected Verify MAC")
 )
@@ -31,20 +33,28 @@ type verifier struct {
 	signer          client.Signer
 	verifierCreator client.VerifierCreator
 	rp              ResponseProcessor
+	rec             comm.QueryRecorder
 }
 
 // NewVerifier returns a new Verifier with the given Querier and ResponseProcessor.
-func NewVerifier(s client.Signer, c client.VerifierCreator, rp ResponseProcessor) Verifier {
-	return &verifier{signer: s, verifierCreator: c, rp: rp}
+func NewVerifier(
+	s client.Signer, rec comm.QueryRecorder, c client.VerifierCreator, rp ResponseProcessor,
+) Verifier {
+	return &verifier{
+		signer:          s,
+		verifierCreator: c,
+		rp:              rp,
+		rec:             rec,
+	}
 }
 
 // NewDefaultVerifier creates a new Verifier with default sub-object instantiations.
-func NewDefaultVerifier(signer client.Signer, clients client.Pool) Verifier {
-	return NewVerifier(
-		signer,
-		client.NewVerifierCreator(clients),
-		NewResponseProcessor(peer.NewFromer()),
-	)
+func NewDefaultVerifier(
+	signer client.Signer, rec comm.QueryRecorder, clients client.Pool,
+) Verifier {
+	vc := client.NewVerifierCreator(clients)
+	rp := NewResponseProcessor(peer.NewFromer())
+	return NewVerifier(signer, rec, vc, rp)
 }
 
 type peerResponse struct {
@@ -74,7 +84,7 @@ func (v *verifier) Verify(verify *Verify, seeds []peer.Peer) error {
 	go func(wg2 *sync.WaitGroup) {
 		defer wg2.Done()
 		for pr := range peerResponses {
-			processAnyReponse(pr, v.rp, verify)
+			v.processAnyReponse(pr, verify)
 			maybeSendNextToQuery(toQuery, verify)
 		}
 	}(&wg1)
@@ -107,7 +117,7 @@ func (v *verifier) query(next peer.Peer, verify *Verify) (*api.VerifyResponse, e
 	if err != nil {
 		return nil, err
 	}
-	rq := verify.RequestCreator()
+	rq := verify.CreateRq()
 	ctx, cancel, err := client.NewSignedTimeoutContext(v.signer, rq, verify.Params.Timeout)
 	if err != nil {
 		return nil, err
@@ -123,6 +133,35 @@ func (v *verifier) query(next peer.Peer, verify *Verify) (*api.VerifyResponse, e
 	}
 
 	return rp, nil
+}
+
+func (v *verifier) processAnyReponse(pr *peerResponse, verify *Verify) {
+	if pr.err != nil {
+		v.recordError(pr.peer, pr.err, verify)
+		return
+	}
+	if err := v.rp.Process(pr.response, pr.peer, verify.ExpectedMAC, verify); err != nil {
+		v.recordError(pr.peer, err, verify)
+		return
+	}
+	v.recordSuccess(pr.peer, verify)
+}
+
+func (v *verifier) recordError(p peer.Peer, err error, verify *Verify) {
+	verify.wrapLock(func() {
+		verify.Result.Errored[p.ID().String()] = err
+		if verify.Errored() {
+			verify.Result.FatalErr = errTooManyVerifyErrors
+		}
+	})
+	comm.MaybeRecordRpErr(v.rec, p.ID(), api.Verify, err)
+}
+
+func (v *verifier) recordSuccess(p peer.Peer, verify *Verify) {
+	verify.wrapLock(func() {
+		verify.Result.Responded[p.ID().String()] = p
+	})
+	v.rec.Record(p.ID(), api.Verify, comm.Response, comm.Success)
 }
 
 func getNextToQuery(verify *Verify) peer.Peer {
@@ -152,33 +191,6 @@ func maybeSendNextToQuery(toQuery *search.QueryQueue, verify *Verify) {
 	} else {
 		maybeSendNextToQuery(toQuery, verify)
 	}
-}
-
-func processAnyReponse(pr *peerResponse, rp ResponseProcessor, verify *Verify) {
-	if pr.err != nil {
-		recordError(pr.peer, pr.err, verify)
-	} else if err := rp.Process(pr.response, pr.peer, verify.ExpectedMAC, verify); err != nil {
-		recordError(pr.peer, err, verify)
-	} else {
-		recordSuccess(pr.peer, verify)
-	}
-}
-
-func recordError(p peer.Peer, err error, v *Verify) {
-	v.wrapLock(func() {
-		v.Result.Errored[p.ID().String()] = err
-		if v.Errored() {
-			v.Result.FatalErr = errTooManyVerifyErrors
-		}
-	})
-	p.Recorder().Record(peer.Response, peer.Error)
-}
-
-func recordSuccess(p peer.Peer, v *Verify) {
-	v.wrapLock(func() {
-		v.Result.Responded[p.ID().String()] = p
-	})
-	p.Recorder().Record(peer.Response, peer.Success)
 }
 
 // ResponseProcessor handles api.VerifyResponses.

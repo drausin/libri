@@ -6,10 +6,13 @@ import (
 	"math/rand"
 	"testing"
 
+	"sync"
+
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	lclient "github.com/drausin/libri/libri/librarian/client"
+	"github.com/drausin/libri/libri/librarian/server/comm"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/stretchr/testify/assert"
@@ -23,17 +26,20 @@ func TestNewDefaultIntroducer(t *testing.T) {
 	assert.Nil(t, err)
 	s := NewDefaultIntroducer(
 		lclient.NewSigner(ecid.NewPseudoRandom(rng).Key()),
+		&fixedRecorder{},
 		id.NewPseudoRandom(rng),
 		p,
 	)
 	assert.NotNil(t, s.(*introducer).signer)
 	assert.NotNil(t, s.(*introducer).introducerCreator)
 	assert.NotNil(t, s.(*introducer).repProcessor)
+	assert.NotNil(t, s.(*introducer).rec)
 }
 
 func TestIntroducer_Introduce_ok(t *testing.T) {
 	for concurrency := uint(1); concurrency <= 3; concurrency++ {
-		introducer, intro, selfPeerIdxs, peers := newTestIntros(concurrency)
+		rec := &fixedRecorder{}
+		introducer, intro, selfPeerIdxs, peers := newTestIntros(concurrency, rec)
 		seeds := search.NewTestSeeds(peers, selfPeerIdxs[:3])
 
 		// do the intro!
@@ -57,11 +63,16 @@ func TestIntroducer_Introduce_ok(t *testing.T) {
 			}
 		}
 		assert.True(t, len(seeds) > nUnqueriedSeeds)
+
+		// check successes recorded properly
+		assert.True(t, len(intro.Result.Responded) <= rec.nSuccesses)
+		assert.Zero(t, rec.nErrors)
 	}
 }
 
 func TestIntroducer_Introduce_queryErr(t *testing.T) {
-	introducerImpl, intro, selfPeerIdxs, peers := newTestIntros(1)
+	rec := &fixedRecorder{}
+	introducerImpl, intro, selfPeerIdxs, peers := newTestIntros(1, rec)
 	seeds := search.NewTestSeeds(peers, selfPeerIdxs)
 
 	// all queries return errors as if they'd timed out
@@ -81,27 +92,10 @@ func TestIntroducer_Introduce_queryErr(t *testing.T) {
 	assert.Equal(t, intro.Params.NMaxErrors, intro.Result.NErrors)
 	assert.Nil(t, intro.Result.FatalErr)
 	assert.Equal(t, 0, len(intro.Result.Responded))
-}
 
-func TestIntroducer_Introduce_rpErr(t *testing.T) {
-	introducerImpl, intro, selfPeerIdxs, peers := newTestIntros(1)
-	seeds := search.NewTestSeeds(peers, selfPeerIdxs)
-
-	// mock some internal issue when processing responses
-	introducerImpl.(*introducer).repProcessor = &errResponseProcessor{}
-
-	// do the intro!
-	err := introducerImpl.Introduce(intro, seeds)
-
-	// checks
-	assert.NotNil(t, err)
-	assert.True(t, intro.Finished())
-	assert.True(t, intro.Errored()) // since we got a fatal error while processing responses
-	assert.False(t, intro.Exhausted())
-	assert.False(t, intro.ReachedTarget())
-	assert.NotNil(t, intro.Result.FatalErr)
-	assert.Equal(t, uint(0), intro.Result.NErrors)
-	assert.Equal(t, 0, len(intro.Result.Responded))
+	// check successes recorded properly
+	assert.Zero(t, rec.nSuccesses)
+	assert.Equal(t, int(intro.Result.NErrors), rec.nErrors)
 }
 
 func TestIntroducer_query_ok(t *testing.T) {
@@ -180,9 +174,7 @@ func TestResponseProcessor_Process(t *testing.T) {
 		Self:  responder.ToAPI(),
 		Peers: apiPeers,
 	}
-	err := rp.Process(response1, result)
-
-	assert.Nil(t, err)
+	rp.Process(response1, result)
 
 	// make sure we've added the responder as responded
 	_, in := result.Responded[responder.ID().String()]
@@ -204,9 +196,7 @@ func TestResponseProcessor_Process(t *testing.T) {
 		Self:  responder.ToAPI(),
 		Peers: peer.ToAPIs(peers),
 	}
-	err = rp.Process(response2, result)
-
-	assert.Nil(t, err)
+	rp.Process(response2, result)
 
 	// make sure nothing has changed with Unqueried map
 	assert.Equal(t, nPeers, len(result.Unqueried))
@@ -234,14 +224,12 @@ func newQueryTestIntroduction() (*Introduction, map[string]api.Introducer) {
 	return intro, introducers
 }
 
-type errResponseProcessor struct{}
-
-func (erp *errResponseProcessor) Process(rp *api.IntroduceResponse, result *Result) error {
-	return errors.New("some fatal processing error")
-}
-
-func newTestIntroducer(peersMap map[string]peer.Peer, selfID id.ID,
-	peerConnectedAddrs map[string][]*api.PeerAddress) Introducer {
+func newTestIntroducer(
+	peersMap map[string]peer.Peer,
+	selfID id.ID,
+	peerConnectedAddrs map[string][]*api.PeerAddress,
+	rec comm.QueryRecorder,
+) Introducer {
 	addressIntroducers := make(map[string]api.Introducer)
 	for _, p := range peersMap {
 		addressIntroducers[p.Address().String()] = &fixedIntroducer{
@@ -251,6 +239,7 @@ func newTestIntroducer(peersMap map[string]peer.Peer, selfID id.ID,
 	}
 	return NewIntroducer(
 		&lclient.TestNoOpSigner{},
+		rec,
 		&fixedIntroducerCreator{introducers: addressIntroducers},
 		&responseProcessor{
 			fromer: &search.TestFromer{Peers: peersMap},
@@ -259,7 +248,9 @@ func newTestIntroducer(peersMap map[string]peer.Peer, selfID id.ID,
 	)
 }
 
-func newTestIntros(concurrency uint) (Introducer, *Introduction, []int, []peer.Peer) {
+func newTestIntros(
+	concurrency uint, rec comm.QueryRecorder,
+) (Introducer, *Introduction, []int, []peer.Peer) {
 	n, targetNumIntros := 256, uint(64)
 	rng := rand.New(rand.NewSource(int64(n)))
 	peers, peersMap, peerConnectedAddrs, selfPeerIdxs, selfID := search.NewTestPeers(rng, n)
@@ -268,7 +259,7 @@ func newTestIntros(concurrency uint) (Introducer, *Introduction, []int, []peer.P
 	}
 
 	// create our introducer
-	introducer := newTestIntroducer(peersMap, selfID.ID(), peerConnectedAddrs)
+	introducer := newTestIntroducer(peersMap, selfID.ID(), peerConnectedAddrs, rec)
 
 	intro := NewIntroduction(selfID, apiSelf, &Parameters{
 		TargetNumIntroductions: targetNumIntros,
@@ -317,4 +308,30 @@ func (f *fixedIntroducer) Introduce(ctx context.Context, rq *api.IntroduceReques
 		Self:  f.self,
 		Peers: f.addresses,
 	}, nil
+}
+
+type fixedRecorder struct {
+	nSuccesses int
+	nErrors    int
+	mu         sync.Mutex
+}
+
+func (f *fixedRecorder) Record(
+	peerID id.ID, endpoint api.Endpoint, qt comm.QueryType, o comm.Outcome,
+) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if o == comm.Success {
+		f.nSuccesses++
+	} else {
+		f.nErrors++
+	}
+}
+
+func (f *fixedRecorder) Get(peerID id.ID, endpoint api.Endpoint) comm.QueryOutcomes {
+	panic("implement me")
+}
+
+func (f *fixedRecorder) CountPeers(endpoint api.Endpoint, qt comm.QueryType, known bool) int {
+	panic("implement me")
 }

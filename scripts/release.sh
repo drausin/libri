@@ -34,6 +34,9 @@ start() {
     echo 'please copy the CHANGELOG.md release notes into a new Github release draft (https://github.com/drausin/libri/releases/new) [press ENTER when finished]'
     read
 
+    sed -i -r "s/librarian_libri_version = \"(.+)\"/librarian_libri_version = \"${release_version}\"/g" deploy/cloud/terraform/gcp/variables.tf
+    echo "updated Terraform GCP libri version to ${release_version}"
+
     set -x
     git ci -am "prepare for v${release_version} release"
     git checkout develop
@@ -41,8 +44,14 @@ start() {
     git commit -am "bump to next (in progress) version"
     git push origin develop
     set +x
-    echo -e 'Started libri release. Run\n'
-    echo '  ./release.sh finish\n'
+    echo -e 'Started libri release. We recommend the following tests before finishing the release:\n'
+    echo -e '   - run an intensive build\n'
+    echo -e '       git checkout develop-intensive-build && git pull && git push origin develop-intensive-build\n'
+    echo -e '   - test local minikube k8s cluster\n'
+    echo -e '       scripts/minikube-test.sh'
+    echo ''
+    echo -e 'Run\n'
+    echo -e '  ./release.sh finish\n'
     echo 'to finish when ready.'
 }
 

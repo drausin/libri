@@ -69,13 +69,13 @@ func TestStorerLoader_Load_ok(t *testing.T) {
 	// check we get the right number of pages and that their order is same as key order
 	i := 0
 	for page := range pages {
-		pageID, err := api.GetKey(page)
-		assert.Nil(t, err)
+		pageID, err2 := api.GetKey(page)
+		assert.Nil(t, err2)
 		assert.Equal(t, pageIDs[i], pageID)
 
 		// check that page has been deleted from inner storage
-		storedPage, err := inner.Load(pageID)
-		assert.Nil(t, err)
+		storedPage, err2 := inner.Load(pageID)
+		assert.Nil(t, err2)
 		assert.Nil(t, storedPage)
 		i++
 	}

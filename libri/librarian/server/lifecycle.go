@@ -15,6 +15,7 @@ import (
 	cbackoff "github.com/cenkalti/backoff"
 	cerrors "github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/server/comm"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
@@ -56,21 +57,25 @@ func Start(logger *zap.Logger, config *Config, up chan *Librarian) error {
 		return err
 	}
 
+	errs := make(chan error, 2)
+
 	// populate routing table
-	if err := l.bootstrapPeers(config.BootstrapAddrs); err != nil {
-		return err
-	}
+	go func() {
+		if err := l.bootstrapPeers(config.BootstrapAddrs); err != nil {
+			errs <- err
+		}
+	}()
 
 	// start main listening thread
-	if err := l.listenAndServe(up); err != nil {
-		return err
-	}
+	go func() {
+		errs <- l.listenAndServe(up)
+	}()
 
-	return nil
+	return <-errs
 }
 
 func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
-	bootstraps, bootstrapAddrStrs := makeBootstrapPeers(bootstrapAddrs, l.config.PublicAddr)
+	bootstraps, bootstrapAddrStrs := makeBootstrapPeers(bootstrapAddrs)
 	l.logger.Info("beginning peer bootstrap", zap.Strings(LoggerSeeds, bootstrapAddrStrs))
 
 	var intro *introduce.Introduction
@@ -80,8 +85,8 @@ func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
 			l.logger.Debug("introduction error", zap.String("error", err.Error()))
 			return err
 		}
-		if !l.config.isBootstrap() && len(intro.Result.Responded) == 0 {
-			// if we're not a libri bootstrap peer, error if couldn't find any
+		if len(intro.Result.Responded) == 0 {
+			// error if couldn't find any
 			l.logger.Debug("no bootstrapped peers",
 				zap.String("error", errNoBootstrappedPeers.Error()),
 			)
@@ -127,15 +132,13 @@ func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
 	return nil
 }
 
-func makeBootstrapPeers(bootstrapAddrs []*net.TCPAddr, selfPublicAddr fmt.Stringer) (
+func makeBootstrapPeers(bootstrapAddrs []*net.TCPAddr) (
 	[]peer.Peer, []string) {
 	peers, addrStrs := make([]peer.Peer, 0), make([]string, 0)
 	for i, bootstrap := range bootstrapAddrs {
-		if bootstrap.String() != selfPublicAddr.String() {
-			dummyIDStr := fmt.Sprintf("bootstrap-seed%02d", i)
-			peers = append(peers, peer.New(nil, dummyIDStr, bootstrap))
-			addrStrs = append(addrStrs, bootstrap.String())
-		}
+		dummyIDStr := fmt.Sprintf("bootstrap-seed%02d", i)
+		peers = append(peers, peer.New(nil, dummyIDStr, bootstrap))
+		addrStrs = append(addrStrs, bootstrap.String())
 	}
 	return peers, addrStrs
 }
@@ -153,6 +156,9 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 		grpc_prometheus.Register(s)
 		grpc_prometheus.EnableHandlingTimeHistogram()
 		l.storageMetrics.register()
+		if rec, ok := l.rec.(comm.PromRecorder); ok {
+			rec.Register()
+		}
 	}
 	reflection.Register(s)
 
@@ -171,6 +177,9 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 		s.GracefulStop()
 		if l.config.ReportMetrics {
 			l.storageMetrics.unregister()
+			if rec, ok := l.rec.(comm.PromRecorder); ok {
+				rec.Unregister()
+			}
 		}
 		close(l.stopped)
 	}()
@@ -234,7 +243,7 @@ func (l *Librarian) startAuxRoutines() {
 
 	// long-running goroutine managing subscriptions to other peers
 	go func() {
-		if err := l.subscribeTo.Begin(); err != nil && !l.config.isBootstrap() {
+		if err := l.subscribeTo.Begin(); err != nil {
 			l.logger.Error("fatal subscriptionTo error", zap.Error(err))
 			cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
 		}

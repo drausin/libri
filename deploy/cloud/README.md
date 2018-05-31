@@ -14,7 +14,7 @@ to outside authors
 
 
 If you want to just try out the Kubernetes part first without creating GCP infrastucture,
-you can run it via minikube (currently tested with v0.22)
+you can run it via minikube (currently tested with v0.24, Kubernetes v1.8.0).
 
 #### Initializing
 
@@ -22,17 +22,17 @@ Clusters are hosted in (currently) one of two environments: minikube or GCP. Ini
 (minikube) cluster with
 
     go run cluster.go init minikube \
-        --outDir /path/to/clusters
-        --clusterName my-test-cluster \
+        --clusterDir /path/to/my-test-cluster-dir
+        --clusterName my-test-cluster
 
 where `/path/to/clusters/dir` is the directory to create the cluster subdirectory in. The GCP
 cluster initialization is very similar
 
     go run cluster.go init gcp \
-        --outDir /path/to/clusters
+        --clusterDir /path/to/my-test-cluster-dir
         --clusterName my-test-cluster \
         --bucket my-bucket-name \
-        --gcpProject my-gcp-project \
+        --gcpProject my-gcp-project
 
 
 The `terraform.tfvars` file created in the cluster directory has settings (like number of
@@ -45,7 +45,7 @@ of these settings.
 
 To see what would be created upon spinning up a cluster called `my-cluster`, use
 
-    go run cluster.go plan -d /path/to/clusters/my-cluster
+    go run cluster.go plan -d /path/to/my-test-cluster-dir
 
 If your cluster is hosted on GCP, you should first see Terraform plans and then planned dry
 run Kubernetes resources. Minikube clusters have no Terraform component.
@@ -55,10 +55,7 @@ run Kubernetes resources. Minikube clusters have no Terraform component.
 
 Create the cluster and resources with
 
-    go run cluster.go apply -d /path/to/clusters/my-cluster
-
-If your cluster is hosted on GCP, you should first see Terraform plans and then planned dry
-run Kubernetes resources. Minikube clusters have no Terraform component.
+    go run cluster.go apply -d /path/to/my-test-cluster-dir
 
 You should see the the resources being created (Terraform resources can take up to 5 minutes). See
 the created Kubernetes pods with
@@ -125,15 +122,15 @@ For convenience (and speed), you can run testing commands from an ephemeral cont
 health of a librarian with
 
     $ librarian_addrs='192.168.99.100:30100,192.168.99.100:30101,192.168.99.100:30102'
-    $ docker run --rm daedalus2718/libri:snapshot test health -a "${librarian_addrs}"
+    $ docker run --rm daedalus2718/libri:latest test health -a "${librarian_addrs}"
 
 Test uploading/downloading entries from the cluster with
 
-    $ docker run --rm daedalus2718/libri:snapshot test io -a "${librarian_addrs}"
+    $ docker run --rm daedalus2718/libri:latest test io -a "${librarian_addrs}"
 
 If you get timeout issues (especially with remote GCP cluster), try bumping the timeout up to 20 seconds with
 
-    $ docker run --rm daedalus2718/libri:snapshot test io -a "${librarian_addrs}" --timeout 20
+    $ docker run --rm daedalus2718/libri:latest test io -a "${librarian_addrs}" --timeout 20
 
 
 #### Monitoring
@@ -146,6 +143,9 @@ If using minikube, get the Grafana service address
 If using GCP, use the the same visual "join" as with librarians above to see that the NodePort public address
 for the Grafana service is `104.196.183.229:30300`.
 
+You can also examine the logs of any pod
+
+    $ kubectl logs librarians-1
 
 #### Updating
 

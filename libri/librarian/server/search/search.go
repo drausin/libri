@@ -136,8 +136,8 @@ type Search struct {
 	// ID search is looking for or close to
 	Key id.ID
 
-	// request used when querying peers
-	Request *api.FindRequest // TODO (drausin) change to request-returning func
+	// CreatRq creates new Find requests
+	CreatRq func() *api.FindRequest
 
 	// result of the search
 	Result *Result
@@ -146,14 +146,17 @@ type Search struct {
 	Params *Parameters
 
 	// mutex used to synchronizes reads and writes to this instance
-	mu sync.Mutex
+	Mu sync.Mutex
 }
 
 // NewSearch creates a new Search instance for a given target, search type, and search parameters.
 func NewSearch(selfID ecid.ID, key id.ID, params *Parameters) *Search {
+	createRq := func() *api.FindRequest {
+		return client.NewFindRequest(selfID, key, params.NClosestResponses)
+	}
 	return &Search{
 		Key:     key,
-		Request: client.NewFindRequest(selfID, key, params.NClosestResponses),
+		CreatRq: createRq,
 		Result:  NewInitialResult(key, params),
 		Params:  params,
 	}
@@ -176,8 +179,8 @@ func (s *Search) MarshalLogObject(oe zapcore.ObjectEncoder) error {
 // occurs when it has received responses from the required number of peers, and the max distance of
 // those peers to the target is less than the min distance of the peers we haven't queried yet.
 func (s *Search) FoundClosestPeers() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.Mu.Lock()
+	defer s.Mu.Unlock()
 	if uint(s.Result.Closest.Len()) < s.Params.NClosestResponses {
 		return false
 	}
@@ -191,22 +194,22 @@ func (s *Search) FoundClosestPeers() bool {
 
 // FoundValue returns whether the search has found the target value.
 func (s *Search) FoundValue() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.Mu.Lock()
+	defer s.Mu.Unlock()
 	return s.Result.Value != nil
 }
 
 // Errored returns whether the search has encountered too many errors when querying the peers.
 func (s *Search) Errored() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.Mu.Lock()
+	defer s.Mu.Unlock()
 	return uint(len(s.Result.Errored)) > s.Params.NMaxErrors || s.Result.FatalErr != nil
 }
 
 // Exhausted returns whether the search has exhausted all unqueried peers close to the target.
 func (s *Search) Exhausted() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.Mu.Lock()
+	defer s.Mu.Unlock()
 	return s.Result.Unqueried.Len() == 0
 }
 
@@ -219,13 +222,13 @@ func (s *Search) Finished() bool {
 
 // AddQueried adds a peer to the queried set.
 func (s *Search) AddQueried(p peer.Peer) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.Mu.Lock()
+	defer s.Mu.Unlock()
 	s.Result.Queried[p.ID().String()] = struct{}{}
 }
 
 func (s *Search) wrapLock(operation func()) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.Mu.Lock()
+	defer s.Mu.Unlock()
 	operation()
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
+	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/stretchr/testify/assert"
 )
@@ -17,7 +18,8 @@ func TestTableSetBalancer_Next_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	origLC := api.NewLibrarianClient(nil)
 	clients := &fixedPool{lc: origLC, getAddresses: make(map[string]struct{})}
-	rt := NewEmpty(id.NewPseudoRandom(rng), NewDefaultParameters())
+	p, d := &fixedPreferer{}, &fixedDoctor{healthy: true}
+	rt := NewEmpty(id.NewPseudoRandom(rng), p, d, NewDefaultParameters())
 	rt.Push(
 		peer.New(
 			id.NewPseudoRandom(rng),
@@ -28,17 +30,17 @@ func TestTableSetBalancer_Next_ok(t *testing.T) {
 	csb := NewClientBalancer(rt, clients)
 
 	// check AddNext() returns inner LibrarianClient
-	lc, peerID, err := csb.AddNext()
+	lc, address, err := csb.AddNext()
 	assert.Nil(t, err)
 	assert.NotNil(t, lc)
-	assert.NotNil(t, peerID)
+	assert.NotEmpty(t, address)
 
 	// check second sample returns error b/c no more unique clients
 	tableSampleRetryWait = 10 * time.Millisecond // for testing
-	lc, peerID, err = csb.AddNext()
-	assert.Equal(t, ErrNoNewClients, err)
+	lc, address, err = csb.AddNext()
+	assert.Equal(t, client.ErrNoNewClients, err)
 	assert.Nil(t, lc)
-	assert.Nil(t, peerID)
+	assert.Empty(t, address)
 
 	// add another peer, and we should be able to call Next() without error again
 	rt.Push(
@@ -48,24 +50,25 @@ func TestTableSetBalancer_Next_ok(t *testing.T) {
 			&net.TCPAddr{IP: net.ParseIP("1.2.3.4"), Port: 8081},
 		),
 	)
-	lc, peerID, err = csb.AddNext()
+	lc, address, err = csb.AddNext()
 	assert.Nil(t, err)
 	assert.NotNil(t, lc)
-	assert.NotNil(t, peerID)
+	assert.NotEmpty(t, address)
 }
 
 func TestTableSetBalancer_Next_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	rt := NewEmpty(id.NewPseudoRandom(rng), NewDefaultParameters())
+	p, d := &fixedPreferer{}, &fixedDoctor{healthy: true}
+	rt := NewEmpty(id.NewPseudoRandom(rng), p, d, NewDefaultParameters())
 	clients := &fixedPool{lc: api.NewLibrarianClient(nil), getAddresses: make(map[string]struct{})}
 	cb := NewClientBalancer(rt, clients)
 
 	// check empty RT throws error
 	tableSampleRetryWait = 10 * time.Millisecond // just for test
-	lc, peerID, err := cb.AddNext()
-	assert.Equal(t, ErrNoNewClients, err)
+	lc, address, err := cb.AddNext()
+	assert.Equal(t, client.ErrNoNewClients, err)
 	assert.Nil(t, lc)
-	assert.Nil(t, peerID)
+	assert.Empty(t, address)
 
 	rt.Push(
 		peer.New(
@@ -74,17 +77,18 @@ func TestTableSetBalancer_Next_err(t *testing.T) {
 			&net.TCPAddr{IP: net.ParseIP("1.2.3.4"), Port: 8080},
 		),
 	)
-	lc, peerID, err = cb.AddNext()
+	lc, address, err = cb.AddNext()
 	assert.Nil(t, err)
 	assert.NotNil(t, lc)
-	assert.NotNil(t, peerID)
+	assert.NotNil(t, address)
 }
 
 func TestTableSetBalancer_Remove(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	lc1 := api.NewLibrarianClient(nil)
 	clients := &fixedPool{lc: lc1, getAddresses: make(map[string]struct{})}
-	rt := NewEmpty(id.NewPseudoRandom(rng), NewDefaultParameters())
+	p, d := &fixedPreferer{}, &fixedDoctor{healthy: true}
+	rt := NewEmpty(id.NewPseudoRandom(rng), p, d, NewDefaultParameters())
 	rt.Push(
 		peer.New(
 			id.NewPseudoRandom(rng),
@@ -94,20 +98,20 @@ func TestTableSetBalancer_Remove(t *testing.T) {
 	)
 	csb := NewClientBalancer(rt, clients)
 
-	lc2, peerID, err := csb.AddNext()
+	lc2, address, err := csb.AddNext()
 	assert.Nil(t, err)
 	assert.Equal(t, lc1, lc2)
-	assert.NotNil(t, peerID)
+	assert.NotEmpty(t, address)
 	assert.Equal(t, 1, len(csb.(*tableSetBalancer).set))
 
 	// check removing peer from set works as expected
-	err = csb.Remove(peerID)
+	err = csb.Remove(address)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(csb.(*tableSetBalancer).set))
 
 	// check removing peer not in set errors
-	err = csb.Remove(id.NewPseudoRandom(rng))
-	assert.Equal(t, ErrClientMissingFromSet, err)
+	err = csb.Remove("random address")
+	assert.Equal(t, client.ErrClientMissingFromSet, err)
 }
 
 type fixedPool struct {
@@ -129,4 +133,20 @@ func (fp *fixedPool) CloseAll() error {
 
 func (fp *fixedPool) Len() int {
 	return 1
+}
+
+type fixedPreferer struct {
+	prefer bool
+}
+
+func (f *fixedPreferer) Prefer(peerID1, peerID2 id.ID) bool {
+	return f.prefer
+}
+
+type fixedDoctor struct {
+	healthy bool
+}
+
+func (f *fixedDoctor) Healthy(peerID id.ID) bool {
+	return f.healthy
 }

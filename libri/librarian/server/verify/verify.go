@@ -146,8 +146,8 @@ type Verify struct {
 
 	ExpectedMAC []byte
 
-	// RequestCreator creates new Verify requests
-	RequestCreator func() *api.VerifyRequest
+	// CreateRq creates new Verify requests
+	CreateRq func() *api.VerifyRequest
 
 	// Result contains the verification result
 	Result *Result
@@ -173,12 +173,12 @@ func NewVerify(selfID ecid.ID, key id.ID, value, macKey []byte, params *Paramete
 	mac := macer.Sum(nil)
 
 	return &Verify{
-		Key:            key,
-		Value:          value,
-		ExpectedMAC:    mac,
-		RequestCreator: rqCreator,
-		Result:         NewInitialResult(key, params),
-		Params:         params,
+		Key:         key,
+		Value:       value,
+		ExpectedMAC: mac,
+		CreateRq:    rqCreator,
+		Result:      NewInitialResult(key, params),
+		Params:      params,
 	}
 }
 

@@ -27,6 +27,7 @@ const (
 	kubeConfigFilename         = "libri.yml"
 
 	// Terraform variable keys
+	tfClusterAdminUser      = "cluster_admin_user"
 	tfClusterHost           = "cluster_host"
 	tfNumLibrarians         = "num_librarians"
 	tfLibrarianLibriVersion = "librarian_libri_version"
@@ -38,6 +39,10 @@ const (
 	tfLocalMetricsPort      = "librarian_local_metrics_port"
 	tfGrafanaPort           = "grafana_port"
 	tfPrometheusPort        = "prometheus_port"
+	tfGrafanaCPULimit       = "grafana_cpu_limit"
+	tfGrafanaRAMLimit       = "grafana_ram_limit"
+	tfPrometheusCPULimit    = "prometheus_cpu_limit"
+	tfPrometheusRAMLimit    = "prometheus_ram_limit"
 
 	tfClusterHostGCP      = "gcp"
 	tfClusterHostMinikube = "minikube"
@@ -54,11 +59,16 @@ type TFConfig struct {
 
 // KubeConfig contains the configuration to apply to the template.
 type KubeConfig struct {
+	ClusterAdminUser    string
 	LibriVersion        string
 	LocalPort           int
 	LocalMetricsPort    int
 	GrafanaPort         int
 	PrometheusPort      int
+	GrafanaCPULimit     string
+	PrometheusCPULimit  string
+	GrafanaRAMLimit     string
+	PrometheusRAMLimit  string
 	Librarians          []LibrarianConfig
 	LibrarianCPULimit   string
 	LibrarianRAMLimit   string
@@ -133,13 +143,12 @@ var minikubeCmd = &cobra.Command{
 		config := initFlags
 		checkInitMinikubeParams(config)
 
-		maybeMkdir(clusterDir)
+		maybeMkdir(config.ClusterDir)
 		// TF infra can't be applied to minikube, so no main.tf is written
-		writeVarsTFFile(config, clusterDir, tfMinikubeTemplateDir)
-		writePropsFile(config, clusterDir, tfMinikubeTemplateDir)
-		tfCommand(clusterDir, "init")
+		writeVarsTFFile(config, config.ClusterDir, tfMinikubeTemplateDir)
+		writePropsFile(config, config.ClusterDir, tfMinikubeTemplateDir)
 
-		fmt.Printf("\n%s successfully initialized in %s\n", config.ClusterName, clusterDir)
+		fmt.Printf("%s successfully initialized in %s\n", config.ClusterName, config.ClusterDir)
 	},
 }
 
@@ -323,18 +332,26 @@ func kubeApply(clusterDir string, dryRun bool) {
 func writeKubeConfig(clusterDir string) {
 	tfvars := getTFFlags(clusterDir)
 	config := KubeConfig{
-		LibriVersion:        tfvars[tfLibrarianLibriVersion].(string),
-		LocalPort:           tfvars[tfLocalPort].(int),
-		LocalMetricsPort:    tfvars[tfLocalMetricsPort].(int),
-		GrafanaPort:         tfvars[tfGrafanaPort].(int),
-		PrometheusPort:      tfvars[tfPrometheusPort].(int),
-		Librarians:          make([]LibrarianConfig, tfvars[tfNumLibrarians].(int)),
-		LibrarianCPULimit:   tfvars[tfLibrarianCPULimit].(string),
-		LibrarianRAMLimit:   tfvars[tfLibrarianRAMLimit].(string),
-		LibrarianDiskSizeGB: tfvars[tfLibrarianDiskSizeGB].(int),
-		LocalCluster:        tfvars[tfClusterHost] == tfClusterHostMinikube,
-		GCPCluster:          tfvars[tfClusterHost] == tfClusterHostGCP,
+		ClusterAdminUser:   tfvars[tfClusterAdminUser].(string),
+		LibriVersion:       tfvars[tfLibrarianLibriVersion].(string),
+		LocalPort:          tfvars[tfLocalPort].(int),
+		LocalMetricsPort:   tfvars[tfLocalMetricsPort].(int),
+		GrafanaPort:        tfvars[tfGrafanaPort].(int),
+		PrometheusPort:     tfvars[tfPrometheusPort].(int),
+		Librarians:         make([]LibrarianConfig, tfvars[tfNumLibrarians].(int)),
+		LibrarianCPULimit:  tfvars[tfLibrarianCPULimit].(string),
+		LibrarianRAMLimit:  tfvars[tfLibrarianRAMLimit].(string),
+		GrafanaCPULimit:    tfvars[tfGrafanaCPULimit].(string),
+		GrafanaRAMLimit:    tfvars[tfGrafanaRAMLimit].(string),
+		PrometheusCPULimit: tfvars[tfPrometheusCPULimit].(string),
+		PrometheusRAMLimit: tfvars[tfPrometheusRAMLimit].(string),
+		LocalCluster:       tfvars[tfClusterHost] == tfClusterHostMinikube,
+		GCPCluster:         tfvars[tfClusterHost] == tfClusterHostGCP,
 	}
+	if value, in := tfvars[tfLibrarianDiskSizeGB]; in {
+		config.LibrarianDiskSizeGB = value.(int)
+	}
+
 	for i := range config.Librarians {
 		config.Librarians[i].PublicPort = tfvars[tfPublicPortStart].(int) + i
 	}

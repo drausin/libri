@@ -79,7 +79,7 @@ func TestKvdbSLD_Iterate(t *testing.T) {
 		"3": []byte("val3"),
 	}
 	for key, val := range vals {
-		err := sld.Store([]byte(key), val)
+		err = sld.Store([]byte(key), val)
 		assert.Nil(t, err)
 	}
 

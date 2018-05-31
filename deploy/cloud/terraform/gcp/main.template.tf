@@ -2,7 +2,7 @@
 terraform {
   backend "gcs" {
     bucket  = "{{ .Bucket }}"
-    path    = "{{ .ClusterName }}/terraform/current.tfstate"
+    prefix    = "{{ .ClusterName }}/terraform/current.tfstate"
     project = "{{ .GCPProject }}"
   }
 }

@@ -8,8 +8,10 @@ import (
 	"path/filepath"
 
 	"github.com/drausin/libri/libri/common/errors"
+	"github.com/drausin/libri/libri/common/parse"
 	"github.com/drausin/libri/libri/common/subscribe"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
+	"github.com/drausin/libri/libri/librarian/server/replicate"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/search"
 	"github.com/drausin/libri/libri/librarian/server/store"
@@ -80,6 +82,9 @@ type Config struct {
 	// Store defines parameters for stores the server performs.
 	Store *store.Parameters
 
+	// Replicate defines parameters for replications the server performs.
+	Replicate *replicate.Parameters
+
 	// SubscribeTo defines parameters for subscriptions to other peers.
 	SubscribeTo *subscribe.ToParameters
 
@@ -116,6 +121,7 @@ func NewDefaultConfig() *Config {
 	config.WithDefaultStore()
 	config.WithDefaultSubscribeTo()
 	config.WithDefaultSubscribeFrom()
+	config.WithDefaultReplicate()
 	config.WithDefaultReportMetrics()
 	config.WithDefaultProfile()
 	config.WithDefaultLogLevel()
@@ -184,7 +190,7 @@ func (c *Config) WithPublicAddr(publicAddr *net.TCPAddr) *Config {
 // WithDefaultPublicAddr sets the public address to the local address, useful when just running
 // a cluster locally.
 func (c *Config) WithDefaultPublicAddr() *Config {
-	addr, err := ParseAddr(DefaultIP, c.LocalPort)
+	addr, err := parse.Addr(DefaultIP, c.LocalPort)
 	errors.MaybePanic(err) // should never happen with default
 	c.PublicAddr = addr
 	return c
@@ -253,7 +259,7 @@ func (c *Config) WithBootstrapAddrs(bootstrapAddrs []*net.TCPAddr) *Config {
 // and port.
 func (c *Config) WithDefaultBootstrapAddrs() *Config {
 	// default is itself
-	addr, err := ParseAddr(DefaultIP, DefaultPort)
+	addr, err := parse.Addr(DefaultIP, DefaultPort)
 	errors.MaybePanic(err) // should never happen with default
 	c.BootstrapAddrs = []*net.TCPAddr{addr}
 	return c
@@ -355,15 +361,33 @@ func (c *Config) WithDefaultSubscribeFrom() *Config {
 	return c
 }
 
+// WithReplicate sets the subscription from parameters to the given value or the default it is
+// nil.
+func (c *Config) WithReplicate(params *replicate.Parameters) *Config {
+	if params == nil {
+		return c.WithDefaultReplicate()
+	}
+	c.Replicate = params
+	return c
+}
+
+// WithDefaultReplicate sets the subscription from parameters to the default.
+func (c *Config) WithDefaultReplicate() *Config {
+	c.Replicate = replicate.NewDefaultParameters()
+	return c
+}
+
 // WithDefaultReportMetrics sets the default state for whether to report metrics.
 func (c *Config) WithDefaultReportMetrics() *Config {
 	c.ReportMetrics = true
+	c.Replicate.ReportMetrics = true
 	return c
 }
 
 // WithReportMetrics sets whether to report metrics or not.
 func (c *Config) WithReportMetrics(reportMetrics bool) *Config {
 	c.ReportMetrics = reportMetrics
+	c.Replicate.ReportMetrics = reportMetrics
 	return c
 }
 
@@ -393,33 +417,6 @@ func (c *Config) WithLogLevel(logLevel zapcore.Level) *Config {
 func (c *Config) WithDefaultLogLevel() *Config {
 	c.LogLevel = DefaultLogLevel
 	return c
-}
-
-func (c *Config) isBootstrap() bool {
-	for _, a := range c.BootstrapAddrs {
-		if c.PublicAddr.String() == a.String() {
-			return true
-		}
-	}
-	return false
-}
-
-// ParseAddr parses a net.TCPAddr from a host address and port.
-func ParseAddr(host string, port int) (*net.TCPAddr, error) {
-	return net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", host, port))
-}
-
-// ParseAddrs parses an array of net.TCPAddrs from an array of IPv4:Port address strings.
-func ParseAddrs(addrs []string) ([]*net.TCPAddr, error) {
-	netAddrs := make([]*net.TCPAddr, len(addrs))
-	for i, a := range addrs {
-		netAddr, err := net.ResolveTCPAddr("tcp4", a)
-		if err != nil {
-			return nil, err
-		}
-		netAddrs[i] = netAddr
-	}
-	return netAddrs, nil
 }
 
 // NameFromAddr gives the local name (on the host) of the node using the NodeIndex

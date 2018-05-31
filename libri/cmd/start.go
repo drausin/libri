@@ -6,8 +6,10 @@ import (
 
 	"github.com/drausin/libri/libri/common/errors"
 	clogging "github.com/drausin/libri/libri/common/logging"
+	"github.com/drausin/libri/libri/common/parse"
 	"github.com/drausin/libri/libri/common/subscribe"
 	"github.com/drausin/libri/libri/librarian/server"
+	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -24,6 +26,7 @@ const (
 	nSubscriptionsFlag    = "nSubscriptions"
 	fpRateFlag            = "fpRate"
 	profileFlag           = "profile"
+	maxBucketPeersFlag    = "maxRoutingBucketPeers"
 
 	logLocalPort        = "localPort"
 	logLocalMetricsPort = "localMetricsPort"
@@ -68,6 +71,8 @@ func init() {
 		"false positive rate for subscriptions to other peers")
 	startLibrarianCmd.Flags().Bool(profileFlag, false,
 		"enable /debug/pprof profiler endpoint")
+	startLibrarianCmd.Flags().Uint(maxBucketPeersFlag, routing.DefaultMaxActivePeers,
+		"max number of peers allowed in a routing table bucket")
 
 	// bind viper flags
 	viper.SetEnvPrefix("LIBRI") // look for env vars with "LIBRI_" prefix
@@ -83,7 +88,7 @@ func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
 	localMetricsPort := viper.GetInt(localMetricsPortFlag)
 	localProfilerPort := viper.GetInt(localProfilerPortFlag)
 	profile := viper.GetBool(profileFlag)
-	publicAddr, err := server.ParseAddr(
+	publicAddr, err := parse.Addr(
 		viper.GetString(publicHostFlag),
 		viper.GetInt(publicPortFlag),
 	)
@@ -103,8 +108,9 @@ func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
 		WithLogLevel(logLevel)
 	config.SubscribeTo.NSubscriptions = uint32(viper.GetInt(nSubscriptionsFlag))
 	config.SubscribeTo.FPRate = float32(viper.GetFloat64(fpRateFlag))
+	config.Routing.MaxBucketPeers = uint(viper.GetInt(maxBucketPeersFlag))
 
-	bootstrapNetAddrs, err := server.ParseAddrs(viper.GetStringSlice(bootstrapsFlag))
+	bootstrapNetAddrs, err := parse.Addrs(viper.GetStringSlice(bootstrapsFlag))
 	if err != nil {
 		logger.Error("unable to parse bootstrap peer address", zap.Error(err))
 		return nil, nil, err
@@ -123,6 +129,7 @@ func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
 		zap.Stringer(logLevelFlag, config.LogLevel),
 		zap.Uint32(nSubscriptionsFlag, config.SubscribeTo.NSubscriptions),
 		zap.Float32(fpRateFlag, config.SubscribeTo.FPRate),
+		zap.Uint(maxBucketPeersFlag, config.Routing.MaxBucketPeers),
 	)
 	return config, logger, nil
 }

@@ -161,7 +161,7 @@ func TestDocumentSLD_Iterate(t *testing.T) {
 	for c := 0; c < nDocs; c++ {
 		val, key := api.NewTestDocument(rng)
 		vals[key.String()] = val
-		err := dsld.Store(key, val)
+		err = dsld.Store(key, val)
 		assert.Nil(t, err)
 	}
 

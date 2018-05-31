@@ -3,6 +3,7 @@ provider "google" {
   project     = "${var.gcp_project}"
   region = "${var.gce_node_region}"
   credentials = "${file(var.credentials_file)}"
+  version = "~> 1.10"
 }
 
 resource "google_container_cluster" "libri" {
@@ -14,7 +15,7 @@ resource "google_container_cluster" "libri" {
 
   master_auth {
     username = "admin"
-    password = "demetrius"
+    password = "demetriusijustdontknowwhywoahwoah"
   }
 
   node_config {

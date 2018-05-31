@@ -1,4 +1,38 @@
 
+## v0.4.0
+
+#### breaking changes
+None
+
+#### bugfixes
+- fix minikube cluster cmd & readme (#173)
+- update terraform configs for gcp deployment (#175)
+- make local demo bash v3 compat (#176)
+- fix search data race (#190)
+- use Rq creators instead of static Search & Store requests (#191)
+- fix replicator data race (#193)
+
+#### external features
+- add max bucket peers command line param (#183)
+- make librarians return GRPC error codes (#187)
+- add request rate limiter (#188)
+- add replicator Prometheus metrics (#189)
+
+#### internal features
+- move address parsing to own pkg (#174)
+- add standalone set balancer (#177)
+- add RBAC for Prometheus deployment (#182)
+- add goodwill recorder and judge (#179, #180, #181)
+- add Find to routing bucket and flesh out Judge components (#185)
+- refactor goodwill pkg into comm (#186)
+- support self bootstrap (#192)
+
+#### requirements
+- Kubernetes ^1.7
+- Terraform ^0.11
+
+Tested with Minikube v0.25.2 (hyperkit driver), Kubernetes v1.9.4.
+
 ## v0.3.0
 
 #### breaking changes

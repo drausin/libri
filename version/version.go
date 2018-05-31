@@ -25,20 +25,21 @@ var (
 	BuildDate string
 )
 
-var semverString = "0.3.0"
+const semverString = "0.4.0"
 
 const (
 	develop         = "develop"
 	master          = "master"
 	snapshot        = "snapshot"
+	rc              = "rc"
 	buildDateFormat = "2006-01-02" // ISO 8601 date format
 )
 
 var branchPrefixes = []string{
 	"feature/",
-	"release/",
 	"bugfix/",
 }
+var releasePrefix = "release/"
 
 // BuildInfo contains info about the current build.
 type BuildInfo struct {
@@ -65,7 +66,10 @@ func init() {
 	}
 	Version := semver.MustParse(semverString)
 	if GitBranch == master {
-		// no pre-release tags to add
+		// don't override pre-release or build flags it's actually a release
+	} else if strings.HasPrefix(GitBranch, releasePrefix) {
+		Version.Pre = []semver.PRVersion{{VersionStr: rc}}
+		Version.Build = []string{GitRevision}
 	} else if GitBranch == develop {
 		Version.Pre = []semver.PRVersion{{VersionStr: snapshot}}
 	} else {

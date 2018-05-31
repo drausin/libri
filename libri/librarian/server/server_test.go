@@ -20,6 +20,7 @@ import (
 	"github.com/drausin/libri/libri/common/subscribe"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
+	"github.com/drausin/libri/libri/librarian/server/comm"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/drausin/libri/libri/librarian/server/search"
@@ -28,7 +29,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
+)
+
+var (
+	errNotAllowed = status.Error(codes.PermissionDenied, "not authorized")
 )
 
 // TestNewLibrarian checks that we can create a new instance, close it, and create it again as
@@ -50,8 +57,8 @@ func TestNewLibrarian(t *testing.T) {
 
 	l2, err := NewLibrarian(l1.config, zap.NewNop())
 	go func() {
-		err := l2.replicator.Start()
-		assert.Nil(t, err)
+		err2 := l2.replicator.Start()
+		assert.Nil(t, err2)
 	}()
 	go func() { // dummy stop signal acceptor
 		<-l2.stop
@@ -76,6 +83,7 @@ func newTestConfig() *Config {
 	dir, err := ioutil.TempDir("", "test-data-dir")
 	cerrors.MaybePanic(err)
 	config.WithDataDir(dir).WithDefaultDBDir() // resets default DB dir given new data dir
+	config.WithReportMetrics(false)            // otherwise can get duplicate Prom registrations
 	return config
 }
 
@@ -92,7 +100,8 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	peerName, serverPeerIdx := "server", 0
 	publicAddr := peer.NewTestPublicAddr(serverPeerIdx)
-	rt, serverID, _ := routing.NewTestWithPeers(rng, 128)
+	rt, serverID, _, _ := routing.NewTestWithPeers(rng, 128)
+	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 
 	lib := &Librarian{
 		config: &Config{
@@ -104,6 +113,8 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 		selfID:  serverID,
 		rt:      rt,
 		rqv:     &alwaysRequestVerifier{},
+		rec:     rec,
+		allower: &fixedAllower{},
 		logger:  zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 
@@ -123,7 +134,7 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 		Self:     clientImpl.ToAPI(),
 		NumPeers: numPeers,
 	}
-	rp, err := lib.Introduce(context.TODO(), rq)
+	rp, err := lib.Introduce(context.Background(), rq)
 
 	// check response
 	assert.Nil(t, err)
@@ -131,32 +142,71 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 	assert.Equal(t, serverID.ID().Bytes(), rp.Self.PeerId)
 	assert.Equal(t, peerName, rp.Self.PeerName)
 	assert.Equal(t, int(numPeers), len(rp.Peers))
+	qo := rec.Get(clientImpl.ID(), api.Introduce)
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
 func TestLibrarian_Introduce_checkRequestErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
+	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 	l := &Librarian{
 		logger: zap.NewNop(), // clogging.NewDevInfoLogger()
+		rec:    rec,
 	}
 	rq := &api.IntroduceRequest{
 		Metadata: client.NewRequestMetadata(ecid.NewPseudoRandom(rng)),
 	}
 	rq.Metadata.PubKey = []byte("corrupted pub key")
 
-	rp, err := l.Introduce(context.TODO(), rq)
+	rp, err := l.Introduce(context.Background(), rq)
 	assert.Nil(t, rp)
-	assert.NotNil(t, err)
+	assert.Equal(t, codes.InvalidArgument, getErrCode(t, err))
+}
+
+func TestLibrarian_Introduce_allowErr(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	rt, _, _, _ := routing.NewTestWithPeers(rng, 0)
+	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
+
+	lib := &Librarian{
+		fromer:  peer.NewFromer(),
+		rt:      rt,
+		rqv:     &alwaysRequestVerifier{},
+		rec:     rec,
+		allower: &fixedAllower{allow: errNotAllowed},
+		logger:  zap.NewNop(), // clogging.NewDevInfoLogger()
+	}
+
+	clientID, clientPeerIdx := ecid.NewPseudoRandom(rng), 1
+	client1 := peer.New(
+		clientID.ID(),
+		"client",
+		peer.NewTestPublicAddr(clientPeerIdx),
+	)
+	rq := &api.IntroduceRequest{
+		Metadata: newTestRequestMetadata(rng, clientID),
+		Self:     client1.ToAPI(),
+	}
+	rp, err := lib.Introduce(context.Background(), rq)
+
+	assert.Nil(t, rp)
+	assert.Equal(t, codes.PermissionDenied, getErrCode(t, err))
+	qo := rec.Get(clientID.ID(), api.Introduce)
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Error].Count))
 }
 
 func TestLibrarian_Introduce_peerIDErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	rt, _, _ := routing.NewTestWithPeers(rng, 0)
+	rt, _, _, _ := routing.NewTestWithPeers(rng, 0)
+	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 
 	lib := &Librarian{
-		fromer: peer.NewFromer(),
-		rt:     rt,
-		rqv:    &alwaysRequestVerifier{},
-		logger: zap.NewNop(), // clogging.NewDevInfoLogger()
+		fromer:  peer.NewFromer(),
+		rt:      rt,
+		rqv:     &alwaysRequestVerifier{},
+		rec:     rec,
+		allower: &fixedAllower{},
+		logger:  zap.NewNop(), // clogging.NewDevInfoLogger()
 	}
 
 	clientID, clientPeerIdx := ecid.NewPseudoRandom(rng), 1
@@ -170,14 +220,17 @@ func TestLibrarian_Introduce_peerIDErr(t *testing.T) {
 	assert.False(t, exists)
 
 	// request improperly signed with different public key
+	otherID := ecid.NewPseudoRandom(rng)
 	rq := &api.IntroduceRequest{
-		Metadata: newTestRequestMetadata(rng, ecid.NewPseudoRandom(rng)),
+		Metadata: newTestRequestMetadata(rng, otherID),
 		Self:     client1.ToAPI(),
 	}
-	rp, err := lib.Introduce(context.TODO(), rq)
+	rp, err := lib.Introduce(context.Background(), rq)
 
 	assert.Nil(t, rp)
-	assert.NotNil(t, err)
+	assert.Equal(t, codes.InvalidArgument, getErrCode(t, err))
+	qo := rec.Get(otherID.ID(), api.Introduce)
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Error].Count))
 }
 
 func TestLibrarian_Find_peers(t *testing.T) {
@@ -192,13 +245,16 @@ func TestLibrarian_Find_peers(t *testing.T) {
 			// for different selfIDs
 
 			rng := rand.New(rand.NewSource(int64(s)))
-			rt, peerID, nAdded := routing.NewTestWithPeers(rng, n)
+			rt, peerID, nAdded, _ := routing.NewTestWithPeers(rng, n)
+			rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 			l := &Librarian{
 				selfID:     peerID,
 				documentSL: storage.NewDocumentSLD(kvdb),
 				kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 				rt:         rt,
 				rqv:        &alwaysRequestVerifier{},
+				rec:        rec,
+				allower:    &fixedAllower{},
 				logger:     zap.NewNop(), // clogging.NewDevInfoLogger()
 			}
 
@@ -209,11 +265,13 @@ func TestLibrarian_Find_peers(t *testing.T) {
 				NumPeers: numClosest,
 			}
 
-			rp, err := l.Find(context.TODO(), rq)
+			rp, err := l.Find(context.Background(), rq)
 			assert.Nil(t, err)
 
 			// check
 			checkPeersFindResponse(t, rq, rp, nAdded, numClosest)
+			qo := rec.Get(l.selfID.ID(), api.Find)
+			assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 		}
 	}
 }
@@ -241,12 +299,13 @@ func checkPeersFindResponse(
 
 func TestLibrarian_Find_value(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	rt, peerID, _ := routing.NewTestWithPeers(rng, 64)
+	rt, peerID, _, _ := routing.NewTestWithPeers(rng, 64)
 	kvdb, cleanup, err := db.NewTempDirRocksDB()
 	defer cleanup()
 	defer kvdb.Close()
 	assert.Nil(t, err)
 
+	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 	l := &Librarian{
 		selfID:     peerID,
 		db:         kvdb,
@@ -255,6 +314,8 @@ func TestLibrarian_Find_value(t *testing.T) {
 		rt:         rt,
 		kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		rqv:        &alwaysRequestVerifier{},
+		rec:        rec,
+		allower:    &fixedAllower{},
 		logger:     zap.NewNop(), // clogging.NewDevInfoLogger()
 	}
 
@@ -270,8 +331,10 @@ func TestLibrarian_Find_value(t *testing.T) {
 		Key:      key.Bytes(),
 		NumPeers: numClosest,
 	}
-	rp, err := l.Find(context.TODO(), rq)
+	rp, err := l.Find(context.Background(), rq)
 	assert.Nil(t, err)
+	qo := rec.Get(l.selfID.ID(), api.Find)
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 
 	// we should get back the value we stored
 	assert.NotNil(t, rp.Value)
@@ -283,56 +346,76 @@ func TestLibrarian_Find_value(t *testing.T) {
 func TestLibrarian_Find_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	peerID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
-	rt, _, _ := routing.NewTestWithPeers(rng, 0)
-	cases := []struct {
-		l         *Librarian
-		rqCreator func() *api.FindRequest
+	rt, _, _, _ := routing.NewTestWithPeers(rng, 0)
+	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
+	cases := map[string]struct {
+		l               *Librarian
+		rqCreator       func() *api.FindRequest
+		expectedErrCode codes.Code
 	}{
-		// case 0
-		{
+		"bad pub key": {
 			l: &Librarian{
 				logger: zap.NewNop(), // clogging.NewDevInfoLogger()
 				rqv:    NewRequestVerifier(),
 				kc:     storage.NewExactLengthChecker(storage.EntriesKeyLength),
+				rec:    rec,
 			},
 			rqCreator: func() *api.FindRequest {
 				rq := client.NewFindRequest(peerID, key, uint(8))
 				rq.Metadata.PubKey = []byte("corrupted pub key")
 				return rq
 			},
+			expectedErrCode: codes.InvalidArgument,
 		},
 
-		// case 1
-		{
+		"allow error": {
+			l: &Librarian{
+				logger:  zap.NewNop(), // clogging.NewDevInfoLogger()
+				rqv:     &alwaysRequestVerifier{},
+				kc:      storage.NewExactLengthChecker(storage.EntriesKeyLength),
+				rec:     rec,
+				allower: &fixedAllower{errNotAllowed},
+				rt:      rt,
+			},
+			rqCreator: func() *api.FindRequest {
+				return client.NewFindRequest(peerID, key, uint(8))
+			},
+			expectedErrCode: codes.PermissionDenied,
+		},
+
+		"load error": {
 			l: &Librarian{
 				logger:     zap.NewNop(), // clogging.NewDevInfoLogger()
 				rqv:        &alwaysRequestVerifier{},
 				kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 				documentSL: &storage.TestDocSLD{LoadErr: errors.New("some Load error")},
+				rec:        rec,
+				allower:    &fixedAllower{},
 				rt:         rt,
 			},
 			rqCreator: func() *api.FindRequest {
 				return client.NewFindRequest(peerID, key, uint(8))
 			},
+			expectedErrCode: codes.Internal,
 		},
 	}
 
-	for i, c := range cases {
-		info := fmt.Sprintf("case %d", i)
-		rp, err := c.l.Find(context.TODO(), c.rqCreator())
-		assert.Nil(t, rp, info)
-		assert.NotNil(t, err, info)
+	for desc, c := range cases {
+		rp, err := c.l.Find(context.Background(), c.rqCreator())
+		assert.Nil(t, rp, desc)
+		assert.Equal(t, c.expectedErrCode, getErrCode(t, err), desc)
 	}
 }
 
 func TestLibrarian_Verify_value(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	rt, peerID, _ := routing.NewTestWithPeers(rng, 64)
+	rt, peerID, _, _ := routing.NewTestWithPeers(rng, 64)
 	kvdb, cleanup, err := db.NewTempDirRocksDB()
 	defer cleanup()
 	defer kvdb.Close()
 	assert.Nil(t, err)
 
+	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 	l := &Librarian{
 		selfID:     peerID,
 		db:         kvdb,
@@ -341,6 +424,8 @@ func TestLibrarian_Verify_value(t *testing.T) {
 		rt:         rt,
 		kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		rqv:        &alwaysRequestVerifier{},
+		rec:        rec,
+		allower:    &fixedAllower{},
 		logger:     zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 
@@ -366,13 +451,15 @@ func TestLibrarian_Verify_value(t *testing.T) {
 		MacKey:   macKey,
 		NumPeers: numClosest,
 	}
-	rp, err := l.Verify(context.TODO(), rq)
+	rp, err := l.Verify(context.Background(), rq)
 	assert.Nil(t, err)
 
 	// we should get back the expected mac
 	assert.Equal(t, expectedMAC, rp.Mac)
 	assert.Nil(t, rp.Peers)
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
+	qo := rec.Get(l.selfID.ID(), api.Verify)
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
 func TestLibrarian_Verify_peers(t *testing.T) {
@@ -387,13 +474,16 @@ func TestLibrarian_Verify_peers(t *testing.T) {
 			// for different selfIDs
 
 			rng := rand.New(rand.NewSource(int64(s)))
-			rt, peerID, nAdded := routing.NewTestWithPeers(rng, n)
+			rt, peerID, nAdded, _ := routing.NewTestWithPeers(rng, n)
+			rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 			l := &Librarian{
 				selfID:     peerID,
 				documentSL: storage.NewDocumentSLD(kvdb),
 				kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 				rt:         rt,
 				rqv:        &alwaysRequestVerifier{},
+				rec:        rec,
+				allower:    &fixedAllower{},
 				logger:     zap.NewNop(), // clogging.NewDevInfoLogger(),
 			}
 
@@ -404,11 +494,13 @@ func TestLibrarian_Verify_peers(t *testing.T) {
 				NumPeers: numClosest,
 			}
 
-			rp, err := l.Verify(context.TODO(), rq)
+			rp, err := l.Verify(context.Background(), rq)
 			assert.Nil(t, err)
 
 			// check
 			checkPeersVerifyResponse(t, rq, rp, nAdded, numClosest)
+			qo := rec.Get(l.selfID.ID(), api.Verify)
+			assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 		}
 	}
 }
@@ -436,57 +528,77 @@ func checkPeersVerifyResponse(
 func TestLibrarian_Verify_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	peerID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
-	rt, _, _ := routing.NewTestWithPeers(rng, 0)
+	rt, _, _, _ := routing.NewTestWithPeers(rng, 0)
+	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 	macKey := api.RandBytes(rng, 32)
-	cases := []struct {
-		l         *Librarian
-		rqCreator func() *api.VerifyRequest
+	cases := map[string]struct {
+		l               *Librarian
+		rqCreator       func() *api.VerifyRequest
+		expectedErrCode codes.Code
 	}{
-		// case 0
-		{
+		"bad pub key": {
 			l: &Librarian{
 				logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 				rqv:    NewRequestVerifier(),
 				kc:     storage.NewExactLengthChecker(storage.EntriesKeyLength),
+				rec:    rec,
 			},
 			rqCreator: func() *api.VerifyRequest {
 				rq := client.NewVerifyRequest(peerID, key, macKey, uint(8))
 				rq.Metadata.PubKey = []byte("corrupted pub key")
 				return rq
 			},
+			expectedErrCode: codes.InvalidArgument,
 		},
 
-		// case 1
-		{
+		"allow error": {
+			l: &Librarian{
+				logger:  zap.NewNop(), // clogging.NewDevInfoLogger()
+				rqv:     &alwaysRequestVerifier{},
+				kc:      storage.NewExactLengthChecker(storage.EntriesKeyLength),
+				rec:     rec,
+				allower: &fixedAllower{errNotAllowed},
+				rt:      rt,
+			},
+			rqCreator: func() *api.VerifyRequest {
+				return client.NewVerifyRequest(peerID, key, macKey, uint(8))
+			},
+			expectedErrCode: codes.PermissionDenied,
+		},
+
+		"mac err": {
 			l: &Librarian{
 				logger:     zap.NewNop(), // clogging.NewDevInfoLogger(),
 				rqv:        &alwaysRequestVerifier{},
 				kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 				documentSL: &storage.TestDocSLD{MacErr: errors.New("some Mac error")},
 				rt:         rt,
+				rec:        rec,
+				allower:    &fixedAllower{},
 			},
 			rqCreator: func() *api.VerifyRequest {
 				return client.NewVerifyRequest(peerID, key, macKey, uint(8))
 			},
+			expectedErrCode: codes.Internal,
 		},
 	}
 
-	for i, c := range cases {
-		info := fmt.Sprintf("case %d", i)
-		rp, err := c.l.Verify(context.TODO(), c.rqCreator())
-		assert.Nil(t, rp, info)
-		assert.NotNil(t, err, info)
+	for desc, c := range cases {
+		rp, err := c.l.Verify(context.Background(), c.rqCreator())
+		assert.Nil(t, rp, desc)
+		assert.Equal(t, c.expectedErrCode, getErrCode(t, err), desc)
 	}
 }
 
 func TestLibrarian_Store_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
-	rt, peerID, _ := routing.NewTestWithPeers(rng, 64)
+	rt, peerID, _, _ := routing.NewTestWithPeers(rng, 64)
 	kvdb, cleanup, err := db.NewTempDirRocksDB()
 	defer cleanup()
 	defer kvdb.Close()
 	assert.Nil(t, err)
 
+	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 	l := &Librarian{
 		selfID:         peerID,
 		rt:             rt,
@@ -498,6 +610,8 @@ func TestLibrarian_Store_ok(t *testing.T) {
 		kvc:            storage.NewHashKeyValueChecker(),
 		rqv:            &alwaysRequestVerifier{},
 		storageMetrics: newStorageMetrics(),
+		rec:            rec,
+		allower:        &fixedAllower{},
 		logger:         zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	defer l.storageMetrics.unregister()
@@ -511,7 +625,7 @@ func TestLibrarian_Store_ok(t *testing.T) {
 		Key:      key.Bytes(),
 		Value:    value,
 	}
-	rp, err := l.Store(context.TODO(), rq)
+	rp, err := l.Store(context.Background(), rq)
 	assert.Nil(t, err)
 	assert.NotNil(t, rp)
 
@@ -519,6 +633,8 @@ func TestLibrarian_Store_ok(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, value, stored)
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
+	qo := rec.Get(l.selfID.ID(), api.Store)
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
 func newTestRequestMetadata(rng *rand.Rand, peerID ecid.ID) *api.RequestMetadata {
@@ -530,23 +646,54 @@ func newTestRequestMetadata(rng *rand.Rand, peerID ecid.ID) *api.RequestMetadata
 
 func TestLibrarian_Store_checkRequestError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
+	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 	l := &Librarian{
 		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
+		rec:    rec,
 	}
 	value, key := api.NewTestDocument(rng)
-	rq := client.NewStoreRequest(ecid.NewPseudoRandom(rng), key, value)
+	rqID := ecid.NewPseudoRandom(rng)
+	rq := client.NewStoreRequest(rqID, key, value)
 	rq.Metadata.PubKey = []byte("corrupted pub key")
 
-	rp, err := l.Store(context.TODO(), rq)
+	rp, err := l.Store(context.Background(), rq)
 	assert.Nil(t, rp)
-	assert.NotNil(t, err)
+	assert.Equal(t, codes.InvalidArgument, getErrCode(t, err))
+	qo := rec.Get(rqID.ID(), api.Get)
+	assert.Equal(t, 0, int(qo[comm.Request][comm.Success].Count))
+}
+
+func TestLibrarian_Store_notAllowedError(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	rt, peerID, _, _ := routing.NewTestWithPeers(rng, 64)
+	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
+	l := &Librarian{
+		selfID:  peerID,
+		rt:      rt,
+		kc:      storage.NewExactLengthChecker(storage.EntriesKeyLength),
+		kvc:     storage.NewHashKeyValueChecker(),
+		rqv:     &alwaysRequestVerifier{},
+		rec:     rec,
+		allower: &fixedAllower{errNotAllowed},
+		logger:  zap.NewNop(), // clogging.NewDevInfoLogger(),
+	}
+	value, key := api.NewTestDocument(rng)
+	rqID := ecid.NewPseudoRandom(rng)
+	rq := client.NewStoreRequest(rqID, key, value)
+
+	rp, err := l.Store(context.Background(), rq)
+	assert.Nil(t, rp)
+	assert.Equal(t, codes.PermissionDenied, getErrCode(t, err))
+	qo := rec.Get(rqID.ID(), api.Store)
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Error].Count))
 }
 
 func TestLibrarian_Store_storeError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	rt, peerID, _ := routing.NewTestWithPeers(rng, 64)
+	rt, peerID, _, _ := routing.NewTestWithPeers(rng, 64)
 	sld := storage.NewTestDocSLD()
 	sld.StoreErr = errors.New("some Store error")
+	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 	l := &Librarian{
 		selfID:     peerID,
 		rt:         rt,
@@ -554,14 +701,19 @@ func TestLibrarian_Store_storeError(t *testing.T) {
 		kvc:        storage.NewHashKeyValueChecker(),
 		rqv:        &alwaysRequestVerifier{},
 		documentSL: sld,
+		rec:        rec,
+		allower:    &fixedAllower{},
 		logger:     zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	value, key := api.NewTestDocument(rng)
-	rq := client.NewStoreRequest(ecid.NewPseudoRandom(rng), key, value)
+	rqID := ecid.NewPseudoRandom(rng)
+	rq := client.NewStoreRequest(rqID, key, value)
 
-	rp, err := l.Store(context.TODO(), rq)
+	rp, err := l.Store(context.Background(), rq)
 	assert.Nil(t, rp)
-	assert.NotNil(t, err)
+	assert.Equal(t, codes.Internal, getErrCode(t, err))
+	qo := rec.Get(rqID.ID(), api.Store)
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
 type fixedSearcher struct {
@@ -592,10 +744,12 @@ func TestLibrarian_Get_FoundValue(t *testing.T) {
 	rq := client.NewGetRequest(peerID, key)
 
 	// since fixedSearcher returns fixed value, should get that back in response
-	rp, err := l.Get(context.TODO(), rq)
+	rp, err := l.Get(context.Background(), rq)
 	assert.Nil(t, err)
 	assert.Equal(t, value, rp.Value)
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
+	qo := l.rec.(comm.QueryRecorderGetter).Get(peerID.ID(), api.Get)
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
 func TestLibrarian_Get_FoundClosestPeers(t *testing.T) {
@@ -614,10 +768,12 @@ func TestLibrarian_Get_FoundClosestPeers(t *testing.T) {
 
 	// since fixedSearcher returns a Search value where UnderReplicated() is true, shouldn't
 	// have any Value
-	rp, err := l.Get(context.TODO(), rq)
+	rp, err := l.Get(context.Background(), rq)
 	assert.Nil(t, err)
 	assert.Nil(t, rp.Value)
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
+	qo := l.rec.(comm.QueryRecorderGetter).Get(peerID.ID(), api.Get)
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
 func TestLibrarian_Get_Errored(t *testing.T) {
@@ -634,9 +790,11 @@ func TestLibrarian_Get_Errored(t *testing.T) {
 	rq := client.NewGetRequest(peerID, key)
 
 	// since we have a fatal search error, Get() should also return an error
-	rp, err := l.Get(context.TODO(), rq)
-	assert.NotNil(t, err)
+	rp, err := l.Get(context.Background(), rq)
+	assert.Equal(t, codes.Internal, getErrCode(t, err))
 	assert.Nil(t, rp)
+	qo := l.rec.(comm.QueryRecorderGetter).Get(peerID.ID(), api.Get)
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
 func TestLibrarian_Get_Exhausted(t *testing.T) {
@@ -652,9 +810,11 @@ func TestLibrarian_Get_Exhausted(t *testing.T) {
 	rq := client.NewGetRequest(peerID, key)
 
 	// since we have a fatal search error, Get() should also return an error
-	rp, err := l.Get(context.TODO(), rq)
-	assert.NotNil(t, err)
+	rp, err := l.Get(context.Background(), rq)
+	assert.Equal(t, codes.Unavailable, getErrCode(t, err))
 	assert.Nil(t, rp)
+	qo := l.rec.(comm.QueryRecorderGetter).Get(peerID.ID(), api.Get)
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
 func TestLibrarian_Get_err(t *testing.T) {
@@ -666,27 +826,51 @@ func TestLibrarian_Get_err(t *testing.T) {
 	rq := client.NewGetRequest(peerID, key)
 
 	// since fixedSearcher returns fixed value, should get that back in response
-	rp, err := l.Get(context.TODO(), rq)
-	assert.NotNil(t, err)
+	rp, err := l.Get(context.Background(), rq)
+	assert.Equal(t, codes.Internal, getErrCode(t, err))
 	assert.Nil(t, rp)
+	qo := l.rec.(comm.QueryRecorderGetter).Get(peerID.ID(), api.Get)
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
 func TestLibrarian_Get_checkRequestError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	l := &Librarian{
 		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
+		rec:    comm.NewQueryRecorderGetter(comm.NewAlwaysKnower()),
 	}
-	rq := client.NewGetRequest(ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng))
+	rqID := ecid.NewPseudoRandom(rng)
+	rq := client.NewGetRequest(rqID, id.NewPseudoRandom(rng))
 	rq.Metadata.PubKey = []byte("corrupted pub key")
 
-	rp, err := l.Get(context.TODO(), rq)
+	rp, err := l.Get(context.Background(), rq)
 	assert.Nil(t, rp)
-	assert.NotNil(t, err)
+	assert.Equal(t, codes.InvalidArgument, getErrCode(t, err))
+	qo := l.rec.(comm.QueryRecorderGetter).Get(rqID.ID(), api.Get)
+	assert.Equal(t, 0, int(qo[comm.Request][comm.Success].Count))
+}
+
+func TestLibrarian_Get_notAllowedErr(t *testing.T) {
+	rng := rand.New(rand.NewSource(int64(0)))
+	key, peerID := id.NewPseudoRandom(rng), ecid.NewPseudoRandom(rng)
+
+	// create librarian and request
+	l := newGetLibrarian(rng, nil, nil)
+	l.allower = &fixedAllower{errNotAllowed}
+	rq := client.NewGetRequest(peerID, key)
+
+	// since fixedSearcher returns a Search value where UnderReplicated() is true, shouldn't
+	// have any Value
+	rp, err := l.Get(context.Background(), rq)
+	assert.Nil(t, rp)
+	assert.Equal(t, codes.PermissionDenied, getErrCode(t, err))
+	qo := l.rec.(comm.QueryRecorderGetter).Get(peerID.ID(), api.Get)
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Error].Count))
 }
 
 func newGetLibrarian(rng *rand.Rand, searchResult *search.Result, searchErr error) *Librarian {
 	n := 8
-	rt, peerID, _ := routing.NewTestWithPeers(rng, n)
+	rt, peerID, _, _ := routing.NewTestWithPeers(rng, n)
 	return &Librarian{
 		selfID: peerID,
 		config: NewDefaultConfig(),
@@ -696,8 +880,10 @@ func newGetLibrarian(rng *rand.Rand, searchResult *search.Result, searchErr erro
 			result: searchResult,
 			err:    searchErr,
 		},
-		rqv:    &alwaysRequestVerifier{},
-		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
+		rqv:     &alwaysRequestVerifier{},
+		rec:     comm.NewQueryRecorderGetter(comm.NewAlwaysKnower()),
+		allower: &fixedAllower{},
+		logger:  zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 }
 
@@ -730,11 +916,13 @@ func TestLibrarian_Put_Stored(t *testing.T) {
 	rq := client.NewPutRequest(peerID, key, value)
 
 	// since fixedSearcher returns fixed value, should get that back in response
-	rp, err := l.Put(context.TODO(), rq)
+	rp, err := l.Put(context.Background(), rq)
 	assert.Nil(t, err)
 	assert.Equal(t, uint32(nReplicas), rp.NReplicas)
 	assert.Equal(t, api.PutOperation_STORED, rp.Operation)
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
+	qo := l.rec.(comm.QueryRecorderGetter).Get(peerID.ID(), api.Put)
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
 func TestLibrarian_Put_Exists(t *testing.T) {
@@ -753,10 +941,12 @@ func TestLibrarian_Put_Exists(t *testing.T) {
 	rq := client.NewPutRequest(peerID, key, value)
 
 	// since fixedSearcher returns fixed value, should get that back in response
-	rp, err := l.Put(context.TODO(), rq)
+	rp, err := l.Put(context.Background(), rq)
 	assert.Nil(t, err)
 	assert.Equal(t, api.PutOperation_LEFT_EXISTING, rp.Operation)
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
+	qo := l.rec.(comm.QueryRecorderGetter).Get(peerID.ID(), api.Put)
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
 func TestLibrarian_Put_Errored(t *testing.T) {
@@ -774,9 +964,11 @@ func TestLibrarian_Put_Errored(t *testing.T) {
 	rq := client.NewPutRequest(peerID, key, value)
 
 	// since fixedSearcher returns fixed value, should get that back in response
-	rp, err := l.Put(context.TODO(), rq)
-	assert.NotNil(t, err)
+	rp, err := l.Put(context.Background(), rq)
+	assert.Equal(t, codes.Internal, getErrCode(t, err))
 	assert.Nil(t, rp)
+	qo := l.rec.(comm.QueryRecorderGetter).Get(peerID.ID(), api.Put)
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count)) // request was ok
 }
 
 func TestLibrarian_Put_err(t *testing.T) {
@@ -789,23 +981,47 @@ func TestLibrarian_Put_err(t *testing.T) {
 	rq := client.NewPutRequest(peerID, key, value)
 
 	// since fixedSearcher returns fixed value, should get that back in response
-	rp, err := l.Put(context.TODO(), rq)
-	assert.NotNil(t, err)
+	rp, err := l.Put(context.Background(), rq)
+	assert.Equal(t, codes.Internal, getErrCode(t, err))
 	assert.Nil(t, rp)
+	qo := l.rec.(comm.QueryRecorderGetter).Get(peerID.ID(), api.Put)
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count)) // request was ok
 }
 
 func TestLibrarian_Put_checkRequestError(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	l := &Librarian{
+		rec:    comm.NewQueryRecorderGetter(comm.NewAlwaysKnower()),
 		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	value, key := api.NewTestDocument(rng)
-	rq := client.NewPutRequest(ecid.NewPseudoRandom(rng), key, value)
+	rqID := ecid.NewPseudoRandom(rng)
+	rq := client.NewPutRequest(rqID, key, value)
 	rq.Metadata.PubKey = []byte("corrupted pub key")
 
-	rp, err := l.Put(context.TODO(), rq)
+	rp, err := l.Put(context.Background(), rq)
 	assert.Nil(t, rp)
-	assert.NotNil(t, err)
+	assert.Equal(t, codes.InvalidArgument, getErrCode(t, err))
+	qo := l.rec.(comm.QueryRecorderGetter).Get(rqID.ID(), api.Put)
+	assert.Equal(t, 0, int(qo[comm.Request][comm.Success].Count))
+}
+
+func TestLibrarian_Put_notAllowedErr(t *testing.T) {
+	rng := rand.New(rand.NewSource(int64(0)))
+	value, key := api.NewTestDocument(rng)
+	peerID := ecid.NewPseudoRandom(rng)
+
+	// create librarian and request
+	l := newPutLibrarian(rng, nil, nil)
+	l.allower = &fixedAllower{errNotAllowed}
+	rq := client.NewPutRequest(peerID, key, value)
+
+	// since fixedSearcher returns fixed value, should get that back in response
+	rp, err := l.Put(context.Background(), rq)
+	assert.Equal(t, codes.PermissionDenied, getErrCode(t, err))
+	assert.Nil(t, rp)
+	qo := l.rec.(comm.QueryRecorderGetter).Get(peerID.ID(), api.Put)
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Error].Count)) // request was ok
 }
 
 func TestLibrarian_Subscribe_ok(t *testing.T) {
@@ -813,14 +1029,18 @@ func TestLibrarian_Subscribe_ok(t *testing.T) {
 	nPubs := 64
 	newPubs := make(chan *subscribe.KeyedPub)
 	done := make(chan struct{})
+	rt, peerID, _, _ := routing.NewTestWithPeers(rng, 0)
 	l := &Librarian{
-		selfID: ecid.NewPseudoRandom(rng),
+		selfID: peerID,
 		subscribeFrom: &fixedFrom{
 			new:  newPubs,
 			done: done,
 		},
-		rqv:    &alwaysRequestVerifier{},
-		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
+		rqv:     &alwaysRequestVerifier{},
+		rt:      rt,
+		rec:     comm.NewQueryRecorderGetter(comm.NewAlwaysKnower()),
+		allower: &fixedAllower{},
+		logger:  zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 
 	// create subscription that should cover both the author and reader filter code branches
@@ -829,7 +1049,8 @@ func TestLibrarian_Subscribe_ok(t *testing.T) {
 	sub, err := subscribe.NewSubscription([][]byte{}, filterFP, [][]byte{}, filterFP, rng)
 	assert.Nil(t, err)
 
-	rq := client.NewSubscribeRequest(ecid.NewPseudoRandom(rng), sub)
+	rqID := ecid.NewPseudoRandom(rng)
+	rq := client.NewSubscribeRequest(rqID, sub)
 	from := &fixedLibrarianSubscribeServer{
 		sent: make(chan *api.SubscribeResponse),
 	}
@@ -839,6 +1060,8 @@ func TestLibrarian_Subscribe_ok(t *testing.T) {
 		defer wg.Done()
 		err = l.Subscribe(rq, from)
 		assert.Nil(t, err)
+		qo := l.rec.(comm.QueryRecorderGetter).Get(rqID.ID(), api.Subscribe)
+		assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 	}(wg)
 
 	// generate pubs we're going to send
@@ -882,10 +1105,10 @@ func TestLibrarian_Subscribe_ok(t *testing.T) {
 
 func TestLibrarian_Subscribe_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	selfID := ecid.NewPseudoRandom(rng)
 	sub, err := subscribe.NewFPSubscription(1.0, rng) // get everything
 	assert.Nil(t, err)
-	rq := client.NewSubscribeRequest(ecid.NewPseudoRandom(rng), sub)
+	rt, selfID, _, _ := routing.NewTestWithPeers(rng, 0)
+	rq := client.NewSubscribeRequest(selfID, sub)
 	from := &fixedLibrarianSubscribeServer{
 		sent: make(chan *api.SubscribeResponse),
 	}
@@ -893,55 +1116,88 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 	// check request error bubbles up
 	l1 := &Librarian{
 		rqv:    &neverRequestVerifier{},
-		rt:     routing.NewEmpty(selfID.ID(), routing.NewDefaultParameters()),
+		rt:     rt,
+		rec:    comm.NewQueryRecorderGetter(comm.NewAlwaysKnower()),
 		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	err = l1.Subscribe(rq, from)
-	assert.NotNil(t, err)
+	assert.Equal(t, codes.InvalidArgument, getErrCode(t, err))
+	qo := l1.rec.(comm.QueryRecorderGetter).Get(selfID.ID(), api.Subscribe)
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Error].Count))
+
+	sub6, err := subscribe.NewFPSubscription(1.0, rng)
+	assert.Nil(t, err)
+	rq6 := client.NewSubscribeRequest(selfID, sub6)
+	l6 := &Librarian{
+		rqv:     &alwaysRequestVerifier{},
+		rt:      rt,
+		rec:     comm.NewQueryRecorderGetter(comm.NewAlwaysKnower()),
+		allower: &fixedAllower{errNotAllowed},
+		logger:  zap.NewNop(), // clogging.NewDevInfoLogger(),
+	}
+	err = l6.Subscribe(rq6, from)
+	assert.Equal(t, codes.PermissionDenied, getErrCode(t, err))
+	qo = l6.rec.(comm.QueryRecorderGetter).Get(selfID.ID(), api.Subscribe)
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Error].Count))
 
 	// check author filter error bubbles up
 	sub2, err := subscribe.NewFPSubscription(1.0, rng)
 	assert.Nil(t, err)
 	sub2.AuthorPublicKeys.Encoded = nil // will trigger error
-	rq2 := client.NewSubscribeRequest(ecid.NewPseudoRandom(rng), sub2)
+	rq2 := client.NewSubscribeRequest(selfID, sub2)
 	l2 := &Librarian{
-		rqv:    &alwaysRequestVerifier{},
-		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
+		rqv:     &alwaysRequestVerifier{},
+		rt:      rt,
+		rec:     comm.NewQueryRecorderGetter(comm.NewAlwaysKnower()),
+		allower: &fixedAllower{},
+		logger:  zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	err = l2.Subscribe(rq2, from)
-	assert.NotNil(t, err)
+	assert.Equal(t, codes.InvalidArgument, getErrCode(t, err))
+	qo = l2.rec.(comm.QueryRecorderGetter).Get(selfID.ID(), api.Subscribe)
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Error].Count))
 
 	// check reader filter error bubbles up
 	sub3, err := subscribe.NewFPSubscription(1.0, rng)
 	assert.Nil(t, err)
 	sub3.ReaderPublicKeys.Encoded = nil // will trigger error
-	rq3 := client.NewSubscribeRequest(ecid.NewPseudoRandom(rng), sub3)
+	rq3 := client.NewSubscribeRequest(selfID, sub3)
 	l3 := &Librarian{
-		rqv:    &alwaysRequestVerifier{},
-		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
+		rqv:     &alwaysRequestVerifier{},
+		rt:      rt,
+		rec:     comm.NewQueryRecorderGetter(comm.NewAlwaysKnower()),
+		allower: &fixedAllower{},
+		logger:  zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	err = l3.Subscribe(rq3, from)
-	assert.NotNil(t, err)
+	assert.Equal(t, codes.InvalidArgument, getErrCode(t, err))
+	qo = l3.rec.(comm.QueryRecorderGetter).Get(selfID.ID(), api.Subscribe)
+	assert.Equal(t, 1, int(qo[comm.Request][comm.Error].Count))
 
 	// check subscribeFrom.New() bubbles up
 	sub4, err := subscribe.NewFPSubscription(1.0, rng)
 	assert.Nil(t, err)
-	rq4 := client.NewSubscribeRequest(ecid.NewPseudoRandom(rng), sub4)
+	rq4 := client.NewSubscribeRequest(selfID, sub4)
 	l4 := &Librarian{
 		selfID: ecid.NewPseudoRandom(rng),
 		subscribeFrom: &fixedFrom{
 			err: subscribe.ErrNotAcceptingNewSubscriptions,
 		},
-		rqv:    &alwaysRequestVerifier{},
-		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
+		rqv:     &alwaysRequestVerifier{},
+		rt:      rt,
+		rec:     comm.NewQueryRecorderGetter(comm.NewAlwaysKnower()),
+		allower: &fixedAllower{},
+		logger:  zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	err = l4.Subscribe(rq4, from)
-	assert.Equal(t, subscribe.ErrNotAcceptingNewSubscriptions, err)
+	assert.Equal(t, codes.ResourceExhausted, getErrCode(t, err))
+	qo = l4.rec.(comm.QueryRecorderGetter).Get(selfID.ID(), api.Subscribe)
+	assert.Equal(t, 0, int(qo[comm.Request][comm.Error].Count)) // not rq error
 
 	// check from.Send() error bubbles up
 	sub5, err := subscribe.NewFPSubscription(1.0, rng)
 	assert.Nil(t, err)
-	rq5 := client.NewSubscribeRequest(ecid.NewPseudoRandom(rng), sub5)
+	rq5 := client.NewSubscribeRequest(selfID, sub5)
 	newPubs := make(chan *subscribe.KeyedPub)
 	l5 := &Librarian{
 		selfID: ecid.NewPseudoRandom(rng),
@@ -949,8 +1205,11 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 			new:  newPubs,
 			done: make(chan struct{}),
 		},
-		rqv:    &alwaysRequestVerifier{},
-		logger: zap.NewNop(), // clogging.NewDevInfoLogger(),
+		rqv:     &alwaysRequestVerifier{},
+		rt:      rt,
+		rec:     comm.NewQueryRecorderGetter(comm.NewAlwaysKnower()),
+		allower: &fixedAllower{},
+		logger:  zap.NewNop(), // clogging.NewDevInfoLogger(),
 	}
 	from5 := &fixedLibrarianSubscribeServer{
 		err: errors.New("some Subscribe error"),
@@ -960,7 +1219,9 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 	go func(wg *sync.WaitGroup) {
 		defer wg.Done()
 		err = l5.Subscribe(rq5, from5)
-		assert.NotNil(t, err)
+		assert.Equal(t, codes.Unavailable, getErrCode(t, err))
+		qo = l5.rec.(comm.QueryRecorderGetter).Get(selfID.ID(), api.Subscribe)
+		assert.Equal(t, 0, int(qo[comm.Request][comm.Error].Count))
 	}(wg)
 	newPubs <- newKeyedPub(t, api.NewTestPublication(rng))
 	wg.Wait()
@@ -973,6 +1234,12 @@ func newKeyedPub(t *testing.T, pub *api.Publication) *subscribe.KeyedPub {
 		Key:   key,
 		Value: pub,
 	}
+}
+
+func getErrCode(t *testing.T, err error) codes.Code {
+	errSt, ok := status.FromError(err)
+	assert.True(t, ok)
+	return errSt.Code()
 }
 
 type fixedFrom struct {
@@ -1038,9 +1305,17 @@ func (f *fixedLibrarianSubscribeServer) RecvMsg(m interface{}) error {
 	return nil
 }
 
+type fixedAllower struct {
+	allow error
+}
+
+func (f *fixedAllower) Allow(peerID id.ID, endpoint api.Endpoint) error {
+	return f.allow
+}
+
 func newPutLibrarian(rng *rand.Rand, storeResult *store.Result, searchErr error) *Librarian {
 	n := 8
-	rt, peerID, _ := routing.NewTestWithPeers(rng, n)
+	rt, peerID, _, _ := routing.NewTestWithPeers(rng, n)
 	return &Librarian{
 		selfID: peerID,
 		config: NewDefaultConfig(),
@@ -1051,7 +1326,9 @@ func newPutLibrarian(rng *rand.Rand, storeResult *store.Result, searchErr error)
 			result: storeResult,
 			err:    searchErr,
 		},
-		rqv:    &alwaysRequestVerifier{},
-		logger: clogging.NewDevInfoLogger(),
+		rqv:     &alwaysRequestVerifier{},
+		rec:     comm.NewQueryRecorderGetter(comm.NewAlwaysKnower()),
+		allower: &fixedAllower{},
+		logger:  clogging.NewDevInfoLogger(),
 	}
 }

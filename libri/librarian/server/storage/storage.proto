@@ -11,26 +11,6 @@ message Address {
     uint32 port = 3;
 }
 
-message QueryOutcomes {
-    QueryTypeOutcomes requests = 1;
-    QueryTypeOutcomes responses = 2;
-}
-
-// Responses contains statistics about a Peer's query history.
-message QueryTypeOutcomes {
-    // epoch time (seconds since 1970 UTC) of the earliest response from the peer
-    int64 earliest = 1;
-
-    // epoch time of the latest response from the peer
-    int64 latest = 2;
-
-    // number of queries sent to the peer
-    uint64 n_queries = 3;
-
-    // number of queries that errored
-    uint64 n_errors = 4;
-}
-
 // Peer is the basic information associated with each peer in the network.
 message Peer {
     // big-endian byte representation of 32-byte ID
@@ -41,9 +21,6 @@ message Peer {
 
     // public IP address
     Address public_address = 3;
-
-    // response history
-    QueryOutcomes query_outcomes = 4;
 }
 
 // StoredRoutingTable contains the essential information associated with a routing table.

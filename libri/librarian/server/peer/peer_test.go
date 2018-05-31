@@ -4,7 +4,6 @@ import (
 	"math/rand"
 	"net"
 	"testing"
-	"time"
 
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -18,12 +17,6 @@ func TestNew(t *testing.T) {
 	assert.Equal(t, 0, peerID.Cmp(p.ID()))
 	assert.Equal(t, name, p.(*peer).name)
 	assert.Equal(t, addr, addr)
-
-	rs := p.Recorder().(*queryRecorder)
-	assert.Equal(t, uint64(0), rs.responses.nQueries)
-	assert.Equal(t, uint64(0), rs.responses.nErrors)
-	assert.Equal(t, int64(0), rs.responses.latest.Unix())
-	assert.Equal(t, int64(0), rs.responses.earliest.Unix())
 }
 
 func TestNewStub(t *testing.T) {
@@ -33,65 +26,6 @@ func TestNewStub(t *testing.T) {
 	assert.Equal(t, peerID, p.ID())
 	assert.Equal(t, name, p.(*peer).name)
 	assert.Nil(t, p.Address())
-}
-
-func TestPeer_Before(t *testing.T) {
-	cases := map[string]struct {
-		pqr    *queryRecorder // for now, query records are the only thing that influence
-		qqr    *queryRecorder // peer ordering, so we just define those here
-		before bool
-	}{
-		"strict": {
-			pqr: &queryRecorder{
-				responses: &queryTypeOutcomes{
-					latest:   time.Unix(0, 0),
-					nQueries: 2,
-				},
-			},
-			qqr: &queryRecorder{
-				responses: &queryTypeOutcomes{
-					latest:   time.Unix(0, 0),
-					nQueries: 1,
-				},
-			},
-			before: false, // before is strict
-		},
-		"standard": {
-			pqr: &queryRecorder{
-				responses: &queryTypeOutcomes{
-					latest:   time.Unix(0, 0),
-					nQueries: 1,
-				},
-			},
-			qqr: &queryRecorder{
-				responses: &queryTypeOutcomes{
-					latest:   time.Unix(61, 0),
-					nQueries: 2,
-				},
-			},
-			before: true,
-		},
-		"earliest": {
-			pqr: &queryRecorder{
-				responses: &queryTypeOutcomes{
-					earliest: time.Unix(0, 0),
-					latest:   time.Unix(75, 0),
-				},
-			},
-			qqr: &queryRecorder{
-				responses: &queryTypeOutcomes{
-					earliest: time.Unix(5, 0),
-					latest:   time.Unix(10, 0),
-				},
-			},
-			before: false, // Earliest has no effect
-		},
-	}
-	for label, c := range cases {
-		p := &peer{recorder: c.pqr}
-		q := &peer{recorder: c.qqr}
-		assert.Equal(t, c.before, p.Before(q), label)
-	}
 }
 
 func TestPeer_Merge_ok(t *testing.T) {
@@ -104,25 +38,16 @@ func TestPeer_Merge_ok(t *testing.T) {
 		IP:   net.ParseIP("192.168.1.1"),
 		Port: 20100,
 	})
-	p1.Recorder().Record(Request, Success)
-	assert.Equal(t, uint64(1), p1.Recorder().(*queryRecorder).requests.nQueries)
-	assert.Equal(t, uint64(0), p1.Recorder().(*queryRecorder).responses.nQueries)
 
 	p2Name := "p2"
 	p2 = New(p1.ID(), p2Name, &net.TCPAddr{
 		IP:   net.ParseIP("192.168.1.1"),
 		Port: 20100,
 	})
-	p2.Recorder().Record(Request, Success)
-	p2.Recorder().Record(Response, Success)
-	assert.Equal(t, uint64(1), p2.Recorder().(*queryRecorder).requests.nQueries)
-	assert.Equal(t, uint64(1), p2.Recorder().(*queryRecorder).responses.nQueries)
 
 	err := p1.Merge(p2)
 	assert.Nil(t, err)
 	assert.Equal(t, p1.(*peer).name, p2Name)
-	assert.Equal(t, uint64(2), p1.Recorder().(*queryRecorder).requests.nQueries)
-	assert.Equal(t, uint64(1), p1.Recorder().(*queryRecorder).responses.nQueries)
 
 	// p2's empty name should not replace p1's
 	p1 = NewTestPeer(rng, 0)

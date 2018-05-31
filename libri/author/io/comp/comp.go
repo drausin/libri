@@ -162,7 +162,7 @@ func (c *compressor) Read(p []byte) (int, error) {
 		if _, err = c.inner.Write(more[:nMore]); err != nil {
 			return 0, err
 		}
-		if _, err := c.uncompressedMAC.Write(more[:nMore]); err != nil {
+		if _, err = c.uncompressedMAC.Write(more[:nMore]); err != nil {
 			return 0, err
 		}
 		if err = c.inner.Flush(); err != nil {
@@ -302,7 +302,7 @@ func (d *decompressor) writeUncompressed() (int, error) {
 	if err != nil && err != io.EOF {
 		return nMore, err
 	}
-	if _, err := d.uncompressedMAC.Write(more[:nMore]); err != nil {
+	if _, err = d.uncompressedMAC.Write(more[:nMore]); err != nil {
 		return nMore, err
 	}
 	_, err = d.uncompressed.Write(more[:nMore])

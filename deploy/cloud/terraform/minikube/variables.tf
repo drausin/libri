@@ -3,8 +3,16 @@ variable "cluster_host" {
   description = "host of the cluster [gcp|minikube]"
 }
 
+variable "cluster_admin_user" {
+  description = "k8s admin user creating the cluster"
+}
+
 variable "num_librarians" {
   description = "current number of librarian peers in cluster"
+}
+
+variable "librarian_disk_size_gb" {
+  description = "size (GB) of persistant disk used by each librarian"
 }
 
 variable "librarian_libri_version" {
@@ -37,4 +45,20 @@ variable "grafana_port" {
 
 variable "prometheus_port" {
   description = "port for Prometheus service"
+}
+
+variable "grafana_ram_limit" {
+  description = "Grafana pod RAM limit (e.g., 500M, 1G)"
+}
+
+variable "grafana_cpu_limit" {
+  description = "Grafana pod CPU limit (e.g., 500m, 0.5, 1)"
+}
+
+variable "prometheus_ram_limit" {
+  description = "Prometheus pod RAM limit (e.g., 500M, 1G)"
+}
+
+variable "prometheus_cpu_limit" {
+  description = "Prometheus pod CPU limit (e.g., 500m, 0.5, 1)"
 }

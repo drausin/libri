@@ -20,11 +20,13 @@ import (
 	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
+	"github.com/drausin/libri/libri/common/parse"
 	"github.com/drausin/libri/libri/common/subscribe"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	lclient "github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server"
+	"github.com/drausin/libri/libri/librarian/server/comm"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
@@ -119,8 +121,8 @@ func setUp(params *params) *state { // nolint: deadcode
 			zap.String("seed_address", seedConfigs[c].PublicAddr.String()),
 		)
 		go func() {
-			err := server.Start(logger, seedConfigs[c], seedsUp)
-			errors.MaybePanic(err)
+			err2 := server.Start(logger, seedConfigs[c], seedsUp)
+			errors.MaybePanic(err2)
 		}()
 		seeds[c] = <-seedsUp // wait for seed to come up
 	}
@@ -150,10 +152,16 @@ func setUp(params *params) *state { // nolint: deadcode
 	publicAddr := peer.NewTestPublicAddr(params.nSeeds + params.nPeers + 1)
 	selfPeer := peer.New(selfID.ID(), "test client", publicAddr)
 	signer := lclient.NewSigner(selfID.Key())
+	knower := comm.NewAlwaysKnower()
+	rec := comm.NewQueryRecorderGetter(knower)
+	preferer := comm.NewFindRpPreferer(rec)
+	doctor := comm.NewNaiveDoctor()
+	rParams := routing.NewDefaultParameters()
+
 	clientImpl := &testClient{
 		selfID:  selfID,
 		selfAPI: selfPeer.ToAPI(),
-		rt:      routing.NewEmpty(selfID.ID(), routing.NewDefaultParameters()),
+		rt:      routing.NewEmpty(selfID.ID(), preferer, doctor, rParams),
 		signer:  signer,
 		logger:  logger,
 	}
@@ -164,19 +172,19 @@ func setUp(params *params) *state { // nolint: deadcode
 	for i, authorConfig := range authorConfigs {
 
 		// create keychains
-		err := lauthor.CreateKeychains(logger, authorConfig.KeychainDir, authorKeychainAuth,
+		err = lauthor.CreateKeychains(logger, authorConfig.KeychainDir, authorKeychainAuth,
 			veryLightScryptN, veryLightScryptP)
 		errors.MaybePanic(err)
 
 		// load keychains
-		authorKCs, selfReaderKCs, err := lauthor.LoadKeychains(authorConfig.KeychainDir,
+		authorKCs, selfReaderKCs, err2 := lauthor.LoadKeychains(authorConfig.KeychainDir,
 			authorKeychainAuth)
-		errors.MaybePanic(err)
+		errors.MaybePanic(err2)
 		authorKeys[i] = authorKCs
 
 		// create author
-		authors[i], err = lauthor.NewAuthor(authorConfig, authorKCs, selfReaderKCs, logger)
-		errors.MaybePanic(err)
+		authors[i], err2 = lauthor.NewAuthor(authorConfig, authorKCs, selfReaderKCs, logger)
+		errors.MaybePanic(err2)
 	}
 	clients, err := client.NewDefaultLRUPool()
 	errors.MaybePanic(err)
@@ -276,7 +284,8 @@ func writeBenchmarkResults(t *testing.T, benchmarks []*benchmarkObs) { // nolint
 	for _, benchmark := range benchmarks {
 		name := benchmarkName(benchmark.name, benchmark.procs)
 		for _, result := range averageSubsamples(benchmark.results, 4) {
-			fmt.Fprintf(f, "%-*s\t%s\n", maxNameLen, name, result.String())
+			_, err := fmt.Fprintf(f, "%-*s\t%s\n", maxNameLen, name, result.String())
+			assert.Nil(t, err)
 		}
 	}
 }
@@ -371,7 +380,7 @@ func newConfig(
 	subscribeToParams := subscribe.NewDefaultToParameters()
 	subscribeToParams.FPRate = 0.9
 
-	localAddr, err := server.ParseAddr("localhost", port)
+	localAddr, err := parse.Addr("localhost", port)
 	errors.MaybePanic(err) // should never happen
 	peerDataDir := filepath.Join(dataDir, server.NameFromAddr(localAddr))
 
@@ -428,5 +437,9 @@ func getLibrarians(peerConfigs []*server.Config) (client.Balancer, error) { // n
 	for i, peerConfig := range peerConfigs {
 		librarianAddrs[i] = peerConfig.PublicAddr
 	}
-	return client.NewUniformBalancer(librarianAddrs, rng)
+	clients, err := lclient.NewDefaultLRUPool()
+	if err != nil {
+		return nil, err
+	}
+	return client.NewUniformBalancer(librarianAddrs, clients, rng)
 }

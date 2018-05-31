@@ -11,14 +11,18 @@ import (
 	"testing"
 	"time"
 
+	"sync"
+
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
+	"github.com/drausin/libri/libri/common/parse"
 	"github.com/drausin/libri/libri/librarian/server/introduce"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
@@ -27,15 +31,18 @@ import (
 func TestStart_ok(t *testing.T) {
 	// start a single librarian server
 	config := newTestConfig()
-	config.WithProfile(true)
-	assert.True(t, config.isBootstrap())
+	config.WithProfile(true).WithReportMetrics(true)
+	config.WithLogLevel(zapcore.DebugLevel)
 
 	var err error
 	up := make(chan *Librarian, 1)
-	go func() {
+	wg1 := new(sync.WaitGroup)
+	wg1.Add(1)
+	go func(wg2 *sync.WaitGroup) {
+		defer wg2.Done()
 		err = Start(clogging.NewDevInfoLogger(), config, up)
 		assert.Nil(t, err)
-	}()
+	}(wg1)
 
 	// get the librarian once it's up
 	librarian := <-up
@@ -65,7 +72,11 @@ func TestStart_ok(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "200 OK", resp.Status)
 
+	// give time for bootstrap
+	time.Sleep(3 * time.Second)
+
 	assert.Nil(t, librarian.CloseAndRemove())
+	wg1.Wait()
 }
 
 func TestStart_newLibrarianErr(t *testing.T) {
@@ -84,9 +95,10 @@ func TestStart_bootstrapPeersErr(t *testing.T) {
 	config := NewDefaultConfig()
 	config.WithDataDir(dataDir).WithDefaultDBDir()
 	config.WithBootstrapAddrs(make([]*net.TCPAddr, 0))
+	config.WithReportMetrics(false)
 
 	// configure bootstrap peer to be non-existent peer
-	publicAddr, err := ParseAddr(DefaultIP, DefaultPort-1)
+	publicAddr, err := parse.Addr(DefaultIP, DefaultPort-1)
 	assert.Nil(t, err)
 	config.BootstrapAddrs = append(config.BootstrapAddrs, publicAddr)
 
@@ -110,12 +122,14 @@ func TestLibrarian_bootstrapPeers_ok(t *testing.T) {
 		fixedResult.Responded[p.ID().String()] = p
 	}
 
+	p, d := &fixedPreferer{}, &fixedDoctor{}
+	rt := routing.NewEmpty(id.NewPseudoRandom(rng), p, d, routing.NewDefaultParameters())
 	l := &Librarian{
 		config: NewDefaultConfig(),
 		introducer: &fixedIntroducer{
 			result: fixedResult,
 		},
-		rt:     routing.NewEmpty(id.NewPseudoRandom(rng), routing.NewDefaultParameters()),
+		rt:     rt,
 		logger: zap.NewNop(),
 	}
 
@@ -141,13 +155,15 @@ func TestLibrarian_bootstrapPeers_introduceErr(t *testing.T) {
 		seeds[i] = peer.NewTestPublicAddr(i)
 	}
 
+	p, d := &fixedPreferer{}, &fixedDoctor{}
+	rt := routing.NewEmpty(id.NewPseudoRandom(rng), p, d, routing.NewDefaultParameters())
 	l := &Librarian{
 		config: NewDefaultConfig(),
 		selfID: ecid.NewPseudoRandom(rng),
 		introducer: &fixedIntroducer{
 			err: errors.New("some fatal introduce error"),
 		},
-		rt:     routing.NewEmpty(id.NewPseudoRandom(rng), routing.NewDefaultParameters()),
+		rt:     rt,
 		logger: zap.NewNop(),
 	}
 
@@ -167,18 +183,20 @@ func TestLibrarian_bootstrapPeers_noResponsesErr(t *testing.T) {
 		seeds[i] = peer.NewTestPublicAddr(i)
 	}
 
-	// define out fixed introduction result with no responses
+	// fixed introduction result with no responses
 	fixedResult := introduce.NewInitialResult()
 
-	publicAddr, err := ParseAddr(DefaultIP, DefaultPort+1)
+	publicAddr, err := parse.Addr(DefaultIP, DefaultPort+1)
 	assert.Nil(t, err)
+	p, d := &fixedPreferer{}, &fixedDoctor{}
+	rt := routing.NewEmpty(id.NewPseudoRandom(rng), p, d, routing.NewDefaultParameters())
 	l := &Librarian{
-		config: NewDefaultConfig().WithPublicAddr(publicAddr),
+		config: NewDefaultConfig().WithPublicAddr(publicAddr).WithLogLevel(zapcore.DebugLevel),
 		selfID: ecid.NewPseudoRandom(rng),
 		introducer: &fixedIntroducer{
 			result: fixedResult,
 		},
-		rt:     routing.NewEmpty(id.NewPseudoRandom(rng), routing.NewDefaultParameters()),
+		rt:     rt,
 		logger: zap.NewNop(),
 	}
 

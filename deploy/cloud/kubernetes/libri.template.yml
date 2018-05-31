@@ -1,5 +1,6 @@
 {{/* the next line is obviously just for the generated file, not this template */}}
 # This file is generated from libri.template.yml. Please edit that instead!
+{{ $clusterAdminUser := .ClusterAdminUser -}}
 {{ $libriVersion := .LibriVersion -}}
 {{ $librarianDiskSizeGB := .LibrarianDiskSizeGB -}}
 {{ $localPort := .LocalPort -}}
@@ -10,6 +11,23 @@
 {{ $localCluster := .LocalCluster -}}
 {{ $librarianCPULimit := .LibrarianCPULimit -}}
 {{ $librarianRAMLimit := .LibrarianRAMLimit -}}
+{{ $grafanaCPULimit := .GrafanaCPULimit -}}
+{{ $grafanaRAMLimit := .GrafanaRAMLimit -}}
+{{ $prometheusCPULimit := .PrometheusCPULimit -}}
+{{ $prometheusRAMLimit := .PrometheusRAMLimit -}}
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: libri-experimenter
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: User
+  name: {{ $clusterAdminUser }}
+  namespace: default
 ---
 # headless service for internal DNS networking
 kind: Service
@@ -118,11 +136,9 @@ spec:
             fieldRef:
               fieldPath: status.podIP
         - name: LIBRI_PUBLICHOST
-        # TODO external peers once k8s v1.7.0 is available (with status.hostIP support)
-        # - move librarians to use hostIP:30100+ ports for public addresses
           valueFrom:
             fieldRef:
-              fieldPath: status.podIP
+              fieldPath: status.podIP  # TODO (drausin) switch to hostIP once have better way to get public port
         ports:
         - containerPort: {{ $localPort }}
         - containerPort: {{ $localMetricsPort }}
@@ -190,6 +206,46 @@ spec:
       hostNetwork: true
       hostPID: true
 ---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: prometheus
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - nodes/proxy
+  - services
+  - endpoints
+  - pods
+  verbs: ["get", "list", "watch"]
+- apiGroups:
+  - extensions
+  resources:
+  - ingresses
+  verbs: ["get", "list", "watch"]
+- nonResourceURLs: ["/metrics"]
+  verbs: ["get"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus
+subjects:
+- kind: ServiceAccount
+  name: prometheus
+  namespace: default
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -229,6 +285,7 @@ spec:
       labels:
         app: prometheus
     spec:
+      serviceAccountName: prometheus
       containers:
       - name: prometheus
         image: prom/prometheus:v2.0.0
@@ -249,8 +306,8 @@ spec:
 #          mountPath: /prometheus
         resources:
           limits:
-            memory: 250M
-            cpu: 100m
+            memory: {{ $prometheusRAMLimit }}
+            cpu: {{ $prometheusCPULimit }}
       volumes:
       - name: prometheus-config
         configMap:
@@ -311,8 +368,8 @@ spec:
           #   value: /api/v1/proxy/namespaces/kube-system/services/monitoring-grafana/
         resources:
           limits:
-            memory: 250M
-            cpu: 100m
+            memory: {{ $grafanaRAMLimit }}
+            cpu: {{ $grafanaCPULimit }}
 
         lifecycle:
           postStart:

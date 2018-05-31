@@ -9,7 +9,6 @@ import (
 
 	"github.com/drausin/libri/libri/common/ecid"
 	cerrors "github.com/drausin/libri/libri/common/errors"
-	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/golang/protobuf/proto"
@@ -432,11 +431,11 @@ type fixedClientSetBalancer struct {
 	err error
 }
 
-func (f *fixedClientSetBalancer) AddNext() (api.LibrarianClient, id.ID, error) {
-	return nil, nil, f.err
+func (f *fixedClientSetBalancer) AddNext() (api.LibrarianClient, string, error) {
+	return nil, "", f.err
 }
 
-func (f *fixedClientSetBalancer) Remove(id.ID) error {
+func (f *fixedClientSetBalancer) Remove(address string) error {
 	return nil
 }
 

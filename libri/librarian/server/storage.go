@@ -6,6 +6,7 @@ import (
 
 	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/storage"
+	"github.com/drausin/libri/libri/librarian/server/comm"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/golang/protobuf/proto"
 	"go.uber.org/zap"
@@ -63,9 +64,15 @@ func savePeerID(ns storage.Storer, peerID ecid.ID) error {
 	return ns.Store(peerIDKey, bytes)
 }
 
-func loadOrCreateRoutingTable(logger *zap.Logger, nl storage.Loader, selfID ecid.ID,
-	params *routing.Parameters) (routing.Table, error) {
-	rt, err := routing.Load(nl, params)
+func loadOrCreateRoutingTable(
+	logger *zap.Logger,
+	nl storage.Loader,
+	preferer comm.Preferer,
+	doctor comm.Doctor,
+	selfID ecid.ID,
+	params *routing.Parameters,
+) (routing.Table, error) {
+	rt, err := routing.Load(nl, preferer, doctor, params)
 	if err != nil {
 		logger.Error("error loading routing table", zap.Error(err))
 		return nil, err
@@ -87,5 +94,5 @@ func loadOrCreateRoutingTable(logger *zap.Logger, nl storage.Loader, selfID ecid
 	}
 
 	defer logger.Info("created new routing table")
-	return routing.NewEmpty(selfID.ID(), params), nil
+	return routing.NewEmpty(selfID.ID(), preferer, doctor, params), nil
 }

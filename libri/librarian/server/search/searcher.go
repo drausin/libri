@@ -10,13 +10,15 @@ import (
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
+	"github.com/drausin/libri/libri/librarian/server/comm"
 	"github.com/drausin/libri/libri/librarian/server/peer"
 )
 
 const searcherFindRetryTimeout = 25 * time.Millisecond
 
 var (
-	// ErrTooManyFindErrors indicates when a search has encountered too many Find request errors.
+	// ErrTooManyFindErrors indicates when a search has encountered too many Find request
+	// errors.
 	ErrTooManyFindErrors = errors.New("too many Find errors")
 
 	errInvalidResponse = errors.New("FindResponse contains neither value nor peer addresses")
@@ -32,17 +34,28 @@ type searcher struct {
 	signer        client.Signer
 	finderCreator client.FinderCreator
 	rp            ResponseProcessor
+	rec           comm.QueryRecorder
 }
 
 // NewSearcher returns a new Searcher with the given Querier and ResponseProcessor.
-func NewSearcher(s client.Signer, c client.FinderCreator, rp ResponseProcessor) Searcher {
-	return &searcher{signer: s, finderCreator: c, rp: rp}
+func NewSearcher(
+	s client.Signer, rec comm.QueryRecorder, c client.FinderCreator, rp ResponseProcessor,
+) Searcher {
+	return &searcher{
+		signer:        s,
+		finderCreator: c,
+		rp:            rp,
+		rec:           rec,
+	}
 }
 
 // NewDefaultSearcher creates a new Searcher with default sub-object instantiations.
-func NewDefaultSearcher(signer client.Signer, clients client.Pool) Searcher {
+func NewDefaultSearcher(
+	signer client.Signer, rec comm.QueryRecorder, clients client.Pool,
+) Searcher {
 	return NewSearcher(
 		signer,
+		rec,
 		client.NewFinderCreator(clients),
 		NewResponseProcessor(peer.NewFromer()),
 	)
@@ -69,7 +82,7 @@ func (s *searcher) Search(search *Search, seeds []peer.Peer) error {
 	go func(wg2 *sync.WaitGroup) {
 		defer wg2.Done()
 		for pr := range peerResponses {
-			processAnyReponse(pr, s.rp, search)
+			s.processAnyReponse(pr, search)
 			maybeSendNextToQuery(toQuery, search)
 		}
 	}(&wg1)
@@ -103,18 +116,18 @@ func (s *searcher) query(next peer.Peer, search *Search) (*api.FindResponse, err
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel, err := client.NewSignedTimeoutContext(s.signer, search.Request,
-		search.Params.Timeout)
+	rq := search.CreatRq()
+	ctx, cancel, err := client.NewSignedTimeoutContext(s.signer, rq, search.Params.Timeout)
 	if err != nil {
 		return nil, err
 	}
 	retryFindClient := client.NewRetryFinder(lc, searcherFindRetryTimeout)
-	rp, err := retryFindClient.Find(ctx, search.Request)
+	rp, err := retryFindClient.Find(ctx, rq)
 	cancel()
 	if err != nil {
 		return nil, err
 	}
-	if !bytes.Equal(rp.Metadata.RequestId, search.Request.Metadata.RequestId) {
+	if !bytes.Equal(rp.Metadata.RequestId, rq.Metadata.RequestId) {
 		return nil, client.ErrUnexpectedRequestID
 	}
 
@@ -165,8 +178,8 @@ func getNextToQuery(search *Search) peer.Peer {
 	if search.Finished() || search.Exhausted() {
 		return nil
 	}
-	search.mu.Lock()
-	defer search.mu.Unlock()
+	search.Mu.Lock()
+	defer search.Mu.Unlock()
 	if search.Result.Unqueried.Len() == 0 {
 		return nil
 	}
@@ -190,34 +203,34 @@ func maybeSendNextToQuery(toQuery *QueryQueue, search *Search) {
 	}
 }
 
-func processAnyReponse(pr *peerResponse, rp ResponseProcessor, search *Search) {
+func (s *searcher) processAnyReponse(pr *peerResponse, search *Search) {
 	if pr.err != nil {
-		recordError(pr.peer, pr.err, search)
-	} else if err := rp.Process(pr.response, search); err != nil {
-		recordError(pr.peer, err, search)
+		s.recordError(pr.peer, pr.err, search)
+	} else if err := s.rp.Process(pr.response, search); err != nil {
+		s.recordError(pr.peer, err, search)
 	} else {
-		recordSuccess(pr.peer, search)
+		s.recordSuccess(pr.peer, search)
 	}
 }
 
-func recordError(p peer.Peer, err error, s *Search) {
-	s.wrapLock(func() {
-		s.Result.Errored[p.ID().String()] = err
+func (s *searcher) recordError(p peer.Peer, err error, search *Search) {
+	search.wrapLock(func() {
+		search.Result.Errored[p.ID().String()] = err
 	})
-	if s.Errored() {
-		s.wrapLock(func() {
-			s.Result.FatalErr = ErrTooManyFindErrors
+	if search.Errored() {
+		search.wrapLock(func() {
+			search.Result.FatalErr = ErrTooManyFindErrors
 		})
 	}
-	p.Recorder().Record(peer.Response, peer.Error)
+	comm.MaybeRecordRpErr(s.rec, p.ID(), api.Find, err)
 }
 
-func recordSuccess(p peer.Peer, s *Search) {
-	s.wrapLock(func() {
-		s.Result.Closest.SafePush(p)
-		s.Result.Responded[p.ID().String()] = p
+func (s *searcher) recordSuccess(p peer.Peer, search *Search) {
+	search.wrapLock(func() {
+		search.Result.Closest.SafePush(p)
+		search.Result.Responded[p.ID().String()] = p
 	})
-	p.Recorder().Record(peer.Response, peer.Success)
+	s.rec.Record(p.ID(), api.Find, comm.Response, comm.Success)
 }
 
 // ResponseProcessor handles an api.FindResponse
@@ -247,11 +260,12 @@ func (frp *responseProcessor) Process(rp *api.FindResponse, s *Search) error {
 	if rp.Peers != nil {
 		// response has peer addresses close to keys
 		if !s.Finished() {
-			// don't add peers to unqueried if the search is already finished and we're not going
-			// to query those peers; there's a small chance that one of the peer that would be added
-			// to unqueried would be closer than farthest closest peer, which would be then move the
-			// search state back from finished -> not finished, a potentially confusing change
-			// that we choose to avoid altogether at the expense of (very) occasionally missing a
+			// don't add peers to unqueried if the search is already finished and we're
+			// not going to query those peers; there's a small chance that one of the
+			// peer that would be added to unqueried would be closer than farthest
+			// closest peer, which would be then move the search state back from
+			// finished -> not finished, a potentially confusing change that we choose
+			// to avoid altogether at the expense of (very) occasionally missing a
 			// closer peer
 			s.wrapLock(func() {
 				AddPeers(s.Result.Queried, s.Result.Unqueried, rp.Peers, frp.fromer)

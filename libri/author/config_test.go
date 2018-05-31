@@ -6,7 +6,7 @@ import (
 
 	"github.com/drausin/libri/libri/author/io/print"
 	"github.com/drausin/libri/libri/author/io/publish"
-	"github.com/drausin/libri/libri/librarian/server"
+	"github.com/drausin/libri/libri/common/parse"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap/zapcore"
 )
@@ -47,7 +47,7 @@ func TestConfig_WithBootstrapAddrs(t *testing.T) {
 	c1, c2, c3 := &Config{}, &Config{}, &Config{}
 	c1.WithDefaultLibrarianAddrs()
 	assert.Equal(t, c1.LibrarianAddrs, c2.WithLibrarianAddrs(nil).LibrarianAddrs)
-	c3Addr, err := server.ParseAddr("localhost", 1234)
+	c3Addr, err := parse.Addr("localhost", 1234)
 	assert.Nil(t, err)
 	assert.NotEqual(t,
 		c1.LibrarianAddrs,
