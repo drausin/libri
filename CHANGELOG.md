@@ -16,7 +16,7 @@ None
 - add max bucket peers command line param (#183)
 - make librarians return GRPC error codes (#187)
 - add request rate limiter (#188)
-- add replicator Prom metrics (#189)
+- add replicator Prometheus metrics (#189)
 
 #### internal features
 - move address parsing to own pkg (#174)
@@ -26,6 +26,12 @@ None
 - add Find to routing bucket and flesh out Judge components (#185)
 - refactor goodwill pkg into comm (#186)
 - support self bootstrap (#192)
+
+#### requirements
+- Kubernetes ^1.7
+- Terraform ^0.11
+
+Tested with Minikube v0.25.2 (hyperkit driver), Kubernetes v1.9.4.
 
 ## v0.3.0
 
