@@ -39,6 +39,10 @@ const (
 	tfLocalMetricsPort      = "librarian_local_metrics_port"
 	tfGrafanaPort           = "grafana_port"
 	tfPrometheusPort        = "prometheus_port"
+	tfGrafanaCPULimit       = "grafana_cpu_limit"
+	tfGrafanaRAMLimit       = "grafana_ram_limit"
+	tfPrometheusCPULimit    = "prometheus_cpu_limit"
+	tfPrometheusRAMLimit    = "prometheus_ram_limit"
 
 	tfClusterHostGCP      = "gcp"
 	tfClusterHostMinikube = "minikube"
@@ -61,6 +65,10 @@ type KubeConfig struct {
 	LocalMetricsPort    int
 	GrafanaPort         int
 	PrometheusPort      int
+	GrafanaCPULimit     string
+	PrometheusCPULimit  string
+	GrafanaRAMLimit     string
+	PrometheusRAMLimit  string
 	Librarians          []LibrarianConfig
 	LibrarianCPULimit   string
 	LibrarianRAMLimit   string
@@ -324,17 +332,21 @@ func kubeApply(clusterDir string, dryRun bool) {
 func writeKubeConfig(clusterDir string) {
 	tfvars := getTFFlags(clusterDir)
 	config := KubeConfig{
-		ClusterAdminUser:  tfvars[tfClusterAdminUser].(string),
-		LibriVersion:      tfvars[tfLibrarianLibriVersion].(string),
-		LocalPort:         tfvars[tfLocalPort].(int),
-		LocalMetricsPort:  tfvars[tfLocalMetricsPort].(int),
-		GrafanaPort:       tfvars[tfGrafanaPort].(int),
-		PrometheusPort:    tfvars[tfPrometheusPort].(int),
-		Librarians:        make([]LibrarianConfig, tfvars[tfNumLibrarians].(int)),
-		LibrarianCPULimit: tfvars[tfLibrarianCPULimit].(string),
-		LibrarianRAMLimit: tfvars[tfLibrarianRAMLimit].(string),
-		LocalCluster:      tfvars[tfClusterHost] == tfClusterHostMinikube,
-		GCPCluster:        tfvars[tfClusterHost] == tfClusterHostGCP,
+		ClusterAdminUser:   tfvars[tfClusterAdminUser].(string),
+		LibriVersion:       tfvars[tfLibrarianLibriVersion].(string),
+		LocalPort:          tfvars[tfLocalPort].(int),
+		LocalMetricsPort:   tfvars[tfLocalMetricsPort].(int),
+		GrafanaPort:        tfvars[tfGrafanaPort].(int),
+		PrometheusPort:     tfvars[tfPrometheusPort].(int),
+		Librarians:         make([]LibrarianConfig, tfvars[tfNumLibrarians].(int)),
+		LibrarianCPULimit:  tfvars[tfLibrarianCPULimit].(string),
+		LibrarianRAMLimit:  tfvars[tfLibrarianRAMLimit].(string),
+		GrafanaCPULimit:    tfvars[tfGrafanaCPULimit].(string),
+		GrafanaRAMLimit:    tfvars[tfGrafanaRAMLimit].(string),
+		PrometheusCPULimit: tfvars[tfPrometheusCPULimit].(string),
+		PrometheusRAMLimit: tfvars[tfPrometheusRAMLimit].(string),
+		LocalCluster:       tfvars[tfClusterHost] == tfClusterHostMinikube,
+		GCPCluster:         tfvars[tfClusterHost] == tfClusterHostGCP,
 	}
 	if value, in := tfvars[tfLibrarianDiskSizeGB]; in {
 		config.LibrarianDiskSizeGB = value.(int)

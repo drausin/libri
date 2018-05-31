@@ -11,6 +11,10 @@
 {{ $localCluster := .LocalCluster -}}
 {{ $librarianCPULimit := .LibrarianCPULimit -}}
 {{ $librarianRAMLimit := .LibrarianRAMLimit -}}
+{{ $grafanaCPULimit := .GrafanaCPULimit -}}
+{{ $grafanaRAMLimit := .GrafanaRAMLimit -}}
+{{ $prometheusCPULimit := .PrometheusCPULimit -}}
+{{ $prometheusRAMLimit := .PrometheusRAMLimit -}}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
@@ -134,11 +138,7 @@ spec:
         - name: LIBRI_PUBLICHOST
           valueFrom:
             fieldRef:
-              fieldPath: status.hostIP
-        - name: LIBRI_PUBLICPORT
-          valueFrom:
-            fieldRef:
-              fieldPath: status.hostPort
+              fieldPath: status.podIP  # TODO (drausin) switch to hostIP once have better way to get public port
         ports:
         - containerPort: {{ $localPort }}
         - containerPort: {{ $localMetricsPort }}
@@ -306,8 +306,8 @@ spec:
 #          mountPath: /prometheus
         resources:
           limits:
-            memory: 1G
-            cpu: 250m
+            memory: {{ $prometheusRAMLimit }}
+            cpu: {{ $prometheusCPULimit }}
       volumes:
       - name: prometheus-config
         configMap:
@@ -368,8 +368,8 @@ spec:
           #   value: /api/v1/proxy/namespaces/kube-system/services/monitoring-grafana/
         resources:
           limits:
-            memory: 250M
-            cpu: 100m
+            memory: {{ $grafanaRAMLimit }}
+            cpu: {{ $grafanaCPULimit }}
 
         lifecycle:
           postStart:
