@@ -25,7 +25,7 @@ import (
 
 const (
 	// DefaultVerifyInterval is the default amount of time between verify operations.
-	DefaultVerifyInterval = 5 * time.Second
+	DefaultVerifyInterval = 1 * time.Second
 
 	// DefaultReplicateConcurrency is the default number of replicator routines.
 	DefaultReplicateConcurrency = uint(1)
