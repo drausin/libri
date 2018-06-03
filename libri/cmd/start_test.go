@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/drausin/libri/libri/librarian/server"
 	"github.com/spf13/viper"
@@ -34,6 +35,7 @@ func TestGetLibrarianConfig_ok(t *testing.T) {
 	nSubscriptions, fpRate := 5, 0.5
 	bootstraps := "1.2.3.5:1000 1.2.3.6:1000"
 	nBucketPeers := uint(8)
+	verifyInterval := 5 * time.Second
 
 	viper.Set(logLevelFlag, logLevel)
 	viper.Set(publicHostFlag, publicIP)
@@ -48,6 +50,7 @@ func TestGetLibrarianConfig_ok(t *testing.T) {
 	viper.Set(fpRateFlag, fpRate)
 	viper.Set(bootstrapsFlag, bootstraps)
 	viper.Set(maxBucketPeersFlag, nBucketPeers)
+	viper.Set(verifyIntervalFlag, verifyInterval)
 
 	config, logger, err := getLibrarianConfig()
 	assert.Nil(t, err)
@@ -65,6 +68,7 @@ func TestGetLibrarianConfig_ok(t *testing.T) {
 	assert.Equal(t, float32(fpRate), config.SubscribeTo.FPRate)
 	assert.Equal(t, 2, len(config.BootstrapAddrs))
 	assert.Equal(t, nBucketPeers, config.Routing.MaxBucketPeers)
+	assert.Equal(t, verifyInterval, config.Replicate.VerifyInterval)
 
 	assert.Nil(t, os.RemoveAll(config.DataDir))
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/drausin/libri/libri/common/parse"
 	"github.com/drausin/libri/libri/common/subscribe"
 	"github.com/drausin/libri/libri/librarian/server"
+	"github.com/drausin/libri/libri/librarian/server/replicate"
 	"github.com/drausin/libri/libri/librarian/server/routing"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -27,6 +28,7 @@ const (
 	fpRateFlag            = "fpRate"
 	profileFlag           = "profile"
 	maxBucketPeersFlag    = "maxRoutingBucketPeers"
+	verifyIntervalFlag    = "verifyInterval"
 
 	logLocalPort        = "localPort"
 	logLocalMetricsPort = "localMetricsPort"
@@ -73,6 +75,8 @@ func init() {
 		"enable /debug/pprof profiler endpoint")
 	startLibrarianCmd.Flags().Uint(maxBucketPeersFlag, routing.DefaultMaxActivePeers,
 		"max number of peers allowed in a routing table bucket")
+	startLibrarianCmd.Flags().Duration(verifyIntervalFlag, replicate.DefaultVerifyInterval,
+		"verify interval duration")
 
 	// bind viper flags
 	viper.SetEnvPrefix("LIBRI") // look for env vars with "LIBRI_" prefix
@@ -96,6 +100,9 @@ func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
 		logger.Error("fatal error parsing public address", zap.Error(err))
 		return nil, nil, err
 	}
+	replicateParams := replicate.NewDefaultParameters()
+	replicateParams.VerifyInterval = viper.GetDuration(verifyIntervalFlag)
+
 	config := server.NewDefaultConfig().
 		WithLocalPort(localPort).
 		WithLocalMetricsPort(localMetricsPort).
@@ -103,6 +110,7 @@ func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
 		WithProfile(profile).
 		WithPublicAddr(publicAddr).
 		WithPublicName(viper.GetString(publicNameFlag)).
+		WithReplicate(replicateParams).
 		WithDataDir(viper.GetString(dataDirFlag)).
 		WithDefaultDBDir(). // depends on DataDir
 		WithLogLevel(logLevel)
