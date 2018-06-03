@@ -19,7 +19,7 @@ const (
 	mainTemplateFilename  = "main.template.tf"
 	varsFilename          = "variables.tf"
 	mainFilename          = "main.tf"
-	flagsFilename         = "terraform.tfvars"
+	defaultFlagsFilename  = "terraform.tfvars"
 	moduleSubDir          = "module"
 
 	kubeTemplateDir            = "kubernetes"
@@ -55,6 +55,7 @@ type TFConfig struct {
 	GCPProject      string
 	ClusterDir      string
 	LocalModulePath string
+	FlagsFilepath   string
 }
 
 // KubeConfig contains the configuration to apply to the template.
@@ -103,6 +104,8 @@ func init() {
 		"directory to create new cluster in")
 	initCmd.PersistentFlags().StringVarP(&initFlags.ClusterName, "clusterName", "n", "",
 		"cluster name (without spaces)")
+	initCmd.PersistentFlags().StringVarP(&initFlags.FlagsFilepath, "flagsFilepath", "f", "",
+		"(optional) filepath of terraform.tfvars file")
 
 	initCmd.AddCommand(minikubeCmd)
 	initCmd.AddCommand(gcpCmd)
@@ -294,11 +297,14 @@ func writeVarsTFFile(config TFConfig, clusterDir, templateDir string) {
 func writePropsFile(config TFConfig, clusterDir, templateDir string) {
 	wd, err := os.Getwd()
 	maybeExit(err)
-	absPropsTemplateFilepath := filepath.Join(wd, templateDir, flagsFilename)
-	propsTmpl, err := template.New(flagsFilename).ParseFiles(absPropsTemplateFilepath)
+	absPropsTemplateFilepath := config.FlagsFilepath
+	if absPropsTemplateFilepath == "" {
+		absPropsTemplateFilepath = filepath.Join(wd, templateDir, defaultFlagsFilename)
+	}
+	propsTmpl, err := template.New(defaultFlagsFilename).ParseFiles(absPropsTemplateFilepath)
 	maybeExit(err)
 
-	absPropsOutFilepath := filepath.Join(clusterDir, flagsFilename)
+	absPropsOutFilepath := filepath.Join(clusterDir, defaultFlagsFilename)
 	propsFile, err := os.Create(absPropsOutFilepath)
 	maybeExit(err)
 
@@ -371,7 +377,7 @@ func writeKubeConfig(clusterDir string) {
 }
 
 func getTFFlags(clusterDir string) variables.FlagFile {
-	tfvarsFilepath := path.Join(clusterDir, flagsFilename)
+	tfvarsFilepath := path.Join(clusterDir, defaultFlagsFilename)
 	tfvars := make(variables.FlagFile)
 	err := tfvars.Set(tfvarsFilepath)
 	maybeExit(err)
