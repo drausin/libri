@@ -23,7 +23,7 @@ IMAGE="daedalus2718/libri:snapshot"
 KEYCHAIN_DIR="/keychains"  # inside container
 CONTAINER_TEST_DATA_DIR="/test-data"
 LIBRI_PASSPHRASE="test passphrase"  # bypass command-line entry
-N_LIBRARIANS=3
+N_LIBRARIANS=4
 
 # clean up any existing libri containers
 echo "cleaning up existing network and containers..."
