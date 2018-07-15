@@ -196,7 +196,7 @@
           "title": "[[ $endpoint ]] p95 Latency",
           "tooltip": {
             "msResolution": true,
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "cumulative"
           },
@@ -283,7 +283,7 @@
           "title": "[[ $endpoint ]] p50 Latency",
           "tooltip": {
             "msResolution": true,
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
@@ -370,7 +370,7 @@
           "title": "[[ $endpoint ]] Request Rate",
           "tooltip": {
             "msResolution": true,
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
@@ -460,7 +460,7 @@
           "title": "[[ $endpoint ]] Error Rate",
           "tooltip": {
             "msResolution": true,
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
