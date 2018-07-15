@@ -195,7 +195,7 @@
           "title": "Get p95 Latency",
           "tooltip": {
             "msResolution": true,
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "cumulative"
           },
@@ -282,7 +282,7 @@
           "title": "Get p50 Latency",
           "tooltip": {
             "msResolution": true,
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
@@ -369,7 +369,7 @@
           "title": "Get Request Rate",
           "tooltip": {
             "msResolution": true,
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
@@ -459,7 +459,7 @@
           "title": "Get Error Rate",
           "tooltip": {
             "msResolution": true,
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
@@ -554,7 +554,7 @@
           "title": "Put p95 Latency",
           "tooltip": {
             "msResolution": true,
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "cumulative"
           },
@@ -641,7 +641,7 @@
           "title": "Put p50 Latency",
           "tooltip": {
             "msResolution": true,
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
@@ -728,7 +728,7 @@
           "title": "Put Request Rate",
           "tooltip": {
             "msResolution": true,
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
@@ -818,7 +818,7 @@
           "title": "Put Error Rate",
           "tooltip": {
             "msResolution": true,
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
@@ -913,7 +913,7 @@
           "title": "Find p95 Latency",
           "tooltip": {
             "msResolution": true,
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "cumulative"
           },
@@ -1000,7 +1000,7 @@
           "title": "Find p50 Latency",
           "tooltip": {
             "msResolution": true,
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
@@ -1087,7 +1087,7 @@
           "title": "Find Request Rate",
           "tooltip": {
             "msResolution": true,
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
@@ -1177,7 +1177,7 @@
           "title": "Find Error Rate",
           "tooltip": {
             "msResolution": true,
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
@@ -1272,7 +1272,7 @@
           "title": "Store p95 Latency",
           "tooltip": {
             "msResolution": true,
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "cumulative"
           },
@@ -1359,7 +1359,7 @@
           "title": "Store p50 Latency",
           "tooltip": {
             "msResolution": true,
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
@@ -1446,7 +1446,7 @@
           "title": "Store Request Rate",
           "tooltip": {
             "msResolution": true,
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
@@ -1536,7 +1536,7 @@
           "title": "Store Error Rate",
           "tooltip": {
             "msResolution": true,
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
@@ -1631,7 +1631,7 @@
           "title": "Verify p95 Latency",
           "tooltip": {
             "msResolution": true,
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "cumulative"
           },
@@ -1718,7 +1718,7 @@
           "title": "Verify p50 Latency",
           "tooltip": {
             "msResolution": true,
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
@@ -1805,7 +1805,7 @@
           "title": "Verify Request Rate",
           "tooltip": {
             "msResolution": true,
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
@@ -1895,7 +1895,7 @@
           "title": "Verify Error Rate",
           "tooltip": {
             "msResolution": true,
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },

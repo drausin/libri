@@ -113,7 +113,7 @@
           "title": "Pod CPU usage",
           "tooltip": {
             "msResolution": true,
-            "shared": true,
+            "shared": false,
             "sort": 0,
             "value_type": "cumulative"
           },
@@ -203,7 +203,7 @@
           "title": "Nodes CPU usage",
           "tooltip": {
             "msResolution": true,
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "cumulative"
           },
@@ -295,7 +295,7 @@
           "title": "Pod Memory",
           "tooltip": {
             "msResolution": false,
-            "shared": true,
+            "shared": false,
             "sort": 0,
             "value_type": "cumulative"
           },
@@ -383,7 +383,7 @@
           "title": "Node Memory",
           "tooltip": {
             "msResolution": true,
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "cumulative"
           },
@@ -474,7 +474,7 @@
           "title": "Pod Memory Page Cache",
           "tooltip": {
             "msResolution": false,
-            "shared": true,
+            "shared": false,
             "sort": 0,
             "value_type": "cumulative"
           },
@@ -562,7 +562,7 @@
           "title": "Node Memory Page Cache",
           "tooltip": {
             "msResolution": true,
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "cumulative"
           },
@@ -672,7 +672,7 @@
           "title": "Pod Network I/O",
           "tooltip": {
             "msResolution": false,
-            "shared": true,
+            "shared": false,
             "sort": 0,
             "value_type": "cumulative"
           },
@@ -771,7 +771,7 @@
           "title": "Node Network I/O",
           "tooltip": {
             "msResolution": false,
-            "shared": true,
+            "shared": false,
             "sort": 0,
             "value_type": "cumulative"
           },

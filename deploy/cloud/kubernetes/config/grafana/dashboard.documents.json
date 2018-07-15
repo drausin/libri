@@ -98,7 +98,7 @@
           "timeShift": null,
           "title": "All Store Rate",
           "tooltip": {
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
@@ -174,7 +174,7 @@
           "timeShift": null,
           "title": "All Store Count",
           "tooltip": {
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
@@ -250,7 +250,7 @@
           "timeShift": null,
           "title": "All Store Bytes",
           "tooltip": {
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
@@ -338,7 +338,7 @@
           "timeShift": null,
           "title": "Envelope Store Rate",
           "tooltip": {
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
@@ -414,7 +414,7 @@
           "timeShift": null,
           "title": "Envelope Store Count",
           "tooltip": {
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
@@ -490,7 +490,7 @@
           "timeShift": null,
           "title": "Envelope Store Bytes",
           "tooltip": {
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
@@ -578,7 +578,7 @@
           "timeShift": null,
           "title": "Entry Store Rate",
           "tooltip": {
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
@@ -654,7 +654,7 @@
           "timeShift": null,
           "title": "Entry Store Count",
           "tooltip": {
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
@@ -730,7 +730,7 @@
           "timeShift": null,
           "title": "Entry Store Bytes",
           "tooltip": {
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
@@ -818,7 +818,7 @@
           "timeShift": null,
           "title": "Page Store Rate",
           "tooltip": {
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
@@ -894,7 +894,7 @@
           "timeShift": null,
           "title": "Page Store Count",
           "tooltip": {
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
@@ -970,7 +970,7 @@
           "timeShift": null,
           "title": "Page Store Bytes",
           "tooltip": {
-            "shared": true,
+            "shared": false,
             "sort": 2,
             "value_type": "individual"
           },
