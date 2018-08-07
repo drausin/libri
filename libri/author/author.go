@@ -33,6 +33,9 @@ type Author struct {
 	// ClientID is ID of this author client
 	ClientID ecid.ID
 
+	// ID of the organization running this client and key-pair used to sign requests
+	orgID ecid.ID
+
 	// Config holds the configuration parameters of the server
 	config *Config
 
@@ -114,6 +117,9 @@ func NewAuthor(
 	if err != nil {
 		return nil, err
 	}
+	var orgID ecid.ID
+	// TODO (drausin) load orgID from config or env var
+
 	clientLogger := logger.With(zap.String(logClientIDShort, id.ShortHex(clientID.Bytes())))
 
 	allKeys := keychain.NewUnion(authorKeys, selfReaderKeys)
@@ -138,10 +144,14 @@ func NewAuthor(
 	if err != nil {
 		return nil, err
 	}
-	signer := client.NewSigner(clientID.Key())
+	peerSigner := client.NewECDSASigner(clientID.Key())
+	orgSigner := client.NewEmptySigner()
+	if orgID != nil {
+		orgSigner = client.NewECDSASigner(orgID.Key())
+	}
 
-	publisher := publish.NewPublisher(clientID, signer, config.Publish)
-	acquirer := publish.NewAcquirer(clientID, signer, config.Publish)
+	publisher := publish.NewPublisher(clientID, orgID, peerSigner, orgSigner, config.Publish)
+	acquirer := publish.NewAcquirer(clientID, orgID, peerSigner, orgSigner, config.Publish)
 	slPublisher := publish.NewSingleLoadPublisher(publisher, documentSL)
 	ssAcquirer := publish.NewSingleStoreAcquirer(acquirer, documentSL)
 	mlPublisher := publish.NewMultiLoadPublisher(slPublisher, config.Publish)
@@ -170,7 +180,7 @@ func NewAuthor(
 		shipper:          shipper,
 		receiver:         receiver,
 		pageSL:           page.NewStorerLoader(documentSL),
-		signer:           signer,
+		signer:           peerSigner,
 		logger:           clientLogger,
 		stop:             make(chan struct{}),
 	}

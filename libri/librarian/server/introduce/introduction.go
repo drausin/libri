@@ -60,7 +60,6 @@ func NewDefaultParameters() *Parameters {
 
 // Result holds an introduction's (intermediate) result.
 type Result struct {
-
 	// map of peers not yet queried
 	Unqueried map[string]peer.Peer
 
@@ -98,10 +97,17 @@ type Introduction struct {
 }
 
 // NewIntroduction creates a new Introduction instance.
-func NewIntroduction(selfID ecid.ID, apiSelf *api.PeerAddress, params *Parameters) *Introduction {
+func NewIntroduction(
+	selfID, orgID ecid.ID, apiSelf *api.PeerAddress, params *Parameters,
+) *Introduction {
 	return &Introduction{
 		NewRequest: func() *api.IntroduceRequest {
-			return client.NewIntroduceRequest(selfID, apiSelf, params.NumPeersPerRequest)
+			return client.NewIntroduceRequest(
+				selfID,
+				orgID,
+				apiSelf,
+				params.NumPeersPerRequest,
+			)
 		},
 		Result: NewInitialResult(),
 		Params: params,

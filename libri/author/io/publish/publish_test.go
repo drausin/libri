@@ -54,7 +54,7 @@ func TestNewParameters_err(t *testing.T) {
 func TestPublisher_Publish_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	clientID := ecid.NewPseudoRandom(rng)
-	signer := client.NewSigner(clientID.Key())
+	signer := client.NewECDSASigner(clientID.Key())
 	params := NewDefaultParameters()
 	lc := &fixedPutter{
 		err: nil,
@@ -71,7 +71,7 @@ func TestPublisher_Publish_ok(t *testing.T) {
 func TestPublisher_Publish_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	clientID := ecid.NewPseudoRandom(rng)
-	signer := client.NewSigner(clientID.Key())
+	signer := client.NewECDSASigner(clientID.Key())
 	params := NewDefaultParameters()
 	lc := &fixedPutter{}
 	doc, _ := api.NewTestDocument(rng)

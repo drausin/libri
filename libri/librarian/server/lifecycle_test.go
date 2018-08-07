@@ -159,7 +159,7 @@ func TestLibrarian_bootstrapPeers_introduceErr(t *testing.T) {
 	rt := routing.NewEmpty(id.NewPseudoRandom(rng), p, d, routing.NewDefaultParameters())
 	l := &Librarian{
 		config: NewDefaultConfig(),
-		selfID: ecid.NewPseudoRandom(rng),
+		peerID: ecid.NewPseudoRandom(rng),
 		introducer: &fixedIntroducer{
 			err: errors.New("some fatal introduce error"),
 		},
@@ -192,7 +192,7 @@ func TestLibrarian_bootstrapPeers_noResponsesErr(t *testing.T) {
 	rt := routing.NewEmpty(id.NewPseudoRandom(rng), p, d, routing.NewDefaultParameters())
 	l := &Librarian{
 		config: NewDefaultConfig().WithPublicAddr(publicAddr).WithLogLevel(zapcore.DebugLevel),
-		selfID: ecid.NewPseudoRandom(rng),
+		peerID: ecid.NewPseudoRandom(rng),
 		introducer: &fixedIntroducer{
 			result: fixedResult,
 		},

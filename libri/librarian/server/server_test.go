@@ -51,7 +51,7 @@ func TestNewLibrarian(t *testing.T) {
 		close(l1.stopped)
 	}()
 
-	nodeID1 := l1.selfID // should have been generated
+	nodeID1 := l1.peerID // should have been generated
 	err := l1.Close()
 	assert.Nil(t, err)
 
@@ -66,7 +66,7 @@ func TestNewLibrarian(t *testing.T) {
 	}()
 
 	assert.Nil(t, err)
-	assert.Equal(t, nodeID1, l2.selfID)
+	assert.Equal(t, nodeID1, l2.peerID)
 	err = l2.CloseAndRemove()
 	assert.Nil(t, err)
 }
@@ -110,7 +110,7 @@ func TestLibrarian_Introduce_ok(t *testing.T) {
 		},
 		apiSelf: peer.FromAddress(serverID.ID(), peerName, publicAddr),
 		fromer:  peer.NewFromer(),
-		selfID:  serverID,
+		peerID:  serverID,
 		rt:      rt,
 		rqv:     &alwaysRequestVerifier{},
 		rec:     rec,
@@ -248,7 +248,7 @@ func TestLibrarian_Find_peers(t *testing.T) {
 			rt, peerID, nAdded, _ := routing.NewTestWithPeers(rng, n)
 			rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 			l := &Librarian{
-				selfID:     peerID,
+				peerID:     peerID,
 				documentSL: storage.NewDocumentSLD(kvdb),
 				kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 				rt:         rt,
@@ -260,7 +260,7 @@ func TestLibrarian_Find_peers(t *testing.T) {
 
 			numClosest := uint32(routing.DefaultMaxActivePeers)
 			rq := &api.FindRequest{
-				Metadata: newTestRequestMetadata(rng, l.selfID),
+				Metadata: newTestRequestMetadata(rng, l.peerID),
 				Key:      id.NewPseudoRandom(rng).Bytes(),
 				NumPeers: numClosest,
 			}
@@ -270,7 +270,7 @@ func TestLibrarian_Find_peers(t *testing.T) {
 
 			// check
 			checkPeersFindResponse(t, rq, rp, nAdded, numClosest)
-			qo := rec.Get(l.selfID.ID(), api.Find)
+			qo := rec.Get(l.peerID.ID(), api.Find)
 			assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 		}
 	}
@@ -307,7 +307,7 @@ func TestLibrarian_Find_value(t *testing.T) {
 
 	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 	l := &Librarian{
-		selfID:     peerID,
+		peerID:     peerID,
 		db:         kvdb,
 		serverSL:   storage.NewServerSL(kvdb),
 		documentSL: storage.NewDocumentSLD(kvdb),
@@ -327,13 +327,13 @@ func TestLibrarian_Find_value(t *testing.T) {
 	// make request for key
 	numClosest := uint32(routing.DefaultMaxActivePeers)
 	rq := &api.FindRequest{
-		Metadata: newTestRequestMetadata(rng, l.selfID),
+		Metadata: newTestRequestMetadata(rng, l.peerID),
 		Key:      key.Bytes(),
 		NumPeers: numClosest,
 	}
 	rp, err := l.Find(context.Background(), rq)
 	assert.Nil(t, err)
-	qo := rec.Get(l.selfID.ID(), api.Find)
+	qo := rec.Get(l.peerID.ID(), api.Find)
 	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 
 	// we should get back the value we stored
@@ -417,7 +417,7 @@ func TestLibrarian_Verify_value(t *testing.T) {
 
 	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 	l := &Librarian{
-		selfID:     peerID,
+		peerID:     peerID,
 		db:         kvdb,
 		serverSL:   storage.NewServerSL(kvdb),
 		documentSL: storage.NewDocumentSLD(kvdb),
@@ -446,7 +446,7 @@ func TestLibrarian_Verify_value(t *testing.T) {
 	// make request for key
 	numClosest := uint32(routing.DefaultMaxActivePeers)
 	rq := &api.VerifyRequest{
-		Metadata: newTestRequestMetadata(rng, l.selfID),
+		Metadata: newTestRequestMetadata(rng, l.peerID),
 		Key:      key.Bytes(),
 		MacKey:   macKey,
 		NumPeers: numClosest,
@@ -458,7 +458,7 @@ func TestLibrarian_Verify_value(t *testing.T) {
 	assert.Equal(t, expectedMAC, rp.Mac)
 	assert.Nil(t, rp.Peers)
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
-	qo := rec.Get(l.selfID.ID(), api.Verify)
+	qo := rec.Get(l.peerID.ID(), api.Verify)
 	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
@@ -477,7 +477,7 @@ func TestLibrarian_Verify_peers(t *testing.T) {
 			rt, peerID, nAdded, _ := routing.NewTestWithPeers(rng, n)
 			rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 			l := &Librarian{
-				selfID:     peerID,
+				peerID:     peerID,
 				documentSL: storage.NewDocumentSLD(kvdb),
 				kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 				rt:         rt,
@@ -489,7 +489,7 @@ func TestLibrarian_Verify_peers(t *testing.T) {
 
 			numClosest := uint32(routing.DefaultMaxActivePeers)
 			rq := &api.VerifyRequest{
-				Metadata: newTestRequestMetadata(rng, l.selfID),
+				Metadata: newTestRequestMetadata(rng, l.peerID),
 				Key:      id.NewPseudoRandom(rng).Bytes(),
 				NumPeers: numClosest,
 			}
@@ -499,7 +499,7 @@ func TestLibrarian_Verify_peers(t *testing.T) {
 
 			// check
 			checkPeersVerifyResponse(t, rq, rp, nAdded, numClosest)
-			qo := rec.Get(l.selfID.ID(), api.Verify)
+			qo := rec.Get(l.peerID.ID(), api.Verify)
 			assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 		}
 	}
@@ -600,7 +600,7 @@ func TestLibrarian_Store_ok(t *testing.T) {
 
 	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 	l := &Librarian{
-		selfID:         peerID,
+		peerID:         peerID,
 		rt:             rt,
 		db:             kvdb,
 		serverSL:       storage.NewServerSL(kvdb),
@@ -621,7 +621,7 @@ func TestLibrarian_Store_ok(t *testing.T) {
 
 	// make store request
 	rq := &api.StoreRequest{
-		Metadata: newTestRequestMetadata(rng, l.selfID),
+		Metadata: newTestRequestMetadata(rng, l.peerID),
 		Key:      key.Bytes(),
 		Value:    value,
 	}
@@ -633,7 +633,7 @@ func TestLibrarian_Store_ok(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, value, stored)
 	assert.Equal(t, rq.Metadata.RequestId, rp.Metadata.RequestId)
-	qo := rec.Get(l.selfID.ID(), api.Store)
+	qo := rec.Get(l.peerID.ID(), api.Store)
 	assert.Equal(t, 1, int(qo[comm.Request][comm.Success].Count))
 }
 
@@ -668,7 +668,7 @@ func TestLibrarian_Store_notAllowedError(t *testing.T) {
 	rt, peerID, _, _ := routing.NewTestWithPeers(rng, 64)
 	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 	l := &Librarian{
-		selfID:  peerID,
+		peerID:  peerID,
 		rt:      rt,
 		kc:      storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		kvc:     storage.NewHashKeyValueChecker(),
@@ -695,7 +695,7 @@ func TestLibrarian_Store_storeError(t *testing.T) {
 	sld.StoreErr = errors.New("some Store error")
 	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
 	l := &Librarian{
-		selfID:     peerID,
+		peerID:     peerID,
 		rt:         rt,
 		kc:         storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		kvc:        storage.NewHashKeyValueChecker(),
@@ -872,7 +872,7 @@ func newGetLibrarian(rng *rand.Rand, searchResult *search.Result, searchErr erro
 	n := 8
 	rt, peerID, _, _ := routing.NewTestWithPeers(rng, n)
 	return &Librarian{
-		selfID: peerID,
+		peerID: peerID,
 		config: NewDefaultConfig(),
 		rt:     rt,
 		kc:     storage.NewExactLengthChecker(storage.EntriesKeyLength),
@@ -1031,7 +1031,7 @@ func TestLibrarian_Subscribe_ok(t *testing.T) {
 	done := make(chan struct{})
 	rt, peerID, _, _ := routing.NewTestWithPeers(rng, 0)
 	l := &Librarian{
-		selfID: peerID,
+		peerID: peerID,
 		subscribeFrom: &fixedFrom{
 			new:  newPubs,
 			done: done,
@@ -1179,7 +1179,7 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 	assert.Nil(t, err)
 	rq4 := client.NewSubscribeRequest(selfID, sub4)
 	l4 := &Librarian{
-		selfID: ecid.NewPseudoRandom(rng),
+		peerID: ecid.NewPseudoRandom(rng),
 		subscribeFrom: &fixedFrom{
 			err: subscribe.ErrNotAcceptingNewSubscriptions,
 		},
@@ -1200,7 +1200,7 @@ func TestLibrarian_Subscribe_err(t *testing.T) {
 	rq5 := client.NewSubscribeRequest(selfID, sub5)
 	newPubs := make(chan *subscribe.KeyedPub)
 	l5 := &Librarian{
-		selfID: ecid.NewPseudoRandom(rng),
+		peerID: ecid.NewPseudoRandom(rng),
 		subscribeFrom: &fixedFrom{
 			new:  newPubs,
 			done: make(chan struct{}),
@@ -1317,7 +1317,7 @@ func newPutLibrarian(rng *rand.Rand, storeResult *store.Result, searchErr error)
 	n := 8
 	rt, peerID, _, _ := routing.NewTestWithPeers(rng, n)
 	return &Librarian{
-		selfID: peerID,
+		peerID: peerID,
 		config: NewDefaultConfig(),
 		rt:     rt,
 		kc:     storage.NewExactLengthChecker(storage.EntriesKeyLength),

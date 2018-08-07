@@ -30,7 +30,8 @@ type Verifier interface {
 }
 
 type verifier struct {
-	signer          client.Signer
+	peerSigner      client.Signer
+	orgSigner       client.Signer
 	verifierCreator client.VerifierCreator
 	rp              ResponseProcessor
 	rec             comm.QueryRecorder
@@ -38,10 +39,15 @@ type verifier struct {
 
 // NewVerifier returns a new Verifier with the given Querier and ResponseProcessor.
 func NewVerifier(
-	s client.Signer, rec comm.QueryRecorder, c client.VerifierCreator, rp ResponseProcessor,
+	peerSigner client.Signer,
+	orgSigner client.Signer,
+	rec comm.QueryRecorder,
+	c client.VerifierCreator,
+	rp ResponseProcessor,
 ) Verifier {
 	return &verifier{
-		signer:          s,
+		peerSigner:      peerSigner,
+		orgSigner:       orgSigner,
 		verifierCreator: c,
 		rp:              rp,
 		rec:             rec,
@@ -50,11 +56,11 @@ func NewVerifier(
 
 // NewDefaultVerifier creates a new Verifier with default sub-object instantiations.
 func NewDefaultVerifier(
-	signer client.Signer, rec comm.QueryRecorder, clients client.Pool,
+	peerSigner, orgSigner client.Signer, rec comm.QueryRecorder, clients client.Pool,
 ) Verifier {
 	vc := client.NewVerifierCreator(clients)
 	rp := NewResponseProcessor(peer.NewFromer())
-	return NewVerifier(signer, rec, vc, rp)
+	return NewVerifier(peerSigner, orgSigner, rec, vc, rp)
 }
 
 type peerResponse struct {
@@ -118,7 +124,8 @@ func (v *verifier) query(next peer.Peer, verify *Verify) (*api.VerifyResponse, e
 		return nil, err
 	}
 	rq := verify.CreateRq()
-	ctx, cancel, err := client.NewSignedTimeoutContext(v.signer, rq, verify.Params.Timeout)
+	ctx, cancel, err := client.NewSignedTimeoutContext(v.peerSigner, v.orgSigner, rq,
+		verify.Params.Timeout)
 	if err != nil {
 		return nil, err
 	}

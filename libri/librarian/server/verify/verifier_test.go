@@ -23,8 +23,8 @@ import (
 func TestNewDefaultVerifier(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	selfID := ecid.NewPseudoRandom(rng).Key()
-	v := NewDefaultVerifier(client.NewSigner(selfID), &fixedRecorder{}, nil)
-	assert.NotNil(t, v.(*verifier).signer)
+	v := NewDefaultVerifier(client.NewECDSASigner(selfID), &fixedRecorder{}, nil)
+	assert.NotNil(t, v.(*verifier).peerSigner)
 	assert.NotNil(t, v.(*verifier).verifierCreator)
 	assert.NotNil(t, v.(*verifier).rp)
 	assert.NotNil(t, v.(*verifier).rec)
@@ -150,7 +150,7 @@ func TestVerifier_query_ok(t *testing.T) {
 
 	v := NewVerify(peerID, key, macKey, mac, &Parameters{})
 	verifierImpl := &verifier{
-		signer: &client.TestNoOpSigner{},
+		peerSigner: &client.TestNoOpSigner{},
 		verifierCreator: &testVerifierCreator{
 			verifiers: map[string]api.Verifier{
 				next.Address().String(): &fixedVerifier{},
@@ -176,19 +176,19 @@ func TestVerifier_query_err(t *testing.T) {
 	cases := []*verifier{
 		// case 0
 		{
-			signer:          &client.TestNoOpSigner{},
+			peerSigner:      &client.TestNoOpSigner{},
 			verifierCreator: &testVerifierCreator{err: errors.New("some create error")},
 		},
 
 		// case 1
 		{
-			signer:          &client.TestErrSigner{},
+			peerSigner:      &client.TestErrSigner{},
 			verifierCreator: &testVerifierCreator{},
 		},
 
 		// case 2
 		{
-			signer: &client.TestNoOpSigner{},
+			peerSigner: &client.TestNoOpSigner{},
 			verifierCreator: &testVerifierCreator{
 				err: errors.New("some Find error"),
 			},
@@ -196,7 +196,7 @@ func TestVerifier_query_err(t *testing.T) {
 
 		// case 3
 		{
-			signer: &client.TestNoOpSigner{},
+			peerSigner: &client.TestNoOpSigner{},
 			verifierCreator: &testVerifierCreator{
 				verifiers: map[string]api.Verifier{
 					next.Address().String(): &fixedVerifier{

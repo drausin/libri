@@ -80,7 +80,7 @@ func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
 
 	var intro *introduce.Introduction
 	operation := func() error {
-		intro = introduce.NewIntroduction(l.selfID, l.apiSelf, l.config.Introduce)
+		intro = introduce.NewIntroduction(l.peerID, l.orgID, l.apiSelf, l.config.Introduce)
 		if err := l.introducer.Introduce(intro, bootstraps); err != nil {
 			l.logger.Debug("introduction error", zap.String("error", err.Error()))
 			return err
@@ -100,7 +100,7 @@ func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
 	if err := cbackoff.Retry(operation, backoff); err != nil {
 		l.logger.Error("encountered fatal error while bootstrapping",
 			zap.Error(err),
-			zap.Stringer("self_id", l.selfID),
+			zap.Stringer("self_id", l.peerID),
 			zap.String("public_name", l.config.PublicName),
 		)
 		return err

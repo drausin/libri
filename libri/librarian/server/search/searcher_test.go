@@ -21,8 +21,8 @@ func TestNewDefaultSearcher(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	selfID := ecid.NewPseudoRandom(rng).Key()
 	rec := &fixedRecorder{}
-	s := NewDefaultSearcher(client.NewSigner(selfID), rec, nil)
-	assert.NotNil(t, s.(*searcher).signer)
+	s := NewDefaultSearcher(client.NewECDSASigner(selfID), rec, nil)
+	assert.NotNil(t, s.(*searcher).peerSigner)
 	assert.NotNil(t, s.(*searcher).finderCreator)
 	assert.NotNil(t, s.(*searcher).rp)
 	assert.NotNil(t, s.(*searcher).rec)
@@ -172,7 +172,7 @@ func TestSearcher_query_ok(t *testing.T) {
 	search := NewSearch(peerID, key, &Parameters{})
 	next := peer.NewTestPeer(rng, 0)
 	s := &searcher{
-		signer: &client.TestNoOpSigner{},
+		peerSigner: &client.TestNoOpSigner{},
 		finderCreator: &TestFinderCreator{
 			finders: map[string]api.Finder{
 				next.Address().String(): &fixedFinder{},
@@ -196,19 +196,19 @@ func TestSearcher_query_err(t *testing.T) {
 	cases := []*searcher{
 		// case 0
 		{
-			signer:        &client.TestNoOpSigner{},
+			peerSigner:    &client.TestNoOpSigner{},
 			finderCreator: &TestFinderCreator{err: errors.New("some create error")},
 		},
 
 		// case 1
 		{
-			signer:        &client.TestErrSigner{},
+			peerSigner:    &client.TestErrSigner{},
 			finderCreator: &TestFinderCreator{},
 		},
 
 		// case 2
 		{
-			signer: &client.TestNoOpSigner{},
+			peerSigner: &client.TestNoOpSigner{},
 			finderCreator: &TestFinderCreator{
 				err: errors.New("some Find error"),
 			},
@@ -216,7 +216,7 @@ func TestSearcher_query_err(t *testing.T) {
 
 		// case 3
 		{
-			signer: &client.TestNoOpSigner{},
+			peerSigner: &client.TestNoOpSigner{},
 			finderCreator: &TestFinderCreator{
 				finders: map[string]api.Finder{
 					next.Address().String(): &fixedFinder{requestID: []byte{1, 2, 3, 4}},

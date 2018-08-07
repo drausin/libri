@@ -45,6 +45,9 @@ type Config struct {
 	// KeychainDir is the local directory where the author keys are stored.
 	KeychainDir string
 
+	// PublicOrgName is the public facing name of the organization running the client.
+	PublicOrgName string
+
 	// LibrarianAddrs is a list of public addresses of Librarian servers to issue request to.
 	LibrarianAddrs []*net.TCPAddr
 

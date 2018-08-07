@@ -80,8 +80,8 @@ func loadOrCreateRoutingTable(
 
 	if rt != nil {
 		if selfID.ID().Cmp(rt.SelfID()) != 0 {
-			msg := fmt.Sprintf("selfID (%v) of loaded routing table does not match "+
-				"Librarian selfID (%v)", rt.SelfID(), selfID)
+			msg := fmt.Sprintf("peerID (%v) of loaded routing table does not match "+
+				"Librarian peerID (%v)", rt.SelfID(), selfID)
 			err := errors.New(msg)
 			logger.Error(msg, zap.Error(err))
 			return nil, err

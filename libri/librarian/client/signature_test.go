@@ -47,7 +47,7 @@ func TestEcdsaSignerVerifer_SignVerify_ok(t *testing.T) {
 	peerID := ecid.NewPseudoRandom(rng)
 	value, key := api.NewTestDocument(rng)
 
-	signer, verifier := NewSigner(peerID.Key()), NewVerifier()
+	signer, verifier := NewECDSASigner(peerID.Key()), NewVerifier()
 
 	cases := []proto.Message{
 		NewFindRequest(peerID, key, 20),
@@ -67,7 +67,7 @@ func TestEcdsaSigner_Sign_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	peerID := ecid.NewPseudoRandom(rng)
 
-	signer := NewSigner(peerID.Key())
+	signer := NewECDSASigner(peerID.Key())
 	_, err := signer.Sign(nil)
 	assert.NotNil(t, err) // protobuf needs to be not-nil
 }
@@ -78,7 +78,7 @@ func TestEcdsaVerifer_Verify_err(t *testing.T) {
 	key, value := id.NewPseudoRandom(rng), make([]byte, 512)
 	rng.Read(value)
 
-	signer, verifier := NewSigner(peerID.Key()), NewVerifier()
+	signer, verifier := NewECDSASigner(peerID.Key()), NewVerifier()
 	message := NewFindRequest(peerID, key, 20)
 	encToken, err := signer.Sign(message)
 	assert.Nil(t, err)

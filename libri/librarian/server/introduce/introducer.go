@@ -19,33 +19,43 @@ type Introducer interface {
 }
 
 type introducer struct {
-	signer            client.Signer
+	peerSigner        client.Signer
+	orgSigner         client.Signer
 	introducerCreator client.IntroducerCreator
 	repProcessor      ResponseProcessor
 	rec               comm.QueryRecorder
 }
 
-// NewIntroducer creates a new Introducer instance with the given signer, querier, and response
+// NewIntroducer creates a new Introducer instance with the given peerSigner, querier, and response
 // processor.
 func NewIntroducer(
-	s client.Signer, rec comm.QueryRecorder, c client.IntroducerCreator, rp ResponseProcessor,
+	peerSigner client.Signer,
+	orgSigner client.Signer,
+	rec comm.QueryRecorder,
+	c client.IntroducerCreator,
+	rp ResponseProcessor,
 ) Introducer {
 	return &introducer{
-		signer:            s,
+		peerSigner:        peerSigner,
+		orgSigner:         orgSigner,
 		introducerCreator: c,
 		repProcessor:      rp,
 		rec:               rec,
 	}
 }
 
-// NewDefaultIntroducer creates a new Introducer with the given signer and default querier and
+// NewDefaultIntroducer creates a new Introducer with the given peerSigner and default querier and
 // response processor.
 func NewDefaultIntroducer(
-	s client.Signer, rec comm.QueryRecorder, selfID id.ID, clients client.Pool,
+	peerSigner client.Signer,
+	orgSigner client.Signer,
+	rec comm.QueryRecorder,
+	selfID id.ID,
+	clients client.Pool,
 ) Introducer {
 	ic := client.NewIntroducerCreator(clients)
 	rp := NewResponseProcessor(peer.NewFromer(), selfID)
-	return NewIntroducer(s, rec, ic, rp)
+	return NewIntroducer(peerSigner, orgSigner, rec, ic, rp)
 }
 
 func (i *introducer) Introduce(intro *Introduction, seeds []peer.Peer) error {
@@ -105,7 +115,8 @@ func (i *introducer) query(next peer.Peer, intro *Introduction) (*api.IntroduceR
 		return nil, err
 	}
 	rq := intro.NewRequest()
-	ctx, cancel, err := client.NewSignedTimeoutContext(i.signer, rq, intro.Params.Timeout)
+	ctx, cancel, err := client.NewSignedTimeoutContext(i.peerSigner, i.orgSigner,
+		rq, intro.Params.Timeout)
 	if err != nil {
 		return nil, err
 	}

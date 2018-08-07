@@ -211,9 +211,9 @@ func TestSubscriptionBeginnerImpl_Begin_ok(t *testing.T) {
 	fromID := ecid.NewPseudoRandom(rng)
 	fromPubKey := fromID.PublicKeyBytes()
 	sb := subscriptionBeginnerImpl{
-		clientID: clientID,
-		signer:   &fixedSigner{signature: "some.signature.jtw"},
-		params:   NewDefaultToParameters(),
+		peerID:     clientID,
+		peerSigner: &fixedSigner{signature: "some.signature.jtw"},
+		params:     NewDefaultToParameters(),
 	}
 	responses := make(chan *api.SubscribeResponse, 1)
 	responseErrs := make(chan error, 1)
@@ -292,9 +292,9 @@ func TestSubscriptionBeginnerImpl_Begin_err(t *testing.T) {
 
 	// check NewSignedTimeoutContext error bubbles up
 	sb1 := subscriptionBeginnerImpl{
-		clientID: clientID,
-		signer:   &fixedSigner{err: errors.New("some Signer error")},
-		params:   NewDefaultToParameters(),
+		peerID:     clientID,
+		peerSigner: &fixedSigner{err: errors.New("some Signer error")},
+		params:     NewDefaultToParameters(),
 	}
 	lc1 := &fixedSubscriber{}
 	err = sb1.begin(lc1, sub, received, errs, end)
@@ -302,9 +302,9 @@ func TestSubscriptionBeginnerImpl_Begin_err(t *testing.T) {
 
 	// check Subscribe error bubbles up
 	sb2 := subscriptionBeginnerImpl{
-		clientID: clientID,
-		signer:   &fixedSigner{signature: "some.signature.jtw"},
-		params:   NewDefaultToParameters(),
+		peerID:     clientID,
+		peerSigner: &fixedSigner{signature: "some.signature.jtw"},
+		params:     NewDefaultToParameters(),
 	}
 	lc2 := &fixedSubscriber{
 		client: nil,
@@ -315,9 +315,9 @@ func TestSubscriptionBeginnerImpl_Begin_err(t *testing.T) {
 
 	// check Recv error bubbles up
 	sb3 := subscriptionBeginnerImpl{
-		clientID: clientID,
-		signer:   &fixedSigner{signature: "some.signature.jtw"},
-		params:   NewDefaultToParameters(),
+		peerID:     clientID,
+		peerSigner: &fixedSigner{signature: "some.signature.jtw"},
+		params:     NewDefaultToParameters(),
 	}
 	responses3 := make(chan *api.SubscribeResponse, 1)
 	responseErrs3 := make(chan error, 1)
@@ -334,9 +334,9 @@ func TestSubscriptionBeginnerImpl_Begin_err(t *testing.T) {
 
 	// check newPublicationValueReceipt error bubbles up
 	sb4 := subscriptionBeginnerImpl{
-		clientID: clientID,
-		signer:   &fixedSigner{signature: "some.signature.jtw"},
-		params:   NewDefaultToParameters(),
+		peerID:     clientID,
+		peerSigner: &fixedSigner{signature: "some.signature.jtw"},
+		params:     NewDefaultToParameters(),
 	}
 	responses4 := make(chan *api.SubscribeResponse, 1)
 	responseErrs4 := make(chan error, 1)

@@ -19,7 +19,7 @@ import (
 func TestAcquirer_Acquire_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	clientID := ecid.NewPseudoRandom(rng)
-	signer := client.NewSigner(clientID.Key())
+	signer := client.NewECDSASigner(clientID.Key())
 	params := NewDefaultParameters()
 	expectedDoc, docKey := api.NewTestDocument(rng)
 	authorPub := api.GetAuthorPub(expectedDoc)
@@ -42,7 +42,7 @@ func TestAcquirer_Acquire_ok(t *testing.T) {
 func TestAcquirer_Acquire_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	clientID := ecid.NewPseudoRandom(rng)
-	signer := client.NewSigner(clientID.Key())
+	signer := client.NewECDSASigner(clientID.Key())
 	params := NewDefaultParameters()
 	expectedDoc, docKey := api.NewTestDocument(rng)
 	authorPub := api.GetAuthorPub(expectedDoc)

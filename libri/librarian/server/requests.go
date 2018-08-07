@@ -28,9 +28,10 @@ func NewRequestVerifier() RequestVerifier {
 	}
 }
 
-func (rv *verifier) Verify(ctx context.Context, msg proto.Message,
-	meta *api.RequestMetadata) error {
-	encToken, err := client.FromSignatureContext(ctx)
+func (rv *verifier) Verify(
+	ctx context.Context, msg proto.Message, meta *api.RequestMetadata,
+) error {
+	encToken, encOrgToken, err := client.FromSignatureContext(ctx)
 	if err != nil {
 		return err
 	}
@@ -45,6 +46,12 @@ func (rv *verifier) Verify(ctx context.Context, msg proto.Message,
 		return fmt.Errorf("invalid RequestId length: %v; expected length %v",
 			len(meta.RequestId), id.Length)
 	}
-
-	return rv.sigVerifier.Verify(encToken, pubKey, msg)
+	if err := rv.sigVerifier.Verify(encToken, pubKey, msg); err != nil || encOrgToken == "" {
+		return err
+	}
+	orgPubKey, err := ecid.FromPublicKeyBytes(meta.OrgPubKey)
+	if err != nil {
+		return err
+	}
+	return rv.sigVerifier.Verify(encOrgToken, orgPubKey, msg)
 }

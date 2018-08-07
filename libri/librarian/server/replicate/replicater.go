@@ -92,7 +92,8 @@ type Replicator interface {
 }
 
 type replicator struct {
-	selfID           ecid.ID
+	peerID           ecid.ID
+	orgID            ecid.ID
 	rt               routing.Table
 	docS             storage.DocumentStorer
 	verifier         verify.Verifier
@@ -113,7 +114,8 @@ type replicator struct {
 
 // NewReplicator returns a new Replicator.
 func NewReplicator(
-	selfID ecid.ID,
+	peerID ecid.ID,
+	orgID ecid.ID,
 	rt routing.Table,
 	docS storage.DocumentStorer,
 	verifier verify.Verifier,
@@ -125,7 +127,8 @@ func NewReplicator(
 	logger *zap.Logger,
 ) Replicator {
 	return &replicator{
-		selfID:           selfID,
+		peerID:           peerID,
+		orgID:            orgID,
 		rt:               rt,
 		docS:             docS,
 		verifier:         verifier,
@@ -231,7 +234,7 @@ func (r *replicator) verifyValue(key id.ID, value []byte) {
 	_, err := crand.Read(macKey)
 	cerrors.MaybePanic(err) // should never happen
 
-	v := verify.NewVerify(r.selfID, key, value, macKey, r.verifyParams)
+	v := verify.NewVerify(r.peerID, r.orgID, key, value, macKey, r.verifyParams)
 	seeds := r.rt.Find(key, r.verifyParams.NClosestResponses)
 
 	operation := func() error {
@@ -274,7 +277,7 @@ func (r *replicator) verifyValue(key id.ID, value []byte) {
 func (r *replicator) replicate(wg *sync.WaitGroup) {
 	defer wg.Done()
 	for v := range r.underreplicated {
-		s := newStore(r.selfID, v, *r.storeParams)
+		s := newStore(r.peerID, r.orgID, v, *r.storeParams)
 		// empty seeds b/c verification has already, in effect, replaced the search component of
 		// the store operation
 		if err := r.storer.Store(s, []peer.Peer{}); err != nil {
@@ -302,13 +305,13 @@ func (r *replicator) wrapLock(operation func()) {
 	operation()
 }
 
-func newStore(selfID ecid.ID, v *verify.Verify, storeParams store.Parameters) *store.Store {
+func newStore(peerID, orgID ecid.ID, v *verify.Verify, storeParams store.Parameters) *store.Store {
 	value := &api.Document{}
 	cerrors.MaybePanic(proto.Unmarshal(v.Value, value)) // should never happen
 	searchParams := &search.Parameters{
 		NClosestResponses: uint(v.Result.Closest.Len()),
 	}
-	s := store.NewStore(selfID, v.Key, value, searchParams, &storeParams)
+	s := store.NewStore(peerID, orgID, v.Key, value, searchParams, &storeParams)
 
 	// update number of replicas to store to be just enough to get back to full replication
 	storeParams.NReplicas = v.Params.NReplicas - uint(len(v.Result.Replicas))

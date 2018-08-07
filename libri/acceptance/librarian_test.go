@@ -346,7 +346,7 @@ func testReplicate(t *testing.T, _ *params, state *state) {
 func countDocReplicas(t *testing.T, state *state) map[string]int {
 	benchResults := make([]testing.BenchmarkResult, len(state.putDocs))
 	verifier := verify.NewDefaultVerifier(
-		client.NewSigner(state.client.selfID.Key()),
+		client.NewECDSASigner(state.client.selfID.Key()),
 		comm.NewQueryRecorderGetter(comm.NewAlwaysKnower()),
 		state.clients,
 	)

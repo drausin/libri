@@ -140,7 +140,7 @@ func TestReplicator_verify(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	rt, selfID, _, _ := routing.NewTestWithPeers(rng, 10)
 	r := replicator{
-		selfID:           selfID,
+		peerID:           selfID,
 		verifyParams:     verify.NewDefaultParameters(),
 		replicatorParams: &Parameters{VerifyInterval: 10 * time.Millisecond},
 		storeParams:      store.NewDefaultParameters(),
@@ -211,7 +211,7 @@ func TestReplicator_verifyValue(t *testing.T) {
 		VerifyTimeout:  10 * time.Millisecond,
 	}
 	r := replicator{
-		selfID:           selfID,
+		peerID:           selfID,
 		verifyParams:     verify.NewDefaultParameters(),
 		replicatorParams: replicatorParams,
 		storeParams:      store.NewDefaultParameters(),
@@ -351,7 +351,7 @@ func TestReplicator_replicate(t *testing.T) {
 	macKey := api.RandBytes(rng, 32)
 	verifyParams := verify.NewDefaultParameters()
 	r := replicator{
-		selfID:          selfID,
+		peerID:          selfID,
 		storeParams:     store.NewDefaultParameters(),
 		metrics:         newMetrics(),
 		underreplicated: make(chan *verify.Verify, 1),

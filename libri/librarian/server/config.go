@@ -60,6 +60,9 @@ type Config struct {
 	// PublicName is the public facing name of the peer.
 	PublicName string
 
+	// PublicOrgName is the public facing name of the organization running the peer.
+	PublicOrgName string
+
 	// DataDir is the directory on the local machine where the state and output of all the
 	// peer running on that machine are stored.
 	DataDir string

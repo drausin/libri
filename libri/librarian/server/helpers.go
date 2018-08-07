@@ -32,7 +32,7 @@ func newIDFromPublicKeyBytes(pubKeyBytes []byte) (id.ID, error) {
 func (l *Librarian) NewResponseMetadata(m *api.RequestMetadata) *api.ResponseMetadata {
 	return &api.ResponseMetadata{
 		RequestId: m.RequestId,
-		PubKey:    l.selfID.PublicKeyBytes(),
+		PubKey:    l.peerID.PublicKeyBytes(),
 	}
 }
 

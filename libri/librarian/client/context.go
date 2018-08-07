@@ -10,17 +10,26 @@ import (
 )
 
 const (
-	signatureKey = "signature"
+	signatureKey    = "signature"
+	orgSignatureKey = "orgSignature"
 )
 
 var (
 	errContextMissingMetadata  = errors.New("context unexpectedly missing metadata")
-	errContextMissingSignature = errors.New("metadata signature key unexpectedly does not exist")
+	errContextMissingSignature = errors.New("metadata signature key unexpectedly does not " +
+		"exist")
+	errContextMissingOrgSignature = errors.New("metadata organization signature key " +
+		"unexpectedly does not exist")
 )
 
 // NewSignatureContext creates a new context with the signed JSON web token (JWT) string.
-func NewSignatureContext(ctx context.Context, signedJWT string) context.Context {
-	return metadata.NewOutgoingContext(ctx, metadata.Pairs(signatureKey, signedJWT))
+func NewSignatureContext(ctx context.Context, signedJWT, orgSignedJWT string) context.Context {
+	return metadata.NewOutgoingContext(ctx,
+		metadata.Pairs(
+			signatureKey, signedJWT,
+			orgSignatureKey, orgSignedJWT,
+		),
+	)
 }
 
 // NewIncomingSignatureContext creates a new context with the signed JSON web token (JWT) string
@@ -30,21 +39,24 @@ func NewIncomingSignatureContext(ctx context.Context, signedJWT string) context.
 }
 
 // FromSignatureContext extracts the signed JSON web token from the context.
-func FromSignatureContext(ctx context.Context) (string, error) {
+func FromSignatureContext(ctx context.Context) (string, string, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return "", errContextMissingMetadata
+		return "", "", errContextMissingMetadata
 	}
 	signedJWTs, exists := md[signatureKey]
 	if !exists {
-		return "", errContextMissingSignature
+		return "", "", errContextMissingSignature
 	}
-	return signedJWTs[0], nil
+	signedOrgJWTs, exists := md[orgSignatureKey]
+	if !exists {
+		return "", "", errContextMissingOrgSignature
+	}
+	return signedJWTs[0], signedOrgJWTs[0], nil
 }
 
 // NewSignedContext creates a new context with a request signature.
-func NewSignedContext(signer Signer, request proto.Message) (context.Context, error) {
-
+func NewSignedContext(signer, orgSigner Signer, request proto.Message) (context.Context, error) {
 	ctx := context.Background()
 
 	// sign the message
@@ -52,15 +64,21 @@ func NewSignedContext(signer Signer, request proto.Message) (context.Context, er
 	if err != nil {
 		return nil, err
 	}
-	ctx = NewSignatureContext(ctx, signedJWT)
+	orgSignedJWT, err := orgSigner.Sign(request)
+	if err != nil {
+		return nil, err
+	}
+	ctx = NewSignatureContext(ctx, signedJWT, orgSignedJWT)
 	return ctx, nil
 }
 
 // NewSignedTimeoutContext creates a new context with a timeout and request signature.
-func NewSignedTimeoutContext(signer Signer, request proto.Message, timeout time.Duration) (
+func NewSignedTimeoutContext(
+	signer, orgSigner Signer, request proto.Message, timeout time.Duration,
+) (
 	context.Context, context.CancelFunc, error) {
 
-	ctx, err := NewSignedContext(signer, request)
+	ctx, err := NewSignedContext(signer, orgSigner, request)
 	if err != nil {
 		return nil, func() {}, err
 	}

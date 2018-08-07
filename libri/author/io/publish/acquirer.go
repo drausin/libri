@@ -19,23 +19,30 @@ type Acquirer interface {
 }
 
 type acquirer struct {
-	clientID ecid.ID
-	signer   client.Signer
-	params   *Parameters
+	clientID     ecid.ID
+	orgID        ecid.ID
+	clientSigner client.Signer
+	orgSigner    client.Signer
+	params       *Parameters
 }
 
-// NewAcquirer creates a new Acquirer with the given clientID signer, and params.
-func NewAcquirer(clientID ecid.ID, signer client.Signer, params *Parameters) Acquirer {
+// NewAcquirer creates a new Acquirer with the given clientID clientSigner, and params.
+func NewAcquirer(
+	clientID, orgID ecid.ID, clientSigner, orgSigner client.Signer, params *Parameters,
+) Acquirer {
 	return &acquirer{
-		clientID: clientID,
-		signer:   signer,
-		params:   params,
+		clientID:     clientID,
+		orgID:        orgID,
+		clientSigner: clientSigner,
+		orgSigner:    orgSigner,
+		params:       params,
 	}
 }
 
 func (a *acquirer) Acquire(docKey id.ID, authorPub []byte, lc api.Getter) (*api.Document, error) {
-	rq := client.NewGetRequest(a.clientID, docKey)
-	ctx, cancel, err := client.NewSignedTimeoutContext(a.signer, rq, a.params.GetTimeout)
+	rq := client.NewGetRequest(a.clientID, a.orgID, docKey)
+	ctx, cancel, err := client.NewSignedTimeoutContext(a.clientSigner, a.orgSigner, rq,
+		a.params.GetTimeout)
 	if err != nil {
 		return nil, err
 	}

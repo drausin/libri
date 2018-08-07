@@ -21,7 +21,7 @@ import (
 func TestNewDefaultStorer(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	s := NewDefaultStorer(ecid.NewPseudoRandom(rng), &fixedRecorder{}, nil)
-	assert.NotNil(t, s.(*storer).signer)
+	assert.NotNil(t, s.(*storer).peerSigner)
 	assert.NotNil(t, s.(*storer).searcher)
 	assert.NotNil(t, s.(*storer).storerCreator)
 }
@@ -41,7 +41,7 @@ func TestStorer_Store_ok(t *testing.T) {
 		storer := &storer{
 			searcher:      ssearch.NewTestSearcher(peersMap, addressFinders, rec),
 			storerCreator: &fixedStorerCreator{},
-			signer:        &client.TestNoOpSigner{},
+			peerSigner:    &client.TestNoOpSigner{},
 			rec:           rec,
 		}
 
@@ -140,19 +140,19 @@ func TestStorer_query_err(t *testing.T) {
 	cases := []*storer{
 		// case 0
 		{
-			signer:        &client.TestNoOpSigner{},
+			peerSigner:    &client.TestNoOpSigner{},
 			storerCreator: &fixedStorerCreator{err: errors.New("some Create error")},
 		},
 
 		// case 1
 		{
-			signer:        &client.TestErrSigner{},
+			peerSigner:    &client.TestErrSigner{},
 			storerCreator: &fixedStorerCreator{},
 		},
 
 		// case 2
 		{
-			signer: &client.TestNoOpSigner{},
+			peerSigner: &client.TestNoOpSigner{},
 			storerCreator: &fixedStorerCreator{
 				storer: &fixedStorer{err: errors.New("some Store error")},
 			},
@@ -160,7 +160,7 @@ func TestStorer_query_err(t *testing.T) {
 
 		// case 3
 		{
-			signer: &client.TestNoOpSigner{},
+			peerSigner: &client.TestNoOpSigner{},
 			storerCreator: &fixedStorerCreator{
 				storer: &fixedStorer{requestID: []byte{1, 2, 3, 4}},
 			},
@@ -185,7 +185,7 @@ func newTestStore(rec comm.QueryRecorder) (Storer, *Store, []int, []peer.Peer, c
 	storerImpl := &storer{
 		searcher:      ssearch.NewTestSearcher(peersMap, addressFinders, rec),
 		storerCreator: &fixedStorerCreator{},
-		signer:        &client.TestNoOpSigner{},
+		peerSigner:    &client.TestNoOpSigner{},
 		rec:           rec,
 	}
 

@@ -109,7 +109,7 @@ func TestLoadOrCreateRoutingTable_selfIDErr(t *testing.T) {
 		Bytes: bytes,
 	}
 
-	// error with conflicting/different selfID
+	// error with conflicting/different peerID
 	selfID2 := ecid.NewPseudoRandom(rng)
 	lg, p, d := clogging.NewDevInfoLogger(), &fixedPreferer{}, &fixedDoctor{}
 	rt1, err := loadOrCreateRoutingTable(lg, fullLoader, p, d, selfID2,

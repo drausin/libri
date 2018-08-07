@@ -45,8 +45,11 @@ var (
 
 // Librarian is the main service of a single peer in the peer to peer network.
 type Librarian struct {
-	// SelfID is the random 256-bit identification number of this node in the hash table
-	selfID ecid.ID
+	// ID of this peer in the distributed hash table and key-pair used to sign requests
+	peerID ecid.ID
+
+	// ID of the organization running this peer and key-pair used to sign requests
+	orgID ecid.ID
 
 	// Config holds the configuration parameters of the server
 	config *Config
@@ -141,11 +144,13 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 	documentSL := storage.NewDocumentSLD(rdb)
 
 	// get peer ID and immediately save it so subsequent restarts have it
-	selfID, err := loadOrCreatePeerID(logger, serverSL)
+	peerID, err := loadOrCreatePeerID(logger, serverSL)
 	if err != nil {
 		return nil, err
 	}
-	selfLogger := logger.With(zap.String(logSelfIDShort, id.ShortHex(selfID.Bytes())))
+	selfLogger := logger.With(zap.String(logSelfIDShort, id.ShortHex(peerID.Bytes())))
+	var orgID ecid.ID
+	// TODO (drausin) load orgID from config or env var
 
 	knower := comm.NewAlwaysKnower()
 	doctor := comm.NewNaiveDoctor()
@@ -154,13 +159,13 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 	windows := []time.Duration{comm.Second, comm.Day, comm.Week}
 	recorder, getters := comm.NewWindowQueryRecorderGetters(knower, windows)
 	if config.ReportMetrics {
-		recorder = comm.NewPromScalarRecorder(selfID.ID(), recorder)
+		recorder = comm.NewPromScalarRecorder(peerID.ID(), recorder)
 	}
 	weekGetter := getters[7*24*time.Hour]
 	prefer := comm.NewFindRpPreferer(weekGetter)
 	allower := comm.NewDefaultAllower(knower, getters)
 
-	rt, err := loadOrCreateRoutingTable(selfLogger, serverSL, prefer, doctor, selfID,
+	rt, err := loadOrCreateRoutingTable(selfLogger, serverSL, prefer, doctor, peerID,
 		config.Routing)
 	if err != nil {
 		return nil, err
@@ -169,12 +174,18 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 	if err != nil {
 		return nil, err
 	}
-	signer := client.NewSigner(selfID.Key())
+	peerSigner := client.NewECDSASigner(peerID.Key())
+	orgSigner := client.NewEmptySigner()
+	if orgID != nil {
+		orgSigner = client.NewECDSASigner(orgID.Key())
+	}
 
-	searcher := search.NewDefaultSearcher(signer, recorder, clients)
-	storer := store.NewStorer(signer, recorder, searcher, client.NewStorerCreator(clients))
-	introducer := introduce.NewDefaultIntroducer(signer, recorder, selfID.ID(), clients)
-	verifier := verify.NewDefaultVerifier(signer, recorder, clients)
+	searcher := search.NewDefaultSearcher(peerSigner, orgSigner, recorder, clients)
+	storer := store.NewStorer(peerSigner, orgSigner, recorder, searcher,
+		client.NewStorerCreator(clients))
+	introducer := introduce.NewDefaultIntroducer(peerSigner, orgSigner, recorder, peerID.ID(),
+		clients)
+	verifier := verify.NewDefaultVerifier(peerSigner, orgSigner, recorder, clients)
 
 	newPubs := make(chan *subscribe.KeyedPub, newPublicationsSlack)
 	recentPubs, err := subscribe.NewRecentPublications(config.SubscribeTo.RecentCacheSize)
@@ -182,16 +193,17 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		return nil, err
 	}
 	clientBalancer := routing.NewClientBalancer(rt, clients)
-	subscribeTo := subscribe.NewTo(config.SubscribeTo, selfLogger, selfID, clientBalancer, signer,
-		recentPubs, newPubs)
+	subscribeTo := subscribe.NewTo(config.SubscribeTo, selfLogger, peerID, orgID,
+		clientBalancer, peerSigner, orgSigner, recentPubs, newPubs)
 
 	metricsSM := http.NewServeMux()
 	metricsSM.Handle("/metrics", promhttp.Handler())
 	metrics := &http.Server{Addr: fmt.Sprintf(":%d", config.LocalMetricsPort), Handler: metricsSM}
 
-	rng := rand.New(rand.NewSource(selfID.Int().Int64()))
+	rng := rand.New(rand.NewSource(peerID.Int().Int64()))
 	replicator := replicate.NewReplicator(
-		selfID,
+		peerID,
+		orgID,
 		rt,
 		documentSL,
 		verifier,
@@ -204,9 +216,9 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 	)
 
 	return &Librarian{
-		selfID:         selfID,
+		peerID:         peerID,
 		config:         config,
-		apiSelf:        peer.FromAddress(selfID.ID(), config.PublicName, config.PublicAddr),
+		apiSelf:        peer.FromAddress(peerID.ID(), config.PublicName, config.PublicAddr),
 		introducer:     introducer,
 		searcher:       searcher,
 		replicator:     replicator,
@@ -221,7 +233,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		kc:             storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		kvc:            storage.NewHashKeyValueChecker(),
 		fromer:         peer.NewFromer(),
-		signer:         signer,
+		signer:         peerSigner,
 		clients:        clients,
 		rt:             rt,
 		storageMetrics: newStorageMetrics(),
@@ -417,7 +429,7 @@ func (l *Librarian) Get(ctx context.Context, rq *api.GetRequest) (*api.GetRespon
 	l.record(requesterID, endpoint, comm.Request, comm.Success)
 
 	key := id.FromBytes(rq.Key)
-	s := search.NewSearch(l.selfID, key, l.config.Search)
+	s := search.NewSearch(l.peerID, l.orgID, key, l.config.Search)
 	seeds := l.rt.Find(key, s.Params.NClosestResponses)
 	if err = l.searcher.Search(s, seeds); err != nil {
 		return nil, logReturnInternalErr(lg, "error searching", err)
@@ -475,7 +487,8 @@ func (l *Librarian) Put(ctx context.Context, rq *api.PutRequest) (*api.PutRespon
 
 	key := id.FromBytes(rq.Key)
 	s := store.NewStore(
-		l.selfID,
+		l.peerID,
+		l.orgID,
 		key,
 		rq.Value,
 		l.config.Search,

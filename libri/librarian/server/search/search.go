@@ -150,9 +150,9 @@ type Search struct {
 }
 
 // NewSearch creates a new Search instance for a given target, search type, and search parameters.
-func NewSearch(selfID ecid.ID, key id.ID, params *Parameters) *Search {
+func NewSearch(peerID, orgID ecid.ID, key id.ID, params *Parameters) *Search {
 	createRq := func() *api.FindRequest {
-		return client.NewFindRequest(selfID, key, params.NClosestResponses)
+		return client.NewFindRequest(peerID, orgID, key, params.NClosestResponses)
 	}
 	return &Search{
 		Key:     key,
