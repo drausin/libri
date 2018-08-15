@@ -72,6 +72,8 @@ func TestResult_MarshalLogObject(t *testing.T) {
 
 func TestStore_MarshalLogObject_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
+	peerID := ecid.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
 
 	var s1 *Store
 	err := s1.MarshalLogObject(nil)
@@ -80,7 +82,7 @@ func TestStore_MarshalLogObject_ok(t *testing.T) {
 	oe := zapcore.NewJSONEncoder(zap.NewDevelopmentEncoderConfig())
 	doc, key := api.NewTestDocument(rng)
 	searchParams := ssearch.NewDefaultParameters()
-	s2 := NewStore(ecid.NewPseudoRandom(rng), key, doc, searchParams, NewDefaultParameters())
+	s2 := NewStore(peerID, orgID, key, doc, searchParams, NewDefaultParameters())
 	s2.Result = NewInitialResult(ssearch.NewInitialResult(key, searchParams))
 	err = s2.MarshalLogObject(oe)
 	assert.Nil(t, err)
@@ -89,10 +91,11 @@ func TestStore_MarshalLogObject_ok(t *testing.T) {
 func TestStore_Stored(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	peerID := ecid.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
 	value, key := api.NewTestDocument(rng)
 
 	// create store with search
-	store := NewStore(peerID, key, value, &ssearch.Parameters{}, &Parameters{
+	store := NewStore(peerID, orgID, key, value, &ssearch.Parameters{}, &Parameters{
 		NReplicas:  3,
 		NMaxErrors: 3,
 	})
@@ -117,10 +120,11 @@ func TestStore_Stored(t *testing.T) {
 func TestStore_Errored(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	peerID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
 
 	// create search with result of closest peers
 	nClosestResponse := uint(4)
-	search := ssearch.NewSearch(peerID, key, &ssearch.Parameters{
+	search := ssearch.NewSearch(peerID, orgID, key, &ssearch.Parameters{
 		NClosestResponses: nClosestResponse,
 	})
 

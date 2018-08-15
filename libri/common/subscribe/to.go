@@ -124,7 +124,7 @@ type to struct {
 func NewTo(
 	params *ToParameters,
 	logger *zap.Logger,
-	peerID ecid.ID,
+	clientID ecid.ID,
 	orgID ecid.ID,
 	csb client.SetBalancer,
 	peerSigner client.Signer,
@@ -136,9 +136,9 @@ func NewTo(
 		params:   params,
 		logger:   logger,
 		csb:      csb,
-		clientID: peerID,
+		clientID: clientID,
 		sb: &subscriptionBeginnerImpl{
-			peerID:     peerID,
+			peerID:     clientID,
 			orgID:      orgID,
 			peerSigner: peerSigner,
 			orgSigner:  orgSigner,

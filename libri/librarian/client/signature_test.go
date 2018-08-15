@@ -45,15 +45,16 @@ func TestSignatureClaims_Valid_err(t *testing.T) {
 func TestEcdsaSignerVerifer_SignVerify_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	peerID := ecid.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
 	value, key := api.NewTestDocument(rng)
 
 	signer, verifier := NewECDSASigner(peerID.Key()), NewVerifier()
 
 	cases := []proto.Message{
-		NewFindRequest(peerID, key, 20),
-		NewStoreRequest(peerID, key, value),
-		NewGetRequest(peerID, key),
-		NewPutRequest(peerID, key, value),
+		NewFindRequest(peerID, orgID, key, 20),
+		NewStoreRequest(peerID, orgID, key, value),
+		NewGetRequest(peerID, orgID, key),
+		NewPutRequest(peerID, orgID, key, value),
 	}
 	for _, c := range cases {
 		encToken, err := signer.Sign(c)
@@ -75,11 +76,12 @@ func TestEcdsaSigner_Sign_err(t *testing.T) {
 func TestEcdsaVerifer_Verify_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	peerID := ecid.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
 	key, value := id.NewPseudoRandom(rng), make([]byte, 512)
 	rng.Read(value)
 
 	signer, verifier := NewECDSASigner(peerID.Key()), NewVerifier()
-	message := NewFindRequest(peerID, key, 20)
+	message := NewFindRequest(peerID, orgID, key, 20)
 	encToken, err := signer.Sign(message)
 	assert.Nil(t, err)
 
@@ -94,8 +96,8 @@ func TestEcdsaVerifer_Verify_err(t *testing.T) {
 		{"", peerID, message},
 
 		// different messages
-		{encToken, peerID, NewFindRequest(peerID, key, 10)}, // NPeers
-		{encToken, peerID, NewFindRequest(peerID, key, 20)}, // Metadata.RequestID
+		{encToken, peerID, NewFindRequest(peerID, orgID, key, 10)}, // NPeers
+		{encToken, peerID, NewFindRequest(peerID, orgID, key, 20)}, // Metadata.RequestID
 
 		// different peer
 		{encToken, ecid.NewPseudoRandom(rng), message},

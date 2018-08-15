@@ -41,7 +41,8 @@ func TestReplicator_StartStop(t *testing.T) {
 	defer cleanup()
 	defer kvdb.Close()
 
-	rt, selfID, _, _ := routing.NewTestWithPeers(rng, 10)
+	rt, peerID, _, _ := routing.NewTestWithPeers(rng, 10)
+	orgID := ecid.NewPseudoRandom(rng)
 	docS := storage.NewDocumentSLD(kvdb)
 	verifyParams := verify.NewDefaultParameters()
 	replicatorParams := &Parameters{
@@ -86,7 +87,8 @@ func TestReplicator_StartStop(t *testing.T) {
 	}
 
 	r := NewReplicator(
-		selfID,
+		peerID,
+		orgID,
 		rt,
 		docS,
 		verifier,
@@ -116,7 +118,8 @@ func TestReplicator_StartStop(t *testing.T) {
 		err: errors.New("some Store error"),
 	}
 	r = NewReplicator(
-		selfID,
+		peerID,
+		orgID,
 		rt,
 		docS,
 		verifier,
@@ -344,14 +347,15 @@ func (f *fixedVerifier) Verify(v *verify.Verify, seeds []peer.Peer) error {
 
 func TestReplicator_replicate(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	selfID := ecid.NewPseudoRandom(rng)
+	peerID := ecid.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
 	value, key := api.NewTestDocument(rng)
 	valueBytes, err := proto.Marshal(value)
 	assert.Nil(t, err)
 	macKey := api.RandBytes(rng, 32)
 	verifyParams := verify.NewDefaultParameters()
 	r := replicator{
-		peerID:          selfID,
+		peerID:          peerID,
 		storeParams:     store.NewDefaultParameters(),
 		metrics:         newMetrics(),
 		underreplicated: make(chan *verify.Verify, 1),
@@ -366,7 +370,7 @@ func TestReplicator_replicate(t *testing.T) {
 	r.storer = &fixedStorer{
 		result: &store.Result{Responded: peer.NewTestPeers(rng, int(verifyParams.NReplicas))},
 	}
-	r.underreplicated <- verify.NewVerify(selfID, key, valueBytes, macKey, verifyParams)
+	r.underreplicated <- verify.NewVerify(peerID, orgID, key, valueBytes, macKey, verifyParams)
 	err = <-r.errs
 	assert.Nil(t, err)
 	checkPromMetric(t, r.metrics.replication, 1, succeeded)
@@ -375,14 +379,14 @@ func TestReplicator_replicate(t *testing.T) {
 	r.storer = &fixedStorer{
 		result: &store.Result{Responded: []peer.Peer{}},
 	}
-	r.underreplicated <- verify.NewVerify(selfID, key, valueBytes, macKey, verifyParams)
+	r.underreplicated <- verify.NewVerify(peerID, orgID, key, valueBytes, macKey, verifyParams)
 	err = <-r.errs
 	assert.Nil(t, err)
 	checkPromMetric(t, r.metrics.replication, 1, errored)
 
 	// check that when storer returns an error, it gets passed to the errs channel
 	r.storer = &fixedStorer{err: errors.New("some Store error")}
-	r.underreplicated <- verify.NewVerify(selfID, key, valueBytes, macKey, verifyParams)
+	r.underreplicated <- verify.NewVerify(peerID, orgID, key, valueBytes, macKey, verifyParams)
 	err = <-r.errs
 	assert.NotNil(t, err)
 	checkPromMetric(t, r.metrics.replication, 2, errored)
@@ -403,7 +407,8 @@ func (s *fixedStorer) Store(store *store.Store, seeds []peer.Peer) error {
 
 func TestNewStore(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	selfID := ecid.NewPseudoRandom(rng)
+	peerID := ecid.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
 	doc, key := api.NewTestDocument(rng)
 	value, err := proto.Marshal(doc)
 	assert.Nil(t, err)
@@ -414,7 +419,7 @@ func TestNewStore(t *testing.T) {
 		NClosestResponses: 6,
 		NMaxErrors:        3,
 	}
-	v := verify.NewVerify(selfID, key, value, macKey, verifyParams)
+	v := verify.NewVerify(peerID, orgID, key, value, macKey, verifyParams)
 
 	// under-replicated by one
 	responded := peer.NewTestPeers(rng, int(verifyParams.NClosestResponses))
@@ -425,7 +430,7 @@ func TestNewStore(t *testing.T) {
 	assert.True(t, v.UnderReplicated())
 	assert.False(t, v.FullyReplicated())
 
-	s := newStore(selfID, v, *store.NewDefaultParameters())
+	s := newStore(peerID, orgID, v, *store.NewDefaultParameters())
 	assert.Equal(t, verifyParams.NMaxErrors, s.Search.Params.NMaxErrors)
 	assert.Equal(t, uint(1), s.Params.NReplicas)
 	assert.Equal(t, uint(4), s.Search.Params.NClosestResponses)

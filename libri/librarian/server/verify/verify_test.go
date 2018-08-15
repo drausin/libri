@@ -45,6 +45,7 @@ func TestVerify_MarshalLogObject(t *testing.T) {
 	oe := zapcore.NewJSONEncoder(zap.NewDevelopmentEncoderConfig())
 	s := NewVerify(
 		ecid.NewPseudoRandom(rng),
+		ecid.NewPseudoRandom(rng),
 		id.NewPseudoRandom(rng),
 		[]byte{1, 2, 3},
 		[]byte{4, 5, 6},
@@ -57,10 +58,11 @@ func TestVerify_MarshalLogObject(t *testing.T) {
 func TestVerify_PartiallyReplicated(t *testing.T) {
 	// target = 0 makes it easy to compute XOR distance manually
 	rng := rand.New(rand.NewSource(0))
-	target, selfID := id.FromInt64(0), ecid.NewPseudoRandom(rng)
+	target, peerID := id.FromInt64(0), ecid.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
 	macKey, mac := []byte{1, 2, 3}, []byte{4, 5, 6}
 
-	v := NewVerify(selfID, target, macKey, mac, &Parameters{
+	v := NewVerify(peerID, orgID, target, macKey, mac, &Parameters{
 		NReplicas:         3,
 		NClosestResponses: 6,
 		Concurrency:       3,
@@ -108,10 +110,11 @@ func TestVerify_PartiallyReplicated(t *testing.T) {
 func TestVerify_FullyReplicated(t *testing.T) {
 	// target = 0 makes it easy to compute XOR distance manually
 	rng := rand.New(rand.NewSource(0))
-	target, selfID := id.FromInt64(0), ecid.NewPseudoRandom(rng)
+	target, peerID := id.FromInt64(0), ecid.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
 	macKey, mac := []byte{1, 2, 3}, []byte{4, 5, 6}
 
-	v := NewVerify(selfID, target, macKey, mac, &Parameters{
+	v := NewVerify(peerID, orgID, target, macKey, mac, &Parameters{
 		NReplicas:         3,
 		NClosestResponses: 6,
 		Concurrency:       3,
@@ -132,15 +135,16 @@ func TestVerify_FullyReplicated(t *testing.T) {
 
 func TestVerify_Errored(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	target, selfID := id.FromInt64(0), ecid.NewPseudoRandom(rng)
+	target, peerID := id.FromInt64(0), ecid.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
 	macKey, mac := []byte{1, 2, 3}, []byte{4, 5, 6}
 
 	// no-error state
-	search1 := NewVerify(selfID, target, macKey, mac, NewDefaultParameters())
+	search1 := NewVerify(peerID, orgID, target, macKey, mac, NewDefaultParameters())
 	assert.False(t, search1.Errored())
 
 	// errored state b/c of too many errors
-	search2 := NewVerify(selfID, target, macKey, mac, NewDefaultParameters())
+	search2 := NewVerify(peerID, orgID, target, macKey, mac, NewDefaultParameters())
 	for c := uint(0); c < search2.Params.NMaxErrors+1; c++ {
 		peerID := id.NewPseudoRandom(rng).String()
 		search2.Result.Errored[peerID] = errors.New("some Find error")
@@ -148,23 +152,24 @@ func TestVerify_Errored(t *testing.T) {
 	assert.True(t, search2.Errored())
 
 	// errored state b/c of a fatal error
-	search3 := NewVerify(selfID, target, macKey, mac, NewDefaultParameters())
+	search3 := NewVerify(peerID, orgID, target, macKey, mac, NewDefaultParameters())
 	search3.Result.FatalErr = errors.New("test fatal error")
 	assert.True(t, search3.Errored())
 }
 
 func TestVerify_Exhausted(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	target, selfID := id.FromInt64(0), ecid.NewPseudoRandom(rng)
+	target, peerID := id.FromInt64(0), ecid.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
 	macKey, mac := []byte{1, 2, 3}, []byte{4, 5, 6}
 
 	// not exhausted b/c it has unqueried peers
-	search1 := NewVerify(selfID, target, macKey, mac, NewDefaultParameters())
+	search1 := NewVerify(peerID, orgID, target, macKey, mac, NewDefaultParameters())
 	search1.Result.Unqueried.SafePush(peer.New(id.FromInt64(1), "", nil))
 	assert.False(t, search1.Exhausted())
 
 	// exhausted b/c it doesn't have unqueried peers
-	search2 := NewVerify(selfID, target, macKey, mac, NewDefaultParameters())
+	search2 := NewVerify(peerID, orgID, target, macKey, mac, NewDefaultParameters())
 	search2.Result.Unqueried.SafePush(peer.New(id.FromInt64(1), "", nil))
 	assert.False(t, search1.Exhausted())
 }

@@ -11,7 +11,7 @@ import (
 
 const (
 	signatureKey    = "signature"
-	orgSignatureKey = "orgSignature"
+	orgSignatureKey = "orgsignature"
 )
 
 var (
@@ -34,8 +34,15 @@ func NewSignatureContext(ctx context.Context, signedJWT, orgSignedJWT string) co
 
 // NewIncomingSignatureContext creates a new context with the signed JSON web token (JWT) string
 // in the incoming metadata field. This function should only be used for testing.
-func NewIncomingSignatureContext(ctx context.Context, signedJWT string) context.Context {
-	return metadata.NewIncomingContext(ctx, metadata.Pairs(signatureKey, signedJWT))
+func NewIncomingSignatureContext(
+	ctx context.Context, signedJWT, orgSignedJWT string,
+) context.Context {
+	return metadata.NewIncomingContext(ctx,
+		metadata.Pairs(
+			signatureKey, signedJWT,
+			orgSignatureKey, orgSignedJWT,
+		),
+	)
 }
 
 // FromSignatureContext extracts the signed JSON web token from the context.

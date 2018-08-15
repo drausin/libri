@@ -55,11 +55,13 @@ func TestPublisher_Publish_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	clientID := ecid.NewPseudoRandom(rng)
 	signer := client.NewECDSASigner(clientID.Key())
+	orgID := ecid.NewPseudoRandom(rng)
+	orgSigner := client.NewECDSASigner(orgID.Key())
 	params := NewDefaultParameters()
 	lc := &fixedPutter{
 		err: nil,
 	}
-	pub := NewPublisher(clientID, signer, params)
+	pub := NewPublisher(clientID, orgID, signer, orgSigner, params)
 
 	doc, expectedDocKey := api.NewTestDocument(rng)
 	actualDocKey, err := pub.Publish(doc, api.GetAuthorPub(doc), lc)
@@ -72,11 +74,13 @@ func TestPublisher_Publish_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	clientID := ecid.NewPseudoRandom(rng)
 	signer := client.NewECDSASigner(clientID.Key())
+	orgID := ecid.NewPseudoRandom(rng)
+	orgSigner := client.NewECDSASigner(orgID.Key())
 	params := NewDefaultParameters()
 	lc := &fixedPutter{}
 	doc, _ := api.NewTestDocument(rng)
 
-	pub := NewPublisher(clientID, signer, params)
+	pub := NewPublisher(clientID, orgID, signer, orgSigner, params)
 
 	// check that error from bad document bubbles up
 	diffAuthorPub := ecid.NewPseudoRandom(rng).PublicKeyBytes()
@@ -93,7 +97,7 @@ func TestPublisher_Publish_err(t *testing.T) {
 		signature: "",
 		err:       errors.New("some Sign error"),
 	}
-	pub = NewPublisher(clientID, signer2, params)
+	pub = NewPublisher(clientID, orgID, signer2, orgSigner, params)
 
 	// check that error from client.NewSignedTimeoutContext error bubbles up
 	docKey, err = pub.Publish(doc, api.GetAuthorPub(doc), lc)
@@ -103,7 +107,7 @@ func TestPublisher_Publish_err(t *testing.T) {
 	lc3 := &fixedPutter{
 		err: errors.New("some Put error"),
 	}
-	pub = NewPublisher(clientID, signer, params)
+	pub = NewPublisher(clientID, orgID, signer, orgSigner, params)
 
 	// check that Put error bubbles up
 	docKey, err = pub.Publish(doc, api.GetAuthorPub(doc), lc3)
@@ -111,7 +115,7 @@ func TestPublisher_Publish_err(t *testing.T) {
 	assert.Nil(t, docKey)
 
 	lc4 := &diffRequestIDPutter{rng}
-	pub = NewPublisher(clientID, signer, params)
+	pub = NewPublisher(clientID, orgID, signer, orgSigner, params)
 
 	// check that different request ID causes error
 	docKey, err = pub.Publish(doc, api.GetAuthorPub(doc), lc4)
