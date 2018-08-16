@@ -21,6 +21,7 @@ func TestNewSignatureContext(t *testing.T) {
 	md, ok := metadata.FromOutgoingContext(signedCtx)
 	assert.True(t, ok)
 	signedTokens2, in := md[signatureKey]
+	assert.True(t, in)
 	signedOrgTokens2, in := md[orgSignatureKey]
 	assert.True(t, in)
 	assert.True(t, len(signedTokens2) == 1)

@@ -46,7 +46,7 @@ func (rv *verifier) Verify(
 		return fmt.Errorf("invalid RequestId length: %v; expected length %v",
 			len(meta.RequestId), id.Length)
 	}
-	if err := rv.sigVerifier.Verify(encToken, pubKey, msg); err != nil || encOrgToken == "" {
+	if err = rv.sigVerifier.Verify(encToken, pubKey, msg); err != nil || encOrgToken == "" {
 		return err
 	}
 	orgPubKey, err := ecid.FromPublicKeyBytes(meta.OrgPubKey)

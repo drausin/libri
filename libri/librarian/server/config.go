@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/parse"
 	"github.com/drausin/libri/libri/common/subscribe"
@@ -60,8 +61,8 @@ type Config struct {
 	// PublicName is the public facing name of the peer.
 	PublicName string
 
-	// PublicOrgName is the public facing name of the organization running the peer.
-	PublicOrgName string
+	// OrgID is the organization ID of the peer, if one exists.
+	OrgID ecid.ID
 
 	// DataDir is the directory on the local machine where the state and output of all the
 	// peer running on that machine are stored.
@@ -206,6 +207,12 @@ func (c *Config) WithPublicName(publicName string) *Config {
 		return c.WithDefaultPublicName()
 	}
 	c.PublicName = publicName
+	return c
+}
+
+// WithOrgID sets the organization ID.
+func (c *Config) WithOrgID(orgID ecid.ID) *Config {
+	c.OrgID = orgID
 	return c
 }
 

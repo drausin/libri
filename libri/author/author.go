@@ -117,9 +117,6 @@ func NewAuthor(
 	if err != nil {
 		return nil, err
 	}
-	var orgID ecid.ID
-	// TODO (drausin) load orgID from config or env var
-
 	clientLogger := logger.With(zap.String(logClientIDShort, id.ShortHex(clientID.Bytes())))
 
 	allKeys := keychain.NewUnion(authorKeys, selfReaderKeys)
@@ -146,12 +143,14 @@ func NewAuthor(
 	}
 	peerSigner := client.NewECDSASigner(clientID.Key())
 	orgSigner := client.NewEmptySigner()
-	if orgID != nil {
-		orgSigner = client.NewECDSASigner(orgID.Key())
+	if config.OrgID != nil {
+		orgSigner = client.NewECDSASigner(config.OrgID.Key())
 	}
 
-	publisher := publish.NewPublisher(clientID, orgID, peerSigner, orgSigner, config.Publish)
-	acquirer := publish.NewAcquirer(clientID, orgID, peerSigner, orgSigner, config.Publish)
+	publisher := publish.NewPublisher(clientID, config.OrgID, peerSigner, orgSigner,
+		config.Publish)
+	acquirer := publish.NewAcquirer(clientID, config.OrgID, peerSigner, orgSigner,
+		config.Publish)
 	slPublisher := publish.NewSingleLoadPublisher(publisher, documentSL)
 	ssAcquirer := publish.NewSingleStoreAcquirer(acquirer, documentSL)
 	mlPublisher := publish.NewMultiLoadPublisher(slPublisher, config.Publish)
@@ -165,6 +164,7 @@ func NewAuthor(
 
 	author := &Author{
 		ClientID:         clientID,
+		orgID:            config.OrgID,
 		config:           config,
 		authorKeys:       authorKeys,
 		selfReaderKeys:   selfReaderKeys,

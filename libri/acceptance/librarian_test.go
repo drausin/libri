@@ -103,9 +103,18 @@ func testIntroduce(t *testing.T, params *params, state *state) {
 
 		// issue Introduce query to random peer
 		i := state.rng.Int31n(int32(nPeers))
-		rq := lclient.NewIntroduceRequest(state.client.selfID, state.client.selfAPI, 8)
-		ctx, cancel, err := lclient.NewSignedTimeoutContext(state.client.signer, rq,
-			search.DefaultQueryTimeout)
+		rq := lclient.NewIntroduceRequest(
+			state.client.selfID,
+			state.client.orgID,
+			state.client.selfAPI,
+			8,
+		)
+		ctx, cancel, err := lclient.NewSignedTimeoutContext(
+			state.client.signer,
+			state.client.orgSigner,
+			rq,
+			search.DefaultQueryTimeout,
+		)
 		assert.Nil(t, err)
 		introducer, err := ic.Create(state.peerConfigs[i].PublicAddr.String())
 		assert.Nil(t, err)
@@ -147,11 +156,20 @@ func testPut(t *testing.T, params *params, state *state) {
 
 		value, key := newTestDocument(state.rng, putPageSize)
 		putDocs[c] = value
-		rq := lclient.NewPutRequest(state.client.selfID, key, value)
+		rq := lclient.NewPutRequest(
+			state.client.selfID,
+			state.client.orgID,
+			key,
+			value,
+		)
 
 		// issue Put query to random peer
-		ctx, cancel, err := lclient.NewSignedTimeoutContext(state.client.signer, rq,
-			store.DefaultQueryTimeout)
+		ctx, cancel, err := lclient.NewSignedTimeoutContext(
+			state.client.signer,
+			state.client.orgSigner,
+			rq,
+			store.DefaultQueryTimeout,
+		)
 		assert.Nil(t, err)
 		start := time.Now()
 		state.client.logger.Debug("issuing Put request", zap.String("key", key.String()))
@@ -196,9 +214,13 @@ func testGet(t *testing.T, params *params, state *state) {
 		value := state.putDocs[c]
 		key, err := api.GetKey(value)
 		assert.Nil(t, err)
-		rq := lclient.NewGetRequest(state.client.selfID, key)
+		rq := lclient.NewGetRequest(state.client.selfID, state.client.orgID, key)
 
-		ctx, err := lclient.NewSignedContext(state.client.signer, rq)
+		ctx, err := lclient.NewSignedContext(
+			state.client.signer,
+			state.client.orgSigner,
+			rq,
+		)
 		assert.Nil(t, err)
 		state.client.logger.Debug("issuing Get request", zap.String("key", key.String()))
 		start := time.Now()
@@ -347,6 +369,7 @@ func countDocReplicas(t *testing.T, state *state) map[string]int {
 	benchResults := make([]testing.BenchmarkResult, len(state.putDocs))
 	verifier := verify.NewDefaultVerifier(
 		client.NewECDSASigner(state.client.selfID.Key()),
+		client.NewECDSASigner(state.client.orgID.Key()),
 		comm.NewQueryRecorderGetter(comm.NewAlwaysKnower()),
 		state.clients,
 	)
@@ -364,7 +387,8 @@ func countDocReplicas(t *testing.T, state *state) map[string]int {
 
 		start := time.Now()
 		seeds := state.client.rt.Find(key, verifyParams.NClosestResponses)
-		v := verify.NewVerify(state.client.selfID, key, docBytes, macKey, verifyParams)
+		v := verify.NewVerify(state.client.selfID, state.client.orgID, key, docBytes,
+			macKey, verifyParams)
 		err = verifier.Verify(v, seeds)
 		if err == nil {
 			// don't fail if a verification occasionally errors

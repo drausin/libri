@@ -149,8 +149,6 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		return nil, err
 	}
 	selfLogger := logger.With(zap.String(logSelfIDShort, id.ShortHex(peerID.Bytes())))
-	var orgID ecid.ID
-	// TODO (drausin) load orgID from config or env var
 
 	knower := comm.NewAlwaysKnower()
 	doctor := comm.NewNaiveDoctor()
@@ -176,8 +174,8 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 	}
 	peerSigner := client.NewECDSASigner(peerID.Key())
 	orgSigner := client.NewEmptySigner()
-	if orgID != nil {
-		orgSigner = client.NewECDSASigner(orgID.Key())
+	if config.OrgID != nil {
+		orgSigner = client.NewECDSASigner(config.OrgID.Key())
 	}
 
 	searcher := search.NewDefaultSearcher(peerSigner, orgSigner, recorder, clients)
@@ -193,7 +191,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		return nil, err
 	}
 	clientBalancer := routing.NewClientBalancer(rt, clients)
-	subscribeTo := subscribe.NewTo(config.SubscribeTo, selfLogger, peerID, orgID,
+	subscribeTo := subscribe.NewTo(config.SubscribeTo, selfLogger, peerID, config.OrgID,
 		clientBalancer, peerSigner, orgSigner, recentPubs, newPubs)
 
 	metricsSM := http.NewServeMux()
@@ -203,7 +201,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 	rng := rand.New(rand.NewSource(peerID.Int().Int64()))
 	replicator := replicate.NewReplicator(
 		peerID,
-		orgID,
+		config.OrgID,
 		rt,
 		documentSL,
 		verifier,
