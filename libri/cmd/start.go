@@ -82,7 +82,7 @@ func init() {
 		"max number of peers allowed in a routing table bucket")
 	startLibrarianCmd.Flags().Duration(verifyIntervalFlag, replicate.DefaultVerifyInterval,
 		"verify interval duration")
-	startLibrarianCmd.Flags().BytesHex(organizationIDFlag, nil,
+	startLibrarianCmd.Flags().String(organizationIDFlag, "",
 		"[sensitive] hex value of organization ID private key")
 
 	// bind viper flags
