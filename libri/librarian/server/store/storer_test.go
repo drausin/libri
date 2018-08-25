@@ -19,9 +19,10 @@ import (
 )
 
 func TestNewDefaultStorer(t *testing.T) {
-	rng := rand.New(rand.NewSource(0))
-	s := NewDefaultStorer(ecid.NewPseudoRandom(rng), &fixedRecorder{}, nil)
-	assert.NotNil(t, s.(*storer).signer)
+	peerSigner, orgSigner := &client.TestNoOpSigner{}, &client.TestNoOpSigner{}
+	s := NewDefaultStorer(peerSigner, orgSigner, &fixedRecorder{}, nil)
+	assert.NotNil(t, s.(*storer).peerSigner)
+	assert.NotNil(t, s.(*storer).orgSigner)
 	assert.NotNil(t, s.(*storer).searcher)
 	assert.NotNil(t, s.(*storer).storerCreator)
 }
@@ -33,7 +34,8 @@ func TestStorer_Store_ok(t *testing.T) {
 	concurrencies := []uint{1, 2, 3}
 
 	for _, n := range nPeers {
-		peers, peersMap, addressFinders, selfPeerIdxs, selfID := ssearch.NewTestPeers(rng, n)
+		peers, peersMap, addressFinders, selfPeerIdxs, peerID := ssearch.NewTestPeers(rng, n)
+		orgID := ecid.NewPseudoRandom(rng)
 
 		// create our searcher
 		value, key := api.NewTestDocument(rng)
@@ -41,7 +43,8 @@ func TestStorer_Store_ok(t *testing.T) {
 		storer := &storer{
 			searcher:      ssearch.NewTestSearcher(peersMap, addressFinders, rec),
 			storerCreator: &fixedStorerCreator{},
-			signer:        &client.TestNoOpSigner{},
+			peerSigner:    &client.TestNoOpSigner{},
+			orgSigner:     &client.TestNoOpSigner{},
 			rec:           rec,
 		}
 
@@ -59,7 +62,7 @@ func TestStorer_Store_ok(t *testing.T) {
 				NMaxErrors:  DefaultNMaxErrors,
 				Concurrency: concurrency,
 			}
-			store := NewStore(selfID, key, value, searchParams, storeParams)
+			store := NewStore(peerID, orgID, key, value, searchParams, storeParams)
 
 			// init the seeds of our search: usually this comes from the routing.Table.Peak()
 			// method, but we'll just allocate directly
@@ -121,11 +124,12 @@ func TestStorer_Store_err(t *testing.T) {
 	}
 
 	// check that Store() surfaces searcher error
-	selfID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
+	peerID, key := ecid.NewPseudoRandom(rng), cid.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
 	store := &Store{
 		Result: &Result{},
 		Params: NewDefaultParameters(),
-		Search: ssearch.NewSearch(selfID, key, ssearch.NewDefaultParameters()),
+		Search: ssearch.NewSearch(peerID, orgID, key, ssearch.NewDefaultParameters()),
 	}
 	assert.NotNil(t, s.Store(store, []peer.Peer{}))
 }
@@ -133,26 +137,30 @@ func TestStorer_Store_err(t *testing.T) {
 func TestStorer_query_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	value, key := api.NewTestDocument(rng)
-	selfID := ecid.NewPseudoRandom(rng)
+	peerID := ecid.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
 	searchParams := &ssearch.Parameters{Timeout: DefaultQueryTimeout}
-	store := NewStore(selfID, key, value, searchParams, &Parameters{})
+	store := NewStore(peerID, orgID, key, value, searchParams, &Parameters{})
 
 	cases := []*storer{
 		// case 0
 		{
-			signer:        &client.TestNoOpSigner{},
+			peerSigner:    &client.TestNoOpSigner{},
+			orgSigner:     &client.TestNoOpSigner{},
 			storerCreator: &fixedStorerCreator{err: errors.New("some Create error")},
 		},
 
 		// case 1
 		{
-			signer:        &client.TestErrSigner{},
+			peerSigner:    &client.TestErrSigner{},
+			orgSigner:     &client.TestNoOpSigner{},
 			storerCreator: &fixedStorerCreator{},
 		},
 
 		// case 2
 		{
-			signer: &client.TestNoOpSigner{},
+			peerSigner: &client.TestNoOpSigner{},
+			orgSigner:  &client.TestNoOpSigner{},
 			storerCreator: &fixedStorerCreator{
 				storer: &fixedStorer{err: errors.New("some Store error")},
 			},
@@ -160,7 +168,8 @@ func TestStorer_query_err(t *testing.T) {
 
 		// case 3
 		{
-			signer: &client.TestNoOpSigner{},
+			peerSigner: &client.TestNoOpSigner{},
+			orgSigner:  &client.TestNoOpSigner{},
 			storerCreator: &fixedStorerCreator{
 				storer: &fixedStorer{requestID: []byte{1, 2, 3, 4}},
 			},
@@ -178,14 +187,15 @@ func TestStorer_query_err(t *testing.T) {
 func newTestStore(rec comm.QueryRecorder) (Storer, *Store, []int, []peer.Peer, cid.ID) {
 	n := 32
 	rng := rand.New(rand.NewSource(int64(n)))
-	peers, peersMap, addressFinders, selfPeerIdxs, selfID := ssearch.NewTestPeers(rng, n)
+	peers, peersMap, addressFinders, selfPeerIdxs, peerID := ssearch.NewTestPeers(rng, n)
+	orgID := ecid.NewPseudoRandom(rng)
 
 	// create our searcher
 	value, key := api.NewTestDocument(rng)
 	storerImpl := &storer{
 		searcher:      ssearch.NewTestSearcher(peersMap, addressFinders, rec),
 		storerCreator: &fixedStorerCreator{},
-		signer:        &client.TestNoOpSigner{},
+		peerSigner:    &client.TestNoOpSigner{},
 		rec:           rec,
 	}
 
@@ -200,7 +210,7 @@ func newTestStore(rec comm.QueryRecorder) (Storer, *Store, []int, []peer.Peer, c
 		NMaxErrors:  DefaultNMaxErrors,
 		Concurrency: concurrency,
 	}
-	store := NewStore(selfID, key, value, searchParams, storeParams)
+	store := NewStore(peerID, orgID, key, value, searchParams, storeParams)
 
 	return storerImpl, store, selfPeerIdxs, peers, key
 }

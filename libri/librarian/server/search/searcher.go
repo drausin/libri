@@ -31,7 +31,8 @@ type Searcher interface {
 }
 
 type searcher struct {
-	signer        client.Signer
+	peerSigner    client.Signer
+	orgSigner     client.Signer
 	finderCreator client.FinderCreator
 	rp            ResponseProcessor
 	rec           comm.QueryRecorder
@@ -39,10 +40,15 @@ type searcher struct {
 
 // NewSearcher returns a new Searcher with the given Querier and ResponseProcessor.
 func NewSearcher(
-	s client.Signer, rec comm.QueryRecorder, c client.FinderCreator, rp ResponseProcessor,
+	peerSigner client.Signer,
+	orgSigner client.Signer,
+	rec comm.QueryRecorder,
+	c client.FinderCreator,
+	rp ResponseProcessor,
 ) Searcher {
 	return &searcher{
-		signer:        s,
+		peerSigner:    peerSigner,
+		orgSigner:     orgSigner,
 		finderCreator: c,
 		rp:            rp,
 		rec:           rec,
@@ -51,10 +57,14 @@ func NewSearcher(
 
 // NewDefaultSearcher creates a new Searcher with default sub-object instantiations.
 func NewDefaultSearcher(
-	signer client.Signer, rec comm.QueryRecorder, clients client.Pool,
+	peerSigner client.Signer,
+	orgSigner client.Signer,
+	rec comm.QueryRecorder,
+	clients client.Pool,
 ) Searcher {
 	return NewSearcher(
-		signer,
+		peerSigner,
+		orgSigner,
 		rec,
 		client.NewFinderCreator(clients),
 		NewResponseProcessor(peer.NewFromer()),
@@ -117,7 +127,8 @@ func (s *searcher) query(next peer.Peer, search *Search) (*api.FindResponse, err
 		return nil, err
 	}
 	rq := search.CreatRq()
-	ctx, cancel, err := client.NewSignedTimeoutContext(s.signer, rq, search.Params.Timeout)
+	ctx, cancel, err := client.NewSignedTimeoutContext(s.peerSigner, s.orgSigner, rq,
+		search.Params.Timeout)
 	if err != nil {
 		return nil, err
 	}

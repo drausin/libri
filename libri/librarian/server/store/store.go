@@ -160,6 +160,7 @@ type Store struct {
 // NewStore creates a new Store instance for a given target, search type, and search parameters.
 func NewStore(
 	peerID ecid.ID,
+	orgID ecid.ID,
 	key id.ID,
 	value *api.Document,
 	searchParams *search.Parameters,
@@ -172,11 +173,11 @@ func NewStore(
 	updatedSearchParams.Concurrency = storeParams.Concurrency
 
 	createRq := func() *api.StoreRequest {
-		return client.NewStoreRequest(peerID, key, value)
+		return client.NewStoreRequest(peerID, orgID, key, value)
 	}
 	return &Store{
 		CreateRq: createRq,
-		Search:   search.NewSearch(peerID, key, &updatedSearchParams),
+		Search:   search.NewSearch(peerID, orgID, key, &updatedSearchParams),
 		Params:   storeParams,
 	}
 }

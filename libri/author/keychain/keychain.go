@@ -140,7 +140,7 @@ func Save(filepath, auth string, kc GetterSampler, scryptN, scryptP int) error {
 
 // Load loads and decrypts a keychain from a file.
 func Load(filepath, auth string) (GetterSampler, error) {
-	buf, err := ioutil.ReadFile(filepath)
+	buf, err := ioutil.ReadFile(filepath) // nolint: gosec
 	if err != nil {
 		return nil, err
 	}

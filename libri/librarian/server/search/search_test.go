@@ -42,7 +42,9 @@ func TestResult_MarshalLogObject(t *testing.T) {
 func TestSearch_MarshalLogObject(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	oe := zapcore.NewJSONEncoder(zap.NewDevelopmentEncoderConfig())
-	s := NewSearch(ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng), NewDefaultParameters())
+	target, peerID := id.FromInt64(0), ecid.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
+	s := NewSearch(peerID, orgID, target, NewDefaultParameters())
 	err := s.MarshalLogObject(oe)
 	assert.Nil(t, err)
 }
@@ -50,10 +52,11 @@ func TestSearch_MarshalLogObject(t *testing.T) {
 func TestSearch_FoundClosestPeers(t *testing.T) {
 	// target = 0 makes it easy to compute XOR distance manually
 	rng := rand.New(rand.NewSource(0))
-	target, selfID := id.FromInt64(0), ecid.NewPseudoRandom(rng)
+	target, peerID := id.FromInt64(0), ecid.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
 	nClosestResponses := uint(4)
 
-	search := NewSearch(selfID, target, &Parameters{
+	search := NewSearch(peerID, orgID, target, &Parameters{
 		NClosestResponses: nClosestResponses,
 		Concurrency:       DefaultConcurrency,
 	})
@@ -87,7 +90,9 @@ func TestSearch_FoundClosestPeers(t *testing.T) {
 
 func TestSearch_FoundValue(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	search := NewSearch(ecid.NewPseudoRandom(rng), id.FromInt64(0), NewDefaultParameters())
+	target, peerID := id.FromInt64(0), ecid.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
+	search := NewSearch(peerID, orgID, target, NewDefaultParameters())
 
 	// hasn't been found yet because result.value is still nil
 	assert.False(t, search.FoundValue())
@@ -99,37 +104,39 @@ func TestSearch_FoundValue(t *testing.T) {
 
 func TestSearch_Errored(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	target, selfID := id.FromInt64(0), ecid.NewPseudoRandom(rng)
+	target, peerID := id.FromInt64(0), ecid.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
 
 	// no-error state
-	search1 := NewSearch(selfID, target, NewDefaultParameters())
+	search1 := NewSearch(peerID, orgID, target, NewDefaultParameters())
 	assert.False(t, search1.Errored())
 
 	// errored state b/c of too many errors
-	search2 := NewSearch(selfID, target, NewDefaultParameters())
+	search2 := NewSearch(peerID, orgID, target, NewDefaultParameters())
 	for c := uint(0); c < search2.Params.NMaxErrors+1; c++ {
-		peerID := id.NewPseudoRandom(rng).String()
-		search2.Result.Errored[peerID] = errors.New("some Find error")
+		rpPeerID := id.NewPseudoRandom(rng).String()
+		search2.Result.Errored[rpPeerID] = errors.New("some Find error")
 	}
 	assert.True(t, search2.Errored())
 
 	// errored state b/c of a fatal error
-	search3 := NewSearch(selfID, target, NewDefaultParameters())
+	search3 := NewSearch(peerID, orgID, target, NewDefaultParameters())
 	search3.Result.FatalErr = errors.New("test fatal error")
 	assert.True(t, search3.Errored())
 }
 
 func TestSearch_Exhausted(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	target, selfID := id.FromInt64(0), ecid.NewPseudoRandom(rng)
+	target, peerID := id.FromInt64(0), ecid.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
 
 	// not exhausted b/c it has unqueried peers
-	search1 := NewSearch(selfID, target, NewDefaultParameters())
+	search1 := NewSearch(peerID, orgID, target, NewDefaultParameters())
 	search1.Result.Unqueried.SafePush(peer.New(id.FromInt64(1), "", nil))
 	assert.False(t, search1.Exhausted())
 
 	// exhausted b/c it doesn't have unqueried peers
-	search2 := NewSearch(selfID, target, NewDefaultParameters())
+	search2 := NewSearch(peerID, orgID, target, NewDefaultParameters())
 	search2.Result.Unqueried.SafePush(peer.New(id.FromInt64(1), "", nil))
 	assert.False(t, search1.Exhausted())
 }

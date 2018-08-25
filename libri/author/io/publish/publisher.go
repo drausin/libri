@@ -117,17 +117,23 @@ type Publisher interface {
 }
 
 type publisher struct {
-	clientID ecid.ID
-	signer   client.Signer
-	params   *Parameters
+	clientID     ecid.ID
+	orgID        ecid.ID
+	clientSigner client.Signer
+	orgSigner    client.Signer
+	params       *Parameters
 }
 
-// NewPublisher creates a new Publisher with a given client ID, signer, and params.
-func NewPublisher(clientID ecid.ID, signer client.Signer, params *Parameters) Publisher {
+// NewPublisher creates a new Publisher with a given client ID, clientSigner, and params.
+func NewPublisher(
+	clientID, orgID ecid.ID, clientSigner, orgSigner client.Signer, params *Parameters,
+) Publisher {
 	return &publisher{
-		clientID: clientID,
-		signer:   signer,
-		params:   params,
+		clientID:     clientID,
+		orgID:        orgID,
+		clientSigner: clientSigner,
+		orgSigner:    orgSigner,
+		params:       params,
 	}
 }
 
@@ -139,8 +145,9 @@ func (p *publisher) Publish(doc *api.Document, authorPub []byte, lc api.Putter) 
 	if !bytes.Equal(authorPub, api.GetAuthorPub(doc)) {
 		return nil, ErrInconsistentAuthorPubKey
 	}
-	rq := client.NewPutRequest(p.clientID, docKey, doc)
-	ctx, cancel, err := client.NewSignedTimeoutContext(p.signer, rq, p.params.PutTimeout)
+	rq := client.NewPutRequest(p.clientID, p.orgID, docKey, doc)
+	ctx, cancel, err := client.NewSignedTimeoutContext(p.clientSigner, p.orgSigner, rq,
+		p.params.PutTimeout)
 	if err != nil {
 		return nil, err
 	}

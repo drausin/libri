@@ -79,6 +79,7 @@ func NewTestSearcher(
 	}
 	return NewSearcher(
 		&client.TestNoOpSigner{},
+		&client.TestNoOpSigner{},
 		rec,
 		&TestFinderCreator{finders: addressFinders},
 		&responseProcessor{

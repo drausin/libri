@@ -34,12 +34,13 @@ func TestNewIDFromPublicKeyBytes_err(t *testing.T) {
 func TestCheckRequest_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	l := &Librarian{rqv: &alwaysRequestVerifier{}}
-	selfID := ecid.NewPseudoRandom(rng)
-	rq := client.NewGetRequest(selfID, id.NewPseudoRandom(rng))
+	peerID := ecid.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
+	rq := client.NewGetRequest(peerID, orgID, id.NewPseudoRandom(rng))
 	requesterID, err := l.checkRequest(context.TODO(), rq, rq.Metadata)
 
 	assert.Nil(t, err)
-	assert.Equal(t, selfID.ID(), requesterID)
+	assert.Equal(t, peerID.ID(), requesterID)
 }
 
 type neverRequestVerifier struct{}
@@ -51,8 +52,9 @@ func (rv *neverRequestVerifier) Verify(ctx context.Context, msg proto.Message,
 
 func TestCheckRequest_newIDErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	selfID := ecid.NewPseudoRandom(rng)
-	rq := client.NewGetRequest(selfID, id.NewPseudoRandom(rng))
+	peerID := ecid.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
+	rq := client.NewGetRequest(peerID, orgID, id.NewPseudoRandom(rng))
 	rq.Metadata.PubKey = []byte("bad pub key")
 	l := &Librarian{}
 	requesterID, err := l.checkRequest(context.TODO(), rq, rq.Metadata)
@@ -63,39 +65,42 @@ func TestCheckRequest_newIDErr(t *testing.T) {
 
 func TestCheckRequest_verifyErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	selfID := ecid.NewPseudoRandom(rng)
-	rq := client.NewGetRequest(selfID, id.NewPseudoRandom(rng))
+	peerID := ecid.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
+	rq := client.NewGetRequest(peerID, orgID, id.NewPseudoRandom(rng))
 	p, d := &fixedPreferer{}, &fixedDoctor{}
 	l := &Librarian{
 		rqv: &neverRequestVerifier{},
-		rt:  routing.NewEmpty(selfID.ID(), p, d, routing.NewDefaultParameters()),
+		rt:  routing.NewEmpty(peerID.ID(), p, d, routing.NewDefaultParameters()),
 	}
 	requesterID, err := l.checkRequest(context.TODO(), rq, rq.Metadata)
 
-	assert.Zero(t, selfID.ID().Cmp(requesterID))
+	assert.Zero(t, peerID.ID().Cmp(requesterID))
 	assert.NotNil(t, err)
 }
 
 func TestCheckRequestAndKey_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	selfID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
+	peerID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
 	p, d := &fixedPreferer{}, &fixedDoctor{}
 	l := &Librarian{
 		rqv: &alwaysRequestVerifier{},
 		kc:  storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		rt:  routing.NewEmpty(selfID.ID(), p, d, routing.NewDefaultParameters()),
+		rt:  routing.NewEmpty(peerID.ID(), p, d, routing.NewDefaultParameters()),
 	}
-	rq := client.NewGetRequest(selfID, key)
+	rq := client.NewGetRequest(peerID, orgID, key)
 	requesterID, err := l.checkRequestAndKey(context.TODO(), rq, rq.Metadata, key.Bytes())
 
 	assert.Nil(t, err)
-	assert.Equal(t, selfID.ID(), requesterID)
+	assert.Equal(t, peerID.ID(), requesterID)
 }
 
 func TestCheckRequestAndKey_checkRequestErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	selfID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
-	rq := client.NewGetRequest(selfID, key)
+	peerID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
+	rq := client.NewGetRequest(peerID, orgID, key)
 	rq.Metadata.PubKey = []byte("bad pub key")
 	l := &Librarian{}
 	requesterID, err := l.checkRequestAndKey(context.TODO(), rq, rq.Metadata, key.Bytes())
@@ -106,13 +111,14 @@ func TestCheckRequestAndKey_checkRequestErr(t *testing.T) {
 
 func TestCheckRequestAndKey_checkErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	selfID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
-	rq := client.NewGetRequest(selfID, key)
+	peerID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
+	rq := client.NewGetRequest(peerID, orgID, key)
 	p, d := &fixedPreferer{}, &fixedDoctor{}
 	l := &Librarian{
 		rqv: &alwaysRequestVerifier{},
 		kc:  storage.NewExactLengthChecker(storage.EntriesKeyLength),
-		rt:  routing.NewEmpty(selfID.ID(), p, d, routing.NewDefaultParameters()),
+		rt:  routing.NewEmpty(peerID.ID(), p, d, routing.NewDefaultParameters()),
 	}
 	requesterID, err := l.checkRequestAndKey(context.TODO(), rq, rq.Metadata, []byte("bad key"))
 
@@ -122,28 +128,30 @@ func TestCheckRequestAndKey_checkErr(t *testing.T) {
 
 func TestCheckRequestAndKeyValue_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	selfID := ecid.NewPseudoRandom(rng)
+	peerID := ecid.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
 	value, key := api.NewTestDocument(rng)
 	p, d := &fixedPreferer{}, &fixedDoctor{}
 	l := &Librarian{
-		rt:  routing.NewEmpty(selfID.ID(), p, d, routing.NewDefaultParameters()),
+		rt:  routing.NewEmpty(peerID.ID(), p, d, routing.NewDefaultParameters()),
 		rqv: &alwaysRequestVerifier{},
 		kc:  storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		kvc: storage.NewHashKeyValueChecker(),
 	}
-	rq := client.NewGetRequest(selfID, key)
+	rq := client.NewGetRequest(peerID, orgID, key)
 	requesterID, err := l.checkRequestAndKeyValue(context.TODO(), rq, rq.Metadata, key.Bytes(),
 		value)
 
 	assert.Nil(t, err)
-	assert.Equal(t, selfID.ID(), requesterID)
+	assert.Equal(t, peerID.ID(), requesterID)
 }
 
 func TestCheckRequestAndKeyValue_checkRequestErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	selfID := ecid.NewPseudoRandom(rng)
+	peerID := ecid.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
 	value, key := api.NewTestDocument(rng)
-	rq := client.NewGetRequest(selfID, key)
+	rq := client.NewGetRequest(peerID, orgID, key)
 	rq.Metadata.PubKey = []byte("bad pub key")
 	l := &Librarian{}
 	requesterID, err := l.checkRequestAndKeyValue(context.TODO(), rq, rq.Metadata, key.Bytes(),
@@ -155,13 +163,14 @@ func TestCheckRequestAndKeyValue_checkRequestErr(t *testing.T) {
 
 func TestCheckRequestAndKeyValue_checkErr(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	selfID := ecid.NewPseudoRandom(rng)
+	peerID := ecid.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
 	value, _ := api.NewTestDocument(rng)
 	key := id.NewPseudoRandom(rng) // bad key, not hash of value
-	rq := client.NewGetRequest(selfID, key)
+	rq := client.NewGetRequest(peerID, orgID, key)
 	p, d := &fixedPreferer{}, &fixedDoctor{}
 	l := &Librarian{
-		rt:  routing.NewEmpty(selfID.ID(), p, d, routing.NewDefaultParameters()),
+		rt:  routing.NewEmpty(peerID.ID(), p, d, routing.NewDefaultParameters()),
 		rqv: &alwaysRequestVerifier{},
 		kc:  storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		kvc: storage.NewHashKeyValueChecker(),

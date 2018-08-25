@@ -85,7 +85,7 @@ func (u *fileUploaderImpl) upload() error {
 	if _, err = os.Stat(upFilepath); err != nil {
 		return err
 	}
-	file, err := os.Open(upFilepath)
+	file, err := os.Open(upFilepath) // nolint: gosec
 	if err != nil {
 		return err
 	}
@@ -115,7 +115,7 @@ type mediaTypeGetter interface {
 type mediaTypeGetterImpl struct{}
 
 func (*mediaTypeGetterImpl) get(upFilepath string) (string, error) {
-	file, err := os.Open(upFilepath)
+	file, err := os.Open(upFilepath) // nolint: gosec
 	if err != nil {
 		return "", err
 	}

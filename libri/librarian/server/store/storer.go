@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/drausin/libri/libri/librarian/client"
 	"github.com/drausin/libri/libri/librarian/server/comm"
@@ -28,7 +27,8 @@ type Storer interface {
 }
 
 type storer struct {
-	signer        client.Signer
+	peerSigner    client.Signer
+	orgSigner     client.Signer
 	searcher      search.Searcher
 	storerCreator client.StorerCreator
 	rec           comm.QueryRecorder
@@ -36,10 +36,15 @@ type storer struct {
 
 // NewStorer creates a new Storer instance with given Searcher and StoreQuerier instances.
 func NewStorer(
-	signer client.Signer, rec comm.QueryRecorder, searcher search.Searcher, c client.StorerCreator,
+	peerSigner client.Signer,
+	orgSigner client.Signer,
+	rec comm.QueryRecorder,
+	searcher search.Searcher,
+	c client.StorerCreator,
 ) Storer {
 	return &storer{
-		signer:        signer,
+		peerSigner:    peerSigner,
+		orgSigner:     orgSigner,
 		searcher:      searcher,
 		storerCreator: c,
 		rec:           rec,
@@ -47,12 +52,14 @@ func NewStorer(
 }
 
 // NewDefaultStorer creates a new Storer with default Searcher and StoreQuerier instances.
-func NewDefaultStorer(peerID ecid.ID, rec comm.QueryRecorder, clients client.Pool) Storer {
-	signer := client.NewSigner(peerID.Key())
+func NewDefaultStorer(
+	peerSigner, orgSigner client.Signer, rec comm.QueryRecorder, clients client.Pool,
+) Storer {
 	return NewStorer(
-		signer,
+		peerSigner,
+		orgSigner,
 		rec,
-		search.NewDefaultSearcher(signer, rec, clients),
+		search.NewDefaultSearcher(peerSigner, orgSigner, rec, clients),
 		client.NewStorerCreator(clients),
 	)
 }
@@ -128,7 +135,8 @@ func (s *storer) query(next peer.Peer, store *Store) (*api.StoreResponse, error)
 		return nil, err
 	}
 	rq := store.CreateRq()
-	ctx, cancel, err := client.NewSignedTimeoutContext(s.signer, rq, store.Params.Timeout)
+	ctx, cancel, err := client.NewSignedTimeoutContext(s.peerSigner, s.orgSigner, rq,
+		store.Params.Timeout)
 	if err != nil {
 		return nil, err
 	}

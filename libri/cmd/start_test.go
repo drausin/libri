@@ -74,7 +74,7 @@ func TestGetLibrarianConfig_ok(t *testing.T) {
 }
 
 func TestGetLibrarianConfig_err(t *testing.T) {
-	viper.Set(publicHostFlag, "bad public host")
+	viper.Set(publicHostFlag, "A.B.C.D") // bad
 	config, logger, err := getLibrarianConfig()
 	assert.NotNil(t, err)
 	assert.Nil(t, config)
