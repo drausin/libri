@@ -31,7 +31,6 @@ func TestDefaultConfig(t *testing.T) {
 	assert.NotEmpty(t, c.SubscribeTo)
 	assert.NotEmpty(t, c.SubscribeFrom)
 	assert.NotEmpty(t, c.Replicate)
-	assert.NotEmpty(t, c.LogLevel)
 }
 
 func TestConfig_WithLocalPort(t *testing.T) {
