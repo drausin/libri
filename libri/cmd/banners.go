@@ -68,6 +68,7 @@ func WriteLibrarianBanner(w io.Writer) {
 	errors.MaybePanic(err)
 	err = tmpl.Execute(w, config)
 	errors.MaybePanic(err)
+	time.Sleep(10 * time.Millisecond)
 }
 
 // WriteAuthorBanner writes the author banner to the io.Writer.
