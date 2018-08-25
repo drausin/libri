@@ -146,8 +146,8 @@ func TestVerify_Errored(t *testing.T) {
 	// errored state b/c of too many errors
 	search2 := NewVerify(peerID, orgID, target, macKey, mac, NewDefaultParameters())
 	for c := uint(0); c < search2.Params.NMaxErrors+1; c++ {
-		peerID := id.NewPseudoRandom(rng).String()
-		search2.Result.Errored[peerID] = errors.New("some Find error")
+		rpPeerID := id.NewPseudoRandom(rng).String()
+		search2.Result.Errored[rpPeerID] = errors.New("some Find error")
 	}
 	assert.True(t, search2.Errored())
 
