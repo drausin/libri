@@ -110,6 +110,7 @@ func TestGetOrgID_ok(t *testing.T) {
 	lg := zap.NewNop()
 
 	// no org ID set
+	viper.Set(organizationIDFlag, "")
 	orgID2, err := getOrgID(lg)
 	assert.Nil(t, orgID2)
 	assert.Nil(t, err)
