@@ -1,9 +1,12 @@
 package cmd
 
 import (
+	"encoding/hex"
 	"fmt"
 	"os"
+	"strings"
 
+	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/errors"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/common/parse"
@@ -11,6 +14,7 @@ import (
 	"github.com/drausin/libri/libri/librarian/server"
 	"github.com/drausin/libri/libri/librarian/server/replicate"
 	"github.com/drausin/libri/libri/librarian/server/routing"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -29,6 +33,7 @@ const (
 	profileFlag           = "profile"
 	maxBucketPeersFlag    = "maxRoutingBucketPeers"
 	verifyIntervalFlag    = "verifyInterval"
+	organizationIDFlag    = "organizationID"
 
 	logLocalPort        = "localPort"
 	logLocalMetricsPort = "localMetricsPort"
@@ -77,6 +82,8 @@ func init() {
 		"max number of peers allowed in a routing table bucket")
 	startLibrarianCmd.Flags().Duration(verifyIntervalFlag, replicate.DefaultVerifyInterval,
 		"verify interval duration")
+	startLibrarianCmd.Flags().String(organizationIDFlag, "",
+		"[sensitive] hex value of organization ID private key")
 
 	// bind viper flags
 	viper.SetEnvPrefix("LIBRI") // look for env vars with "LIBRI_" prefix
@@ -102,6 +109,10 @@ func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
 	}
 	replicateParams := replicate.NewDefaultParameters()
 	replicateParams.VerifyInterval = viper.GetDuration(verifyIntervalFlag)
+	orgID, err := getOrgID(logger)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	config := server.NewDefaultConfig().
 		WithLocalPort(localPort).
@@ -110,6 +121,7 @@ func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
 		WithProfile(profile).
 		WithPublicAddr(publicAddr).
 		WithPublicName(viper.GetString(publicNameFlag)).
+		WithOrgID(orgID).
 		WithReplicate(replicateParams).
 		WithDataDir(viper.GetString(dataDirFlag)).
 		WithDefaultDBDir(). // depends on DataDir
@@ -140,4 +152,31 @@ func getLibrarianConfig() (*server.Config, *zap.Logger, error) {
 		zap.Uint(maxBucketPeersFlag, config.Routing.MaxBucketPeers),
 	)
 	return config, logger, nil
+}
+
+func getOrgID(logger *zap.Logger) (ecid.ID, error) {
+	orgIDPrivHex := viper.GetString(organizationIDFlag)
+	if len(orgIDPrivHex) == 0 {
+		// ok if org ID isn't set
+		return nil, nil
+	}
+	orgIDPrivBytes, err := hex.DecodeString(strings.TrimSpace(orgIDPrivHex))
+	if err != nil {
+		logger.Error("fatal error parsing organization ID private key hex")
+		return nil, err
+	}
+	expectedByteLen := ecid.Curve.BitSize / 8
+	if len(orgIDPrivBytes) != expectedByteLen {
+		logger.Error("organization ID private key hex is not the expected length",
+			zap.Int("expected_length", expectedByteLen),
+			zap.Int("actual_length", len(orgIDPrivBytes)),
+		)
+		return nil, err
+	}
+	priv, err := crypto.ToECDSA(orgIDPrivBytes)
+	if err != nil {
+		logger.Error("unable to construct organization ID private key")
+		return nil, err
+	}
+	return ecid.FromPrivateKey(priv)
 }
