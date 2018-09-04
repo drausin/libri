@@ -24,8 +24,8 @@ Clusters are hosted in (currently) one of two environments: Minikube or Google C
 * [Kubernetes-cli](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 * [Terraform](https://www.terraform.io/intro/getting-started/install.html)
 * [Go](https://golang.org/doc/install)
-* Go Cobra package: `go get github.com/spf13/cobra/cobra`
-* Go Terraform package: `go get github.com/hashicorp/terraform`
+* Go Cobra package: `go get -u github.com/spf13/cobra/cobra`
+* Go Terraform package: `go get -u github.com/hashicorp/terraform`
 
 First, create a local directory to store cluster configuration files: e.g. from libri repo path:
 
@@ -42,15 +42,21 @@ Referencing this path, initialize the cluster as follows:
 
 **GCP (cloud):**
 
-Create a new [GCP Project](https://console.cloud.google.com/projectcreate) and provision a [Storage bucket](https://console.cloud.google.com/storage/browser).
+Create a new [GCP Project](https://console.cloud.google.com/projectcreate); provision a [Storage bucket](https://console.cloud.google.com/storage/browser); and create a [IAM Service Account](https://console.cloud.google.com/projectselector/iam-admin/serviceaccounts) with owner permissions.
+
+Execute the following to create the standard Terraform configuration file.
 
     go run cluster.go init gcp \
         --clusterDir "${CLUSTERS_DIR}"
         --clusterName my-test-cluster \
         --bucket <bucket-name> \
         --gcpProject <gcp-project-name>
+        
+Within the Terraform configuration file located at `${CLUSTERS_DIR}/my-test-cluster/terraform.tfvars`, customize the `cluster_admin_user` variable to refer to the newly created GCP service account (which has format <user>@<gcp-project>.iam.gserviceaccount.com).
 
-The `terraform.tfvars` file created in the cluster directory has settings (like number of
+**Further Configuration**
+
+The `terraform.tfvars` file created in the <cluster>/my-test-cluster directory has settings (like number of
 librarians) that can you can change if you want, though the default should be reasonable
 enough to start. The corresponding `variables.tf` file in the directory contains description
 of these settings.
