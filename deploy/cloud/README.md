@@ -17,21 +17,19 @@ you can run it via minikube (currently tested with v0.24, Kubernetes v1.8.0).
 
 #### Initializing Infrastructure
 
-Clusters are hosted in (currently) one of two environments: minikube or GCP.
+Clusters are hosted in (currently) one of two environments: minikube or Google Cloud Platform (GCP).
 
-First, create a local directory to store configuration files: e.g., `<path to libri>/deploy/cloud/clusters`
+First, create a local directory to store cluster configuration files: e.g.: `<path to libri>/deploy/cloud/clusters`
 
-Initialize a local
-(minikube) cluster as follows:
+Referencing this path, initialize the cluster as follows:
+
+Minikube (local):
 
     go run cluster.go init minikube \
-        --clusterDir /path/to/my-test-cluster-dir
+        --clusterDir </path/to/cluster-dir>
         --clusterName my-test-cluster
 
-where `/path/to/clusters/dir` is the directory to create the cluster subdirectory in. 
-
-he GCP
-cluster initialization is very similar:
+GCP (cloud):
 
     go run cluster.go init gcp \
         --clusterDir /path/to/my-test-cluster-dir
