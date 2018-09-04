@@ -1,4 +1,4 @@
-## Libri cluster deployment
+# Libri cluster deployment
 
 Deploying a cluster involves creating infrastructure via Terraform and deploying services onto it via Kubernetes.
 
@@ -15,7 +15,7 @@ to outside authors
 If you want to just try out the Kubernetes part first without creating GCP infrastucture,
 you can run it via minikube (currently tested with v0.24, Kubernetes v1.8.0).
 
-#### Initializing Infrastructure
+## Initializing Infrastructure
 
 Clusters are hosted in (currently) one of two environments: Minikube or Google Cloud Platform (GCP).
 
