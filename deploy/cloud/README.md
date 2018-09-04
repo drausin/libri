@@ -56,7 +56,7 @@ enough to start. The corresponding `variables.tf` file in the directory contains
 of these settings.
 
 
-#### Planning
+## Planning
 
 To see what would be created upon spinning up a cluster called `my-cluster`, use
 
@@ -66,7 +66,7 @@ If your cluster is hosted on GCP, you should first see Terraform plans and then 
 run Kubernetes resources. Minikube clusters have no Terraform component.
 
 
-#### Applying
+## Applying
 
 Create the cluster and resources with
 
@@ -99,7 +99,7 @@ and the created services with
     prometheus     10.0.0.133   <nodes>       9090:30090/TCP    4m        app=prometheus
 
 
-#### Testing
+## Testing
 
 If using a local cluster, get the external address for one of the services
 
@@ -148,7 +148,7 @@ If you get timeout issues (especially with remote GCP cluster), try bumping the 
     $ docker run --rm daedalus2718/libri:latest test io -a "${librarian_addrs}" --timeout 20
 
 
-#### Monitoring
+## Monitoring
 
 If using minikube, get the Grafana service address
 
@@ -162,7 +162,7 @@ You can also examine the logs of any pod
 
     $ kubectl logs librarians-1
 
-#### Updating
+## Updating
 
 When you want to update the cluster (e.g., add a librarian or a node), just change the appropriate property in
 `terraform.tfvars` and re-apply
@@ -207,7 +207,7 @@ and letting Kubernetes recreate it
     prometheus-1589647967-0c0bn   1/1       Running   0          1h
 
 
-#### Destroying
+## Destroying
 
 When you're finished with a cluster, you have to destroy it manually, which you can do via
 
