@@ -29,6 +29,19 @@ subjects:
   name: {{ $clusterAdminUser }}
   namespace: default
 ---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: default-sa
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: default
+---
 # headless service for internal DNS networking
 kind: Service
 apiVersion: v1
