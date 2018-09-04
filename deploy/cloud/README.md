@@ -52,7 +52,7 @@ Execute the following to create the standard Terraform configuration file.
         --bucket <bucket-name> \
         --gcpProject <gcp-project-name>
         
-Within the Terraform configuration file located at `${CLUSTERS_DIR}/my-test-cluster/terraform.tfvars`, customize the `cluster_admin_user` variable to refer to the newly created GCP service account (which has format <\user\>@\<gcp-project\>.iam.gserviceaccount.com).
+Within the Terraform configuration file located at `${CLUSTERS_DIR}/my-test-cluster/terraform.tfvars`, customize the `cluster_admin_user` variable to refer to the newly created GCP service account (which has format `<user>@<gcp-project>.iam.gserviceaccount.com`).
 
 **Further Configuration**
 
