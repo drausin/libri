@@ -29,6 +29,19 @@ subjects:
   name: {{ $clusterAdminUser }}
   namespace: default
 ---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: default-sa
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: default
+---
 # headless service for internal DNS networking
 kind: Service
 apiVersion: v1
@@ -119,15 +132,19 @@ spec:
       containers:
       - name: libriarian
         image: daedalus2718/libri:{{ $libriVersion }}
-        args: [
-          "librarian", "start",
-          "--nSubscriptions", "2",
-          "--dataDir", "/data",
-          "--localPort", "{{ $localPort }}",
-          "--localMetricsPort", "{{ $localMetricsPort }}",
-          "--bootstraps", "librarians-0.libri.default.svc.cluster.local:{{ $localPort }}",
-          "--profile"
-        ]
+        command: ["/bin/sh"]
+        args:
+          - "-c"
+          - >
+            libri librarian start
+            --nSubscriptions 2
+            --dataDir /data
+            --localPort {{ $localPort }}
+            --localMetricsPort {{ $localMetricsPort }}
+            --publicHost $(wget -q -O - 'http://ipv4.myexternalip.com/raw')
+            --publicPort $(HN=$(hostname) && echo $((30100 + ${HN##*-})))
+            --bootstraps librarians-0.libri.default.svc.cluster.local:{{ $localPort }}
+            --profile
         env:
         - name: GODEBUG         # ensure we use the pure Go (rather than CGO) DNS
           value: netdns=go      # resolver (see https://golang.org/src/net/net.go)
@@ -135,10 +152,6 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        - name: LIBRI_PUBLICHOST
-          valueFrom:
-            fieldRef:
-              fieldPath: status.podIP  # TODO (drausin) switch to hostIP once have better way to get public port
         ports:
         - containerPort: {{ $localPort }}
         - containerPort: {{ $localMetricsPort }}
