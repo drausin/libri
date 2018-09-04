@@ -23,13 +23,16 @@ First, create a local directory to store cluster configuration files: e.g.: `<pa
 
 Referencing this path, initialize the cluster as follows:
 
-__Minikube (local):__
+#### Minikube (local):
 
     go run cluster.go init minikube \
         --clusterDir </path/to/cluster-dir>
         --clusterName my-test-cluster
 
 __GCP (cloud):__
+
+
+
 
     go run cluster.go init gcp \
         --clusterDir </path/to/cluster-dir>
