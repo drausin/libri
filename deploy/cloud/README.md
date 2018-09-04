@@ -52,9 +52,12 @@ Execute the following to create the standard Terraform configuration file.
         --bucket <bucket-name> \
         --gcpProject <gcp-project-name>
         
-Within the Terraform configuration file located at `${CLUSTERS_DIR}/my-test-cluster/terraform.tfvars`, customize the `cluster_admin_user` variable to refer to the newly created GCP service account (which has format `<user>@<gcp-project>.iam.gserviceaccount.com`).
+Within the Terraform configuration file located at `${CLUSTERS_DIR}/my-test-cluster/terraform.tfvars`, customize the `cluster_admin_user` variable to refer to the newly created GCP service account e.g.:
 
-**Further Configuration**
+    cluster_admin_user = "<user>@<gcp-project>.iam.gserviceaccount.com"
+    
+
+**Optional Additional Configuration**
 
 The `terraform.tfvars` file created in the <cluster>/my-test-cluster directory has settings (like number of
 librarians) that can you can change if you want, though the default should be reasonable
@@ -64,9 +67,9 @@ of these settings.
 
 ## Planning
 
-To see what would be created upon spinning up a cluster called `my-cluster`, use
+To see what would be created upon spinning up a cluster called `my-test-cluster`, use
 
-    go run cluster.go plan -d /path/to/my-test-cluster-dir
+    go run cluster.go plan -d ${CLUSTERS_DIR}/my-test-cluster
 
 If your cluster is hosted on GCP, you should first see Terraform plans and then planned dry
 run Kubernetes resources. Minikube clusters have no Terraform component.
@@ -76,7 +79,7 @@ run Kubernetes resources. Minikube clusters have no Terraform component.
 
 Create the cluster and resources with
 
-    go run cluster.go apply -d /path/to/my-test-cluster-dir
+    go run cluster.go apply -d ${CLUSTERS_DIR}/my-test-cluster
 
 You should see the the resources being created (Terraform resources can take up to 5 minutes). See
 the created Kubernetes pods with
