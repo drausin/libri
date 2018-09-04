@@ -19,14 +19,25 @@ you can run it via minikube (currently tested with v0.24, Kubernetes v1.8.0).
 
 Clusters are hosted in (currently) one of two environments: Minikube or Google Cloud Platform (GCP).
 
-First, create a local directory to store cluster configuration files: e.g.: `<path to libri>/deploy/cloud/clusters`
+**Requirements:**
+
+* [Kubernetes-cli](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+* [Terraform](https://www.terraform.io/intro/getting-started/install.html)
+* [Go](https://golang.org/doc/install)
+* Go Cobra package: `go get github.com/spf13/cobra/cobra`
+* Go Terraform package: `go get github.com/hashicorp/terraform`
+
+First, create a local directory to store cluster configuration files: e.g. from libri repo path:
+
+    cd deploy/cloud && mkdir clusters
+    CLUSTERS_DIR="$(pwd)/clusters"
 
 Referencing this path, initialize the cluster as follows:
 
 **Minikube (local):**
 
     go run cluster.go init minikube \
-        --clusterDir </path/to/cluster-dir>
+        --clusterDir "${CLUSTERS_DIR}"
         --clusterName my-test-cluster
 
 **GCP (cloud):**
@@ -34,11 +45,10 @@ Referencing this path, initialize the cluster as follows:
 Create a new [GCP Project](https://console.cloud.google.com/projectcreate) and provision a [Storage bucket](https://console.cloud.google.com/storage/browser).
 
     go run cluster.go init gcp \
-        --clusterDir </path/to/cluster-dir>
+        --clusterDir "${CLUSTERS_DIR}"
         --clusterName my-test-cluster \
-        --bucket my-bucket-name \
-        --gcpProject my-gcp-project
-
+        --bucket <bucket-name> \
+        --gcpProject <gcp-project-name>
 
 The `terraform.tfvars` file created in the cluster directory has settings (like number of
 librarians) that can you can change if you want, though the default should be reasonable
