@@ -24,8 +24,8 @@ Clusters are hosted in (currently) one of two environments: Minikube or Google C
 * [Kubernetes-cli](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 * [Terraform](https://www.terraform.io/intro/getting-started/install.html)
 * [Go](https://golang.org/doc/install)
-* Go Cobra package: `go get -u github.com/spf13/cobra/cobra`
-* Go Terraform package: `go get -u github.com/hashicorp/terraform`
+* Go Cobra package: `$ go get -u github.com/spf13/cobra/cobra`
+* Go Terraform package: `$ go get -u github.com/hashicorp/terraform`
 
 First, create a local directory to store cluster configuration files: e.g. from libri repo path:
 
@@ -69,7 +69,7 @@ of these settings.
 
 To see what would be created upon spinning up a cluster called `my-test-cluster`, use
 
-    go run cluster.go plan -d ${CLUSTERS_DIR}/my-test-cluster
+    $ go run cluster.go plan -d ${CLUSTERS_DIR}/my-test-cluster
 
 If your cluster is hosted on GCP, you should first see Terraform plans and then planned dry
 run Kubernetes resources. Minikube clusters have no Terraform component.
@@ -79,7 +79,7 @@ run Kubernetes resources. Minikube clusters have no Terraform component.
 
 Create the cluster and resources with
 
-    go run cluster.go apply -d ${CLUSTERS_DIR}/my-test-cluster
+    $ go run cluster.go apply -d ${CLUSTERS_DIR}/my-test-cluster
 
 You should see the the resources being created (Terraform resources can take up to 5 minutes). See
 the created Kubernetes pods with
@@ -176,7 +176,7 @@ You can also examine the logs of any pod
 When you want to update the cluster (e.g., add a librarian or a node), just change the appropriate property in
 `terraform.tfvars` and re-apply
 
-    ./libri-cluster.sh apply /path/to/clusters/my-cluster
+    ./libri-cluster.sh apply ${CLUSTERS_DIR}/my-test-cluster
 
 If the change you've applied involves the Prometheus or Grafana configmaps, you have to bounce the service manually
 (since configmaps aren't a formal Kubernetes resources) to pick up the new config. Do this by just deleting the pod
@@ -220,10 +220,10 @@ and letting Kubernetes recreate it
 
 When you're finished with a cluster, you have to destroy it manually, which you can do via
 
-    $ kubectl delete -f /path/to/clusters/my-cluster/libri.yml
+    $ kubectl delete -f ${CLUSTERS_DIR}/my-test-cluster/libri.yml
 
 If you have Terraform infrastructure, you'll then use
 
-    $ pushd /path/to/clusters/my-cluster
+    $ pushd ${CLUSTERS_DIR}/my-test-cluster
     $ terraform destroy
     $ popd
