@@ -29,7 +29,9 @@ Referencing this path, initialize the cluster as follows:
         --clusterDir </path/to/cluster-dir>
         --clusterName my-test-cluster
 
-#### GCP (cloud):
+**GCP (cloud):**
+
+Create a new [GCP Project](https://console.cloud.google.com/projectcreate) and provision a [Storage bucket](https://console.cloud.google.com/storage/browser).
 
     go run cluster.go init gcp \
         --clusterDir </path/to/cluster-dir>
