@@ -1,9 +1,8 @@
 ## Libri cluster deployment
 
-Deploying a cluster involves creating infrastructure via Terraform and deploying services
-and other things onto it via Kubernetes.
+Deploying a cluster involves creating infrastructure via Terraform and deploying services onto it via Kubernetes.
 
-The components of a libri cluster are
+The components of a Libri cluster are
 - libri-headless: headless `ClusterIP` service for internal DNS resolution among librarians
 - librarians-[0,...,N-1]: `NodePort` services for each of the librarians, making them accessible
 to outside authors
@@ -16,17 +15,23 @@ to outside authors
 If you want to just try out the Kubernetes part first without creating GCP infrastucture,
 you can run it via minikube (currently tested with v0.24, Kubernetes v1.8.0).
 
-#### Initializing
+#### Initializing Infrastructure
 
-Clusters are hosted in (currently) one of two environments: minikube or GCP. Initialize a local
-(minikube) cluster with
+Clusters are hosted in (currently) one of two environments: minikube or GCP.
+
+First, create a local directory to store configuration files: e.g., `<path to libri>/deploy/cloud/clusters`
+
+Initialize a local
+(minikube) cluster as follows:
 
     go run cluster.go init minikube \
         --clusterDir /path/to/my-test-cluster-dir
         --clusterName my-test-cluster
 
-where `/path/to/clusters/dir` is the directory to create the cluster subdirectory in. The GCP
-cluster initialization is very similar
+where `/path/to/clusters/dir` is the directory to create the cluster subdirectory in. 
+
+he GCP
+cluster initialization is very similar:
 
     go run cluster.go init gcp \
         --clusterDir /path/to/my-test-cluster-dir
