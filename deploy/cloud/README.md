@@ -15,19 +15,18 @@ to outside authors
 If you want to just try out the Kubernetes part first without creating GCP infrastucture,
 you can run it via minikube (currently tested with v0.24, Kubernetes v1.8.0).
 
-## Initializing Infrastructure
-
-Clusters are hosted in (currently) one of two environments: Minikube or Google Cloud Platform (GCP).
-
-**Requirements:**
+## Requirements
 
 * [Kubernetes-cli](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 * [Terraform](https://www.terraform.io/intro/getting-started/install.html)
 * [Go](https://golang.org/doc/install)
+* [jq](https://stedolan.github.io/jq/download/)
 * Go Cobra package: `$ go get -u github.com/spf13/cobra/cobra`
 * Go Terraform package: `$ go get -u github.com/hashicorp/terraform`
-* [jq](https://stedolan.github.io/jq/download/)
-* (for optional testing below): [Docker](https://docs.docker.com/install/)
+* Optional for local execution: [Minikube](https://github.com/kubernetes/minikube/releases)
+* Optional for testing: [Docker](https://docs.docker.com/install/)
+
+## Initializing Infrastructure
 
 First, create a local directory to store cluster configuration files: e.g. from libri repo path:
 
@@ -43,6 +42,7 @@ Specify a name for the new cluster and store the path reference:
     $ go run cluster.go init minikube \
         --clusterDir "${CLUSTER_DIR}" \
         --clusterName "${CLUSTER_NAME}"
+    $ export TF_VAR_cluster_admin_user="dummy user"
 
 **GCP (cloud):**
 
@@ -71,6 +71,11 @@ Terraform configuration file.
         --bucket "${GCP_BUCKET}" \
         --gcpProject "${GCP_PROJECT}"
 
+Finally, provide GCP credential information to Terraform:
+
+    $ export TF_VAR_credentials_file=${GOOGLE_APPLICATION_CREDENTIALS}
+    $ export TF_VAR_cluster_admin_user=$(jq -r '.client_email' ${TF_VAR_credentials_file})
+
 **Optional Additional Configuration**
 
 The `terraform.tfvars` file created in the ${CLUSTER_DIR} directory has settings (like number of
@@ -78,18 +83,14 @@ librarians) that can you can change if you want, though the default should be re
 enough to start. The corresponding `variables.tf` file in the directory contains description
 of these settings.
 
-
 ## Planning
 
 To see what would be created upon spinning up the new cluster, use
 
-    $ export TF_VAR_credentials_file=${GOOGLE_APPLICATION_CREDENTIALS}
-    $ export TF_VAR_cluster_admin_user=$(jq -r '.client_email' ${TF_VAR_credentials_file})
     $ go run cluster.go plan --nokube -d ${CLUSTER_DIR}
 
 If your cluster is hosted on GCP, you should first see Terraform plans and then planned dry
 run Kubernetes resources. Minikube clusters have no Terraform component.
-
 
 ## Applying
 
@@ -126,10 +127,11 @@ and the created services with
 
 ## Testing
 
+**Obtain Libri IP Address(es)**
+
 If using a local cluster, get the external address for one of the services
 
     $ minikube service librarians-0 --url
-    http://192.168.99.100:30100
 
 If using a GCP cluster, get an external address from one of the nodes
 
@@ -153,12 +155,15 @@ If using a GCP cluster, get an external address from one of the nodes
 
 You can parse the public address from the librarians via the following bash commands:
 
+
     N_LIBRARIANS=4
     librarian_addrs=""
     for i in $(seq 0 $((N_LIBRARIANS - 1))); do
         librarian_addrs="${librarian_addrs},$(kubectl logs librarians-${i} | grep publicAddr | sed -E 's/.*"publicAddr": "([^ "]*).*/\1/g')"
     done
     librarian_addrs=${librarian_addrs:1:${#librarian_addrs}}
+
+**Execute Test**
 
 For convenience (and speed), you can run testing commands from an ephemeral container. Test the
 health of a librarian with
@@ -188,7 +193,7 @@ And then execute
 
 ## Monitoring
 
-If using minikube, get the Grafana service address
+If using Minikube, get the Grafana service address
 
     $ minikube service grafana --url
     http://192.168.99.100:30300
