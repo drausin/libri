@@ -30,15 +30,17 @@ Clusters are hosted in (currently) one of two environments: Minikube or Google C
 First, create a local directory to store cluster configuration files: e.g. from libri repo path:
 
     $ cd deploy/cloud && mkdir clusters
-    $ CLUSTERS_DIR="$(pwd)/clusters"
 
-Referencing this path, initialize the cluster as follows:
+Specify a name for the new cluster and store the path reference:
+
+    $ CLUSTER_NAME="my-test-cluster"
+    $ CLUSTERS_DIR="$(pwd)/clusters/${CLUSTER_NAME}"
 
 **Minikube (local):**
 
-    go run cluster.go init minikube \
-        --clusterDir "${CLUSTERS_DIR}"
-        --clusterName my-test-cluster
+    $ go run cluster.go init minikube \
+        --clusterDir "${CLUSTERS_DIR}" \
+        --clusterName "${CLUSTER_NAME}"
 
 **GCP (cloud):**
 
@@ -50,13 +52,13 @@ Specify the service account keyfile location:
 
 Customize (with project and bucket name) and execute the following command to create the standard Terraform configuration file.
 
-    go run cluster.go init gcp \
+    $ go run cluster.go init gcp \
         --clusterDir "${CLUSTERS_DIR}" \
-        --clusterName my-test-cluster \
+        --clusterName "${CLUSTER_NAME}" \
         --bucket <bucket-name> \
         --gcpProject <gcp-project-name>
         
-Within the Terraform configuration file located at `${CLUSTERS_DIR}/my-test-cluster/terraform.tfvars`, customize the `cluster_admin_user` variable to refer to the newly created GCP service account e.g.:
+Within the Terraform configuration file located at `clusters/${CLUSTER_NAME}/terraform.tfvars`, customize the `cluster_admin_user` variable to refer to the newly created GCP service account e.g.:
 
     cluster_admin_user = "<user>@<gcp-project>.iam.gserviceaccount.com"
     
