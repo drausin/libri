@@ -146,6 +146,7 @@ For convenience (and speed), you can run testing commands from an ephemeral cont
 health of a librarian with
 
     $ librarian_addrs='192.168.99.100:30100,192.168.99.100:30101,192.168.99.100:30102'
+    $ docker pull daedalus2718/libri:snapshot-fa7e6f2
     $ docker run --rm daedalus2718/libri:latest test health -a "${librarian_addrs}"
 
 Test uploading/downloading entries from the cluster with
