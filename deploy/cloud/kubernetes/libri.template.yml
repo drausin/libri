@@ -137,7 +137,7 @@ spec:
           - "-c"
           - >
             libri librarian start
-            --nSubscriptions 2
+            --nSubscriptions 0
             --dataDir /data
             --localPort {{ $localPort }}
             --localMetricsPort {{ $localMetricsPort }}

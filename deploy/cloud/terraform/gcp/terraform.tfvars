@@ -1,5 +1,4 @@
 cluster_host = "gcp"
-cluster_admin_user = "experimenter@libri-170711.iam.gserviceaccount.com"
 
 # librarians
 num_librarians = 8
