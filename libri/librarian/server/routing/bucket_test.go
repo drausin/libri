@@ -21,7 +21,7 @@ func TestBucket_PushPop(t *testing.T) {
 
 			// simulate i successful responses from peer p so that heap ordering is well-defined
 			for j := 0; j < i; j++ {
-				rec.Record(p.ID(), api.Find, comm.Response, comm.Success)
+				rec.Record(p.ID(), api.Verify, comm.Response, comm.Success)
 			}
 			heap.Push(b, p)
 		}

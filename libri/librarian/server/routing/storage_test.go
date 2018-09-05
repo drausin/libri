@@ -46,7 +46,7 @@ func TestRoutingTable_SaveLoad(t *testing.T) {
 	p, d := comm.NewVerifyRpPreferer(rec), &fixedDoctor{healthy: true}
 	for i, p := range ps {
 		for j := 0; j < i+1; j++ {
-			rec.Record(p.ID(), api.Find, comm.Response, comm.Success)
+			rec.Record(p.ID(), api.Verify, comm.Response, comm.Success)
 		}
 	}
 	rt1, _ := NewWithPeers(selfID.ID(), p, d, params, ps)
