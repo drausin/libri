@@ -15,19 +15,18 @@ to outside authors
 If you want to just try out the Kubernetes part first without creating GCP infrastucture,
 you can run it via minikube (currently tested with v0.24, Kubernetes v1.8.0).
 
-## Initializing Infrastructure
-
-Clusters are hosted in (currently) one of two environments: Minikube or Google Cloud Platform (GCP).
-
-**Requirements:**
+## Requirements
 
 * [Kubernetes-cli](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 * [Terraform](https://www.terraform.io/intro/getting-started/install.html)
 * [Go](https://golang.org/doc/install)
+* [jq](https://stedolan.github.io/jq/download/)
 * Go Cobra package: `$ go get -u github.com/spf13/cobra/cobra`
 * Go Terraform package: `$ go get -u github.com/hashicorp/terraform`
-* [jq](https://stedolan.github.io/jq/download/)
-* (for optional testing below): [Docker](https://docs.docker.com/install/)
+* Optional for local execution: [Minikube](https://github.com/kubernetes/minikube/releases)
+* Optional for testing: [Docker](https://docs.docker.com/install/)
+
+## Initializing Infrastructure
 
 First, create a local directory to store cluster configuration files: e.g. from libri repo path:
 
@@ -43,6 +42,7 @@ Specify a name for the new cluster and store the path reference:
     $ go run cluster.go init minikube \
         --clusterDir "${CLUSTER_DIR}" \
         --clusterName "${CLUSTER_NAME}"
+    $ export TF_VAR_cluster_admin_user="user"
 
 **GCP (cloud):**
 
@@ -64,11 +64,11 @@ Customize (with project and bucket name) and execute the following command to cr
         --clusterName "${CLUSTER_NAME}" \
         --bucket <bucket-name> \
         --gcpProject <gcp-project-name>
-        
-Within the Terraform configuration file located at `clusters/${CLUSTER_NAME}/terraform.tfvars`, customize the `cluster_admin_user` variable to refer to the newly created GCP service account e.g.:
 
-    cluster_admin_user = "<user>@<gcp-project>.iam.gserviceaccount.com"
-    
+Finally, provide GCP credential information to Terraform:
+
+    $ export TF_VAR_credentials_file=${GOOGLE_APPLICATION_CREDENTIALS}
+    $ export TF_VAR_cluster_admin_user=$(jq -r '.client_email' ${TF_VAR_credentials_file})
 
 **Optional Additional Configuration**
 
@@ -77,18 +77,14 @@ librarians) that can you can change if you want, though the default should be re
 enough to start. The corresponding `variables.tf` file in the directory contains description
 of these settings.
 
-
 ## Planning
 
 To see what would be created upon spinning up the new cluster, use
 
-    $ export TF_VAR_credentials_file=${GOOGLE_APPLICATION_CREDENTIALS}
-    $ export TF_VAR_cluster_admin_user=$(jq -r '.client_email' ${TF_VAR_credentials_file})
     $ go run cluster.go plan --nokube -d ${CLUSTER_DIR}
 
 If your cluster is hosted on GCP, you should first see Terraform plans and then planned dry
 run Kubernetes resources. Minikube clusters have no Terraform component.
-
 
 ## Applying
 
@@ -125,10 +121,11 @@ and the created services with
 
 ## Testing
 
+**Obtain Libri IP Address(es)**
+
 If using a local cluster, get the external address for one of the services
 
     $ minikube service librarians-0 --url
-    http://192.168.99.100:30100
 
 If using a GCP cluster, get an external address from one of the nodes
 
@@ -150,6 +147,9 @@ If using a GCP cluster, get an external address from one of the nodes
     node-exporter-zwr2p           1/1       Running   0          8m        10.142.0.3   gke-libri-dev-default-pool-5ee39584-tljc
     prometheus-1589647967-rj06c   1/1       Running   0          8m        10.24.1.5    gke-libri-dev-default-pool-5ee39584-schn
 
+
+**Determine Port**
+
 For now, you need to visually "join" the pods to the instances on pod:NODE == instance:NAME to obtain the IP address for each
 pod, and increment the port numberse starting at 30100 for librarian-0:
 
@@ -158,6 +158,8 @@ e.g., for the above, the IP:Port addresses are as follows:
 - librarians-1: 35.185.100.233:30101
 - librarians-2: 104.196.183.229:30102
 - librarians-3: 35.196.233.112:30103
+
+**Execute Test**
 
 For convenience (and speed), you can run testing commands from an ephemeral container. Test the
 health of a librarian with
