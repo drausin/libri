@@ -20,9 +20,9 @@ you can run it via minikube (currently tested with v0.24, Kubernetes v1.8.0).
 * [Kubernetes-cli](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 * [Terraform](https://www.terraform.io/intro/getting-started/install.html)
 * [Go](https://golang.org/doc/install)
-* [jq](https://stedolan.github.io/jq/download/)
 * Go Cobra package: `$ go get -u github.com/spf13/cobra/cobra`
 * Go Terraform package: `$ go get -u github.com/hashicorp/terraform`
+* [jq](https://stedolan.github.io/jq/download/)
 * Optional for local execution: [Minikube](https://github.com/kubernetes/minikube/releases)
 * Optional for testing: [Docker](https://docs.docker.com/install/)
 
