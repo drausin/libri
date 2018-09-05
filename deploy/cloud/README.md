@@ -34,12 +34,12 @@ First, create a local directory to store cluster configuration files: e.g. from 
 Specify a name for the new cluster and store the path reference:
 
     $ CLUSTER_NAME="my-test-cluster"
-    $ CLUSTERS_DIR="$(pwd)/clusters/${CLUSTER_NAME}"
+    $ CLUSTER_DIR="$(pwd)/clusters/${CLUSTER_NAME}"
 
 **Minikube (local):**
 
     $ go run cluster.go init minikube \
-        --clusterDir "${CLUSTERS_DIR}" \
+        --clusterDir "${CLUSTER_DIR}" \
         --clusterName "${CLUSTER_NAME}"
 
 **GCP (cloud):**
@@ -53,7 +53,7 @@ Specify the service account keyfile location:
 Customize (with project and bucket name) and execute the following command to create the standard Terraform configuration file.
 
     $ go run cluster.go init gcp \
-        --clusterDir "${CLUSTERS_DIR}" \
+        --clusterDir "${CLUSTER_DIR}" \
         --clusterName "${CLUSTER_NAME}" \
         --bucket <bucket-name> \
         --gcpProject <gcp-project-name>
@@ -73,9 +73,10 @@ of these settings.
 
 ## Planning
 
-To see what would be created upon spinning up a cluster called `my-test-cluster`, use
+To see what would be created upon spinning up the new cluster, use
 
-    $ go run cluster.go plan -d ${CLUSTERS_DIR}/my-test-cluster
+    $ export TF_VAR_credentials_file=/path/to/keyfile/<keyfile>.json
+    $ go run cluster.go plan --nokube -d ${CLUSTER_DIR}
 
 If your cluster is hosted on GCP, you should first see Terraform plans and then planned dry
 run Kubernetes resources. Minikube clusters have no Terraform component.
@@ -85,7 +86,7 @@ run Kubernetes resources. Minikube clusters have no Terraform component.
 
 Create the cluster and resources with
 
-    $ go run cluster.go apply -d ${CLUSTERS_DIR}/my-test-cluster
+    $ go run cluster.go apply -d ${CLUSTERS_DIR}
 
 You should see the the resources being created (Terraform resources can take up to 5 minutes). See
 the created Kubernetes pods with
