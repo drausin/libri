@@ -26,6 +26,7 @@ Clusters are hosted in (currently) one of two environments: Minikube or Google C
 * [Go](https://golang.org/doc/install)
 * Go Cobra package: `$ go get -u github.com/spf13/cobra/cobra`
 * Go Terraform package: `$ go get -u github.com/hashicorp/terraform`
+* [jq](https://stedolan.github.io/jq/download/)
 * (for optional testing below): [Docker](https://docs.docker.com/install/)
 
 First, create a local directory to store cluster configuration files: e.g. from libri repo path:
@@ -81,7 +82,8 @@ of these settings.
 
 To see what would be created upon spinning up the new cluster, use
 
-    $ export TF_VAR_credentials_file=/path/to/keyfile/<keyfile>.json
+    $ export TF_VAR_credentials_file=${GOOGLE_APPLICATION_CREDENTIALS}
+    $ export TF_VAR_cluster_admin_user=$(jq -r '.client_email' ${TF_VAR_credentials_file})
     $ go run cluster.go plan --nokube -d ${CLUSTER_DIR}
 
 If your cluster is hosted on GCP, you should first see Terraform plans and then planned dry

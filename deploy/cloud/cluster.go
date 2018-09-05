@@ -27,6 +27,7 @@ const (
 	kubeConfigFilename         = "libri.yml"
 
 	// Terraform variable keys
+	envTFVarPrefix          = "TF_VAR_"
 	tfClusterAdminUser      = "cluster_admin_user"
 	tfClusterHost           = "cluster_host"
 	tfNumLibrarians         = "num_librarians"
@@ -337,8 +338,13 @@ func kubeApply(clusterDir string, dryRun bool) {
 
 func writeKubeConfig(clusterDir string) {
 	tfvars := getTFFlags(clusterDir)
+	clusterAdminUser, set := os.LookupEnv(envTFVarPrefix + tfClusterAdminUser)
+	if !set {
+		err := errors.New(envTFVarPrefix + tfClusterAdminUser + " env variable must be set")
+		maybeExit(err)
+	}
 	config := KubeConfig{
-		ClusterAdminUser:   tfvars[tfClusterAdminUser].(string),
+		ClusterAdminUser:   clusterAdminUser,
 		LibriVersion:       tfvars[tfLibrarianLibriVersion].(string),
 		LocalPort:          tfvars[tfLocalPort].(int),
 		LocalMetricsPort:   tfvars[tfLocalMetricsPort].(int),
