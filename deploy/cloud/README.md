@@ -53,7 +53,7 @@ Set the GCP project name:
 
 Specify the service account keyfile location:
 
-    $ export GOOGLE_APPLICATION_CREDENTIALS=/path/to/keyfile/<keyfile>.
+    $ export GOOGLE_APPLICATION_CREDENTIALS=/path/to/keyfile/<keyfile>.json
     $ gcloud auth activate-service-account --key-file=${GOOGLE_APPLICATION_CREDENTIALS}
 
 Customize (with project and bucket name) and execute the following command to create the standard Terraform configuration file.
