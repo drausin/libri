@@ -48,6 +48,6 @@ func (d *responseTimeDoctor) Healthy(peerID id.ID) bool {
 	latestErrTime := verifyOutcomes[Response][Error].Latest
 	latestSuccessTime := verifyOutcomes[Response][Success].Latest
 
-	// assume health if latest error time less than 5 mins after success time
+	// assume healthy if latest error time less than 5 mins after success time
 	return latestErrTime.Before(latestSuccessTime.Add(5 * time.Minute))
 }
