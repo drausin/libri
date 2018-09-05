@@ -150,7 +150,7 @@ func NewTestWithPeers(rng *rand.Rand, n int) (Table, ecid.ID, int, comm.Preferer
 	ps := peer.NewTestPeers(rng, n)
 	k := comm.NewAlwaysKnower()
 	rec := comm.NewQueryRecorderGetter(k)
-	preferer := comm.NewFindRpPreferer(rec)
+	preferer := comm.NewVerifyRpPreferer(rec)
 	doctor := comm.NewNaiveDoctor()
 	rt, nAdded := NewWithPeers(peerID.ID(), preferer, doctor, params, ps)
 	return rt, peerID, nAdded, preferer

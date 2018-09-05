@@ -17,7 +17,7 @@ func TestFindRqRpBetaPreferer_Prefer(t *testing.T) {
 	peerID2 := id.NewPseudoRandom(rng)
 	peerID3 := id.NewPseudoRandom(rng)
 	qo1 := endpointQueryOutcomes{
-		api.Find: QueryOutcomes{
+		api.Verify: QueryOutcomes{
 			Request: map[Outcome]*ScalarMetrics{
 				Success: {Count: 1},
 			},
@@ -27,7 +27,7 @@ func TestFindRqRpBetaPreferer_Prefer(t *testing.T) {
 		},
 	}
 	qo2 := endpointQueryOutcomes{
-		api.Find: {
+		api.Verify: {
 			Request: map[Outcome]*ScalarMetrics{
 				Success: {Count: 2},
 			},
@@ -37,7 +37,7 @@ func TestFindRqRpBetaPreferer_Prefer(t *testing.T) {
 		},
 	}
 	qo3 := endpointQueryOutcomes{
-		api.Find: {
+		api.Verify: {
 			Request: map[Outcome]*ScalarMetrics{
 				Success: {Count: 1},
 			},
@@ -54,7 +54,7 @@ func TestFindRqRpBetaPreferer_Prefer(t *testing.T) {
 			peerID3.String(): qo3,
 		},
 	}
-	p := NewFindRpPreferer(rec)
+	p := NewVerifyRpPreferer(rec)
 
 	// prefer peer w/ more successful Find responses
 	assert.True(t, p.Prefer(peerID2, peerID1))

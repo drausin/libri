@@ -151,7 +151,6 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 	selfLogger := logger.With(zap.String(logSelfIDShort, id.ShortHex(peerID.Bytes())))
 
 	knower := comm.NewAlwaysKnower()
-	doctor := comm.NewNaiveDoctor()
 
 	// TODO (drausin) load recorder from storage instead of initializing empty
 	windows := []time.Duration{comm.Second, comm.Day, comm.Week}
@@ -160,8 +159,9 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		recorder = comm.NewPromScalarRecorder(peerID.ID(), recorder)
 	}
 	weekGetter := getters[7*24*time.Hour]
-	prefer := comm.NewFindRpPreferer(weekGetter)
+	prefer := comm.NewVerifyRpPreferer(weekGetter)
 	allower := comm.NewDefaultAllower(knower, getters)
+	doctor := comm.NewResponseTimeDoctor(getters[comm.Day])
 
 	rt, err := loadOrCreateRoutingTable(selfLogger, serverSL, prefer, doctor, peerID,
 		config.Routing)
