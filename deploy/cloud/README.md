@@ -84,9 +84,9 @@ run Kubernetes resources. Minikube clusters have no Terraform component.
 
 ## Applying
 
-Create the cluster and resources with
+Create the cluster and resources (enter 'yes' when prompted):
 
-    $ go run cluster.go apply -d ${CLUSTERS_DIR}
+    $ go run cluster.go apply -d ${CLUSTER_DIR}
 
 You should see the the resources being created (Terraform resources can take up to 5 minutes). See
 the created Kubernetes pods with
@@ -184,7 +184,7 @@ You can also examine the logs of any pod
 When you want to update the cluster (e.g., add a librarian or a node), just change the appropriate property in
 `terraform.tfvars` and re-apply
 
-    ./libri-cluster.sh apply ${CLUSTERS_DIR}/my-test-cluster
+    ./libri-cluster.sh apply ${CLUSTER_DIR}
 
 If the change you've applied involves the Prometheus or Grafana configmaps, you have to bounce the service manually
 (since configmaps aren't a formal Kubernetes resources) to pick up the new config. Do this by just deleting the pod
@@ -228,10 +228,10 @@ and letting Kubernetes recreate it
 
 When you're finished with a cluster, you have to destroy it manually, which you can do via
 
-    $ kubectl delete -f ${CLUSTERS_DIR}/my-test-cluster/libri.yml
+    $ kubectl delete -f ${CLUSTER_DIR}/libri.yml
 
 If you have Terraform infrastructure, you'll then use
 
-    $ pushd ${CLUSTERS_DIR}/my-test-cluster
+    $ pushd ${CLUSTER_DIR}
     $ terraform destroy
     $ popd
