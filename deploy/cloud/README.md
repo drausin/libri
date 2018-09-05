@@ -29,8 +29,8 @@ Clusters are hosted in (currently) one of two environments: Minikube or Google C
 
 First, create a local directory to store cluster configuration files: e.g. from libri repo path:
 
-    cd deploy/cloud && mkdir clusters
-    CLUSTERS_DIR="$(pwd)/clusters"
+    $ cd deploy/cloud && mkdir clusters
+    $ CLUSTERS_DIR="$(pwd)/clusters"
 
 Referencing this path, initialize the cluster as follows:
 
@@ -42,12 +42,16 @@ Referencing this path, initialize the cluster as follows:
 
 **GCP (cloud):**
 
-Create a new [GCP Project](https://console.cloud.google.com/projectcreate); provision a [Storage bucket](https://console.cloud.google.com/storage/browser); and create a [IAM Service Account](https://console.cloud.google.com/projectselector/iam-admin/serviceaccounts) with owner permissions.
+Create a new [GCP Project](https://console.cloud.google.com/projectcreate); provision a [Storage bucket](https://console.cloud.google.com/storage/browser); and create a [IAM Service Account](https://console.cloud.google.com/projectselector/iam-admin/serviceaccounts) with owner permissions and save the .json keyfile to a local directory.
 
-Execute the following to create the standard Terraform configuration file.
+Specify the service account keyfile location:
+
+    $ export GOOGLE_APPLICATION_CREDENTIALS=/path/to/keyfile/<keyfile>.json
+
+Customize (with project and bucket name) and execute the following command to create the standard Terraform configuration file.
 
     go run cluster.go init gcp \
-        --clusterDir "${CLUSTERS_DIR}"
+        --clusterDir "${CLUSTERS_DIR}" \
         --clusterName my-test-cluster \
         --bucket <bucket-name> \
         --gcpProject <gcp-project-name>
