@@ -26,6 +26,7 @@ Clusters are hosted in (currently) one of two environments: Minikube or Google C
 * [Go](https://golang.org/doc/install)
 * Go Cobra package: `$ go get -u github.com/spf13/cobra/cobra`
 * Go Terraform package: `$ go get -u github.com/hashicorp/terraform`
+* (for optional testing below): [Docker](https://docs.docker.com/install/)
 
 First, create a local directory to store cluster configuration files: e.g. from libri repo path:
 
@@ -46,9 +47,14 @@ Specify a name for the new cluster and store the path reference:
 
 Create a new [GCP Project](https://console.cloud.google.com/projectcreate); provision a [Storage bucket](https://console.cloud.google.com/storage/browser); and create a [IAM Service Account](https://console.cloud.google.com/projectselector/iam-admin/serviceaccounts) with owner permissions and save the .json keyfile to a local directory.
 
+Set the GCP project name:
+
+    $ gcloud config set project <GCP project name>
+
 Specify the service account keyfile location:
 
-    $ export GOOGLE_APPLICATION_CREDENTIALS=/path/to/keyfile/<keyfile>.json
+    $ export GOOGLE_APPLICATION_CREDENTIALS=/path/to/keyfile/<keyfile>.
+    $ gcloud auth activate-service-account --key-file=${GOOGLE_APPLICATION_CREDENTIALS}
 
 Customize (with project and bucket name) and execute the following command to create the standard Terraform configuration file.
 
@@ -142,8 +148,10 @@ If using a GCP cluster, get an external address from one of the nodes
     node-exporter-zwr2p           1/1       Running   0          8m        10.142.0.3   gke-libri-dev-default-pool-5ee39584-tljc
     prometheus-1589647967-rj06c   1/1       Running   0          8m        10.24.1.5    gke-libri-dev-default-pool-5ee39584-schn
 
-For now, you need to visually "join" the pods to the instances to get the IP:Port combinations for
-the librarians; for the above, they are
+For now, you need to visually "join" the pods to the instances on pod:NODE == instance:NAME to obtain the IP address for each
+pod, and increment the port numberse starting at 30100 for librarian-0:
+
+e.g., for the above, the IP:Port addresses are as follows:
 - librarians-0: 35.196.233.112:30100
 - librarians-1: 35.185.100.233:30101
 - librarians-2: 104.196.183.229:30102
@@ -152,8 +160,7 @@ the librarians; for the above, they are
 For convenience (and speed), you can run testing commands from an ephemeral container. Test the
 health of a librarian with
 
-    $ librarian_addrs='192.168.99.100:30100,192.168.99.100:30101,192.168.99.100:30102'
-    $ docker pull daedalus2718/libri:snapshot-fa7e6f2
+    $ librarian_addrs='<librarian-0-ip:port>,<librarian-1-ip:port>,<librarian-2-ip:port>'
     $ docker run --rm daedalus2718/libri:latest test health -a "${librarian_addrs}"
 
 Test uploading/downloading entries from the cluster with
@@ -173,7 +180,7 @@ If using minikube, get the Grafana service address
     http://192.168.99.100:30300
 
 If using GCP, use the the same visual "join" as with librarians above to see that the NodePort public address
-for the Grafana service is `104.196.183.229:30300`.
+for the Grafana service is with port 30300.
 
 You can also examine the logs of any pod
 
@@ -230,7 +237,7 @@ When you're finished with a cluster, you have to destroy it manually, which you 
 
     $ kubectl delete -f ${CLUSTER_DIR}/libri.yml
 
-If you have Terraform infrastructure, you'll then use
+If you have Terraform infrastructure, you'll then use the following:
 
     $ pushd ${CLUSTER_DIR}
     $ terraform destroy
