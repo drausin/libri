@@ -63,16 +63,11 @@ Customize (with project and bucket name) and execute the following command to cr
         --clusterDir "${CLUSTER_DIR}" \
         --clusterName "${CLUSTER_NAME}" \
         --bucket <bucket-name> \
-        --gcpProject <gcp-project-name>
-        
-Within the Terraform configuration file located at `clusters/${CLUSTER_NAME}/terraform.tfvars`, customize the `cluster_admin_user` variable to refer to the newly created GCP service account e.g.:
-
-    cluster_admin_user = "<user>@<gcp-project>.iam.gserviceaccount.com"
-    
+        --gcpProject <gcp-project-name>    
 
 **Optional Additional Configuration**
 
-The `terraform.tfvars` file created in the <cluster>/my-test-cluster directory has settings (like number of
+The `terraform.tfvars` file created in the ${CLUSTER} directory has settings (like number of
 librarians) that can you can change if you want, though the default should be reasonable
 enough to start. The corresponding `variables.tf` file in the directory contains description
 of these settings.
