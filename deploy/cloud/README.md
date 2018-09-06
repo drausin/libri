@@ -170,7 +170,9 @@ If you get timeout issues (especially with remote GCP cluster), try bumping the 
 
 ## Joining the Libri Network
 
-To join the existing Libri network, you must provide a seed IP. Additional node IPs will be added to the cluster routing table once the cluster has joined the network. To do so, modify `libri.yml:460` by replacing the bootstraps value `librarians-0.libri.default.svc.cluster.local:20100` with a known Libri peer IP.
+To join the existing Libri network, you must provide a seed IP. Additional node IPs will be added to the cluster routing table once the cluster has joined the network. To do so, modify `libri.yml:460` by replacing the bootstraps value `librarians-0.libri.default.svc.cluster.local:20100` with a known Libri peer IP:Port combination such that it appears as follows:
+
+    --bootstraps 'xx.xxx.xxx.xxx:30100'
 
 ## Monitoring
 
