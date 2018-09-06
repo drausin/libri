@@ -168,6 +168,9 @@ If you get timeout issues (especially with remote GCP cluster), try bumping the 
 
     $ docker run --rm daedalus2718/libri:latest test io -a "${librarian_addrs}" --timeout 20
 
+## Joining the Libri Network
+
+To join the existing Libri network, you must provide a seed IP. Additional node IPs will be added to the cluster routing table once the cluster has joined the network. To do so, modify `libri.yml:460` by replacing the bootstraps value `librarians-0.libri.default.svc.cluster.local:20100` with a known Libri peer IP.
 
 ## Monitoring
 
