@@ -67,7 +67,7 @@ Customize (with project and bucket name) and execute the following command to cr
 
 **Optional Additional Configuration**
 
-The `terraform.tfvars` file created in the ${CLUSTER} directory has settings (like number of
+The `terraform.tfvars` file created in the ${CLUSTER_DIR} directory has settings (like number of
 librarians) that can you can change if you want, though the default should be reasonable
 enough to start. The corresponding `variables.tf` file in the directory contains description
 of these settings.
