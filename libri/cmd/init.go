@@ -25,7 +25,6 @@ var (
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "initialize author keychains",
-	Long:  `TODO (drausin) add longer description and examples here`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return newKeychainCreator().create()
 	},

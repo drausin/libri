@@ -44,7 +44,6 @@ const (
 var startLibrarianCmd = &cobra.Command{
 	Use:   "start",
 	Short: "start a librarian server",
-	Long:  `TODO (drausin) add longer description and examples here`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		config, logger, err := getLibrarianConfig()
 		if err != nil {
