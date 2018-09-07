@@ -31,7 +31,6 @@ var (
 var uploadCmd = &cobra.Command{
 	Use:   "upload",
 	Short: "upload a local file to the libri network",
-	Long:  `TODO (drausin) add longer description and examples here`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return newFileUploader().upload()
 	},

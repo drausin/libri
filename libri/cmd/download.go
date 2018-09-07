@@ -23,8 +23,7 @@ var (
 // downloadCmd represents the download command
 var downloadCmd = &cobra.Command{
 	Use:   "download",
-	Short: "A brief description of your command",
-	Long:  `TODO (drausin) add long description and examples`,
+	Short: "download a file from a Libri network using an envelope ID",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return newFileDownloader().download()
 	},

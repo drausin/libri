@@ -30,8 +30,7 @@ const (
 // authorCmd represents the author command
 var authorCmd = &cobra.Command{
 	Use:   "author",
-	Short: "run an author client of the libri network",
-	Long:  `TODO (drausin) add longer description and examples here`,
+	Short: "operate an author client of the Libri network",
 }
 
 func init() {
