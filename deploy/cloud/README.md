@@ -63,16 +63,11 @@ Customize (with project and bucket name) and execute the following command to cr
         --clusterDir "${CLUSTER_DIR}" \
         --clusterName "${CLUSTER_NAME}" \
         --bucket <bucket-name> \
-        --gcpProject <gcp-project-name>
-        
-Within the Terraform configuration file located at `clusters/${CLUSTER_NAME}/terraform.tfvars`, customize the `cluster_admin_user` variable to refer to the newly created GCP service account e.g.:
-
-    cluster_admin_user = "<user>@<gcp-project>.iam.gserviceaccount.com"
-    
+        --gcpProject <gcp-project-name>    
 
 **Optional Additional Configuration**
 
-The `terraform.tfvars` file created in the <cluster>/my-test-cluster directory has settings (like number of
+The `terraform.tfvars` file created in the ${CLUSTER_DIR} directory has settings (like number of
 librarians) that can you can change if you want, though the default should be reasonable
 enough to start. The corresponding `variables.tf` file in the directory contains description
 of these settings.
@@ -173,6 +168,15 @@ If you get timeout issues (especially with remote GCP cluster), try bumping the 
 
     $ docker run --rm daedalus2718/libri:latest test io -a "${librarian_addrs}" --timeout 20
 
+## Joining the Libri Network
+
+To join the existing Libri network, you must provide a seed IP. Additional node IPs will be added to the cluster routing table once the cluster has joined the network. To do so, modify `libri.yml:460` by replacing the bootstraps value `librarians-0.libri.default.svc.cluster.local:20100` with a known Libri peer IP:Port combination such that it appears as follows:
+
+    --bootstraps 'xx.xxx.xxx.xxx:30100'
+    
+And then execute
+
+    $ kubectl apply -f ${CLUSTER_DIR}/libri.yml
 
 ## Monitoring
 
