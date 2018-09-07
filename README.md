@@ -12,6 +12,15 @@ approach. It also offers
 ### Status
 Libri is currently alpha quality and still being internally tested. 
 
+### Try it out
+Ensure you have Docker installed and then run
+```bash
+./libri/acceptance/local-demo.sh
+```
+to spin up a 4-node libri cluster, run some tests against it, and uploaded/download some sample data.
+
+To try out (or join!) our public test network see [libri/acceptance/public-testnet.md].
+
 ### Design
 
 **Peers**
@@ -85,13 +94,6 @@ image ([daedalus2718/libri-build](https://hub.docker.com/r/daedalus2718/libri-bu
 deployment image ([daedalus2718/libri](https://hub.docker.com/r/daedalus2718/libri/)) is fairly 
 small (~90MB) because it contains only the things needed to run the `libri` command line binary.
 
-
-### Try it out
-Ensure you have Docker installed and then run
-```bash
-./libri/acceptance/local-demo.sh
-```
-to spin up a 3-node libri cluster, run some tests against it, and uploaded/download some sample data.
 
 ### Contribute
 See [CONTRIBUTING.md](CONTRIBUTING.md) for details.  Issues, suggestions, and pull requests always welcome.
