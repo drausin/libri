@@ -371,6 +371,7 @@ func countDocReplicas(t *testing.T, state *state) map[string]int {
 		client.NewECDSASigner(state.client.selfID.Key()),
 		client.NewECDSASigner(state.client.orgID.Key()),
 		comm.NewQueryRecorderGetter(comm.NewAlwaysKnower()),
+		comm.NewNaiveDoctor(),
 		state.clients,
 	)
 	verifyParams := verify.NewDefaultParameters()

@@ -31,6 +31,7 @@ type storer struct {
 	orgSigner     client.Signer
 	searcher      search.Searcher
 	storerCreator client.StorerCreator
+	doc           comm.Doctor
 	rec           comm.QueryRecorder
 }
 
@@ -39,6 +40,7 @@ func NewStorer(
 	peerSigner client.Signer,
 	orgSigner client.Signer,
 	rec comm.QueryRecorder,
+	doc comm.Doctor,
 	searcher search.Searcher,
 	c client.StorerCreator,
 ) Storer {
@@ -47,19 +49,25 @@ func NewStorer(
 		orgSigner:     orgSigner,
 		searcher:      searcher,
 		storerCreator: c,
+		doc:           doc,
 		rec:           rec,
 	}
 }
 
 // NewDefaultStorer creates a new Storer with default Searcher and StoreQuerier instances.
 func NewDefaultStorer(
-	peerSigner, orgSigner client.Signer, rec comm.QueryRecorder, clients client.Pool,
+	peerSigner client.Signer,
+	orgSigner client.Signer,
+	rec comm.QueryRecorder,
+	doc comm.Doctor,
+	clients client.Pool,
 ) Storer {
 	return NewStorer(
 		peerSigner,
 		orgSigner,
 		rec,
-		search.NewDefaultSearcher(peerSigner, orgSigner, rec, clients),
+		doc,
+		search.NewDefaultSearcher(peerSigner, orgSigner, rec, doc, clients),
 		client.NewStorerCreator(clients),
 	)
 }

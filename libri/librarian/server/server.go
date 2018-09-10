@@ -178,12 +178,12 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		orgSigner = client.NewECDSASigner(config.OrgID.Key())
 	}
 
-	searcher := search.NewDefaultSearcher(peerSigner, orgSigner, recorder, clients)
-	storer := store.NewStorer(peerSigner, orgSigner, recorder, searcher,
+	searcher := search.NewDefaultSearcher(peerSigner, orgSigner, recorder, doctor, clients)
+	storer := store.NewStorer(peerSigner, orgSigner, recorder, doctor, searcher,
 		client.NewStorerCreator(clients))
 	introducer := introduce.NewDefaultIntroducer(peerSigner, orgSigner, recorder, peerID.ID(),
 		clients)
-	verifier := verify.NewDefaultVerifier(peerSigner, orgSigner, recorder, clients)
+	verifier := verify.NewDefaultVerifier(peerSigner, orgSigner, recorder, doctor, clients)
 
 	newPubs := make(chan *subscribe.KeyedPub, newPublicationsSlack)
 	recentPubs, err := subscribe.NewRecentPublications(config.SubscribeTo.RecentCacheSize)

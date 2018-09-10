@@ -33,6 +33,7 @@ type verifier struct {
 	peerSigner      client.Signer
 	orgSigner       client.Signer
 	verifierCreator client.VerifierCreator
+	doc             comm.Doctor
 	rp              ResponseProcessor
 	rec             comm.QueryRecorder
 }
@@ -42,6 +43,7 @@ func NewVerifier(
 	peerSigner client.Signer,
 	orgSigner client.Signer,
 	rec comm.QueryRecorder,
+	doc comm.Doctor,
 	c client.VerifierCreator,
 	rp ResponseProcessor,
 ) Verifier {
@@ -49,6 +51,7 @@ func NewVerifier(
 		peerSigner:      peerSigner,
 		orgSigner:       orgSigner,
 		verifierCreator: c,
+		doc:             doc,
 		rp:              rp,
 		rec:             rec,
 	}
@@ -56,11 +59,15 @@ func NewVerifier(
 
 // NewDefaultVerifier creates a new Verifier with default sub-object instantiations.
 func NewDefaultVerifier(
-	peerSigner, orgSigner client.Signer, rec comm.QueryRecorder, clients client.Pool,
+	peerSigner client.Signer,
+	orgSigner client.Signer,
+	rec comm.QueryRecorder,
+	doc comm.Doctor,
+	clients client.Pool,
 ) Verifier {
 	vc := client.NewVerifierCreator(clients)
-	rp := NewResponseProcessor(peer.NewFromer())
-	return NewVerifier(peerSigner, orgSigner, rec, vc, rp)
+	rp := NewResponseProcessor(peer.NewFromer(), doc)
+	return NewVerifier(peerSigner, orgSigner, rec, doc, vc, rp)
 }
 
 type peerResponse struct {
@@ -210,11 +217,15 @@ type ResponseProcessor interface {
 
 type responseProcessor struct {
 	fromer peer.Fromer
+	doc    comm.Doctor
 }
 
 // NewResponseProcessor creates a new ResponseProcessor.
-func NewResponseProcessor(fromer peer.Fromer) ResponseProcessor {
-	return &responseProcessor{fromer: fromer}
+func NewResponseProcessor(fromer peer.Fromer, doc comm.Doctor) ResponseProcessor {
+	return &responseProcessor{
+		fromer: fromer,
+		doc:    doc,
+	}
 }
 
 func (vrp *responseProcessor) Process(
@@ -244,7 +255,13 @@ func (vrp *responseProcessor) Process(
 			// that we choose to avoid altogether at the expense of (very) occasionally missing a
 			// closer peer
 			v.wrapLock(func() {
-				search.AddPeers(v.Result.Queried, v.Result.Unqueried, rp.Peers, vrp.fromer)
+				search.AddPeers(
+					v.Result.Queried,
+					v.Result.Unqueried,
+					vrp.doc,
+					rp.Peers,
+					vrp.fromer,
+				)
 			})
 		}
 		return nil

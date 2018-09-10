@@ -18,8 +18,13 @@ import (
 )
 
 func TestNewDefaultSearcher(t *testing.T) {
-	rec := &fixedRecorder{}
-	s := NewDefaultSearcher(&client.TestNoOpSigner{}, &client.TestNoOpSigner{}, rec, nil)
+	s := NewDefaultSearcher(
+		&client.TestNoOpSigner{},
+		&client.TestNoOpSigner{},
+		&fixedRecorder{},
+		comm.NewNaiveDoctor(),
+		nil,
+	)
 	assert.NotNil(t, s.(*searcher).peerSigner)
 	assert.NotNil(t, s.(*searcher).orgSigner)
 	assert.NotNil(t, s.(*searcher).finderCreator)
@@ -244,7 +249,7 @@ func TestSearcher_query_err(t *testing.T) {
 func TestResponseProcessor_Process_Value(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	key := id.NewPseudoRandom(rng)
-	rp := NewResponseProcessor(peer.NewFromer())
+	rp := NewResponseProcessor(peer.NewFromer(), comm.NewNaiveDoctor())
 	s := &Search{
 		Result: NewInitialResult(key, NewDefaultParameters()),
 	}
@@ -273,7 +278,7 @@ func TestResponseProcessor_Process_Addresses(t *testing.T) {
 
 	peerID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
 	orgID := ecid.NewPseudoRandom(rng)
-	rp := NewResponseProcessor(peer.NewFromer())
+	rp := NewResponseProcessor(peer.NewFromer(), comm.NewNaiveDoctor())
 	s := NewSearch(peerID, orgID, key, NewDefaultParameters())
 
 	// create response or nAddresses and process it
@@ -289,7 +294,7 @@ func TestResponseProcessor_Process_Addresses(t *testing.T) {
 func TestResponseProcessor_Process_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	key := id.NewPseudoRandom(rng)
-	rp := NewResponseProcessor(peer.NewFromer())
+	rp := NewResponseProcessor(peer.NewFromer(), comm.NewNaiveDoctor())
 	s := &Search{
 		Result: NewInitialResult(key, NewDefaultParameters()),
 	}
@@ -312,15 +317,21 @@ func TestAddPeers(t *testing.T) {
 
 	key := id.NewPseudoRandom(rng)
 	fromer := peer.NewFromer()
+	allHealthyDoc := &fixedDoctor{healthy: true}
+	allUnhealthyDoc := &fixedDoctor{healthy: false}
 	queried := make(map[string]struct{})
 	unqueried := NewClosestPeers(key, 9)
 
+	// check that when peers are deemed unhealthy, they're not added
+	AddPeers(queried, unqueried, allUnhealthyDoc, peerAddresses1, fromer)
+	assert.Zero(t, unqueried.Len())
+
 	// check that all peers go into the unqueried heap
-	AddPeers(queried, unqueried, peerAddresses1, fromer)
+	AddPeers(queried, unqueried, allHealthyDoc, peerAddresses1, fromer)
 	assert.Equal(t, nAddresses1, unqueried.Len())
 
 	// add same peers and check that the length of unqueried hasn't changed
-	AddPeers(queried, unqueried, peerAddresses1, fromer)
+	AddPeers(queried, unqueried, allHealthyDoc, peerAddresses1, fromer)
 	assert.Equal(t, nAddresses1, unqueried.Len())
 
 	// create new peers and add them to the queried map (as if we'd already heard from them)
@@ -332,7 +343,7 @@ func TestAddPeers(t *testing.T) {
 	}
 
 	// check that adding these peers again has no effect
-	AddPeers(queried, unqueried, peerAddresses2, fromer)
+	AddPeers(queried, unqueried, allHealthyDoc, peerAddresses2, fromer)
 	assert.Equal(t, nAddresses1, unqueried.Len())
 	assert.Equal(t, nAddresses2, len(queried))
 }
@@ -366,4 +377,12 @@ func (f *fixedRecorder) Get(peerID id.ID, endpoint api.Endpoint) comm.QueryOutco
 
 func (f *fixedRecorder) CountPeers(endpoint api.Endpoint, qt comm.QueryType, known bool) int {
 	panic("implement me")
+}
+
+type fixedDoctor struct {
+	healthy bool
+}
+
+func (d *fixedDoctor) Healthy(peerID id.ID) bool {
+	return d.healthy
 }
