@@ -137,13 +137,13 @@ spec:
           - "-c"
           - >
             libri librarian start
-            --nSubscriptions 0
+            --nSubscriptions 2
             --dataDir /data
             --localPort {{ $localPort }}
             --localMetricsPort {{ $localMetricsPort }}
             --publicHost $(wget -q -O - 'http://ipv4.myexternalip.com/raw')
             --publicPort $(HN=$(hostname) && echo $((30100 + ${HN##*-})))
-            --bootstraps librarians-0.libri.default.svc.cluster.local:{{ $localPort }}
+            --bootstraps 'librarians-0.libri.default.svc.cluster.local:{{ $localPort }},librarians-3.libri.default.svc.cluster.local:{{ $localPort }}'
             --profile
         env:
         - name: GODEBUG         # ensure we use the pure Go (rather than CGO) DNS

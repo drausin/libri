@@ -58,3 +58,15 @@ func TestParseAddrs_err(t *testing.T) {
 		assert.NotNil(t, err, a)
 	}
 }
+
+func TestParseAddrs_multi_err(t *testing.T) {
+	oneBad := []string{"192.168.1.1:20100", "192.168.1.1:A"}
+	as1, err := Addrs(oneBad)
+	assert.Len(t, as1, 1)
+	assert.Nil(t, err)
+
+	bothBad := []string{"192.168.1.1", "192.168.1.1:A"}
+	as2, err := Addrs(bothBad)
+	assert.Nil(t, as2)
+	assert.NotNil(t, err)
+}
