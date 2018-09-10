@@ -43,7 +43,7 @@ const (
 	DefaultNSubscriptionsTo = 10
 
 	// DefaultFPRate is the default false positive rate for each subscription to another peer.
-	DefaultFPRate = 0.75
+	DefaultFPRate = 1.0
 
 	// DefaultTimeout is the default timeout for Subscribe requests. This is longer than a few
 	// seconds because Subscribe responses are dependant on active publications, which may not
