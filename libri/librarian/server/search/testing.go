@@ -77,13 +77,16 @@ func NewTestSearcher(
 	for address, connectedAddresses := range peerConnectedAddrs {
 		addressFinders[address] = &fixedFinder{addresses: connectedAddresses}
 	}
+	doc := comm.NewNaiveDoctor()
 	return NewSearcher(
 		&client.TestNoOpSigner{},
 		&client.TestNoOpSigner{},
 		rec,
+		doc,
 		&TestFinderCreator{finders: addressFinders},
 		&responseProcessor{
 			fromer: &TestFromer{Peers: peersMap},
+			doc:    doc,
 		},
 	)
 }

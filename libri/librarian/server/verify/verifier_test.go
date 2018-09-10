@@ -27,6 +27,7 @@ func TestNewDefaultVerifier(t *testing.T) {
 		client.NewECDSASigner(peerID),
 		client.NewECDSASigner(orgID),
 		&fixedRecorder{},
+		comm.NewNaiveDoctor(),
 		nil,
 	)
 	assert.NotNil(t, v.(*verifier).peerSigner)
@@ -159,6 +160,7 @@ func TestVerifier_query_ok(t *testing.T) {
 	verifierImpl := &verifier{
 		peerSigner: &client.TestNoOpSigner{},
 		orgSigner:  &client.TestNoOpSigner{},
+		doc:        comm.NewNaiveDoctor(),
 		verifierCreator: &testVerifierCreator{
 			verifiers: map[string]api.Verifier{
 				next.Address().String(): &fixedVerifier{},
@@ -178,6 +180,7 @@ func TestVerifier_query_err(t *testing.T) {
 	next := peer.NewTestPeer(rng, 0)
 	peerID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
 	orgID := ecid.NewPseudoRandom(rng)
+	doc := comm.NewNaiveDoctor()
 	macKey, mac := api.RandBytes(rng, 32), api.RandBytes(rng, 32)
 
 	v := NewVerify(peerID, orgID, key, macKey, mac, &Parameters{Timeout: 1 * time.Second})
@@ -187,6 +190,7 @@ func TestVerifier_query_err(t *testing.T) {
 		{
 			peerSigner:      &client.TestNoOpSigner{},
 			orgSigner:       &client.TestNoOpSigner{},
+			doc:             doc,
 			verifierCreator: &testVerifierCreator{err: errors.New("some create error")},
 		},
 
@@ -194,6 +198,7 @@ func TestVerifier_query_err(t *testing.T) {
 		{
 			peerSigner:      &client.TestErrSigner{},
 			orgSigner:       &client.TestNoOpSigner{},
+			doc:             doc,
 			verifierCreator: &testVerifierCreator{},
 		},
 
@@ -201,6 +206,7 @@ func TestVerifier_query_err(t *testing.T) {
 		{
 			peerSigner: &client.TestNoOpSigner{},
 			orgSigner:  &client.TestNoOpSigner{},
+			doc:        doc,
 			verifierCreator: &testVerifierCreator{
 				err: errors.New("some Find error"),
 			},
@@ -210,6 +216,7 @@ func TestVerifier_query_err(t *testing.T) {
 		{
 			peerSigner: &client.TestNoOpSigner{},
 			orgSigner:  &client.TestNoOpSigner{},
+			doc:        doc,
 			verifierCreator: &testVerifierCreator{
 				verifiers: map[string]api.Verifier{
 					next.Address().String(): &fixedVerifier{
@@ -231,7 +238,7 @@ func TestVerifier_query_err(t *testing.T) {
 func TestResponseProcessor_Process_MAC(t *testing.T) {
 	rng := rand.New(rand.NewSource(int64(0)))
 	key := id.NewPseudoRandom(rng)
-	rp := NewResponseProcessor(peer.NewFromer())
+	rp := NewResponseProcessor(peer.NewFromer(), comm.NewNaiveDoctor())
 	v := &Verify{
 		Result: NewInitialResult(key, NewDefaultParameters()),
 	}
@@ -261,7 +268,7 @@ func TestResponseProcessor_Process_Addresses(t *testing.T) {
 	nAddresses := 6
 	peerID, key := ecid.NewPseudoRandom(rng), id.NewPseudoRandom(rng)
 	orgID := ecid.NewPseudoRandom(rng)
-	rp := NewResponseProcessor(peer.NewFromer())
+	rp := NewResponseProcessor(peer.NewFromer(), comm.NewNaiveDoctor())
 	params := NewDefaultParameters()
 	value, expectedMAC := api.RandBytes(rng, 128), api.RandBytes(rng, 32) // arbitrary
 	v := NewVerify(peerID, orgID, key, value, expectedMAC, params)
@@ -309,13 +316,16 @@ func newTestVerifier(
 	for address, connectedAddresses := range peerConnectedAddrs {
 		addressVerifiers[address] = &fixedVerifier{addresses: connectedAddresses}
 	}
+	doc := comm.NewNaiveDoctor()
 	return NewVerifier(
 		&client.TestNoOpSigner{},
 		&client.TestNoOpSigner{},
 		rec,
+		doc,
 		&testVerifierCreator{verifiers: addressVerifiers},
 		&responseProcessor{
 			fromer: &search.TestFromer{Peers: peersMap},
+			doc:    doc,
 		},
 	)
 }

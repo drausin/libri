@@ -19,8 +19,13 @@ import (
 )
 
 func TestNewDefaultStorer(t *testing.T) {
-	peerSigner, orgSigner := &client.TestNoOpSigner{}, &client.TestNoOpSigner{}
-	s := NewDefaultStorer(peerSigner, orgSigner, &fixedRecorder{}, nil)
+	s := NewDefaultStorer(
+		&client.TestNoOpSigner{},
+		&client.TestNoOpSigner{},
+		&fixedRecorder{},
+		comm.NewNaiveDoctor(),
+		nil,
+	)
 	assert.NotNil(t, s.(*storer).peerSigner)
 	assert.NotNil(t, s.(*storer).orgSigner)
 	assert.NotNil(t, s.(*storer).searcher)
@@ -37,7 +42,7 @@ func TestStorer_Store_ok(t *testing.T) {
 		peers, peersMap, addressFinders, selfPeerIdxs, peerID := ssearch.NewTestPeers(rng, n)
 		orgID := ecid.NewPseudoRandom(rng)
 
-		// create our searcher
+		// create our storer
 		value, key := api.NewTestDocument(rng)
 		rec := &fixedRecorder{}
 		storer := &storer{
@@ -46,6 +51,7 @@ func TestStorer_Store_ok(t *testing.T) {
 			peerSigner:    &client.TestNoOpSigner{},
 			orgSigner:     &client.TestNoOpSigner{},
 			rec:           rec,
+			doc:           comm.NewNaiveDoctor(),
 		}
 
 		for _, concurrency := range concurrencies {
