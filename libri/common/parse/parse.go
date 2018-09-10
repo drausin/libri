@@ -17,7 +17,7 @@ func Addrs(addrs []string) ([]*net.TCPAddr, error) {
 	for _, a := range addrs {
 		netAddr, err := net.ResolveTCPAddr("tcp4", a)
 		if err != nil {
-			nErrs += 1
+			nErrs++
 			if nErrs == len(addrs) {
 				// bail if none of the addrs could be parsed
 				return nil, err
