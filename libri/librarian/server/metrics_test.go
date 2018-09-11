@@ -4,35 +4,41 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 	prom "github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestStorageMetrics_Add(t *testing.T) {
+func TestStorageMetrics_initAdd(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	sm := newStorageMetrics()
 	sm.register()
 	defer sm.unregister()
+	docSLD := storage.NewTestDocSLD()
 	envDoc := &api.Document{
 		Contents: &api.Document_Envelope{
 			Envelope: api.NewTestEnvelope(rng),
 		},
 	}
-	sm.Add(envDoc)
 	entryDoc := &api.Document{
 		Contents: &api.Document_Entry{
 			Entry: api.NewTestSinglePageEntry(rng),
 		},
 	}
-	sm.Add(entryDoc)
 	pageDoc := &api.Document{
 		Contents: &api.Document_Page{
 			Page: api.NewTestPage(rng),
 		},
 	}
-	sm.Add(pageDoc)
+	for _, doc := range []*api.Document{envDoc, entryDoc, pageDoc} {
+		key, err := api.GetKey(doc)
+		assert.Nil(t, err)
+		err = docSLD.Store(key, doc)
+		assert.Nil(t, err)
+	}
+	sm.init(docSLD)
 
 	// check we have a single count for each doc type
 	countMetrics := make(chan prom.Metric, 3)
