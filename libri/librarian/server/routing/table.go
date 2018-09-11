@@ -229,9 +229,15 @@ func (rt *table) Push(new peer.Peer) PushStatus {
 func (rt *table) Find(target id.ID, k uint) []peer.Peer {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
-	if np := rt.NumPeers(); k > uint(np) {
-		// if we're requesting more peers than we have, just return number we have
-		k = uint(np)
+	if int(k) > rt.NumPeers() {
+		// if we're requesting more peers than we have, just return what we have
+		all := make([]peer.Peer, rt.NumPeers())
+		i := 0
+		for _, p := range rt.peers {
+			all[i] = p
+			i++
+		}
+		return all
 	}
 
 	fwdIdx := rt.bucketIndex(target)
@@ -347,7 +353,9 @@ func (rt *table) chooseBucketIndex(target id.ID, fwdIdx int, bkwdIdx int) int {
 		return bkwdIdx
 	}
 
-	panic(errors.New("should always have either a valid forward or backward index"))
+	err := fmt.Errorf("should always have either a valid forward or backward index "+
+		"(fwdIdx: %d, bkwdIdx: %d, nBuckets: %d)", fwdIdx, bkwdIdx, len(rt.buckets))
+	panic(err)
 }
 
 // bucketIndex searches for the bucket containing the given target
