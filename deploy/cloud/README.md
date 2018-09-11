@@ -46,24 +46,30 @@ Specify a name for the new cluster and store the path reference:
 
 **GCP (cloud):**
 
-Create a new [GCP Project](https://console.cloud.google.com/projectcreate); provision a [Storage bucket](https://console.cloud.google.com/storage/browser); and create a [IAM Service Account](https://console.cloud.google.com/projectselector/iam-admin/serviceaccounts) with owner permissions and save the .json keyfile to a local directory.
+Create a new [GCP Project](https://console.cloud.google.com/projectcreate); provision a
+[Storage bucket](https://console.cloud.google.com/storage/browser); and create an
+[IAM Service Account](https://console.cloud.google.com/projectselector/iam-admin/serviceaccounts)
+with owner permissions and save the `.json` keyfile to a local directory.
 
 Set the GCP project name:
 
-    $ gcloud config set project <GCP project name>
+    $ GCP_PROJECT='YOUR GCP PROJECT NAME'
+    $ GCP_BUCKET='YOUR GCP BUCKET NAME'
+    $ gcloud config set project ${GCP_PROJECT}
 
 Specify the service account keyfile location:
 
     $ export GOOGLE_APPLICATION_CREDENTIALS=/path/to/keyfile/<keyfile>.json
     $ gcloud auth activate-service-account --key-file=${GOOGLE_APPLICATION_CREDENTIALS}
 
-Customize (with project and bucket name) and execute the following command to create the standard Terraform configuration file.
+Customize (with project and bucket name) and execute the following command to create the standard
+Terraform configuration file.
 
     $ go run cluster.go init gcp \
         --clusterDir "${CLUSTER_DIR}" \
         --clusterName "${CLUSTER_NAME}" \
-        --bucket <bucket-name> \
-        --gcpProject <gcp-project-name>    
+        --bucket "${GCP_BUCKET}" \
+        --gcpProject "${GCP_PROJECT}"
 
 **Optional Additional Configuration**
 
@@ -145,32 +151,34 @@ If using a GCP cluster, get an external address from one of the nodes
     node-exporter-zwr2p           1/1       Running   0          8m        10.142.0.3   gke-libri-dev-default-pool-5ee39584-tljc
     prometheus-1589647967-rj06c   1/1       Running   0          8m        10.24.1.5    gke-libri-dev-default-pool-5ee39584-schn
 
-For now, you need to visually "join" the pods to the instances on pod:NODE == instance:NAME to obtain the IP address for each
-pod, and increment the port numberse starting at 30100 for librarian-0:
+You can parse the public address from the librarians via the following bash commands:
 
-e.g., for the above, the IP:Port addresses are as follows:
-- librarians-0: 35.196.233.112:30100
-- librarians-1: 35.185.100.233:30101
-- librarians-2: 104.196.183.229:30102
-- librarians-3: 35.196.233.112:30103
+    N_LIBRARIANS=4
+    librarian_addrs=""
+    for i in $(seq 0 $((N_LIBRARIANS - 1))); do
+        librarian_addrs="${librarian_addrs},$(kubectl logs librarians-${i} | grep publicAddr | sed -E 's/.*"publicAddr": "([^ "]*).*/\1/g')"
+    done
+    librarian_addrs=${librarian_addrs:1:${#librarian_addrs}}
 
 For convenience (and speed), you can run testing commands from an ephemeral container. Test the
 health of a librarian with
 
-    $ librarian_addrs='<librarian-0-ip:port>,<librarian-1-ip:port>,<librarian-2-ip:port>'
-    $ docker run --rm daedalus2718/libri:latest test health -a "${librarian_addrs}"
+    $ docker run --rm daedalus2718/libri:snapshot test health -a "${librarian_addrs}"
 
 Test uploading/downloading entries from the cluster with
 
-    $ docker run --rm daedalus2718/libri:latest test io -a "${librarian_addrs}"
+    $ docker run --rm daedalus2718/libri:snapshot test io -a "${librarian_addrs}"
 
 If you get timeout issues (especially with remote GCP cluster), try bumping the timeout up to 20 seconds with
 
-    $ docker run --rm daedalus2718/libri:latest test io -a "${librarian_addrs}" --timeout 20
+    $ docker run --rm daedalus2718/libri:snapshot test io -a "${librarian_addrs}" --timeout 20
 
 ## Joining the Libri Network
 
-To join the existing Libri network, you must provide a seed IP. Additional node IPs will be added to the cluster routing table once the cluster has joined the network. To do so, modify `libri.yml:460` by replacing the bootstraps value `librarians-0.libri.default.svc.cluster.local:20100` with a known Libri peer IP:Port combination such that it appears as follows:
+To join the existing Libri network, you must provide one or more seed addresses. Additional node IPs
+will be added to the cluster routing table once the cluster has joined the network. To do so, modify
+`libri.yml:460` by replacing the bootstraps value `librarians-0.libri.default.svc.cluster.local:20100`
+with a known Libri peer IP:Port combination such that it appears as follows:
 
     --bootstraps 'xx.xxx.xxx.xxx:30100'
     
