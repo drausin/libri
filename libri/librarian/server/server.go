@@ -212,6 +212,10 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		rng,
 		selfLogger,
 	)
+	storageMetrics := newStorageMetrics()
+	selfLogger.Info("initializing document metrics")
+	storageMetrics.init(documentSL)
+	selfLogger.Info("initialized document metrics")
 
 	return &Librarian{
 		peerID:         peerID,
@@ -234,7 +238,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		signer:         peerSigner,
 		clients:        clients,
 		rt:             rt,
-		storageMetrics: newStorageMetrics(),
+		storageMetrics: storageMetrics,
 		rec:            recorder,
 		allower:        allower,
 		logger:         selfLogger,

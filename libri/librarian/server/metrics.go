@@ -2,6 +2,8 @@ package server
 
 import (
 	"github.com/drausin/libri/libri/common/errors"
+	"github.com/drausin/libri/libri/common/id"
+	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/golang/protobuf/proto"
 	prom "github.com/prometheus/client_golang/prometheus"
@@ -41,6 +43,17 @@ func newStorageMetrics() *storageMetrics {
 		count: count,
 		size:  size,
 	}
+}
+
+func (sm *storageMetrics) init(docs storage.DocumentStorer) {
+	countDoc := func(_ id.ID, value []byte) {
+		doc := &api.Document{}
+		err := proto.Unmarshal(value, doc)
+		errors.MaybePanic(err) // should never happen
+		sm.Add(doc)
+	}
+	err := docs.Iterate(make(chan struct{}), countDoc)
+	errors.MaybePanic(err)
 }
 
 func (sm *storageMetrics) Add(doc *api.Document) {
