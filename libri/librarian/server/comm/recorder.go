@@ -20,7 +20,7 @@ const (
 	outcomeLabel   = "outcome"
 
 	counterNamespace = "libri"
-	counterSubsystem = "goodwill"
+	counterSubsystem = "routing"
 	counterName      = "peer_query_count"
 )
 
