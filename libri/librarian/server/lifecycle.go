@@ -156,6 +156,9 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 		grpc_prometheus.Register(s)
 		grpc_prometheus.EnableHandlingTimeHistogram()
 		l.storageMetrics.register()
+		l.logger.Info("initializing document metrics")
+		l.storageMetrics.init(l.documentSL)
+		l.logger.Info("initialized document metrics")
 		if rec, ok := l.rec.(comm.PromRecorder); ok {
 			rec.Register()
 		}
