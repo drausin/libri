@@ -48,6 +48,13 @@ func (d *responseTimeDoctor) Healthy(peerID id.ID) bool {
 	latestErrTime := verifyOutcomes[Response][Error].Latest
 	latestSuccessTime := verifyOutcomes[Response][Success].Latest
 
+	if latestErrTime.IsZero() && latestSuccessTime.IsZero() {
+		// fall back to Find if no Verifications
+		verifyOutcomes = d.recorder.Get(peerID, api.Find)
+		latestErrTime = verifyOutcomes[Response][Error].Latest
+		latestSuccessTime = verifyOutcomes[Response][Success].Latest
+	}
+
 	// assume healthy if latest error time less than 5 mins after success time
 	return latestErrTime.Before(latestSuccessTime.Add(5 * time.Minute))
 }
