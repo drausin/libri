@@ -212,7 +212,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 		rng,
 		selfLogger,
 	)
-	storageMetrics := newStorageMetrics()
+	storageMetrics := newStorageMetrics(serverSL)
 
 	return &Librarian{
 		peerID:         peerID,

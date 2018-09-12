@@ -604,17 +604,18 @@ func TestLibrarian_Store_ok(t *testing.T) {
 	assert.Nil(t, err)
 
 	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
+	serverSL := storage.NewServerSL(kvdb)
 	l := &Librarian{
 		peerID:         peerID,
 		rt:             rt,
 		db:             kvdb,
-		serverSL:       storage.NewServerSL(kvdb),
+		serverSL:       serverSL,
 		documentSL:     storage.NewDocumentSLD(kvdb),
 		subscribeTo:    &fixedTo{},
 		kc:             storage.NewExactLengthChecker(storage.EntriesKeyLength),
 		kvc:            storage.NewHashKeyValueChecker(),
 		rqv:            &alwaysRequestVerifier{},
-		storageMetrics: newStorageMetrics(),
+		storageMetrics: newStorageMetrics(serverSL),
 		rec:            rec,
 		allower:        &fixedAllower{},
 		logger:         zap.NewNop(), // clogging.NewDevInfoLogger(),
