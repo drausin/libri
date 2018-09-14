@@ -1,8 +1,10 @@
 package server
 
 import (
+	"encoding/binary"
+	"sync"
+
 	"github.com/drausin/libri/libri/common/errors"
-	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 	"github.com/golang/protobuf/proto"
@@ -15,12 +17,23 @@ const (
 	pageLabel     = "page"
 )
 
+var (
+	envelopeCountKey = []byte("envelope_stored_count")
+	envelopeSizeKey  = []byte("envelope_stored_size")
+	entryCountKey    = []byte("entry_stored_count")
+	entrySizeKey     = []byte("entry_stored_size")
+	pageCountKey     = []byte("page_stored_count")
+	pageSizeKey      = []byte("page_stored_size")
+)
+
 type storageMetrics struct {
-	count *prom.CounterVec
-	size  *prom.CounterVec
+	count      *prom.CounterVec
+	size       *prom.CounterVec
+	serverSL   storage.StorerLoader
+	serverSLMu *sync.Mutex
 }
 
-func newStorageMetrics() *storageMetrics {
+func newStorageMetrics(serverSL storage.StorerLoader) *storageMetrics {
 	count := prom.NewCounterVec(
 		prom.CounterOpts{
 			Namespace: "grpc",
@@ -39,37 +52,101 @@ func newStorageMetrics() *storageMetrics {
 		},
 		[]string{"doc_type"},
 	)
-	return &storageMetrics{
-		count: count,
-		size:  size,
+	sm := &storageMetrics{
+		count:      count,
+		size:       size,
+		serverSL:   serverSL,
+		serverSLMu: new(sync.Mutex),
 	}
+	sm.initFromStorage()
+	return sm
 }
 
-func (sm *storageMetrics) init(docs storage.DocumentStorer) {
-	countDoc := func(_ id.ID, value []byte) {
-		doc := &api.Document{}
-		err := proto.Unmarshal(value, doc)
-		errors.MaybePanic(err) // should never happen
-		sm.Add(doc)
-	}
-	err := docs.Iterate(make(chan struct{}), countDoc)
-	errors.MaybePanic(err)
-}
-
-func (sm *storageMetrics) Add(doc *api.Document) {
+func (sm *storageMetrics) Add(doc *api.Document) error {
 	bytes, err := proto.Marshal(doc)
 	errors.MaybePanic(err) // should never happen
 	switch doc.Contents.(type) {
 	case *api.Document_Envelope:
+		if err := sm.storedMetricAdd(envelopeCountKey, 1); err != nil {
+			return err
+		}
+		if err := sm.storedMetricAdd(envelopeSizeKey, uint64(len(bytes))); err != nil {
+			return err
+		}
 		sm.count.WithLabelValues(envelopeLabel).Inc()
 		sm.size.WithLabelValues(envelopeLabel).Add(float64(len(bytes)))
 	case *api.Document_Entry:
+		if err := sm.storedMetricAdd(entryCountKey, 1); err != nil {
+			return err
+		}
+		if err := sm.storedMetricAdd(entrySizeKey, uint64(len(bytes))); err != nil {
+			return err
+		}
 		sm.count.WithLabelValues(entryLabel).Inc()
 		sm.size.WithLabelValues(entryLabel).Add(float64(len(bytes)))
 	case *api.Document_Page:
+		if err := sm.storedMetricAdd(pageCountKey, 1); err != nil {
+			return err
+		}
+		if err := sm.storedMetricAdd(pageSizeKey, uint64(len(bytes))); err != nil {
+			return err
+		}
 		sm.count.WithLabelValues(pageLabel).Inc()
 		sm.size.WithLabelValues(pageLabel).Add(float64(len(bytes)))
 	}
+	return nil
+}
+
+func (sm *storageMetrics) initFromStorage() {
+
+	// envelope
+	value, err := sm.getStored(envelopeCountKey)
+	errors.MaybePanic(err)
+	sm.count.WithLabelValues(envelopeLabel).Add(float64(value))
+	value, err = sm.getStored(envelopeSizeKey)
+	errors.MaybePanic(err)
+	sm.size.WithLabelValues(envelopeLabel).Add(float64(value))
+
+	// entry
+	value, err = sm.getStored(entryCountKey)
+	errors.MaybePanic(err)
+	sm.count.WithLabelValues(entryLabel).Add(float64(value))
+	value, err = sm.getStored(entrySizeKey)
+	errors.MaybePanic(err)
+	sm.size.WithLabelValues(entryLabel).Add(float64(value))
+
+	// page
+	value, err = sm.getStored(pageCountKey)
+	errors.MaybePanic(err)
+	sm.count.WithLabelValues(pageLabel).Add(float64(value))
+	value, err = sm.getStored(pageSizeKey)
+	errors.MaybePanic(err)
+	sm.size.WithLabelValues(pageLabel).Add(float64(value))
+}
+
+func (sm *storageMetrics) storedMetricAdd(key []byte, amount uint64) error {
+	sm.serverSLMu.Lock()
+	defer sm.serverSLMu.Unlock()
+	stored, err := sm.getStored(key)
+	if err != nil {
+		return err
+	}
+	stored += amount
+	storedBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(storedBytes, stored)
+	return sm.serverSL.Store(key, storedBytes)
+}
+
+func (sm *storageMetrics) getStored(key []byte) (uint64, error) {
+	var stored uint64
+	storedBytes, err := sm.serverSL.Load(key)
+	if err != nil {
+		return stored, err
+	}
+	if storedBytes != nil {
+		stored = binary.BigEndian.Uint64(storedBytes)
+	}
+	return stored, nil
 }
 
 func (sm *storageMetrics) register() {

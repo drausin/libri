@@ -4,7 +4,6 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/drausin/libri/libri/common/storage"
 	"github.com/drausin/libri/libri/librarian/api"
 	prom "github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
@@ -13,10 +12,11 @@ import (
 
 func TestStorageMetrics_initAdd(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
-	sm := newStorageMetrics()
-	sm.register()
-	defer sm.unregister()
-	docSLD := storage.NewTestDocSLD()
+	serverSL := &fixedSL{stored: make(map[string][]byte)}
+
+	sm1 := newStorageMetrics(serverSL)
+	sm1.register()
+	defer sm1.unregister()
 	envDoc := &api.Document{
 		Contents: &api.Document_Envelope{
 			Envelope: api.NewTestEnvelope(rng),
@@ -33,12 +33,12 @@ func TestStorageMetrics_initAdd(t *testing.T) {
 		},
 	}
 	for _, doc := range []*api.Document{envDoc, entryDoc, pageDoc} {
-		key, err := api.GetKey(doc)
-		assert.Nil(t, err)
-		err = docSLD.Store(key, doc)
+		err := sm1.Add(doc)
 		assert.Nil(t, err)
 	}
-	sm.init(docSLD)
+
+	// simulate server restarting and re-loading storage metrics
+	sm2 := newStorageMetrics(serverSL)
 
 	// check we have a single count for each doc type
 	countMetrics := make(chan prom.Metric, 3)
@@ -47,7 +47,7 @@ func TestStorageMetrics_initAdd(t *testing.T) {
 		"entry":    {},
 		"page":     {},
 	}
-	sm.count.Collect(countMetrics)
+	sm2.count.Collect(countMetrics)
 	close(countMetrics)
 	nCountMetrics := 0
 	actualCountLabelValues := map[string]struct{}{}
@@ -64,7 +64,7 @@ func TestStorageMetrics_initAdd(t *testing.T) {
 	assert.Equal(t, expectedLabelValues, actualCountLabelValues)
 
 	sizeMetrics := make(chan prom.Metric, 3)
-	sm.size.Collect(sizeMetrics)
+	sm2.size.Collect(sizeMetrics)
 	close(sizeMetrics)
 	nSizeMetrics := 0
 	actualSizeLabelValues := map[string]struct{}{}
@@ -78,4 +78,26 @@ func TestStorageMetrics_initAdd(t *testing.T) {
 		nSizeMetrics++
 	}
 	assert.Equal(t, 3, nSizeMetrics)
+}
+
+type fixedSL struct {
+	stored map[string][]byte
+}
+
+func (f *fixedSL) Iterate(
+	keyLB, keyUB []byte, done chan struct{}, callback func(key, value []byte),
+) error {
+	panic("implement me")
+}
+
+func (f *fixedSL) Load(key []byte) ([]byte, error) {
+	if value, in := f.stored[string(key)]; in {
+		return value, nil
+	}
+	return nil, nil
+}
+
+func (f *fixedSL) Store(key []byte, value []byte) error {
+	f.stored[string(key)] = value
+	return nil
 }

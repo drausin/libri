@@ -41,9 +41,6 @@ type RocksDB struct {
 
 	// Write options for generic writes
 	wo *gorocksdb.WriteOptions
-
-	// ensures only one iteration of DB at a time
-	iterMu *sync.Mutex
 }
 
 // NewRocksDB creates a new RocksDB instance with default read and write options.
@@ -59,10 +56,9 @@ func NewRocksDB(dbDir string) (*RocksDB, error) {
 	}
 
 	return &RocksDB{
-		rdb:    db,
-		ro:     gorocksdb.NewDefaultReadOptions(),
-		wo:     gorocksdb.NewDefaultWriteOptions(),
-		iterMu: new(sync.Mutex),
+		rdb: db,
+		ro:  gorocksdb.NewDefaultReadOptions(),
+		wo:  gorocksdb.NewDefaultWriteOptions(),
 	}, nil
 }
 
@@ -131,8 +127,6 @@ func (db *RocksDB) Delete(key []byte) error {
 func (db *RocksDB) Iterate(
 	keyLB, keyUB []byte, done chan struct{}, callback func(key, value []byte),
 ) error {
-	db.iterMu.Lock()
-	defer db.iterMu.Unlock()
 	opts := gorocksdb.NewDefaultReadOptions()
 	opts.SetIterateUpperBound(keyUB)
 	opts.SetFillCache(false)
