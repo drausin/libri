@@ -33,7 +33,8 @@ func TestStorageMetrics_initAdd(t *testing.T) {
 		},
 	}
 	for _, doc := range []*api.Document{envDoc, entryDoc, pageDoc} {
-		sm1.Add(doc)
+		err := sm1.Add(doc)
+		assert.Nil(t, err)
 	}
 
 	// simulate server restarting and re-loading storage metrics
@@ -83,7 +84,9 @@ type fixedSL struct {
 	stored map[string][]byte
 }
 
-func (f *fixedSL) Iterate(keyLB, keyUB []byte, done chan struct{}, callback func(key, value []byte)) error {
+func (f *fixedSL) Iterate(
+	keyLB, keyUB []byte, done chan struct{}, callback func(key, value []byte),
+) error {
 	panic("implement me")
 }
 

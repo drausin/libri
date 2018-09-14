@@ -62,26 +62,39 @@ func newStorageMetrics(serverSL storage.StorerLoader) *storageMetrics {
 	return sm
 }
 
-func (sm *storageMetrics) Add(doc *api.Document) {
+func (sm *storageMetrics) Add(doc *api.Document) error {
 	bytes, err := proto.Marshal(doc)
 	errors.MaybePanic(err) // should never happen
 	switch doc.Contents.(type) {
 	case *api.Document_Envelope:
-		sm.storedMetricAdd(envelopeCountKey, 1)
-		sm.storedMetricAdd(envelopeSizeKey, uint64(len(bytes)))
+		if err := sm.storedMetricAdd(envelopeCountKey, 1); err != nil {
+			return err
+		}
+		if err := sm.storedMetricAdd(envelopeSizeKey, uint64(len(bytes))); err != nil {
+			return err
+		}
 		sm.count.WithLabelValues(envelopeLabel).Inc()
 		sm.size.WithLabelValues(envelopeLabel).Add(float64(len(bytes)))
 	case *api.Document_Entry:
-		sm.storedMetricAdd(entryCountKey, 1)
-		sm.storedMetricAdd(entrySizeKey, uint64(len(bytes)))
+		if err := sm.storedMetricAdd(entryCountKey, 1); err != nil {
+			return err
+		}
+		if err := sm.storedMetricAdd(entrySizeKey, uint64(len(bytes))); err != nil {
+			return err
+		}
 		sm.count.WithLabelValues(entryLabel).Inc()
 		sm.size.WithLabelValues(entryLabel).Add(float64(len(bytes)))
 	case *api.Document_Page:
-		sm.storedMetricAdd(pageCountKey, 1)
-		sm.storedMetricAdd(pageSizeKey, uint64(len(bytes)))
+		if err := sm.storedMetricAdd(pageCountKey, 1); err != nil {
+			return err
+		}
+		if err := sm.storedMetricAdd(pageSizeKey, uint64(len(bytes))); err != nil {
+			return err
+		}
 		sm.count.WithLabelValues(pageLabel).Inc()
 		sm.size.WithLabelValues(pageLabel).Add(float64(len(bytes)))
 	}
+	return nil
 }
 
 func (sm *storageMetrics) initFromStorage() {
@@ -113,7 +126,7 @@ func (sm *storageMetrics) initFromStorage() {
 
 func (sm *storageMetrics) storedMetricAdd(key []byte, amount uint64) error {
 	sm.serverSLMu.Lock()
-	sm.serverSLMu.Unlock()
+	defer sm.serverSLMu.Unlock()
 	stored, err := sm.getStored(key)
 	if err != nil {
 		return err

@@ -397,11 +397,13 @@ func (l *Librarian) Store(ctx context.Context, rq *api.StoreRequest) (
 	if err := l.documentSL.Store(id.FromBytes(rq.Key), rq.Value); err != nil {
 		return nil, logReturnInternalErr(lg, "error storing document", err)
 	}
-	l.storageMetrics.Add(rq.Value)
+	if err := l.storageMetrics.Add(rq.Value); err != nil {
+		// don't hard-fail on this since just internal book-keeping
+		lg.Error("error storing metric", zap.Error(err))
+	}
 	if err := l.subscribeTo.Send(api.GetPublication(rq.Key, rq.Value)); err != nil {
 		return nil, logReturnInternalErr(lg, "error sending publication", err)
 	}
-
 	rp := &api.StoreResponse{
 		Metadata: l.NewResponseMetadata(rq.Metadata),
 	}
