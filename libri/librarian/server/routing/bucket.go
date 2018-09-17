@@ -133,6 +133,14 @@ func (b *bucket) Contains(target id.ID) bool {
 	return target.Cmp(b.lowerBound) >= 0 && target.Cmp(b.upperBound) < 0
 }
 
+func (b *bucket) unhealthyRoot() bool {
+	if len(b.activePeers) == 0 {
+		// empty bucket cannot have unhealthy root
+		return false
+	}
+	return !b.doctor.Healthy(b.activePeers[len(b.activePeers)-1].ID())
+}
+
 type targetedPeers struct {
 	target    id.ID
 	distances []*big.Int

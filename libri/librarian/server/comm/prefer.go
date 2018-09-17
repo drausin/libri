@@ -13,18 +13,22 @@ type Preferer interface {
 	Prefer(peerID1, peerID2 id.ID) bool
 }
 
-// NewVerifyRpPreferer returns a Preferer that prefers peers with a larger number of successful
-// Verify responses.
-func NewVerifyRpPreferer(getter QueryGetter) Preferer {
-	return &verifyRpPreferer{getter}
+// NewRpPreferer returns a Preferer that prefers peers with a larger number of successful
+// Verify or Find responses.
+func NewRpPreferer(getter QueryGetter) Preferer {
+	return &rpPreferer{getter}
 }
 
-type verifyRpPreferer struct {
+type rpPreferer struct {
 	getter QueryGetter
 }
 
-func (p *verifyRpPreferer) Prefer(peerID1, peerID2 id.ID) bool {
+func (p *rpPreferer) Prefer(peerID1, peerID2 id.ID) bool {
 	nRps1 := p.getter.Get(peerID1, api.Verify)[Response][Success].Count
 	nRps2 := p.getter.Get(peerID2, api.Verify)[Response][Success].Count
+	if nRps1 == 0 || nRps2 == 0 {
+		nRps1 = p.getter.Get(peerID1, api.Find)[Response][Success].Count
+		nRps2 = p.getter.Get(peerID2, api.Find)[Response][Success].Count
+	}
 	return nRps1 > nRps2
 }

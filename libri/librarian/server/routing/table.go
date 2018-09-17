@@ -150,7 +150,7 @@ func NewTestWithPeers(rng *rand.Rand, n int) (Table, ecid.ID, int, comm.Preferer
 	ps := peer.NewTestPeers(rng, n)
 	k := comm.NewAlwaysKnower()
 	rec := comm.NewQueryRecorderGetter(k)
-	preferer := comm.NewVerifyRpPreferer(rec)
+	preferer := comm.NewRpPreferer(rec)
 	doctor := comm.NewNaiveDoctor()
 	rt, nAdded := NewWithPeers(peerID.ID(), preferer, doctor, params, ps)
 	return rt, peerID, nAdded, preferer
@@ -178,9 +178,15 @@ func (rt *table) Push(new peer.Peer) PushStatus {
 	}
 
 	rt.mu.Lock()
+
 	// get the bucket to insert into
 	bucketIdx := rt.bucketIndex(new.ID())
 	insertBucket := rt.buckets[bucketIdx]
+
+	// take opportunity to remove an unhealthy root if necessary
+	if insertBucket.unhealthyRoot() {
+		heap.Pop(insertBucket)
+	}
 
 	if pHeapIdx, in := insertBucket.positions[new.ID().String()]; in {
 		err := insertBucket.activePeers[pHeapIdx].Merge(new)
@@ -230,28 +236,18 @@ func (rt *table) Find(target id.ID, k uint) []peer.Peer {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 	if int(k) > rt.NumPeers() {
-		// if we're requesting more peers than we have, just return what we have
-		all := make([]peer.Peer, rt.NumPeers())
-		i := 0
-		for _, p := range rt.peers {
-			all[i] = p
-			i++
-		}
-		return all
+		k = uint(rt.NumPeers())
 	}
 
 	fwdIdx := rt.bucketIndex(target)
 	bkwdIdx := fwdIdx - 1
 
 	// loop until we've populated all the peers or we have no more buckets to draw from
-	next := make([]peer.Peer, k)
-	for i := uint(0); i < k; {
+	next := make([]peer.Peer, 0, k)
+	for len(next) < int(k) && (fwdIdx < len(rt.buckets) || bkwdIdx >= 0) {
 		bucketIdx := rt.chooseBucketIndex(target, fwdIdx, bkwdIdx)
-		found := rt.buckets[bucketIdx].Find(target, k-i)
-		for _, p := range found {
-			next[i] = p
-			i++
-		}
+		found := rt.buckets[bucketIdx].Find(target, k-uint(len(next)))
+		next = append(next, found...)
 
 		// (in|de)crement the appropriate index
 		if bucketIdx == fwdIdx {
