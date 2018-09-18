@@ -185,7 +185,8 @@ func (rt *table) Push(new peer.Peer) PushStatus {
 
 	// take opportunity to remove an unhealthy root if necessary
 	if insertBucket.unhealthyRoot() {
-		heap.Pop(insertBucket)
+		popped := heap.Pop(insertBucket).(peer.Peer)
+		delete(rt.peers, popped.ID().String())
 	}
 
 	if pHeapIdx, in := insertBucket.positions[new.ID().String()]; in {
