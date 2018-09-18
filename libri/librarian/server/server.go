@@ -158,8 +158,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 	if config.ReportMetrics {
 		recorder = comm.NewPromScalarRecorder(peerID.ID(), recorder)
 	}
-	weekGetter := getters[7*24*time.Hour]
-	prefer := comm.NewVerifyRpPreferer(weekGetter)
+	prefer := comm.NewRpPreferer(getters[comm.Day])
 	allower := comm.NewDefaultAllower(knower, getters)
 	doctor := comm.NewResponseTimeDoctor(getters[comm.Day])
 

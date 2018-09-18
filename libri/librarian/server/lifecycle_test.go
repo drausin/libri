@@ -122,7 +122,7 @@ func TestLibrarian_bootstrapPeers_ok(t *testing.T) {
 		fixedResult.Responded[p.ID().String()] = p
 	}
 
-	p, d := &fixedPreferer{}, &fixedDoctor{}
+	p, d := &fixedPreferer{}, &fixedDoctor{healthy: true}
 	rt := routing.NewEmpty(id.NewPseudoRandom(rng), p, d, routing.NewDefaultParameters())
 	l := &Librarian{
 		config: NewDefaultConfig(),

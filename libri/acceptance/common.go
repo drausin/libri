@@ -158,7 +158,7 @@ func setUp(params *params) *state { // nolint: deadcode
 	orgSigner := lclient.NewECDSASigner(orgID.Key())
 	knower := comm.NewAlwaysKnower()
 	rec := comm.NewQueryRecorderGetter(knower)
-	preferer := comm.NewVerifyRpPreferer(rec)
+	preferer := comm.NewRpPreferer(rec)
 	doctor := comm.NewNaiveDoctor()
 	rParams := routing.NewDefaultParameters()
 
