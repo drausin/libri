@@ -291,11 +291,6 @@ func (l *Librarian) Close() error {
 		return err
 	}
 
-	// save routing table state
-	if err := l.rt.Save(l.serverSL); err != nil {
-		return err
-	}
-
 	// wait for server to stop
 	<-l.stopped
 
