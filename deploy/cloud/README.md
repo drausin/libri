@@ -24,6 +24,7 @@ you can run it via minikube (currently tested with v0.24, Kubernetes v1.8.0).
 * Go Terraform package: `$ go get -u github.com/hashicorp/terraform`
 * [jq](https://stedolan.github.io/jq/download/)
 * Optional for local execution: [Minikube](https://github.com/kubernetes/minikube/releases)
+    * tested with Minikube v0.25.2
 * Optional for testing: [Docker](https://docs.docker.com/install/)
 
 ## Initializing Infrastructure
@@ -153,8 +154,7 @@ If using a GCP cluster, get an external address from one of the nodes
     node-exporter-zwr2p           1/1       Running   0          8m        10.142.0.3   gke-libri-dev-default-pool-5ee39584-tljc
     prometheus-1589647967-rj06c   1/1       Running   0          8m        10.24.1.5    gke-libri-dev-default-pool-5ee39584-schn
 
-You can parse the public address from the librarians via the following bash commands:
-
+You can parse the public address from the librarians via the following:
 
     N_LIBRARIANS=4
     librarian_addrs=""

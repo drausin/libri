@@ -141,8 +141,12 @@ spec:
             --dataDir /data
             --localPort {{ $localPort }}
             --localMetricsPort {{ $localMetricsPort }}
+            {{ if $gcpCluster -}}
             --publicHost $(wget -q -O - 'http://ipv4.myexternalip.com/raw')
             --publicPort $(HN=$(hostname) && echo $((30100 + ${HN##*-})))
+            {{ else -}}
+            --publicHost '$(LIBRI_LOCALHOST)'
+            {{ end -}}
             --bootstraps 'librarians-0.libri.default.svc.cluster.local:{{ $localPort }},librarians-3.libri.default.svc.cluster.local:{{ $localPort }}'
             --profile
         env:
@@ -173,7 +177,7 @@ spec:
             cpu: {{ $librarianCPULimit }}
 
       initContainers:
-      - image: devth/k8s-labeler
+      - image: devth/k8s-labeler:latest
         name: labeler
         env:
         - name: KUBE_NAMESPACE
