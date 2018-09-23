@@ -60,15 +60,17 @@ func Start(logger *zap.Logger, config *Config, up chan *Librarian) error {
 	errs := make(chan error, 2)
 
 	// populate routing table
+	bootstrapped := make(chan struct{})
 	go func() {
 		if err := l.bootstrapPeers(config.BootstrapAddrs); err != nil {
 			errs <- err
 		}
+		close(bootstrapped)
 	}()
 
 	// start main listening thread
 	go func() {
-		errs <- l.listenAndServe(up)
+		errs <- l.listenAndServe(up, bootstrapped)
 	}()
 
 	return <-errs
@@ -143,7 +145,7 @@ func makeBootstrapPeers(bootstrapAddrs []*net.TCPAddr) (
 	return peers, addrStrs
 }
 
-func (l *Librarian) listenAndServe(up chan *Librarian) error {
+func (l *Librarian) listenAndServe(up chan *Librarian, bootstrapped chan struct{}) error {
 	s := grpc.NewServer(
 		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
 		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
@@ -168,7 +170,7 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 	// - listening to SIGTERM (and friends) signals from outside world
 	// - sending publications to subscribed peers
 	// - document replication
-	l.startAuxRoutines()
+	l.startAuxRoutines(bootstrapped)
 
 	// handle stop signal
 	go func() {
@@ -210,7 +212,7 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 	return nil
 }
 
-func (l *Librarian) startAuxRoutines() {
+func (l *Librarian) startAuxRoutines(bootstrapped chan struct{}) {
 	if l.config.ReportMetrics {
 		go func() {
 			if err := l.metrics.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -243,6 +245,8 @@ func (l *Librarian) startAuxRoutines() {
 
 	// long-running goroutine managing subscriptions to other peers
 	go func() {
+		// wait until have bootstrapped peers
+		<-bootstrapped
 		if err := l.subscribeTo.Begin(); err != nil {
 			l.logger.Error("fatal subscriptionTo error", zap.Error(err))
 			cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
@@ -251,6 +255,8 @@ func (l *Librarian) startAuxRoutines() {
 
 	// long-running goroutine replicating documents
 	go func() {
+		// wait until have bootstrapped peers
+		<-bootstrapped
 		if err := l.replicator.Start(); err != nil {
 			l.logger.Error("fatal replicator error", zap.Error(err))
 			cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
