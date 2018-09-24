@@ -28,9 +28,12 @@ import (
 )
 
 const (
-	postListenNotifyWait  = 100 * time.Millisecond
+	postListenNotifyWait = 100 * time.Millisecond
+	maxConcurrentStreams = 128
+)
+
+var (
 	backoffMaxElapsedTime = 60 * time.Second
-	maxConcurrentStreams  = 128
 )
 
 const (
