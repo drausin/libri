@@ -10,7 +10,7 @@ jobs:
       - setup_remote_docker
       - restore_cache:
           keys:
-            - v1-vendor-{{ arch }}-{{ checksum "Gopkg.lock" }}-rdb5.8
+            - v1-vendor-{{ arch }}-{{ checksum "Gopkg.lock" }}-rdb5.10.10
       - run:
           name: Install dependencies
           command: make get-deps
@@ -18,14 +18,14 @@ jobs:
           name: Install RocksDB
           command: |
             # hack to make sure RocksDB runs on CircleCI machines
-            if [[ $(md5sum /usr/local/lib/librocksdb.a | awk '{print $1}') != "cb706c8d76bedaca7ebce13d13da78c9" ]]; then
+            if [[ $(md5sum /usr/local/lib/librocksdb.a | awk '{print $1}') != "c0adac05c11848a439ec1744b32efb7e" ]]; then
               ./build/install-rocksdb.sh
             fi
       - run:
           name: Install gorocksdb
           command: ./build/install-gorocksdb.sh
       - save_cache:
-          key: v1-vendor-{{ arch }}-{{ checksum "Gopkg.lock" }}-rdb5.8
+          key: v1-vendor-{{ arch }}-{{ checksum "Gopkg.lock" }}-rdb5.10.10
           paths:
             - vendor
             - /usr/local/lib/librocksdb.a

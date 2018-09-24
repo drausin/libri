@@ -321,8 +321,8 @@ func testShare(t *testing.T, _ *params, state *state) {
 func testReplicate(t *testing.T, _ *params, state *state) {
 
 	// take n peers out of the network
-	toRemove := state.peers[:8]
-	state.peers = state.peers[8:]
+	toRemove := state.peers[:12]
+	state.peers = state.peers[12:]
 	for _, p1 := range toRemove {
 		go func(p2 *server.Librarian) {
 			// explicitly end subscriptions first and then sleep so that later librarians

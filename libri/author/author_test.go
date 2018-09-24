@@ -466,6 +466,12 @@ type fixedHealthClient struct {
 	err      error
 }
 
+func (f *fixedHealthClient) Watch(
+	ctx context.Context, in *healthpb.HealthCheckRequest, opts ...grpc.CallOption,
+) (healthpb.Health_WatchClient, error) {
+	panic("implement me")
+}
+
 func (f *fixedHealthClient) Check(
 	ctx context.Context, in *healthpb.HealthCheckRequest, opts ...grpc.CallOption,
 ) (*healthpb.HealthCheckResponse, error) {
