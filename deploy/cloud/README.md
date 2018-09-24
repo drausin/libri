@@ -24,25 +24,26 @@ you can run it via minikube (currently tested with v0.24, Kubernetes v1.8.0).
 * Go Terraform package: `$ go get -u github.com/hashicorp/terraform`
 * [jq](https://stedolan.github.io/jq/download/)
 * Optional for local execution: [Minikube](https://github.com/kubernetes/minikube/releases)
+    * tested with Minikube v0.25.2
 * Optional for testing: [Docker](https://docs.docker.com/install/)
 
 ## Initializing Infrastructure
 
 First, create a local directory to store cluster configuration files: e.g. from libri repo path:
 
-    $ cd deploy/cloud && mkdir clusters
+    cd deploy/cloud && mkdir -p clusters
 
 Specify a name for the new cluster and store the path reference:
 
-    $ CLUSTER_NAME="my-test-cluster"
-    $ CLUSTER_DIR="$(pwd)/clusters/${CLUSTER_NAME}"
+    CLUSTER_NAME="my-test-cluster"
+    CLUSTER_DIR="$(pwd)/clusters/${CLUSTER_NAME}"
 
 **Minikube (local):**
 
-    $ go run cluster.go init minikube \
+    go run cluster.go init minikube \
         --clusterDir "${CLUSTER_DIR}" \
         --clusterName "${CLUSTER_NAME}"
-    $ export TF_VAR_cluster_admin_user="dummy user"
+    export TF_VAR_cluster_admin_user="dummy user"
 
 **GCP (cloud):**
 
@@ -131,7 +132,8 @@ and the created services with
 
 If using a local cluster, get the external address for one of the services
 
-    $ minikube service librarians-0 --url
+    minikube service librarians-0 --url
+    librarian_addrs=$(minikube service librarians-0 --url | sed -E 's/http:\/\///g')
 
 If using a GCP cluster, get an external address from one of the nodes
 
@@ -153,8 +155,7 @@ If using a GCP cluster, get an external address from one of the nodes
     node-exporter-zwr2p           1/1       Running   0          8m        10.142.0.3   gke-libri-dev-default-pool-5ee39584-tljc
     prometheus-1589647967-rj06c   1/1       Running   0          8m        10.24.1.5    gke-libri-dev-default-pool-5ee39584-schn
 
-You can parse the public address from the librarians via the following bash commands:
-
+You can parse the public address from the librarians via the following:
 
     N_LIBRARIANS=4
     librarian_addrs=""
@@ -168,28 +169,19 @@ You can parse the public address from the librarians via the following bash comm
 For convenience (and speed), you can run testing commands from an ephemeral container. Test the
 health of a librarian with
 
-    $ docker run --rm daedalus2718/libri:snapshot test health -a "${librarian_addrs}"
+    docker run --rm daedalus2718/libri:snapshot test health -a "${librarian_addrs}"
 
 Test uploading/downloading entries from the cluster with
 
-    $ docker run --rm daedalus2718/libri:snapshot test io -a "${librarian_addrs}"
+    docker run --rm daedalus2718/libri:snapshot test io -a "${librarian_addrs}"
 
 If you get timeout issues (especially with remote GCP cluster), try bumping the timeout up to 20 seconds with
 
-    $ docker run --rm daedalus2718/libri:snapshot test io -a "${librarian_addrs}" --timeout 20
+    docker run --rm daedalus2718/libri:snapshot test io -a "${librarian_addrs}" --timeout 20
 
-## Joining the Libri Network
+## Joining the public Libri testnet 
 
-To join the existing Libri network, you must provide one or more seed addresses. Additional node IPs
-will be added to the cluster routing table once the cluster has joined the network. To do so, modify
-`libri.yml:460` by replacing the bootstraps value `librarians-0.libri.default.svc.cluster.local:20100`
-with a known Libri peer IP:Port combination such that it appears as follows:
-
-    --bootstraps 'xx.xxx.xxx.xxx:30100'
-    
-And then execute
-
-    $ kubectl apply -f ${CLUSTER_DIR}/libri.yml
+See the [public testnet doc](../../libri/acceptance/public-testnet.md).
 
 ## Monitoring
 

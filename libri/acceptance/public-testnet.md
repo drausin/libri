@@ -2,11 +2,11 @@
 
 The libri public test network has a small number of nodes running. We are actively seeking people
 interested in helping test it, but please reach out to coordinate before sending any large load to 
-it or spinning up your own Libri peers to join the network.
+it or spinning up your own Libri peers to join the network. Get in touch via `contact` AT `libri.io`.
 
 The current testnet seeds addresses are:
 
-    LIBRI_TESTNET_SEEDS='35.229.82.151:30101 35.231.242.130:30102 35.229.82.151:30103'
+    LIBRI_TESTNET_SEEDS='35.227.54.0:30100,35.237.0.109:30104,35.237.27.67:30108,35.237.27.67:30112'
 
 
 ### Simple file upload/download
@@ -19,7 +19,6 @@ Start and enter a new container via
 Once in, set the `LIBRI_TESTNET_SEEDS` via the expression above and then define some Libri 
 environment variables so we don't have to pass them in as CLI args.
 
-    export LIBRI_AUTHORLIBRARIANS=${LIBRI_TESTNET_SEEDS}
     export LIBRI_KEYCHAINSDIR='/tmp/libri/keys'
     export LIBRI_DATADIR='/tmp/libri/data'
     export LIBRI_PASSPHRASE='my super secret thingy'
@@ -27,7 +26,7 @@ environment variables so we don't have to pass them in as CLI args.
     
 Confirm we can talk to the librarians.
 
-    libri test health -a ${LIBRI_AUTHORLIBRARIANS}
+    libri test health -a ${LIBRI_TESTNET_SEEDS}
 
 Initialize the author keys and create the test file.
 
@@ -38,7 +37,7 @@ Initialize the author keys and create the test file.
     
 Upload the file and get the resulting envelope ID.
 
-    libri author upload -f ${LIBRI_DATADIR}/test.up.txt 2>&1 | tee ${LOG_FILE}
+    libri author upload -a ${LIBRI_TESTNET_SEEDS} -f ${LIBRI_DATADIR}/test.up.txt 2>&1 | tee ${LOG_FILE}
     
     # grab envelope key from the log
     ENVELOPE_KEY=$(grep 'envelope_key' ${LOG_FILE} | sed -E 's/.*"envelope_key": "([^ "]*).*/\1/g') 
@@ -46,7 +45,7 @@ Upload the file and get the resulting envelope ID.
     
 Download the file from the envelope ID and confirm it's the same as the uploaded file.
 
-    libri author download -f ${LIBRI_DATADIR}/test.down.txt -e ${ENVELOPE_KEY} 
+    libri author download -a ${LIBRI_TESTNET_SEEDS} -f ${LIBRI_DATADIR}/test.down.txt -e ${ENVELOPE_KEY}
     
     cat ${LIBRI_DATADIR}/test.down.txt
     md5sum ${LIBRI_DATADIR}/test.*
