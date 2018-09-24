@@ -10,7 +10,7 @@ jobs:
       - setup_remote_docker
       - restore_cache:
           keys:
-            - v1-vendor-{{ arch }}-{{ checksum "Gopkg.lock" }}-rdb5.10.10
+            - v1-vendor-{{ arch }}-{{ checksum "Gopkg.lock" }}-rdb5.15.10
       - run:
           name: Install dependencies
           command: make get-deps
@@ -25,7 +25,7 @@ jobs:
           name: Install gorocksdb
           command: ./build/install-gorocksdb.sh
       - save_cache:
-          key: v1-vendor-{{ arch }}-{{ checksum "Gopkg.lock" }}-rdb5.10.10
+          key: v1-vendor-{{ arch }}-{{ checksum "Gopkg.lock" }}-rdb5.15.10
           paths:
             - vendor
             - /usr/local/lib/librocksdb.a
