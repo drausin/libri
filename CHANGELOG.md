@@ -1,3 +1,31 @@
+## v0.5.0
+
+#### breaking changes
+- add organization ID to all peers and requests (#198, #200)
+	- all clients and servers will need to upgrade to `^v0.5`
+
+#### bugfixes
+- improve local demo script robustness (#202)
+
+#### external features
+- add start cmd verify interval flag (#196)
+
+#### internal features
+- improve docs (#203, #218, #217, #226, #229)
+- improve cluster useability and setup (#195, #212, #219, #223)
+- improve Grafana dashboard tooltip readability ($197)
+- add k8s RBAC for default service account (#201)
+- use peer response metrics for routing table preferences and health checks (#208, #224, #225)
+- improve robustness against unhealthy peers (#221, #222, #232, #234, #235, #236, #237)
+- init Prometheus document metrics from stored values (#227, #228, #231)
+- bump deps (#199, #239)
+
+#### requirements
+- Kubernetes ^1.9.4
+- Terraform ^0.11
+
+Tested with Minikube v0.25.2 (hyperkit driver), Kubernetes v1.9.4.
+
 
 ## v0.4.0
 
