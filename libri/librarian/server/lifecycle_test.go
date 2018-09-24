@@ -33,6 +33,7 @@ func TestStart_ok(t *testing.T) {
 	config := newTestConfig()
 	config.WithProfile(true).WithReportMetrics(true)
 	config.WithLogLevel(zapcore.DebugLevel)
+	config.Introduce.MinNumIntroductions = 0 // since no other peers
 
 	var err error
 	up := make(chan *Librarian, 1)
@@ -156,6 +157,7 @@ func TestLibrarian_bootstrapPeers_introduceErr(t *testing.T) {
 	}
 
 	p, d := &fixedPreferer{}, &fixedDoctor{}
+	backoffMaxElapsedTime = 5 * time.Second
 	rt := routing.NewEmpty(id.NewPseudoRandom(rng), p, d, routing.NewDefaultParameters())
 	l := &Librarian{
 		config: NewDefaultConfig(),
