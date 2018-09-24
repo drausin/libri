@@ -2,7 +2,7 @@
 
 # Download and install RocksDB on the *nix system.
 
-ROCKSDB_VERSION='5.8'
+ROCKSDB_VERSION='5.15.10'
 
 # download
 wget https://github.com/facebook/rocksdb/archive/v${ROCKSDB_VERSION}.zip -O /tmp/rocksdb-${ROCKSDB_VERSION}.zip
