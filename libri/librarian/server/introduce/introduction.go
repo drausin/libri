@@ -133,7 +133,7 @@ func (i *Introduction) ReachedTarget() bool {
 	return uint(len(i.Result.Responded)) >= i.Params.TargetNumIntroductions
 }
 
-// ReachedTarget returns whether introductions have occurred with the min number of peers.
+// ReachedMin returns whether introductions have occurred with the min number of peers.
 func (i *Introduction) ReachedMin() bool {
 	return uint(len(i.Result.Responded)) >= i.Params.MinNumIntroductions
 }
