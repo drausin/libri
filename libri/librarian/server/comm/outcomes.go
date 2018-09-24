@@ -65,7 +65,13 @@ type ScalarMetrics struct {
 	// CountPeers of queries sent to the peer
 	Count uint64
 
-	mu sync.Mutex
+	mu *sync.Mutex
+}
+
+func newScalarMetrics() *ScalarMetrics {
+	return &ScalarMetrics{
+		mu: new(sync.Mutex),
+	}
 }
 
 // Record updates the metrics to mark a query.
@@ -85,12 +91,12 @@ type QueryOutcomes map[QueryType]map[Outcome]*ScalarMetrics
 func newQueryOutcomes() QueryOutcomes {
 	return QueryOutcomes{
 		Request: map[Outcome]*ScalarMetrics{
-			Success: {},
-			Error:   {},
+			Success: newScalarMetrics(),
+			Error:   newScalarMetrics(),
 		},
 		Response: map[Outcome]*ScalarMetrics{
-			Success: {},
-			Error:   {},
+			Success: newScalarMetrics(),
+			Error:   newScalarMetrics(),
 		},
 	}
 }
