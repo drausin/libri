@@ -31,7 +31,7 @@ const (
 	DefaultReplicateConcurrency = uint(1)
 
 	// DefaultVerifyTimeout is the default timeout for the replicator's verify retries.
-	DefaultVerifyTimeout = 10 * time.Second
+	DefaultVerifyTimeout = 60 * time.Second
 
 	// DefaultMaxErrRate is the default maximum allowed error rate for verify & store requests
 	// before a fatal error is thrown.
