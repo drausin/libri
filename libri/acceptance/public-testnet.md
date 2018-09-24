@@ -2,7 +2,7 @@
 
 The libri public test network has a small number of nodes running. We are actively seeking people
 interested in helping test it, but please reach out to coordinate before sending any large load to 
-it or spinning up your own Libri peers to join the network.
+it or spinning up your own Libri peers to join the network. Get in touch via `contact` AT `libri.io`.
 
 The current testnet seeds addresses are:
 

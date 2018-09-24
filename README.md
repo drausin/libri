@@ -98,6 +98,8 @@ small (~90MB) because it contains only the things needed to run the `libri` comm
 ### Contribute
 See [CONTRIBUTING.md](CONTRIBUTING.md) for details.  Issues, suggestions, and pull requests always welcome.
 
+Get in touch via `contact` AT `libri.io`.
+
 ### References
 - [Kademila](https://pdos.csail.mit.edu/~petar/papers/maymounkov-kademlia-lncs.pdf) protocol and approach
 - libri is inspired by similar p2p distributed storage efforts Ethereum 
