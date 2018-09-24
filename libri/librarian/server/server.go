@@ -162,11 +162,7 @@ func NewLibrarian(config *Config, logger *zap.Logger) (*Librarian, error) {
 	allower := comm.NewDefaultAllower(knower, getters)
 	doctor := comm.NewResponseTimeDoctor(getters[comm.Day])
 
-	rt, err := loadOrCreateRoutingTable(selfLogger, serverSL, prefer, doctor, peerID,
-		config.Routing)
-	if err != nil {
-		return nil, err
-	}
+	rt := routing.NewEmpty(peerID.ID(), prefer, doctor, config.Routing)
 	clients, err := client.NewDefaultLRUPool()
 	if err != nil {
 		return nil, err

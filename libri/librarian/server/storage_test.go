@@ -8,8 +8,6 @@ import (
 	"github.com/drausin/libri/libri/common/ecid"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	cstorage "github.com/drausin/libri/libri/common/storage"
-	"github.com/drausin/libri/libri/librarian/server/routing"
-	sstorage "github.com/drausin/libri/libri/librarian/server/storage"
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 )
@@ -50,70 +48,4 @@ func TestLoadOrCreatePeerID_err(t *testing.T) {
 func TestSavePeerID(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	assert.Nil(t, savePeerID(&cstorage.TestSLD{}, ecid.NewPseudoRandom(rng)))
-}
-
-func TestLoadOrCreateRoutingTable_ok(t *testing.T) {
-	rng := rand.New(rand.NewSource(0))
-
-	// load stored RT
-	selfID1 := ecid.NewPseudoRandom(rng)
-	srt1 := &sstorage.RoutingTable{
-		SelfId: selfID1.ID().Bytes(),
-	}
-	bytes, err := proto.Marshal(srt1)
-	assert.Nil(t, err)
-
-	fullLoader := &cstorage.TestSLD{
-		Bytes: bytes,
-	}
-	p, d := &fixedPreferer{}, &fixedDoctor{}
-	rt1, err := loadOrCreateRoutingTable(clogging.NewDevInfoLogger(), fullLoader, p, d,
-		selfID1, routing.NewDefaultParameters())
-	assert.Equal(t, selfID1.ID(), rt1.SelfID())
-	assert.Nil(t, err)
-
-	// create new RT
-	selfID2 := ecid.NewPseudoRandom(rng)
-	rt2, err := loadOrCreateRoutingTable(clogging.NewDevInfoLogger(), &cstorage.TestSLD{},
-		p, d, selfID2, routing.NewDefaultParameters())
-	assert.Equal(t, selfID2.ID(), rt2.SelfID())
-	assert.Nil(t, err)
-}
-
-func TestLoadOrCreateRoutingTable_loadErr(t *testing.T) {
-	rng := rand.New(rand.NewSource(0))
-	selfID := ecid.NewPseudoRandom(rng)
-
-	errLoader := &cstorage.TestSLD{
-		LoadErr: errors.New("some error during load"),
-	}
-
-	p, d := &fixedPreferer{}, &fixedDoctor{}
-	rt1, err := loadOrCreateRoutingTable(clogging.NewDevInfoLogger(), errLoader, p, d, selfID,
-		routing.NewDefaultParameters())
-	assert.Nil(t, rt1)
-	assert.NotNil(t, err)
-}
-
-func TestLoadOrCreateRoutingTable_selfIDErr(t *testing.T) {
-	rng := rand.New(rand.NewSource(0))
-
-	selfID1 := ecid.NewPseudoRandom(rng)
-	srt1 := &sstorage.RoutingTable{
-		SelfId: selfID1.Bytes(),
-	}
-	bytes, err := proto.Marshal(srt1)
-	assert.Nil(t, err)
-
-	fullLoader := &cstorage.TestSLD{
-		Bytes: bytes,
-	}
-
-	// error with conflicting/different peerID
-	selfID2 := ecid.NewPseudoRandom(rng)
-	lg, p, d := clogging.NewDevInfoLogger(), &fixedPreferer{}, &fixedDoctor{}
-	rt1, err := loadOrCreateRoutingTable(lg, fullLoader, p, d, selfID2,
-		routing.NewDefaultParameters())
-	assert.Nil(t, rt1)
-	assert.NotNil(t, err)
 }
