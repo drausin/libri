@@ -14,6 +14,10 @@ var (
 	// DefaultTargetNumIntroductions is the default target number of peers to get introduced to.
 	DefaultTargetNumIntroductions = uint(128)
 
+	// DefaultMinNumIntroductions is the default minimum number of peers to be introduced to for
+	// it to be considered successful.
+	DefaultMinNumIntroductions = uint(3)
+
 	// DefaultNumPeersPerRequest is the default number of peers to ask for in each introduce
 	// request.
 	DefaultNumPeersPerRequest = uint(16)
@@ -34,6 +38,9 @@ type Parameters struct {
 	// target number of peers to become introduced to
 	TargetNumIntroductions uint
 
+	// minimum number of introduced peers for introduction to be considered successful
+	MinNumIntroductions uint
+
 	// number of peers to ask for in each request
 	NumPeersPerRequest uint
 
@@ -51,6 +58,7 @@ type Parameters struct {
 func NewDefaultParameters() *Parameters {
 	return &Parameters{
 		TargetNumIntroductions: DefaultTargetNumIntroductions,
+		MinNumIntroductions:    DefaultMinNumIntroductions,
 		NumPeersPerRequest:     DefaultNumPeersPerRequest,
 		NMaxErrors:             DefaultNMaxErrors,
 		Concurrency:            DefaultConcurrency,
@@ -132,7 +140,9 @@ func (i *Introduction) Exhausted() bool {
 
 // Errored returns whether the introduction has encountered too many errors when querying the peers.
 func (i *Introduction) Errored() bool {
-	return i.Result.NErrors >= i.Params.NMaxErrors || i.Result.FatalErr != nil
+	return i.Result.NErrors >= i.Params.NMaxErrors ||
+		i.Result.FatalErr != nil ||
+		uint(len(i.Result.Responded)) < i.Params.MinNumIntroductions
 }
 
 // Finished returns whether the introduction has finished, either because it has reached the target

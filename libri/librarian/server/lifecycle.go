@@ -29,7 +29,7 @@ import (
 
 const (
 	postListenNotifyWait  = 100 * time.Millisecond
-	backoffMaxElapsedTime = 5 * time.Second
+	backoffMaxElapsedTime = 60 * time.Second
 	maxConcurrentStreams  = 128
 )
 
@@ -45,7 +45,7 @@ const (
 	LoggerNBootstrappedPeers = "n_peers"
 )
 
-var errNoBootstrappedPeers = errors.New("failed to bootstrap any other peers")
+var errInsufficientBootstrappedPeers = errors.New("failed to bootstrap enough other peers")
 
 // Start is the entry point for a Librarian server. It bootstraps peers for the Librarians's
 // routing table and then begins listening for and handling requests. It notifies the up channel
@@ -87,12 +87,10 @@ func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
 			l.logger.Debug("introduction error", zap.String("error", err.Error()))
 			return err
 		}
-		if len(intro.Result.Responded) == 0 {
-			// error if couldn't find any
-			l.logger.Debug("no bootstrapped peers",
-				zap.String("error", errNoBootstrappedPeers.Error()),
-			)
-			return errNoBootstrappedPeers
+		if intro.Errored() {
+			// error if couldn't find any/enough peers
+			l.logger.Error("not enough bootstrapped peers")
+			return errInsufficientBootstrappedPeers
 		}
 		return nil
 	}

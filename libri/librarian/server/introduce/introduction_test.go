@@ -14,6 +14,7 @@ import (
 func TestNewDefaultParameters(t *testing.T) {
 	params := NewDefaultParameters()
 	assert.NotNil(t, params.TargetNumIntroductions)
+	assert.NotNil(t, params.MinNumIntroductions)
 	assert.NotNil(t, params.NumPeersPerRequest)
 	assert.NotNil(t, params.NMaxErrors)
 	assert.NotNil(t, params.Concurrency)
@@ -104,15 +105,28 @@ func TestIntroduction_Errored(t *testing.T) {
 	assert.True(t, intro1.Finished())
 
 	intro2 := newTestIntroduction(4, &Parameters{
-		NMaxErrors: 3,
+		NMaxErrors:             3,
+		TargetNumIntroductions: 6,
 	})
 
 	// create some fatal error
-	intro2.Result.FatalErr = errors.New("some fata error")
-	assert.True(t, intro1.Errored())
-	assert.False(t, intro1.Exhausted())
-	assert.False(t, intro1.ReachedTarget())
-	assert.True(t, intro1.Finished())
+	intro2.Result.FatalErr = errors.New("some fatal error")
+	assert.True(t, intro2.Errored())
+	assert.False(t, intro2.Exhausted())
+	assert.False(t, intro2.ReachedTarget())
+	assert.True(t, intro2.Finished())
+
+	// too few responses
+	intro3 := newTestIntroduction(4, &Parameters{
+		NMaxErrors:             3,
+		MinNumIntroductions:    3,
+		TargetNumIntroductions: 6,
+	})
+	assert.True(t, intro3.Errored())
+	assert.False(t, intro3.Exhausted())
+	assert.False(t, intro3.ReachedTarget())
+	assert.True(t, intro3.Finished())
+
 }
 
 func newTestIntroduction(nPeers int, params *Parameters) *Introduction {
