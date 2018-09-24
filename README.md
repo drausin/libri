@@ -10,7 +10,7 @@ approach. It also offers
 - notifications across the network for every storage event
 
 ### Status
-Libri is currently alpha quality and still being internally tested. 
+Libri is currently in alpha with a public testnet. 
 
 ### Try it out
 Ensure you have Docker installed and then run
@@ -19,7 +19,7 @@ Ensure you have Docker installed and then run
 ```
 to spin up a 4-node libri cluster, run some tests against it, and uploaded/download some sample data.
 
-To try out (or join!) our public test network see [libri/acceptance/public-testnet.md].
+To try out (or join!) our public test network see [public testnet doc](libri/acceptance/public-testnet.md).
 
 ### Design
 

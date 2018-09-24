@@ -6,7 +6,7 @@ it or spinning up your own Libri peers to join the network.
 
 The current testnet seeds addresses are:
 
-    LIBRI_TESTNET_SEEDS='35.227.54.0:30100,35.237.0.109:30104,35.237.0.109:30107'
+    LIBRI_TESTNET_SEEDS='35.227.54.0:30100,35.237.0.109:30104,35.237.27.67:30108,35.237.27.67:30112'
 
 
 ### Simple file upload/download
