@@ -41,8 +41,8 @@ func TestStart_ok(t *testing.T) {
 	wg1.Add(1)
 	go func(wg2 *sync.WaitGroup) {
 		defer wg2.Done()
-		err := Start(clogging.NewDevInfoLogger(), config, up)
-		assert.Nil(t, err)
+		err2 := Start(clogging.NewDevInfoLogger(), config, up)
+		assert.Nil(t, err2)
 	}(wg1)
 
 	// get the librarian once it's up
