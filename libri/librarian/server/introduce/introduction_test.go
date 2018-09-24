@@ -52,6 +52,41 @@ func TestIntroduction_ReachedTarget(t *testing.T) {
 	assert.True(t, intro.Finished())
 }
 
+func TestIntroduction_ReachedMin(t *testing.T) {
+	intro := newTestIntroduction(3, &Parameters{
+		MinNumIntroductions:    3,
+		TargetNumIntroductions: 6,
+		NMaxErrors:             3,
+	})
+
+	// hasn't received any responses yet
+	assert.False(t, intro.ReachedTarget())
+	assert.False(t, intro.ReachedMin())
+	assert.False(t, intro.Errored())
+	assert.False(t, intro.Exhausted())
+	assert.False(t, intro.Finished())
+
+	// make some peers responded, but still below min
+	simulateAnyResponded(intro.Result, 2)
+
+	// still below target
+	assert.False(t, intro.ReachedTarget())
+	assert.False(t, intro.ReachedMin())
+	assert.False(t, intro.Errored())
+	assert.False(t, intro.Exhausted())
+	assert.False(t, intro.Finished())
+
+	// add another to get us to target
+	simulateAnyResponded(intro.Result, 1)
+
+	// now should register target as reached
+	assert.False(t, intro.ReachedTarget())
+	assert.True(t, intro.ReachedMin())
+	assert.False(t, intro.Errored())
+	assert.True(t, intro.Exhausted())
+	assert.True(t, intro.Finished())
+}
+
 func TestIntroduction_Exhausted(t *testing.T) {
 	intro := newTestIntroduction(4, &Parameters{
 		TargetNumIntroductions: 3,

@@ -133,6 +133,11 @@ func (i *Introduction) ReachedTarget() bool {
 	return uint(len(i.Result.Responded)) >= i.Params.TargetNumIntroductions
 }
 
+// ReachedTarget returns whether introductions have occurred with the min number of peers.
+func (i *Introduction) ReachedMin() bool {
+	return uint(len(i.Result.Responded)) >= i.Params.MinNumIntroductions
+}
+
 // Exhausted returns whether all of the possible peers have been queried.
 func (i *Introduction) Exhausted() bool {
 	return len(i.Result.Unqueried) == 0 && !i.ReachedTarget()
@@ -140,9 +145,7 @@ func (i *Introduction) Exhausted() bool {
 
 // Errored returns whether the introduction has encountered too many errors when querying the peers.
 func (i *Introduction) Errored() bool {
-	return i.Result.NErrors >= i.Params.NMaxErrors ||
-		i.Result.FatalErr != nil ||
-		uint(len(i.Result.Responded)) < i.Params.MinNumIntroductions
+	return i.Result.NErrors >= i.Params.NMaxErrors || i.Result.FatalErr != nil
 }
 
 // Finished returns whether the introduction has finished, either because it has reached the target

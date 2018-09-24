@@ -87,9 +87,10 @@ func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
 			l.logger.Debug("introduction error", zap.String("error", err.Error()))
 			return err
 		}
-		if intro.Errored() {
+		if !intro.ReachedMin() {
 			// error if couldn't find any/enough peers
-			l.logger.Error("not enough bootstrapped peers")
+			l.logger.Debug("not enough bootstrapped peers",
+				zap.Int("num_introduced", len(intro.Result.Responded)))
 			return errInsufficientBootstrappedPeers
 		}
 		return nil
