@@ -259,6 +259,7 @@ func (l *Librarian) startAuxRoutines(bootstrapped chan struct{}) {
 	go func() {
 		// wait until have bootstrapped peers
 		<-bootstrapped
+		time.Sleep(60 * time.Second)
 		if err := l.replicator.Start(); err != nil {
 			l.logger.Error("fatal replicator error", zap.Error(err))
 			cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
