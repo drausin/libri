@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	tableSampleRetryWait = 3 * time.Second
+	tableSampleRetryWait = 15 * time.Second
 	numRetries           = 32
 	sampleBatchSize      = uint(8)
 )

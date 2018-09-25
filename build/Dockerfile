@@ -1,5 +1,5 @@
 # use stretch (debian) b/c `go test -race` requires glibc, which isn't in the alpine variant
-FROM golang:1.9.1-stretch
+FROM golang:1.11.0-stretch
 
 # install Docker
 ENV DOCKER_VERSION '17.03.0-ce'

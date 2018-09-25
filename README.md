@@ -10,7 +10,16 @@ approach. It also offers
 - notifications across the network for every storage event
 
 ### Status
-Libri is currently alpha quality and still being internally tested. 
+Libri is currently in alpha with a public testnet. 
+
+### Try it out
+Ensure you have Docker installed and then run
+```bash
+./libri/acceptance/local-demo.sh
+```
+to spin up a 4-node libri cluster, run some tests against it, and uploaded/download some sample data.
+
+To try out (or join!) our public test network see [public testnet doc](libri/acceptance/public-testnet.md).
 
 ### Design
 
@@ -86,15 +95,10 @@ deployment image ([daedalus2718/libri](https://hub.docker.com/r/daedalus2718/lib
 small (~90MB) because it contains only the things needed to run the `libri` command line binary.
 
 
-### Try it out
-Ensure you have Docker installed and then run
-```bash
-./libri/acceptance/local-demo.sh
-```
-to spin up a 3-node libri cluster, run some tests against it, and uploaded/download some sample data.
-
 ### Contribute
 See [CONTRIBUTING.md](CONTRIBUTING.md) for details.  Issues, suggestions, and pull requests always welcome.
+
+Get in touch via `contact` AT `libri.io`.
 
 ### References
 - [Kademila](https://pdos.csail.mit.edu/~petar/papers/maymounkov-kademlia-lncs.pdf) protocol and approach

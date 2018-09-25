@@ -12,13 +12,19 @@ func Addr(host string, port int) (*net.TCPAddr, error) {
 
 // Addrs parses an array of net.TCPAddrs from an array of IPv4:Port address strings.
 func Addrs(addrs []string) ([]*net.TCPAddr, error) {
-	netAddrs := make([]*net.TCPAddr, len(addrs))
-	for i, a := range addrs {
+	netAddrs := make([]*net.TCPAddr, 0, len(addrs))
+	nErrs := 0
+	for _, a := range addrs {
 		netAddr, err := net.ResolveTCPAddr("tcp4", a)
 		if err != nil {
-			return nil, err
+			nErrs++
+			if nErrs == len(addrs) {
+				// bail if none of the addrs could be parsed
+				return nil, err
+			}
+			continue
 		}
-		netAddrs[i] = netAddr
+		netAddrs = append(netAddrs, netAddr)
 	}
 	return netAddrs, nil
 }

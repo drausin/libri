@@ -43,7 +43,7 @@ const (
 	DefaultNSubscriptionsTo = 10
 
 	// DefaultFPRate is the default false positive rate for each subscription to another peer.
-	DefaultFPRate = 0.75
+	DefaultFPRate = 1.0
 
 	// DefaultTimeout is the default timeout for Subscribe requests. This is longer than a few
 	// seconds because Subscribe responses are dependant on active publications, which may not
@@ -125,8 +125,10 @@ func NewTo(
 	params *ToParameters,
 	logger *zap.Logger,
 	clientID ecid.ID,
+	orgID ecid.ID,
 	csb client.SetBalancer,
-	signer client.Signer,
+	peerSigner client.Signer,
+	orgSigner client.Signer,
 	recent RecentPublications,
 	new chan *KeyedPub,
 ) To {
@@ -136,9 +138,11 @@ func NewTo(
 		csb:      csb,
 		clientID: clientID,
 		sb: &subscriptionBeginnerImpl{
-			clientID: clientID,
-			signer:   signer,
-			params:   params,
+			peerID:     clientID,
+			orgID:      orgID,
+			peerSigner: peerSigner,
+			orgSigner:  orgSigner,
+			params:     params,
 		},
 		recent:   recent,
 		received: make(chan *pubValueReceipt, params.NSubscriptions),
@@ -281,9 +285,11 @@ type subscriptionBeginner interface {
 }
 
 type subscriptionBeginnerImpl struct {
-	clientID ecid.ID
-	signer   client.Signer
-	params   *ToParameters
+	peerID     ecid.ID
+	orgID      ecid.ID
+	peerSigner client.Signer
+	orgSigner  client.Signer
+	params     *ToParameters
 }
 
 func (sb *subscriptionBeginnerImpl) begin(
@@ -294,8 +300,8 @@ func (sb *subscriptionBeginnerImpl) begin(
 	end chan struct{},
 ) error {
 
-	rq := client.NewSubscribeRequest(sb.clientID, sub)
-	ctx, err := client.NewSignedContext(sb.signer, rq)
+	rq := client.NewSubscribeRequest(sb.peerID, sb.orgID, sub)
+	ctx, err := client.NewSignedContext(sb.peerSigner, sb.orgSigner, rq)
 	if err != nil {
 		return err
 	}

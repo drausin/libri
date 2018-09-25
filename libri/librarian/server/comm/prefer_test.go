@@ -10,39 +10,54 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestFindRqRpBetaPreferer_Prefer(t *testing.T) {
+func TestRpPreferer_Prefer(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 
 	peerID1 := id.NewPseudoRandom(rng)
 	peerID2 := id.NewPseudoRandom(rng)
 	peerID3 := id.NewPseudoRandom(rng)
+	peerID4 := id.NewPseudoRandom(rng)
 	qo1 := endpointQueryOutcomes{
-		api.Find: QueryOutcomes{
-			Request: map[Outcome]*ScalarMetrics{
+		api.Verify: QueryOutcomes{
+			Response: map[Outcome]*ScalarMetrics{
 				Success: {Count: 1},
 			},
+		},
+		api.Find: QueryOutcomes{
 			Response: map[Outcome]*ScalarMetrics{
 				Success: {Count: 1},
 			},
 		},
 	}
 	qo2 := endpointQueryOutcomes{
-		api.Find: {
-			Request: map[Outcome]*ScalarMetrics{
+		api.Verify: {
+			Response: map[Outcome]*ScalarMetrics{
 				Success: {Count: 2},
 			},
+		},
+		api.Find: QueryOutcomes{
 			Response: map[Outcome]*ScalarMetrics{
 				Success: {Count: 2},
 			},
 		},
 	}
 	qo3 := endpointQueryOutcomes{
-		api.Find: {
-			Request: map[Outcome]*ScalarMetrics{
-				Success: {Count: 1},
-			},
+		api.Verify: {
 			Response: map[Outcome]*ScalarMetrics{
 				Success: {Count: 3},
+			},
+		},
+		api.Find: QueryOutcomes{
+			Response: map[Outcome]*ScalarMetrics{
+				Success: {Count: 3},
+			},
+		},
+	}
+	qo4 := endpointQueryOutcomes{
+		api.Verify: newQueryOutcomes(),
+		api.Find: QueryOutcomes{
+			Response: map[Outcome]*ScalarMetrics{
+				Success: {Count: 5},
 			},
 		},
 	}
@@ -52,11 +67,13 @@ func TestFindRqRpBetaPreferer_Prefer(t *testing.T) {
 			peerID1.String(): qo1,
 			peerID2.String(): qo2,
 			peerID3.String(): qo3,
+			peerID4.String(): qo4,
 		},
 	}
-	p := NewFindRpPreferer(rec)
+	p := NewRpPreferer(rec)
 
-	// prefer peer w/ more successful Find responses
+	// prefer peer w/ more successful Verify or Find responses
 	assert.True(t, p.Prefer(peerID2, peerID1))
 	assert.True(t, p.Prefer(peerID3, peerID2))
+	assert.True(t, p.Prefer(peerID4, peerID3))
 }

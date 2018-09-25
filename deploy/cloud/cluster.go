@@ -19,7 +19,7 @@ const (
 	mainTemplateFilename  = "main.template.tf"
 	varsFilename          = "variables.tf"
 	mainFilename          = "main.tf"
-	flagsFilename         = "terraform.tfvars"
+	defaultFlagsFilename  = "terraform.tfvars"
 	moduleSubDir          = "module"
 
 	kubeTemplateDir            = "kubernetes"
@@ -27,6 +27,7 @@ const (
 	kubeConfigFilename         = "libri.yml"
 
 	// Terraform variable keys
+	envTFVarPrefix          = "TF_VAR_"
 	tfClusterAdminUser      = "cluster_admin_user"
 	tfClusterHost           = "cluster_host"
 	tfNumLibrarians         = "num_librarians"
@@ -55,6 +56,7 @@ type TFConfig struct {
 	GCPProject      string
 	ClusterDir      string
 	LocalModulePath string
+	FlagsFilepath   string
 }
 
 // KubeConfig contains the configuration to apply to the template.
@@ -103,6 +105,8 @@ func init() {
 		"directory to create new cluster in")
 	initCmd.PersistentFlags().StringVarP(&initFlags.ClusterName, "clusterName", "n", "",
 		"cluster name (without spaces)")
+	initCmd.PersistentFlags().StringVarP(&initFlags.FlagsFilepath, "flagsFilepath", "f", "",
+		"(optional) filepath of terraform.tfvars file")
 
 	initCmd.AddCommand(minikubeCmd)
 	initCmd.AddCommand(gcpCmd)
@@ -294,11 +298,14 @@ func writeVarsTFFile(config TFConfig, clusterDir, templateDir string) {
 func writePropsFile(config TFConfig, clusterDir, templateDir string) {
 	wd, err := os.Getwd()
 	maybeExit(err)
-	absPropsTemplateFilepath := filepath.Join(wd, templateDir, flagsFilename)
-	propsTmpl, err := template.New(flagsFilename).ParseFiles(absPropsTemplateFilepath)
+	absPropsTemplateFilepath := config.FlagsFilepath
+	if absPropsTemplateFilepath == "" {
+		absPropsTemplateFilepath = filepath.Join(wd, templateDir, defaultFlagsFilename)
+	}
+	propsTmpl, err := template.New(defaultFlagsFilename).ParseFiles(absPropsTemplateFilepath)
 	maybeExit(err)
 
-	absPropsOutFilepath := filepath.Join(clusterDir, flagsFilename)
+	absPropsOutFilepath := filepath.Join(clusterDir, defaultFlagsFilename)
 	propsFile, err := os.Create(absPropsOutFilepath)
 	maybeExit(err)
 
@@ -307,7 +314,7 @@ func writePropsFile(config TFConfig, clusterDir, templateDir string) {
 }
 
 func tfCommand(clusterDir string, subcommand string) {
-	tfInitCmd := exec.Command("terraform", subcommand) // nolint: gas
+	tfInitCmd := exec.Command("terraform", subcommand) // nolint: gosec
 	tfInitCmd.Stdin = os.Stdin
 	tfInitCmd.Stdout = os.Stdout
 	tfInitCmd.Stderr = os.Stderr
@@ -317,7 +324,7 @@ func tfCommand(clusterDir string, subcommand string) {
 }
 
 func kubeApply(clusterDir string, dryRun bool) {
-	tfInitCmd := exec.Command("kubectl", "apply", "-f", kubeConfigFilename) // nolint: gas
+	tfInitCmd := exec.Command("kubectl", "apply", "-f", kubeConfigFilename) // nolint: gosec
 	if dryRun {
 		tfInitCmd.Args = append(tfInitCmd.Args, "--dry-run")
 	}
@@ -331,8 +338,13 @@ func kubeApply(clusterDir string, dryRun bool) {
 
 func writeKubeConfig(clusterDir string) {
 	tfvars := getTFFlags(clusterDir)
+	clusterAdminUser, set := os.LookupEnv(envTFVarPrefix + tfClusterAdminUser)
+	if !set {
+		err := errors.New(envTFVarPrefix + tfClusterAdminUser + " env variable must be set")
+		maybeExit(err)
+	}
 	config := KubeConfig{
-		ClusterAdminUser:   tfvars[tfClusterAdminUser].(string),
+		ClusterAdminUser:   clusterAdminUser,
 		LibriVersion:       tfvars[tfLibrarianLibriVersion].(string),
 		LocalPort:          tfvars[tfLocalPort].(int),
 		LocalMetricsPort:   tfvars[tfLocalMetricsPort].(int),
@@ -371,7 +383,7 @@ func writeKubeConfig(clusterDir string) {
 }
 
 func getTFFlags(clusterDir string) variables.FlagFile {
-	tfvarsFilepath := path.Join(clusterDir, flagsFilename)
+	tfvarsFilepath := path.Join(clusterDir, defaultFlagsFilename)
 	tfvars := make(variables.FlagFile)
 	err := tfvars.Set(tfvarsFilepath)
 	maybeExit(err)
@@ -379,7 +391,7 @@ func getTFFlags(clusterDir string) variables.FlagFile {
 }
 
 func writeKubeConfigMaps() {
-	maybeDelete := exec.Command("sh", "-c", "kubectl get configmap --no-headers | "+ // nolint: gas
+	maybeDelete := exec.Command("sh", "-c", "kubectl get configmap --no-headers | "+ // nolint: gosec
 		"grep 'config' | awk '{print $1}' | xargs -I {} kubectl delete configmap {}")
 	maybeDelete.Stdout = os.Stdout
 	err := maybeDelete.Run()
@@ -389,7 +401,7 @@ func writeKubeConfigMaps() {
 	for _, name := range resourceNames {
 		configName := fmt.Sprintf("%s-config", name)
 		fromFile := fmt.Sprintf("--from-file=kubernetes/config/%s", name)
-		create := exec.Command("kubectl", "create", "configmap", configName, fromFile) // nolint: gas
+		create := exec.Command("kubectl", "create", "configmap", configName, fromFile) // nolint: gosec
 		create.Stdout = os.Stdout
 		err = create.Run()
 		maybeExit(err)

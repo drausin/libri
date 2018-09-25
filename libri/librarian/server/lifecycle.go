@@ -28,9 +28,12 @@ import (
 )
 
 const (
-	postListenNotifyWait  = 100 * time.Millisecond
-	backoffMaxElapsedTime = 5 * time.Second
-	maxConcurrentStreams  = 128
+	postListenNotifyWait = 100 * time.Millisecond
+	maxConcurrentStreams = 128
+)
+
+var (
+	backoffMaxElapsedTime = 60 * time.Second
 )
 
 const (
@@ -45,7 +48,7 @@ const (
 	LoggerNBootstrappedPeers = "n_peers"
 )
 
-var errNoBootstrappedPeers = errors.New("failed to bootstrap any other peers")
+var errInsufficientBootstrappedPeers = errors.New("failed to bootstrap enough other peers")
 
 // Start is the entry point for a Librarian server. It bootstraps peers for the Librarians's
 // routing table and then begins listening for and handling requests. It notifies the up channel
@@ -60,15 +63,17 @@ func Start(logger *zap.Logger, config *Config, up chan *Librarian) error {
 	errs := make(chan error, 2)
 
 	// populate routing table
+	bootstrapped := make(chan struct{})
 	go func() {
 		if err := l.bootstrapPeers(config.BootstrapAddrs); err != nil {
 			errs <- err
 		}
+		close(bootstrapped)
 	}()
 
 	// start main listening thread
 	go func() {
-		errs <- l.listenAndServe(up)
+		errs <- l.listenAndServe(up, bootstrapped)
 	}()
 
 	return <-errs
@@ -80,17 +85,16 @@ func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
 
 	var intro *introduce.Introduction
 	operation := func() error {
-		intro = introduce.NewIntroduction(l.selfID, l.apiSelf, l.config.Introduce)
+		intro = introduce.NewIntroduction(l.peerID, l.orgID, l.apiSelf, l.config.Introduce)
 		if err := l.introducer.Introduce(intro, bootstraps); err != nil {
 			l.logger.Debug("introduction error", zap.String("error", err.Error()))
 			return err
 		}
-		if len(intro.Result.Responded) == 0 {
-			// error if couldn't find any
-			l.logger.Debug("no bootstrapped peers",
-				zap.String("error", errNoBootstrappedPeers.Error()),
-			)
-			return errNoBootstrappedPeers
+		if !intro.ReachedMin() {
+			// error if couldn't find any/enough peers
+			l.logger.Debug("not enough bootstrapped peers",
+				zap.Int("num_introduced", len(intro.Result.Responded)))
+			return errInsufficientBootstrappedPeers
 		}
 		return nil
 	}
@@ -100,7 +104,7 @@ func (l *Librarian) bootstrapPeers(bootstrapAddrs []*net.TCPAddr) error {
 	if err := cbackoff.Retry(operation, backoff); err != nil {
 		l.logger.Error("encountered fatal error while bootstrapping",
 			zap.Error(err),
-			zap.Stringer("self_id", l.selfID),
+			zap.Stringer("self_id", l.peerID),
 			zap.String("public_name", l.config.PublicName),
 		)
 		return err
@@ -143,7 +147,7 @@ func makeBootstrapPeers(bootstrapAddrs []*net.TCPAddr) (
 	return peers, addrStrs
 }
 
-func (l *Librarian) listenAndServe(up chan *Librarian) error {
+func (l *Librarian) listenAndServe(up chan *Librarian, bootstrapped chan struct{}) error {
 	s := grpc.NewServer(
 		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
 		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
@@ -168,7 +172,7 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 	// - listening to SIGTERM (and friends) signals from outside world
 	// - sending publications to subscribed peers
 	// - document replication
-	l.startAuxRoutines()
+	l.startAuxRoutines(bootstrapped)
 
 	// handle stop signal
 	go func() {
@@ -210,7 +214,7 @@ func (l *Librarian) listenAndServe(up chan *Librarian) error {
 	return nil
 }
 
-func (l *Librarian) startAuxRoutines() {
+func (l *Librarian) startAuxRoutines(bootstrapped chan struct{}) {
 	if l.config.ReportMetrics {
 		go func() {
 			if err := l.metrics.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -243,6 +247,8 @@ func (l *Librarian) startAuxRoutines() {
 
 	// long-running goroutine managing subscriptions to other peers
 	go func() {
+		// wait until have bootstrapped peers
+		<-bootstrapped
 		if err := l.subscribeTo.Begin(); err != nil {
 			l.logger.Error("fatal subscriptionTo error", zap.Error(err))
 			cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
@@ -251,6 +257,9 @@ func (l *Librarian) startAuxRoutines() {
 
 	// long-running goroutine replicating documents
 	go func() {
+		// wait until have bootstrapped peers
+		<-bootstrapped
+		time.Sleep(60 * time.Second)
 		if err := l.replicator.Start(); err != nil {
 			l.logger.Error("fatal replicator error", zap.Error(err))
 			cerrors.MaybePanic(l.Close()) // don't try to recover from Close error
@@ -288,11 +297,6 @@ func (l *Librarian) Close() error {
 
 	// close all client connections
 	if err := l.clients.CloseAll(); err != nil {
-		return err
-	}
-
-	// save routing table state
-	if err := l.rt.Save(l.serverSL); err != nil {
 		return err
 	}
 

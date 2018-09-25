@@ -7,6 +7,7 @@ import (
 
 	"github.com/drausin/libri/libri/author/io/print"
 	"github.com/drausin/libri/libri/author/io/publish"
+	"github.com/drausin/libri/libri/common/ecid"
 	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/parse"
 	"go.uber.org/zap"
@@ -44,6 +45,9 @@ type Config struct {
 
 	// KeychainDir is the local directory where the author keys are stored.
 	KeychainDir string
+
+	// OrgID is the organization ID of the peer, if one exists.
+	OrgID ecid.ID
 
 	// LibrarianAddrs is a list of public addresses of Librarian servers to issue request to.
 	LibrarianAddrs []*net.TCPAddr

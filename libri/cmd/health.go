@@ -11,7 +11,6 @@ var errFailedHealthcheck = errors.New("some or all librarians unhealthy")
 var healthCmd = &cobra.Command{
 	Use:   "health",
 	Short: "check health of librarian peers",
-	Long:  `TODO (drausin) more detailed description`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		author, _, err := newTestAuthorGetter().get()
 		if err != nil {

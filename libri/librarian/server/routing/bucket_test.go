@@ -14,14 +14,14 @@ import (
 func TestBucket_PushPop(t *testing.T) {
 	for n := 1; n <= 128; n *= 2 {
 		rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
-		preferer, doctor := comm.NewFindRpPreferer(rec), comm.NewNaiveDoctor()
+		preferer, doctor := comm.NewRpPreferer(rec), comm.NewNaiveDoctor()
 		b := newFirstBucket(DefaultMaxActivePeers, preferer, doctor)
 		rng := rand.New(rand.NewSource(int64(n)))
 		for i, p := range peer.NewTestPeers(rng, n) {
 
 			// simulate i successful responses from peer p so that heap ordering is well-defined
-			for j := 0; j < i; j++ {
-				rec.Record(p.ID(), api.Find, comm.Response, comm.Success)
+			for j := 0; j <= i; j++ {
+				rec.Record(p.ID(), api.Verify, comm.Response, comm.Success)
 			}
 			heap.Push(b, p)
 		}
@@ -36,7 +36,7 @@ func TestBucket_PushPop(t *testing.T) {
 
 func TestBucket_Peak(t *testing.T) {
 	rec := comm.NewQueryRecorderGetter(comm.NewAlwaysKnower())
-	preferer, doctor := comm.NewFindRpPreferer(rec), comm.NewNaiveDoctor()
+	preferer, doctor := comm.NewRpPreferer(rec), comm.NewNaiveDoctor()
 	b := newFirstBucket(DefaultMaxActivePeers, preferer, doctor)
 
 	// nothing to peak b/c bucket is empty

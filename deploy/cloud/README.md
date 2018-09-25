@@ -1,9 +1,8 @@
-## Libri cluster deployment
+# Libri cluster deployment
 
-Deploying a cluster involves creating infrastructure via Terraform and deploying services
-and other things onto it via Kubernetes.
+Deploying a cluster involves creating infrastructure via Terraform and deploying services onto it via Kubernetes.
 
-The components of a libri cluster are
+The components of a Libri cluster are
 - libri-headless: headless `ClusterIP` service for internal DNS resolution among librarians
 - librarians-[0,...,N-1]: `NodePort` services for each of the librarians, making them accessible
 to outside authors
@@ -16,46 +15,89 @@ to outside authors
 If you want to just try out the Kubernetes part first without creating GCP infrastucture,
 you can run it via minikube (currently tested with v0.24, Kubernetes v1.8.0).
 
-#### Initializing
+## Requirements
 
-Clusters are hosted in (currently) one of two environments: minikube or GCP. Initialize a local
-(minikube) cluster with
+* [Kubernetes-cli](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+* [Terraform](https://www.terraform.io/intro/getting-started/install.html)
+* [Go](https://golang.org/doc/install)
+* Go Cobra package: `$ go get -u github.com/spf13/cobra/cobra`
+* Go Terraform package: `$ go get -u github.com/hashicorp/terraform`
+* [jq](https://stedolan.github.io/jq/download/)
+* Optional for local execution: [Minikube](https://github.com/kubernetes/minikube/releases)
+    * tested with Minikube v0.25.2
+* Optional for testing: [Docker](https://docs.docker.com/install/)
+
+## Initializing Infrastructure
+
+First, create a local directory to store cluster configuration files: e.g. from libri repo path:
+
+    cd deploy/cloud && mkdir -p clusters
+
+Specify a name for the new cluster and store the path reference:
+
+    CLUSTER_NAME="my-test-cluster"
+    CLUSTER_DIR="$(pwd)/clusters/${CLUSTER_NAME}"
+
+**Minikube (local):**
 
     go run cluster.go init minikube \
-        --clusterDir /path/to/my-test-cluster-dir
-        --clusterName my-test-cluster
+        --clusterDir "${CLUSTER_DIR}" \
+        --clusterName "${CLUSTER_NAME}"
+    export TF_VAR_cluster_admin_user="dummy user"
 
-where `/path/to/clusters/dir` is the directory to create the cluster subdirectory in. The GCP
-cluster initialization is very similar
+**GCP (cloud):**
 
-    go run cluster.go init gcp \
-        --clusterDir /path/to/my-test-cluster-dir
-        --clusterName my-test-cluster \
-        --bucket my-bucket-name \
-        --gcpProject my-gcp-project
+Create a new [GCP Project](https://console.cloud.google.com/projectcreate); provision a
+[Storage bucket](https://console.cloud.google.com/storage/browser); and create an
+[IAM Service Account](https://console.cloud.google.com/projectselector/iam-admin/serviceaccounts)
+with owner permissions and save the `.json` keyfile to a local directory.
 
+Set the GCP project name:
 
-The `terraform.tfvars` file created in the cluster directory has settings (like number of
+    $ GCP_PROJECT='YOUR GCP PROJECT NAME'
+    $ GCP_BUCKET='YOUR GCP BUCKET NAME'
+    $ gcloud config set project ${GCP_PROJECT}
+
+Specify the service account keyfile location:
+
+    $ export GOOGLE_APPLICATION_CREDENTIALS=/path/to/keyfile/<keyfile>.json
+    $ gcloud auth activate-service-account --key-file=${GOOGLE_APPLICATION_CREDENTIALS}
+
+Customize (with project and bucket name) and execute the following command to create the standard
+Terraform configuration file.
+
+    $ go run cluster.go init gcp \
+        --clusterDir "${CLUSTER_DIR}" \
+        --clusterName "${CLUSTER_NAME}" \
+        --bucket "${GCP_BUCKET}" \
+        --gcpProject "${GCP_PROJECT}"
+
+Finally, provide GCP credential information to Terraform:
+
+    $ export TF_VAR_credentials_file=${GOOGLE_APPLICATION_CREDENTIALS}
+    $ export TF_VAR_cluster_admin_user=$(jq -r '.client_email' ${TF_VAR_credentials_file})
+
+**Optional Additional Configuration**
+
+The `terraform.tfvars` file created in the ${CLUSTER_DIR} directory has settings (like number of
 librarians) that can you can change if you want, though the default should be reasonable
 enough to start. The corresponding `variables.tf` file in the directory contains description
 of these settings.
 
+## Planning
 
-#### Planning
+To see what would be created upon spinning up the new cluster, use
 
-To see what would be created upon spinning up a cluster called `my-cluster`, use
-
-    go run cluster.go plan -d /path/to/my-test-cluster-dir
+    $ go run cluster.go plan --nokube -d ${CLUSTER_DIR}
 
 If your cluster is hosted on GCP, you should first see Terraform plans and then planned dry
 run Kubernetes resources. Minikube clusters have no Terraform component.
 
+## Applying
 
-#### Applying
+Create the cluster and resources (enter 'yes' when prompted):
 
-Create the cluster and resources with
-
-    go run cluster.go apply -d /path/to/my-test-cluster-dir
+    $ go run cluster.go apply -d ${CLUSTER_DIR}
 
 You should see the the resources being created (Terraform resources can take up to 5 minutes). See
 the created Kubernetes pods with
@@ -84,12 +126,14 @@ and the created services with
     prometheus     10.0.0.133   <nodes>       9090:30090/TCP    4m        app=prometheus
 
 
-#### Testing
+## Testing
+
+**Obtain Libri IP Address(es)**
 
 If using a local cluster, get the external address for one of the services
 
-    $ minikube service librarians-0 --url
-    http://192.168.99.100:30100
+    minikube service librarians-0 --url
+    librarian_addrs=$(minikube service librarians-0 --url | sed -E 's/http:\/\///g')
 
 If using a GCP cluster, get an external address from one of the nodes
 
@@ -111,48 +155,54 @@ If using a GCP cluster, get an external address from one of the nodes
     node-exporter-zwr2p           1/1       Running   0          8m        10.142.0.3   gke-libri-dev-default-pool-5ee39584-tljc
     prometheus-1589647967-rj06c   1/1       Running   0          8m        10.24.1.5    gke-libri-dev-default-pool-5ee39584-schn
 
-For now, you need to visually "join" the pods to the instances to get the IP:Port combinations for
-the librarians; for the above, they are
-- librarians-0: 35.196.233.112:30100
-- librarians-1: 35.185.100.233:30101
-- librarians-2: 104.196.183.229:30102
-- librarians-3: 35.196.233.112:30103
+You can parse the public address from the librarians via the following:
+
+    N_LIBRARIANS=4
+    librarian_addrs=""
+    for i in $(seq 0 $((N_LIBRARIANS - 1))); do
+        librarian_addrs="${librarian_addrs},$(kubectl logs librarians-${i} | grep publicAddr | sed -E 's/.*"publicAddr": "([^ "]*).*/\1/g')"
+    done
+    librarian_addrs=${librarian_addrs:1:${#librarian_addrs}}
+
+**Execute Test**
 
 For convenience (and speed), you can run testing commands from an ephemeral container. Test the
 health of a librarian with
 
-    $ librarian_addrs='192.168.99.100:30100,192.168.99.100:30101,192.168.99.100:30102'
-    $ docker run --rm daedalus2718/libri:latest test health -a "${librarian_addrs}"
+    docker run --rm daedalus2718/libri:snapshot test health -a "${librarian_addrs}"
 
 Test uploading/downloading entries from the cluster with
 
-    $ docker run --rm daedalus2718/libri:latest test io -a "${librarian_addrs}"
+    docker run --rm daedalus2718/libri:snapshot test io -a "${librarian_addrs}"
 
 If you get timeout issues (especially with remote GCP cluster), try bumping the timeout up to 20 seconds with
 
-    $ docker run --rm daedalus2718/libri:latest test io -a "${librarian_addrs}" --timeout 20
+    docker run --rm daedalus2718/libri:snapshot test io -a "${librarian_addrs}" --timeout 20
 
+## Joining the public Libri testnet 
 
-#### Monitoring
+See the [public testnet doc](../../libri/acceptance/public-testnet.md).
 
-If using minikube, get the Grafana service address
+## Monitoring
+
+If using Minikube, get the Grafana service address
 
     $ minikube service grafana --url
     http://192.168.99.100:30300
 
 If using GCP, use the the same visual "join" as with librarians above to see that the NodePort public address
-for the Grafana service is `104.196.183.229:30300`.
+for the Grafana service is with port 30300.
 
 You can also examine the logs of any pod
 
     $ kubectl logs librarians-1
 
-#### Updating
+## Updating
 
 When you want to update the cluster (e.g., add a librarian or a node), just change the appropriate property in
 `terraform.tfvars` and re-apply
 
-    ./libri-cluster.sh apply /path/to/clusters/my-cluster
+    ./libri-cluster.sh apply ${CLUSTER_DIR}
 
 If the change you've applied involves the Prometheus or Grafana configmaps, you have to bounce the service manually
 (since configmaps aren't a formal Kubernetes resources) to pick up the new config. Do this by just deleting the pod
@@ -192,14 +242,14 @@ and letting Kubernetes recreate it
     prometheus-1589647967-0c0bn   1/1       Running   0          1h
 
 
-#### Destroying
+## Destroying
 
 When you're finished with a cluster, you have to destroy it manually, which you can do via
 
-    $ kubectl delete -f /path/to/clusters/my-cluster/libri.yml
+    $ kubectl delete -f ${CLUSTER_DIR}/libri.yml
 
-If you have Terraform infrastructure, you'll then use
+If you have Terraform infrastructure, you'll then use the following:
 
-    $ pushd /path/to/clusters/my-cluster
+    $ pushd ${CLUSTER_DIR}
     $ terraform destroy
     $ popd

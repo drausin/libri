@@ -89,11 +89,13 @@ type params struct {
 // testClient has enough info to make requests to other peers
 // nolint: megacheck
 type testClient struct {
-	selfID  ecid.ID
-	selfAPI *api.PeerAddress
-	signer  lclient.Signer
-	rt      routing.Table
-	logger  *zap.Logger
+	selfID    ecid.ID
+	orgID     ecid.ID
+	selfAPI   *api.PeerAddress
+	signer    lclient.Signer
+	orgSigner lclient.Signer
+	rt        routing.Table
+	logger    *zap.Logger
 }
 
 // nolint: megacheck
@@ -149,21 +151,25 @@ func setUp(params *params) *state { // nolint: deadcode
 	// create client that will issue requests to network
 	rng := rand.New(rand.NewSource(0))
 	selfID := ecid.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
 	publicAddr := peer.NewTestPublicAddr(params.nSeeds + params.nPeers + 1)
 	selfPeer := peer.New(selfID.ID(), "test client", publicAddr)
-	signer := lclient.NewSigner(selfID.Key())
+	signer := lclient.NewECDSASigner(selfID.Key())
+	orgSigner := lclient.NewECDSASigner(orgID.Key())
 	knower := comm.NewAlwaysKnower()
 	rec := comm.NewQueryRecorderGetter(knower)
-	preferer := comm.NewFindRpPreferer(rec)
+	preferer := comm.NewRpPreferer(rec)
 	doctor := comm.NewNaiveDoctor()
 	rParams := routing.NewDefaultParameters()
 
 	clientImpl := &testClient{
-		selfID:  selfID,
-		selfAPI: selfPeer.ToAPI(),
-		rt:      routing.NewEmpty(selfID.ID(), preferer, doctor, rParams),
-		signer:  signer,
-		logger:  logger,
+		selfID:    selfID,
+		orgID:     orgID,
+		selfAPI:   selfPeer.ToAPI(),
+		rt:        routing.NewEmpty(selfID.ID(), preferer, doctor, rParams),
+		signer:    signer,
+		orgSigner: orgSigner,
+		logger:    logger,
 	}
 
 	// create authors

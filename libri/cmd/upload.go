@@ -31,7 +31,6 @@ var (
 var uploadCmd = &cobra.Command{
 	Use:   "upload",
 	Short: "upload a local file to the libri network",
-	Long:  `TODO (drausin) add longer description and examples here`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return newFileUploader().upload()
 	},
@@ -85,7 +84,7 @@ func (u *fileUploaderImpl) upload() error {
 	if _, err = os.Stat(upFilepath); err != nil {
 		return err
 	}
-	file, err := os.Open(upFilepath)
+	file, err := os.Open(upFilepath) // nolint: gosec
 	if err != nil {
 		return err
 	}
@@ -115,7 +114,7 @@ type mediaTypeGetter interface {
 type mediaTypeGetterImpl struct{}
 
 func (*mediaTypeGetterImpl) get(upFilepath string) (string, error) {
-	file, err := os.Open(upFilepath)
+	file, err := os.Open(upFilepath) // nolint: gosec
 	if err != nil {
 		return "", err
 	}

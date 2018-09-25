@@ -52,12 +52,24 @@ type Signer interface {
 	Sign(m proto.Message) (string, error)
 }
 
+type emptySigner struct{}
+
+func (emptySigner) Sign(m proto.Message) (string, error) {
+	return "", nil
+}
+
+// NewEmptySigner returns a Signer than returns an empty string signature instead of actually
+// signing the message.
+func NewEmptySigner() Signer {
+	return emptySigner{}
+}
+
 type ecdsaSigner struct {
 	key *ecdsa.PrivateKey
 }
 
-// NewSigner returns a new Signer instance using the given private key.
-func NewSigner(key *ecdsa.PrivateKey) Signer {
+// NewECDSASigner returns a new Signer instance using the given private key.
+func NewECDSASigner(key *ecdsa.PrivateKey) Signer {
 	return &ecdsaSigner{key}
 }
 

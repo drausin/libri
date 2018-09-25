@@ -30,19 +30,28 @@ type Verifier interface {
 }
 
 type verifier struct {
-	signer          client.Signer
+	peerSigner      client.Signer
+	orgSigner       client.Signer
 	verifierCreator client.VerifierCreator
+	doc             comm.Doctor
 	rp              ResponseProcessor
 	rec             comm.QueryRecorder
 }
 
 // NewVerifier returns a new Verifier with the given Querier and ResponseProcessor.
 func NewVerifier(
-	s client.Signer, rec comm.QueryRecorder, c client.VerifierCreator, rp ResponseProcessor,
+	peerSigner client.Signer,
+	orgSigner client.Signer,
+	rec comm.QueryRecorder,
+	doc comm.Doctor,
+	c client.VerifierCreator,
+	rp ResponseProcessor,
 ) Verifier {
 	return &verifier{
-		signer:          s,
+		peerSigner:      peerSigner,
+		orgSigner:       orgSigner,
 		verifierCreator: c,
+		doc:             doc,
 		rp:              rp,
 		rec:             rec,
 	}
@@ -50,11 +59,15 @@ func NewVerifier(
 
 // NewDefaultVerifier creates a new Verifier with default sub-object instantiations.
 func NewDefaultVerifier(
-	signer client.Signer, rec comm.QueryRecorder, clients client.Pool,
+	peerSigner client.Signer,
+	orgSigner client.Signer,
+	rec comm.QueryRecorder,
+	doc comm.Doctor,
+	clients client.Pool,
 ) Verifier {
 	vc := client.NewVerifierCreator(clients)
-	rp := NewResponseProcessor(peer.NewFromer())
-	return NewVerifier(signer, rec, vc, rp)
+	rp := NewResponseProcessor(peer.NewFromer(), doc)
+	return NewVerifier(peerSigner, orgSigner, rec, doc, vc, rp)
 }
 
 type peerResponse struct {
@@ -118,7 +131,8 @@ func (v *verifier) query(next peer.Peer, verify *Verify) (*api.VerifyResponse, e
 		return nil, err
 	}
 	rq := verify.CreateRq()
-	ctx, cancel, err := client.NewSignedTimeoutContext(v.signer, rq, verify.Params.Timeout)
+	ctx, cancel, err := client.NewSignedTimeoutContext(v.peerSigner, v.orgSigner, rq,
+		verify.Params.Timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -203,11 +217,15 @@ type ResponseProcessor interface {
 
 type responseProcessor struct {
 	fromer peer.Fromer
+	doc    comm.Doctor
 }
 
 // NewResponseProcessor creates a new ResponseProcessor.
-func NewResponseProcessor(fromer peer.Fromer) ResponseProcessor {
-	return &responseProcessor{fromer: fromer}
+func NewResponseProcessor(fromer peer.Fromer, doc comm.Doctor) ResponseProcessor {
+	return &responseProcessor{
+		fromer: fromer,
+		doc:    doc,
+	}
 }
 
 func (vrp *responseProcessor) Process(
@@ -237,7 +255,13 @@ func (vrp *responseProcessor) Process(
 			// that we choose to avoid altogether at the expense of (very) occasionally missing a
 			// closer peer
 			v.wrapLock(func() {
-				search.AddPeers(v.Result.Queried, v.Result.Unqueried, rp.Peers, vrp.fromer)
+				search.AddPeers(
+					v.Result.Queried,
+					v.Result.Unqueried,
+					vrp.doc,
+					rp.Peers,
+					vrp.fromer,
+				)
 			})
 		}
 		return nil

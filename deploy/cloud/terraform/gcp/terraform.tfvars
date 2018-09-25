@@ -1,9 +1,8 @@
 cluster_host = "gcp"
-cluster_admin_user = "experimenter@libri-170711.iam.gserviceaccount.com"
 
 # librarians
 num_librarians = 8
-librarian_libri_version = "0.4.0"
+librarian_libri_version = "snapshot"
 librarian_disk_size_gb = 10
 librarian_disk_type = "pd-standard"
 librarian_cpu_limit = "200m"

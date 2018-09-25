@@ -20,8 +20,7 @@ const (
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
 	Use:   "libri",
-	Short: "libri is a public peer-to-peer encrypted data storage network",
-	Long:  `TODO (drausin) add longer description & examples here`,
+	Short: "execute Libri client and server commands",
 }
 
 // Execute is the main entrypoint for the libri CLI.

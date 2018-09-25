@@ -36,7 +36,7 @@ type KEK struct {
 	// AESKey is the 32-byte AES-256 key used to encrypt the EEK.
 	AESKey []byte
 
-	// IV is the 32-byte block cipher initialization vector (IV) seed.
+	// IV is the 12-byte block cipher initialization vector (IV) seed.
 	IV []byte
 
 	// HMACKey is the 32-byte key used for the EEK ciphertext HMAC-256.
@@ -44,8 +44,7 @@ type KEK struct {
 }
 
 // NewKEK generates a new *KEK instance from the shared secret between a random ECDSA private and
-// separate ECDSA public key. It also returns the author and reader public keys, serialized to
-// byte slices.
+// separate ECDSA public key.
 func NewKEK(priv *ecdsa.PrivateKey, pub *ecdsa.PublicKey) (*KEK, error) {
 	if !ecid.Curve.IsOnCurve(priv.X, priv.Y) {
 		return nil, ErrAuthorOffCurve

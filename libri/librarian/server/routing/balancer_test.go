@@ -2,10 +2,9 @@ package routing
 
 import (
 	"math/rand"
+	"net"
 	"testing"
 	"time"
-
-	"net"
 
 	"github.com/drausin/libri/libri/common/id"
 	"github.com/drausin/libri/libri/librarian/api"

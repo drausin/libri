@@ -14,6 +14,10 @@ var (
 	// DefaultTargetNumIntroductions is the default target number of peers to get introduced to.
 	DefaultTargetNumIntroductions = uint(128)
 
+	// DefaultMinNumIntroductions is the default minimum number of peers to be introduced to for
+	// it to be considered successful.
+	DefaultMinNumIntroductions = uint(3)
+
 	// DefaultNumPeersPerRequest is the default number of peers to ask for in each introduce
 	// request.
 	DefaultNumPeersPerRequest = uint(16)
@@ -34,6 +38,9 @@ type Parameters struct {
 	// target number of peers to become introduced to
 	TargetNumIntroductions uint
 
+	// minimum number of introduced peers for introduction to be considered successful
+	MinNumIntroductions uint
+
 	// number of peers to ask for in each request
 	NumPeersPerRequest uint
 
@@ -51,6 +58,7 @@ type Parameters struct {
 func NewDefaultParameters() *Parameters {
 	return &Parameters{
 		TargetNumIntroductions: DefaultTargetNumIntroductions,
+		MinNumIntroductions:    DefaultMinNumIntroductions,
 		NumPeersPerRequest:     DefaultNumPeersPerRequest,
 		NMaxErrors:             DefaultNMaxErrors,
 		Concurrency:            DefaultConcurrency,
@@ -60,7 +68,6 @@ func NewDefaultParameters() *Parameters {
 
 // Result holds an introduction's (intermediate) result.
 type Result struct {
-
 	// map of peers not yet queried
 	Unqueried map[string]peer.Peer
 
@@ -98,10 +105,17 @@ type Introduction struct {
 }
 
 // NewIntroduction creates a new Introduction instance.
-func NewIntroduction(selfID ecid.ID, apiSelf *api.PeerAddress, params *Parameters) *Introduction {
+func NewIntroduction(
+	selfID, orgID ecid.ID, apiSelf *api.PeerAddress, params *Parameters,
+) *Introduction {
 	return &Introduction{
 		NewRequest: func() *api.IntroduceRequest {
-			return client.NewIntroduceRequest(selfID, apiSelf, params.NumPeersPerRequest)
+			return client.NewIntroduceRequest(
+				selfID,
+				orgID,
+				apiSelf,
+				params.NumPeersPerRequest,
+			)
 		},
 		Result: NewInitialResult(),
 		Params: params,
@@ -117,6 +131,11 @@ func (i *Introduction) wrapLock(operation func()) {
 // ReachedTarget returns whether introductions have occurred with the target number of peers.
 func (i *Introduction) ReachedTarget() bool {
 	return uint(len(i.Result.Responded)) >= i.Params.TargetNumIntroductions
+}
+
+// ReachedMin returns whether introductions have occurred with the min number of peers.
+func (i *Introduction) ReachedMin() bool {
+	return uint(len(i.Result.Responded)) >= i.Params.MinNumIntroductions
 }
 
 // Exhausted returns whether all of the possible peers have been queried.

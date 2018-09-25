@@ -35,16 +35,22 @@ message RequestMetadata {
     // 32-byte unique request ID
     bytes request_id = 1;
 
-    // peer's ECDSA public key
+    // peer ECDSA public key
     bytes pub_key = 2;
+
+    // (optional) organization ECDSA public key
+    bytes org_pub_key = 3;
 }
 
 message ResponseMetadata {
     // 32-byte request ID that generated this response
     bytes request_id = 1;
 
-    // peer's ECDSA public key
+    // peer ECDSA public key
     bytes pub_key = 2;
+
+    // (optional) organization ECDSA public key
+    bytes org_pub_key = 3;
 }
 
 message IntroduceRequest {

@@ -13,6 +13,17 @@ LOCAL_TEST_DATA_DIR="${LOCAL_DIR}/data"
 LOCAL_TEST_LOGS_DIR="${LOCAL_DIR}/logs"
 mkdir -p "${LOCAL_TEST_LOGS_DIR}"
 
+# determine which md5 command to use
+MD5_CMD="md5sum"
+if ( ! command -v ${MD5_CMD} > /dev/null ) && command -v "md5" > /dev/null; then
+    # use BSD md5 if md5sum isn't available
+    MD5_CMD="md5 -q"
+fi
+if ! command -v ${MD5_CMD} > /dev/null; then
+    echo 'unable to determine which MD5 command to use'
+    exit 1
+fi
+
 # get test data if it doesn't exist
 if [[ ! -d "${LOCAL_TEST_DATA_DIR}" ]]; then
     ${LOCAL_DIR}/get-test-data.sh
@@ -23,7 +34,7 @@ IMAGE="daedalus2718/libri:snapshot"
 KEYCHAIN_DIR="/keychains"  # inside container
 CONTAINER_TEST_DATA_DIR="/test-data"
 LIBRI_PASSPHRASE="test passphrase"  # bypass command-line entry
-N_LIBRARIANS=3
+N_LIBRARIANS=4
 
 # clean up any existing libri containers
 echo "cleaning up existing network and containers..."
@@ -84,6 +95,7 @@ docker create \
     -v ${CONTAINER_TEST_DATA_DIR} \
     -e LIBRI_PASSPHRASE="${LIBRI_PASSPHRASE}" \
     ${IMAGE}
+
 docker cp ${LOCAL_TEST_DATA_DIR}/* author-data:${CONTAINER_TEST_DATA_DIR}
 docker run \
     --rm \
@@ -108,12 +120,12 @@ for file in $(ls ${LOCAL_TEST_DATA_DIR}); do
         -a "${librarian_addrs}" \
         -f "${up_file}"  \
         --timeout "${LIBRI_TIMEOUT}" \
-        --logLevel "${LIBRI_LOG_LEVEL}" |& \
+        --logLevel "${LIBRI_LOG_LEVEL}" 2>&1 | \
         tee ${LOCAL_TEST_LOGS_DIR}/${file}.log
 
     log_file="${LOCAL_TEST_LOGS_DIR}/${file}.log"
     down_file="${CONTAINER_TEST_DATA_DIR}/downloaded.${file}"
-    envelope_key=$(grep envelope_key ${log_file} | sed -r 's/^.*"envelope_key": "(\w+)".*$/\1/g')
+    envelope_key=$(grep envelope_key ${log_file} | sed -E 's/.*"envelope_key": "([^ "]*).*/\1/g')
     docker run \
         --rm \
         --net=libri \
@@ -124,8 +136,10 @@ for file in $(ls ${LOCAL_TEST_DATA_DIR}); do
 
     # verify md5s (locally, since it's simpler)
     docker cp "author-data:${down_file}" "${LOCAL_TEST_DATA_DIR}/downloaded.${file}"
-    up_md5=$(md5sum "${LOCAL_TEST_DATA_DIR}/${file}" | awk '{print $1}')
-    down_md5=$(md5sum "${LOCAL_TEST_DATA_DIR}/downloaded.${file}" | awk '{print $1}')
+    up_md5=$(${MD5_CMD} "${LOCAL_TEST_DATA_DIR}/${file}" | awk '{print $1}')
+    down_md5=$(${MD5_CMD} "${LOCAL_TEST_DATA_DIR}/downloaded.${file}" | awk '{print $1}')
+    echo "uploaded MD5: ${up_md5}"
+    echo "downloaded MD5: ${down_md5}"
     [[ "${up_md5}" = "${down_md5}" ]]
 done
 

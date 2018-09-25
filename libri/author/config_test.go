@@ -19,7 +19,6 @@ func TestNewDefaultConfig(t *testing.T) {
 	assert.NotEmpty(t, c.LibrarianAddrs)
 	assert.NotEmpty(t, c.Print)
 	assert.NotEmpty(t, c.Publish)
-	assert.NotEmpty(t, c.LogLevel)
 }
 
 func TestConfig_WithDataDir(t *testing.T) {

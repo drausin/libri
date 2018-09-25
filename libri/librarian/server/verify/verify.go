@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/drausin/libri/libri/common/ecid"
-	errors "github.com/drausin/libri/libri/common/errors"
+	"github.com/drausin/libri/libri/common/errors"
 	"github.com/drausin/libri/libri/common/id"
 	clogging "github.com/drausin/libri/libri/common/logging"
 	"github.com/drausin/libri/libri/librarian/api"
@@ -161,9 +161,11 @@ type Verify struct {
 
 // NewVerify creates a new Verify instance for the given key with the given macKey, expected mac
 // value, and params.
-func NewVerify(selfID ecid.ID, key id.ID, value, macKey []byte, params *Parameters) *Verify {
+func NewVerify(
+	selfID, orgID ecid.ID, key id.ID, value, macKey []byte, params *Parameters,
+) *Verify {
 	rqCreator := func() *api.VerifyRequest {
-		return client.NewVerifyRequest(selfID, key, macKey, params.NClosestResponses)
+		return client.NewVerifyRequest(selfID, orgID, key, macKey, params.NClosestResponses)
 	}
 
 	// get the expected mac

@@ -23,13 +23,14 @@ func TestTo_BeginEnd(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	params := NewDefaultToParameters()
 	clientID := ecid.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
 	lg := clogging.NewDevInfoLogger()
 	params.NSubscriptions = 2
 	cb := &fixedClientSetBalancer{}
 	recent, err := NewRecentPublications(2)
 	assert.Nil(t, err)
 	newPubs := make(chan *KeyedPub, 1)
-	toImpl := NewTo(params, lg, clientID, cb, nil, recent, newPubs).(*to)
+	toImpl := NewTo(params, lg, clientID, orgID, cb, nil, nil, recent, newPubs).(*to)
 
 	// mock what we actually get from subscriptions
 	received := make(chan *pubValueReceipt)
@@ -137,6 +138,7 @@ func TestTo_Begin_err(t *testing.T) {
 	params.NSubscriptions = 2
 	lg := clogging.NewDevInfoLogger()
 	clientID := ecid.NewPseudoRandom(rng)
+	orgID := ecid.NewPseudoRandom(rng)
 	recent, err := NewRecentPublications(2)
 	csb := &fixedClientSetBalancer{}
 	assert.Nil(t, err)
@@ -145,7 +147,7 @@ func TestTo_Begin_err(t *testing.T) {
 	// check csb.Next() error bubbles up
 	nextErr := errors.New("some Next() error")
 	csb1 := &fixedClientSetBalancer{err: nextErr}
-	toImpl1 := NewTo(params, lg, clientID, csb1, nil, recent, newPubs).(*to)
+	toImpl1 := NewTo(params, lg, clientID, orgID, csb1, nil, nil, recent, newPubs).(*to)
 	toImpl1.sb = &fixedSubscriptionBeginner{subscribeErr: errors.New("some subscribe error")}
 	err = toImpl1.Begin()
 	assert.Equal(t, nextErr, err)
@@ -153,7 +155,7 @@ func TestTo_Begin_err(t *testing.T) {
 	// check NewFPSubscription error bubbles up
 	params2 := NewDefaultToParameters()
 	params2.FPRate = 0.0 // will trigger error
-	toImpl2 := NewTo(params2, lg, clientID, csb, nil, recent, newPubs).(*to)
+	toImpl2 := NewTo(params2, lg, clientID, orgID, csb, nil, nil, recent, newPubs).(*to)
 	toImpl2.sb = &fixedSubscriptionBeginner{subscribeErr: errors.New("some subscribe error")}
 	err = toImpl2.Begin()
 	assert.Equal(t, ErrOutOfBoundsFPRate, err)
@@ -161,7 +163,7 @@ func TestTo_Begin_err(t *testing.T) {
 	// check running error count above threshold triggers error
 	received := make(chan *pubValueReceipt)
 	errs := make(chan error)
-	toImpl3 := NewTo(params, lg, clientID, csb, nil, recent, newPubs).(*to)
+	toImpl3 := NewTo(params, lg, clientID, orgID, csb, nil, nil, recent, newPubs).(*to)
 	toImpl3.sb = &fixedSubscriptionBeginner{
 		received:     received,
 		errs:         errs,
@@ -211,9 +213,10 @@ func TestSubscriptionBeginnerImpl_Begin_ok(t *testing.T) {
 	fromID := ecid.NewPseudoRandom(rng)
 	fromPubKey := fromID.PublicKeyBytes()
 	sb := subscriptionBeginnerImpl{
-		clientID: clientID,
-		signer:   &fixedSigner{signature: "some.signature.jtw"},
-		params:   NewDefaultToParameters(),
+		peerID:     clientID,
+		peerSigner: &fixedSigner{signature: "some.signature.jtw"},
+		orgSigner:  &fixedSigner{signature: "some.org-signature.jtw"},
+		params:     NewDefaultToParameters(),
 	}
 	responses := make(chan *api.SubscribeResponse, 1)
 	responseErrs := make(chan error, 1)
@@ -292,9 +295,10 @@ func TestSubscriptionBeginnerImpl_Begin_err(t *testing.T) {
 
 	// check NewSignedTimeoutContext error bubbles up
 	sb1 := subscriptionBeginnerImpl{
-		clientID: clientID,
-		signer:   &fixedSigner{err: errors.New("some Signer error")},
-		params:   NewDefaultToParameters(),
+		peerID:     clientID,
+		peerSigner: &fixedSigner{err: errors.New("some Signer error")},
+		orgSigner:  &fixedSigner{signature: "some.org-signature.jtw"},
+		params:     NewDefaultToParameters(),
 	}
 	lc1 := &fixedSubscriber{}
 	err = sb1.begin(lc1, sub, received, errs, end)
@@ -302,9 +306,10 @@ func TestSubscriptionBeginnerImpl_Begin_err(t *testing.T) {
 
 	// check Subscribe error bubbles up
 	sb2 := subscriptionBeginnerImpl{
-		clientID: clientID,
-		signer:   &fixedSigner{signature: "some.signature.jtw"},
-		params:   NewDefaultToParameters(),
+		peerID:     clientID,
+		peerSigner: &fixedSigner{signature: "some.signature.jtw"},
+		orgSigner:  &fixedSigner{signature: "some.org-signature.jtw"},
+		params:     NewDefaultToParameters(),
 	}
 	lc2 := &fixedSubscriber{
 		client: nil,
@@ -315,9 +320,10 @@ func TestSubscriptionBeginnerImpl_Begin_err(t *testing.T) {
 
 	// check Recv error bubbles up
 	sb3 := subscriptionBeginnerImpl{
-		clientID: clientID,
-		signer:   &fixedSigner{signature: "some.signature.jtw"},
-		params:   NewDefaultToParameters(),
+		peerID:     clientID,
+		peerSigner: &fixedSigner{signature: "some.signature.jtw"},
+		orgSigner:  &fixedSigner{signature: "some.org-signature.jtw"},
+		params:     NewDefaultToParameters(),
 	}
 	responses3 := make(chan *api.SubscribeResponse, 1)
 	responseErrs3 := make(chan error, 1)
@@ -334,9 +340,10 @@ func TestSubscriptionBeginnerImpl_Begin_err(t *testing.T) {
 
 	// check newPublicationValueReceipt error bubbles up
 	sb4 := subscriptionBeginnerImpl{
-		clientID: clientID,
-		signer:   &fixedSigner{signature: "some.signature.jtw"},
-		params:   NewDefaultToParameters(),
+		peerID:     clientID,
+		peerSigner: &fixedSigner{signature: "some.signature.jtw"},
+		orgSigner:  &fixedSigner{signature: "some.org-signature.jtw"},
+		params:     NewDefaultToParameters(),
 	}
 	responses4 := make(chan *api.SubscribeResponse, 1)
 	responseErrs4 := make(chan error, 1)

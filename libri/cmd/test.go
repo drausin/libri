@@ -17,7 +17,6 @@ const (
 var testCmd = &cobra.Command{
 	Use:   "test",
 	Short: "test a set of librarian servers",
-	Long:  `TODO (drausin) add longer description here`,
 }
 
 func init() {

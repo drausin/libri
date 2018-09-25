@@ -107,7 +107,6 @@ type documentSLD struct {
 // NewDocumentSLD creates a new NamespaceSL for the "entries" namespace
 // backed by a db.KVDB instance.
 func NewDocumentSLD(kvdb db.KVDB) DocumentSLD {
-	// TODO load metrics
 	return &documentSLD{
 		sld: NewKVDBStorerLoaderDeleter(
 			Documents,

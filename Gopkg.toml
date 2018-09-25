@@ -23,4 +23,4 @@
 
 [[constraint]]
   name = "github.com/tecbot/gorocksdb"
-  revision = "57a309fefefb9c03d6dcc11a0e5705fc4711b46d"
+  revision = "214b6b7bc0f06812ab5602fdc502a3e619916f38"

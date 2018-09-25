@@ -25,7 +25,7 @@ var (
 	BuildDate string
 )
 
-const semverString = "0.4.0"
+var semverString = "0.5.0"
 
 const (
 	develop         = "develop"

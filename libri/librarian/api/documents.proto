@@ -91,7 +91,7 @@ message EntryMetadata {
     // -----------------------------
 
     // domain-specific metadata
-    map<string, bytes> properties = 7;
+    map<string, string> properties = 7;
 
     // (relative) filepath of the data contained in the entry
     string filepath = 8;

@@ -31,19 +31,28 @@ type Searcher interface {
 }
 
 type searcher struct {
-	signer        client.Signer
+	peerSigner    client.Signer
+	orgSigner     client.Signer
 	finderCreator client.FinderCreator
+	doc           comm.Doctor
 	rp            ResponseProcessor
 	rec           comm.QueryRecorder
 }
 
 // NewSearcher returns a new Searcher with the given Querier and ResponseProcessor.
 func NewSearcher(
-	s client.Signer, rec comm.QueryRecorder, c client.FinderCreator, rp ResponseProcessor,
+	peerSigner client.Signer,
+	orgSigner client.Signer,
+	rec comm.QueryRecorder,
+	doc comm.Doctor,
+	c client.FinderCreator,
+	rp ResponseProcessor,
 ) Searcher {
 	return &searcher{
-		signer:        s,
+		peerSigner:    peerSigner,
+		orgSigner:     orgSigner,
 		finderCreator: c,
+		doc:           doc,
 		rp:            rp,
 		rec:           rec,
 	}
@@ -51,13 +60,19 @@ func NewSearcher(
 
 // NewDefaultSearcher creates a new Searcher with default sub-object instantiations.
 func NewDefaultSearcher(
-	signer client.Signer, rec comm.QueryRecorder, clients client.Pool,
+	peerSigner client.Signer,
+	orgSigner client.Signer,
+	rec comm.QueryRecorder,
+	doc comm.Doctor,
+	clients client.Pool,
 ) Searcher {
 	return NewSearcher(
-		signer,
+		peerSigner,
+		orgSigner,
 		rec,
+		doc,
 		client.NewFinderCreator(clients),
-		NewResponseProcessor(peer.NewFromer()),
+		NewResponseProcessor(peer.NewFromer(), doc),
 	)
 }
 
@@ -117,7 +132,8 @@ func (s *searcher) query(next peer.Peer, search *Search) (*api.FindResponse, err
 		return nil, err
 	}
 	rq := search.CreatRq()
-	ctx, cancel, err := client.NewSignedTimeoutContext(s.signer, rq, search.Params.Timeout)
+	ctx, cancel, err := client.NewSignedTimeoutContext(s.peerSigner, s.orgSigner, rq,
+		search.Params.Timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -242,11 +258,15 @@ type ResponseProcessor interface {
 
 type responseProcessor struct {
 	fromer peer.Fromer
+	doc    comm.Doctor
 }
 
 // NewResponseProcessor creates a new ResponseProcessor instance.
-func NewResponseProcessor(f peer.Fromer) ResponseProcessor {
-	return &responseProcessor{fromer: f}
+func NewResponseProcessor(f peer.Fromer, doc comm.Doctor) ResponseProcessor {
+	return &responseProcessor{
+		fromer: f,
+		doc:    doc,
+	}
 }
 
 // Process processes an api.FindResponse, updating the result with the newly found peers.
@@ -268,7 +288,13 @@ func (frp *responseProcessor) Process(rp *api.FindResponse, s *Search) error {
 			// to avoid altogether at the expense of (very) occasionally missing a
 			// closer peer
 			s.wrapLock(func() {
-				AddPeers(s.Result.Queried, s.Result.Unqueried, rp.Peers, frp.fromer)
+				AddPeers(
+					s.Result.Queried,
+					s.Result.Unqueried,
+					frp.doc,
+					rp.Peers,
+					frp.fromer,
+				)
 			})
 		}
 		return nil
@@ -282,6 +308,7 @@ func (frp *responseProcessor) Process(rp *api.FindResponse, s *Search) error {
 func AddPeers(
 	queried map[string]struct{},
 	unqueried ClosestPeers,
+	doc comm.Doctor,
 	peers []*api.PeerAddress,
 	fromer peer.Fromer,
 ) {
@@ -289,8 +316,8 @@ func AddPeers(
 		newID := id.FromBytes(pa.PeerId)
 		inUnqueried := unqueried.In(newID)
 		_, inQueried := queried[newID.String()]
-		if !inUnqueried && !inQueried {
-			// only add discovered peers that we haven't already seen
+		if !inUnqueried && !inQueried && doc.Healthy(newID) {
+			// only add discovered peers that we haven't already seen and are healthy
 			newPeer := fromer.FromAPI(pa)
 			unqueried.SafePush(newPeer)
 		}

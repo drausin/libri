@@ -33,6 +33,7 @@ func TestStart_ok(t *testing.T) {
 	config := newTestConfig()
 	config.WithProfile(true).WithReportMetrics(true)
 	config.WithLogLevel(zapcore.DebugLevel)
+	config.Introduce.MinNumIntroductions = 0 // since no other peers
 
 	var err error
 	up := make(chan *Librarian, 1)
@@ -40,8 +41,8 @@ func TestStart_ok(t *testing.T) {
 	wg1.Add(1)
 	go func(wg2 *sync.WaitGroup) {
 		defer wg2.Done()
-		err = Start(clogging.NewDevInfoLogger(), config, up)
-		assert.Nil(t, err)
+		err2 := Start(clogging.NewDevInfoLogger(), config, up)
+		assert.Nil(t, err2)
 	}(wg1)
 
 	// get the librarian once it's up
@@ -122,7 +123,7 @@ func TestLibrarian_bootstrapPeers_ok(t *testing.T) {
 		fixedResult.Responded[p.ID().String()] = p
 	}
 
-	p, d := &fixedPreferer{}, &fixedDoctor{}
+	p, d := &fixedPreferer{}, &fixedDoctor{healthy: true}
 	rt := routing.NewEmpty(id.NewPseudoRandom(rng), p, d, routing.NewDefaultParameters())
 	l := &Librarian{
 		config: NewDefaultConfig(),
@@ -156,10 +157,11 @@ func TestLibrarian_bootstrapPeers_introduceErr(t *testing.T) {
 	}
 
 	p, d := &fixedPreferer{}, &fixedDoctor{}
+	backoffMaxElapsedTime = 5 * time.Second
 	rt := routing.NewEmpty(id.NewPseudoRandom(rng), p, d, routing.NewDefaultParameters())
 	l := &Librarian{
 		config: NewDefaultConfig(),
-		selfID: ecid.NewPseudoRandom(rng),
+		peerID: ecid.NewPseudoRandom(rng),
 		introducer: &fixedIntroducer{
 			err: errors.New("some fatal introduce error"),
 		},
@@ -192,7 +194,7 @@ func TestLibrarian_bootstrapPeers_noResponsesErr(t *testing.T) {
 	rt := routing.NewEmpty(id.NewPseudoRandom(rng), p, d, routing.NewDefaultParameters())
 	l := &Librarian{
 		config: NewDefaultConfig().WithPublicAddr(publicAddr).WithLogLevel(zapcore.DebugLevel),
-		selfID: ecid.NewPseudoRandom(rng),
+		peerID: ecid.NewPseudoRandom(rng),
 		introducer: &fixedIntroducer{
 			result: fixedResult,
 		},

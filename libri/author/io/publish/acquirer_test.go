@@ -19,14 +19,16 @@ import (
 func TestAcquirer_Acquire_ok(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	clientID := ecid.NewPseudoRandom(rng)
-	signer := client.NewSigner(clientID.Key())
+	signer := client.NewECDSASigner(clientID.Key())
+	orgID := ecid.NewPseudoRandom(rng)
+	orgSigner := client.NewECDSASigner(orgID.Key())
 	params := NewDefaultParameters()
 	expectedDoc, docKey := api.NewTestDocument(rng)
 	authorPub := api.GetAuthorPub(expectedDoc)
 	lc := &fixedGetter{
 		responseValue: expectedDoc,
 	}
-	acq := NewAcquirer(clientID, signer, params)
+	acq := NewAcquirer(clientID, orgID, signer, orgSigner, params)
 
 	actualDoc, err := acq.Acquire(docKey, authorPub, lc)
 	assert.Nil(t, err)
@@ -42,7 +44,9 @@ func TestAcquirer_Acquire_ok(t *testing.T) {
 func TestAcquirer_Acquire_err(t *testing.T) {
 	rng := rand.New(rand.NewSource(0))
 	clientID := ecid.NewPseudoRandom(rng)
-	signer := client.NewSigner(clientID.Key())
+	signer := client.NewECDSASigner(clientID.Key())
+	orgID := ecid.NewPseudoRandom(rng)
+	orgSigner := client.NewECDSASigner(orgID.Key())
 	params := NewDefaultParameters()
 	expectedDoc, docKey := api.NewTestDocument(rng)
 	authorPub := api.GetAuthorPub(expectedDoc)
@@ -53,7 +57,7 @@ func TestAcquirer_Acquire_err(t *testing.T) {
 		signature: "",
 		err:       errors.New("some Sign error"),
 	}
-	acq1 := NewAcquirer(clientID, signer1, params)
+	acq1 := NewAcquirer(clientID, orgID, signer1, orgSigner, params)
 	actualDoc, err := acq1.Acquire(docKey, authorPub, lc)
 	assert.NotNil(t, err)
 	assert.Nil(t, actualDoc)
@@ -61,14 +65,14 @@ func TestAcquirer_Acquire_err(t *testing.T) {
 	lc2 := &fixedGetter{
 		err: errors.New("some Get error"),
 	}
-	acq2 := NewAcquirer(clientID, signer, params)
+	acq2 := NewAcquirer(clientID, orgID, signer, orgSigner, params)
 	actualDoc, err = acq2.Acquire(docKey, authorPub, lc2)
 	assert.NotNil(t, err)
 	assert.Nil(t, actualDoc)
 
 	// check that different request ID causes error
 	lc3 := &diffRequestIDGetter{rng}
-	acq3 := NewAcquirer(clientID, signer, params)
+	acq3 := NewAcquirer(clientID, orgID, signer, orgSigner, params)
 	actualDoc, err = acq3.Acquire(docKey, authorPub, lc3)
 	assert.NotNil(t, err)
 	assert.Nil(t, actualDoc)
