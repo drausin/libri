@@ -321,8 +321,8 @@ func testShare(t *testing.T, _ *params, state *state) {
 func testReplicate(t *testing.T, _ *params, state *state) {
 
 	// take n peers out of the network
-	toRemove := state.peers[:12]
-	state.peers = state.peers[12:]
+	toRemove := state.peers[:16]
+	state.peers = state.peers[16:]
 	for _, p1 := range toRemove {
 		go func(p2 *server.Librarian) {
 			// explicitly end subscriptions first and then sleep so that later librarians
@@ -342,7 +342,7 @@ func testReplicate(t *testing.T, _ *params, state *state) {
 			nUnderReplicated1++
 		}
 	}
-	// assert.True(t, nUnderReplicated1 > 0)  // TODO (drausin) add back when less flakey
+	assert.True(t, nUnderReplicated1 > 0)
 	state.logger.Info("finished replica audit 1", zap.Int("n_under_replicated", nUnderReplicated1))
 
 	rereplicateWaitSecs := 10
