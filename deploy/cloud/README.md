@@ -179,10 +179,6 @@ If you get timeout issues (especially with remote GCP cluster), try bumping the 
 
     docker run --rm daedalus2718/libri:snapshot test io -a "${librarian_addrs}" --timeout 20
 
-## Joining the public Libri testnet 
-
-See the [public testnet doc](../../libri/acceptance/public-testnet.md).
-
 ## Monitoring
 
 If using Minikube, get the Grafana service address
